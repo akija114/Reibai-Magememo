@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>冷媒配管 曲げメモ</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="曲げメモ">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--sel:#dbeafe;--warn:#ea580c;--warnbg:#fff1e6}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--sel:#17405f;--warn:#fb923c;--warnbg:#3a2415}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--sel:#17405f;--warn:#fb923c;--warnbg:#3a2415}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+*,*:before,*:after{box-sizing:border-box}
+body{margin:0;height:100%;display:flex;flex-direction:column;overflow:hidden;padding:8px 10px 0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",Meiryo,sans-serif;-webkit-tap-highlight-color:transparent}
+button,input,select{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer;touch-action:manipulation}
+.top{flex:none;display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.top select{flex:1;min-width:0;height:40px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);padding:0 8px;font-size:15px;font-weight:600}
+.iconbtn{flex:none;width:40px;height:40px;border-radius:12px;background:var(--card);border:1.5px solid var(--line);font-size:19px}
+.tot{flex:none;font-size:12.5px;color:var(--sub);text-align:right;line-height:1.2;white-space:nowrap}
+.tot b{font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.tot.over,.tot.over b{color:var(--warn)}
+.bar{flex:none;height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-bottom:8px}
+.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+.bar.over i{background:var(--warn)}
+.stage{flex:0 0 34%;min-height:232px;position:relative;border-radius:14px;overflow:hidden;background:#e0f2fe;margin-bottom:8px}
+.stage.full{position:fixed;inset:0;z-index:50;border-radius:0;margin:0;min-height:0}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;z-index:1}
+#photoBg{position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;display:none}
+.hud,.stinfo,.hint{z-index:2}
+input[type=range]{accent-color:var(--acc)}
+.hud{position:absolute;display:flex;gap:6px;align-items:center;left:8px;right:8px;top:8px;pointer-events:none}
+.hud>*{pointer-events:auto}
+.stage.full .hud{top:calc(env(safe-area-inset-top,0px) + 10px)}
+.hb{width:36px;height:36px;border-radius:18px;background:#fff;color:#0c4a6e;font-size:17px;box-shadow:0 2px 8px #0c4a6e33;padding:0}
+.stage.full .hb{width:42px;height:42px;border-radius:21px;font-size:19px}
+.chip{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 auto 0 0;background:#ffffffee;color:#0c4a6e;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;box-shadow:0 2px 8px #0c4a6e33;font-variant-numeric:tabular-nums}
+.stage.full .chip{margin:0 auto;font-size:15px}
+.chip.over{background:#f97316;color:#fff}
+#close3{display:none}.stage.full #close3{display:block}.stage.full #expand{display:none}
+.hint{display:none;position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center;font-size:15px;color:#0c4a6e;pointer-events:none}
+.stage.full .hint{display:block}
+#rows{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:2px 2px 8px}
+.row{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:8px 8px 6px;margin-bottom:8px}
+.row.over{border-color:var(--warn);background:var(--warnbg)}
+.row.sel{box-shadow:0 0 0 2.5px #fbbf24}
+.m{display:grid;grid-template-columns:22px minmax(0,1fr) 48px auto 32px;gap:4px;align-items:center}
+.m>b{font-size:18px;text-align:center;color:var(--acc)}
+.m input{width:100%;min-width:0;height:44px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);padding:0 8px;font-size:20px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.m input:focus{outline:2px solid var(--acc);border-color:var(--acc)}
+.ang{height:44px;border-radius:10px;background:var(--acc);color:#fff;font-weight:800;font-size:15px;padding:0}
+:root[data-theme="dark"] .ang,:root[data-theme="dark"] .add,:root[data-theme="dark"] .primary{color:#04202e}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .ang,:root:not([data-theme="light"]) .add,:root:not([data-theme="light"]) .primary{color:#04202e}}
+.tw{display:flex;gap:2px}
+.tw button{width:28px;height:44px;border-radius:8px;background:var(--bg);border:1.5px solid var(--line);font-size:15px;padding:0}
+.tw button.on{background:var(--sel);border-color:var(--acc)}
+.tw button:disabled{opacity:.3}
+.del{height:44px;font-size:17px;padding:0}
+.inf{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12.5px;color:var(--sub);padding:5px 4px 1px 26px}
+.inf b{color:var(--ink);font-size:14px;font-variant-numeric:tabular-nums;margin-left:3px}
+.inf .w{color:var(--warn);font-weight:700}
+.inf .neg b{color:var(--warn)}
+.dock{flex:none;display:flex;gap:8px;padding:8px 0}
+.dock button{height:54px;border-radius:16px;font-size:16px;font-weight:800}
+.add{flex:1.15;background:var(--acc);color:#fff}
+.d3{flex:1;background:var(--card);border:1.5px solid var(--acc)!important;color:var(--acc)}
+.dock button:active,.ang:active,.tw button:active,.iconbtn:active{transform:scale(.96)}
+.ctitle{font-size:15px;font-weight:800;margin:8px 0}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+.card2{border:1.5px solid var(--acc);border-radius:14px;background:var(--sel);padding:10px 4px;display:flex;flex-direction:column;gap:3px;align-items:center;font-size:12.5px;color:var(--sub)}
+.card2 i{font-style:normal;font-size:20px;font-weight:800;color:var(--acc)}
+.card2 b{display:block;font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums}
+.goalres{font-size:14px;line-height:1.55;margin-bottom:8px}
+.calcsep{height:1px;background:var(--line);margin:14px 0 6px}
+.tools{position:absolute;right:8px;top:52px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.stage.full .tools{top:calc(env(safe-area-inset-top,0px) + 62px)}
+.ugrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.ubtn{height:58px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-size:13.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.ubtn span{font-size:20px}
+.ubtn.on{background:var(--sel);border-color:var(--acc);color:var(--acc)}
+.share{flex:none;width:54px;background:#16a34a;color:#fff}
+.note{font-size:12px;color:var(--sub);line-height:1.5;padding:0 2px 10px}
+.stinfo{position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);background:#ffffffee;color:#0c4a6e;border-radius:12px;padding:5px 10px;font-size:12.5px;font-weight:700;line-height:1.4;box-shadow:0 2px 8px #0c4a6e33;pointer-events:none;display:none}
+.stinfo.on{display:block}
+.stage.full .stinfo{font-size:15px;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 50px);padding:8px 12px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:13px;color:var(--sub);margin-bottom:4px;font-weight:600}
+.field input{width:100%;height:48px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);padding:0 12px;font-size:17px}
+#impTxt{width:100%;height:170px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);padding:10px 12px;font-size:16px;resize:none}
+.seg{display:flex;gap:8px}
+.seg button{flex:1;height:48px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-size:16px;font-weight:700}
+.seg button.on{background:var(--sel);border-color:var(--acc);color:var(--acc)}
+.ov{position:fixed;inset:0;z-index:60;background:#00000055;display:none;align-items:flex-end}
+.ov.on{display:flex}
+.sheet{background:var(--card);width:100%;max-height:88vh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px))}
+.shead{flex:none;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.shead h3{flex:1;margin:0;font-size:17px}
+.shead button{width:36px;height:36px;border-radius:18px;background:var(--bg);font-size:16px}
+.sharebtn{flex:none;height:44px;border-radius:12px;background:var(--sel);color:var(--acc);font-weight:700;font-size:14px;padding:0 14px;margin-bottom:10px}
+.plist{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.pempty{color:var(--sub);font-size:14px;text-align:center;padding:24px 0}
+.pcard{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}
+.pcard .pmain{flex:1;min-width:0;text-align:left}
+.pcard .pmain b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .pmain span{font-size:12px;color:var(--sub)}
+.pcard .pdel{flex:none;width:38px;height:38px;border-radius:10px;background:var(--bg);font-size:15px}
+.saverow{flex:none;display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.saverow input{flex:1;min-width:0;height:46px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);padding:0 12px;font-size:15px}
+.primary{flex:none;height:46px;padding:0 16px;border-radius:12px;background:var(--acc);color:#fff;font-weight:800;font-size:14px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 76px);transform:translateX(-50%);background:#0f172aee;color:#fff;padding:9px 16px;border-radius:20px;font-size:13.5px;z-index:70;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="top">
+  <select id="sz" aria-label="配管サイズ"></select>
+  <button class="iconbtn" id="infoBtn" aria-label="現場情報">📝</button>
+  <button class="iconbtn" id="calcBtn" aria-label="寸法計算">🧮</button>
+  <button class="iconbtn" id="cloudBtn" aria-label="保存・共有">☁️</button>
+  <div class="tot" id="tot"></div>
+</div>
+<div class="bar" id="bar"><i></i></div>
+
+<div class="stage" id="stage">
+  <div id="photoBg"></div>
+  <canvas id="cv"></canvas>
+  <div class="hud">
+    <button class="hb" id="close3" aria-label="閉じる">✕</button>
+    <div class="chip" id="chip"></div>
+    <button class="hb" id="reset3" aria-label="視点リセット">🎯</button>
+    <button class="hb" id="expand" aria-label="全画面">⛶</button>
+  </div>
+  <div class="tools">
+    <button class="hb" id="viewBtn" aria-label="視点切替">🔄</button>
+    <button class="hb" id="photoBtn" aria-label="背景写真">📷</button>
+    <button class="hb" id="unitBtn" aria-label="機器の模型">🏠</button>
+    <button class="hb" id="labBtn" aria-label="文字の表示切替">🔤</button>
+  </div>
+  <div class="stinfo" id="stInfo"></div>
+  <div class="hint">👆回転　🤏拡大　✌️移動</div>
+</div>
+
+<div class="ov" id="infoOv">
+  <div class="sheet">
+    <div class="shead"><h3>📝 現場情報</h3><button id="closeInfo">✕</button></div>
+    <div class="field"><label>🏢 現場名</label><input id="fSite" placeholder="例：A様邸" maxlength="40"></div>
+    <div class="field"><label>🔢 系統</label><input id="fLine" placeholder="例：1F-A系統" maxlength="40"></div>
+    <div class="field"><label>🔧 配管（サイズは上のプルダウン）</label>
+      <div class="seg" id="fKind"><button data-k="液">💧 液管</button><button data-k="ガス">💨 ガス管</button></div>
+    </div>
+    <button class="primary" id="doneInfo" style="width:100%;height:50px;font-size:16px">✅ 決定</button>
+  </div>
+</div>
+
+<div id="rows"></div>
+
+<div class="dock">
+  <button class="add" id="add">➕ 曲げを追加</button>
+  <button class="d3" id="open3">🧊 3D全画面</button>
+  <button class="share" id="quickShare" aria-label="今すぐ送る">📤</button>
+</div>
+
+<div class="ov" id="cloudOv">
+  <div class="sheet">
+    <div class="shead"><h3 id="cloudTitle">☁️ 保存・共有</h3><button id="closeCloud">✕</button></div>
+    <button class="sharebtn" id="shareLink" style="background:#dcfce7;color:#166534">📤 今の内容をLINEなどで送る</button>
+    <div style="display:flex;gap:8px;margin-bottom:10px"><button class="sharebtn" id="copyTxt" style="flex:1;margin:0;padding:0 6px">📋 テキストでコピー</button><button class="sharebtn" id="pasteTxt" style="flex:1;margin:0;padding:0 6px">📥 貼り付けて読込</button></div>
+    <div class="note">👆 タップした瞬間の内容がリンクに埋め込まれます。相手はリンクを開くだけですぐに見られます（保存は不要）。</div>
+    <div class="note" id="cloudNote">🗄 下の一覧は「保存」した分だけ、このページを開ける人同士で共有されます（このアプリのサーバー上に保管）。</div>
+    <div class="plist" id="planList"></div>
+    <div class="saverow">
+      <input id="planTitle" placeholder="タイトル（例：A様邸 室外機）" maxlength="40">
+      <button class="primary" id="savePlan">💾 保存</button>
+    </div>
+  </div>
+</div>
+<div class="ov" id="calcOv">
+  <div class="sheet" style="overflow-y:auto">
+    <div class="shead"><h3>🧮 寸法計算</h3><button id="closeCalc">✕</button></div>
+    <div class="ctitle">↔️ 差（ずらす距離）から斜め長</div>
+    <div class="field"><label>差 mm（平行にずらしたい距離）</label><input id="ofsIn" inputmode="numeric" value="200"></div>
+    <div class="cards" id="ofsCards"></div>
+    <div class="note" id="ofsNote"></div>
+    <div class="note">斜め＝曲げと曲げの間の長さ（行の長さに入れる値）／進み＝ずらす間に前へ進む距離</div>
+    <div class="calcsep"></div>
+    <div class="ctitle">🎯 合計を合わせる</div>
+    <div class="field"><label>目標の合計 mm（空欄で解除）</label><input id="goalIn" inputmode="numeric" placeholder="例：1500"></div>
+    <div class="goalres" id="goalRes"></div>
+    <button class="primary" id="goalApply" style="width:100%;height:50px;font-size:15px"></button>
+  </div>
+</div>
+<div class="ov" id="unitOv">
+  <div class="sheet" style="overflow-y:auto">
+    <div class="shead"><h3>🏠 機器の模型</h3><button id="closeUnit">✕</button></div>
+    <div class="seg" id="uOn" style="margin-bottom:12px"><button data-v="1">👁 表示する</button><button data-v="0">🙈 隠す</button></div>
+    <div class="ctitle">🟢 起点（配管の始まり）</div>
+    <div class="ugrid" id="uS"></div>
+    <div id="uOS"></div>
+    <div id="uWS"></div>
+    <div class="ctitle">🔴 終点</div>
+    <div class="ugrid" id="uE"></div>
+    <div id="uOE"></div>
+    <div id="uWE"></div>
+    <div class="ctitle">🏭 メーカー（冷媒配管とドレンの位置）</div>
+    <div class="ugrid" id="uMk"></div>
+    <div class="seg" id="uFlip" style="margin-bottom:8px"><button data-v="0">そのまま</button><button data-v="1">↔️ 左右反転</button></div>
+    <div class="note" id="uMkNote"></div>
+    <div class="note">配管がつながる位置に、配管の向きに合わせて機器を置きます。大きさは目安です。</div>
+  </div>
+</div>
+<div class="ov" id="photoOv">
+  <div class="sheet">
+    <div class="shead"><h3>📷 背景写真</h3><button id="closePhoto">✕</button></div>
+    <label class="sharebtn" for="photoIn" id="pickPhoto" style="display:flex;align-items:center;justify-content:center;width:100%;cursor:pointer">📷 写真を撮る／選ぶ</label>
+    <div id="photoStat" class="note" style="display:flex;align-items:center;gap:10px"><img id="photoPrev" alt="" style="display:none;width:64px;height:48px;object-fit:cover;border-radius:8px"><span id="photoMsg">写真はまだありません</span></div>
+    <div class="field"><label>🌫 写真の濃さ</label><input type="range" id="photoOp" min="20" max="100" value="85"></div>
+    <div class="note">3Dを回して写真と同じ向きに合わせ、指2本でパイプを写真に重ねます。写真はこの端末だけに保存され、共有テキストには入りません。</div>
+    <button class="sharebtn" id="rmPhoto" style="width:100%;background:var(--bg);color:var(--warn)">🗑 写真を消す</button>
+    <input type="file" id="photoIn" accept="image/*" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+  </div>
+</div>
+<div class="ov" id="impOv">
+  <div class="sheet">
+    <div class="shead"><h3>📥 テキストを読み込む</h3><button id="closeImp">✕</button></div>
+    <textarea id="impTxt" placeholder="コピーしたテキストをここに貼り付け"></textarea>
+    <button class="primary" id="doImp" style="width:100%;height:50px;font-size:16px;margin-top:10px">✅ 読み込む</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const SIZES=[
+ ["2分 (1/4)",6.35,20000],["3分 (3/8)",9.52,20000],["4分 (1/2)",12.7,20000],["5分 (5/8)",15.88,20000],["6分 (3/4)",19.05,20000],
+ ["7分 (7/8)",22.22,4000],["1インチ (8分)",25.4,4000],["28",28.58,4000],["31",31.75,4000],["38",38.1,4000],["44",44.45,4000]];
+const ANG=[0,15,30,45,90,180];
+const ANGC={15:"#16a34a",30:"#0891b2",45:"#7c3aed",90:"#dc2626",180:"#db2777"};
+const TW=[[0,"⬆️"],[90,"➡️"],[180,"⬇️"],[270,"⬅️"]];
+const NUM="①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+const nm=i=>i<20?NUM[i]:String(i+1);
+const $=s=>document.querySelector(s);
+const fmt=n=>Math.round(n).toLocaleString("ja-JP");
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+let st={s:2,rows:[{l:500,a:90,t:0},{l:800,a:45,t:90}]};
+try{const j=JSON.parse(localStorage.getItem("pbm1"));if(j&&Array.isArray(j.rows)&&j.rows.length&&SIZES[j.s])st=j}catch(e){}
+function normInfo(i){i=i||{};return{site:String(i.site||"").slice(0,40),line:String(i.line||"").slice(0,40),kind:(i.kind==="液"||i.kind==="ガス")?i.kind:""}}
+st.info=normInfo(st.info);
+const normGoal=g=>Math.max(0,Math.round(+g||0));
+st.goal=normGoal(st.goal);
+const UNIT_KEYS=["","out","cas","ceil","wall"];
+/* 室外機の種類。w=幅(mm) h=高さ d=奥行 f=ファン(front=正面 / top=上吹き) 大きさは目安 */
+const OUTM={
+ room:{py:100,pz:-75,n:"ルームエアコン",sub:"ハウジング",w:800,h:550,d:290,f:"front",nf:1},
+ p40:{py:200,pz:0,n:"パッケージ P40〜63",sub:"小型",w:950,h:800,d:350,f:"front",nf:1},
+ p80:{py:200,pz:0,n:"パッケージ P80",sub:"ファン1個",w:990,h:1330,d:370,f:"front",nf:1},
+ p112:{py:200,pz:0,n:"パッケージ P112〜160",sub:"ファン2段",w:1000,h:1690,d:370,f:"front",nf:2},
+ vrv:{py:250,pz:0,n:"ビルマルチ 小",sub:"上吹き1ファン",w:930,h:1690,d:765,f:"top",nf:1},
+ vrv2:{py:250,pz:0,n:"ビルマルチ 大",sub:"上吹き2ファン",w:1700,h:1690,d:765,f:"top",nf:2},
+ ghp:{py:250,pz:0,n:"GHP",sub:"ガスヒートポンプ",w:1000,h:1800,d:1100,f:"top",nf:1,ghp:true}
+};
+const OUT_PKG=["p40","p80","p112"];
+const OUT_X={s:"右側面（前から50mm内側）",f:"正面（表）",b:"背面（裏）",d:"真下（手前）",l:"左下（正面からまっすぐ）",m:"真下（左・手前）"};
+const OUT_VRV=["vrv","vrv2"];
+const outAllow=mk=>OUT_PKG.includes(mk)?["s","f","b","d"]:OUT_VRV.includes(mk)?["l","m"]:mk==="ghp"?["f"]:["s"];
+const OUT_XORDER=["s","f","b","d"];
+/* 自然な向き→配管口基準の向きへの回転（自然のx,y,z軸が移る先） */
+const OUT_R={s:[[1,0,0],[0,1,0],[0,0,1]],f:[[0,0,-1],[0,1,0],[1,0,0]],b:[[0,0,1],[0,1,0],[-1,0,0]],d:[[0,0,-1],[-1,0,0],[0,1,0]],m:[[0,0,-1],[-1,0,0],[0,1,0]],l:[[0,0,-1],[0,1,0],[1,0,0]]};
+function outExitKey(mk,k){const a=outAllow(mk);return a.includes(k)?k:a[0]}
+function outPort(mk,k){
+ const m=OUTM[mk]||OUTM.room,W=m.w,D=m.d;
+ if(mk==="ghp")return[-W/2+120,150,D/2];
+ if(OUT_VRV.includes(mk))return k==="m"?[-W/2+120,0,D/2-60]:[-W/2+180,175,D/2];
+ if(!OUT_PKG.includes(mk))return[W/2,m.py,m.pz];
+ return k==="f"?[W/2-120,200,D/2]:k==="b"?[W/2-120,200,-D/2]:k==="d"?[W/2-120,0,D/2-60]:[W/2,200,D/2-50];
+}
+const OUT_ORDER=["room","p40","p80","p112","vrv","vrv2","ghp"];
+const WALLX={
+ rb:{n:"右後ろ",k:"b",p:[290,-60,0]},rs:{n:"右横",k:"r",p:[400,-60,60]},rd:{n:"右下",k:"d",p:[290,-145,60]},
+ lb:{n:"左後ろ",k:"b",p:[-290,-60,0]},ls:{n:"左横",k:"l",p:[-400,-60,60]},ld:{n:"左下",k:"d",p:[-290,-145,60]}};
+const WALL_ORDER=["rb","rs","rd","lb","ls","ld"];
+const DIRN={b:[0,0,-1],r:[1,0,0],l:[-1,0,0],d:[0,-1,0]};
+function wrot(k,x,y,z){
+ if(k==="d")return[-y,x,z];
+ if(k==="b")return[-z,y,x];
+ if(k==="l")return[-x,y,-z];
+ return[x,y,z];
+}
+function wallPose(key){
+ const w=WALLX[key]||WALLX.rb,k=w.k,pr=wrot(k,w.p[0],w.p[1],w.p[2]),pos=[-pr[0],-pr[1],-pr[2]];
+ let sx=0,n=0,mx=-1e9,my=-1e9;
+ [-400,400].forEach(x=>[-145,145].forEach(y=>[0,215].forEach(z=>{
+  const q=wrot(k,x,y,z),X=q[0]+pos[0],Y=q[1]+pos[1];sx+=X;n++;mx=Math.max(mx,X);my=Math.max(my,Y)})));
+ const dd=DIRN[k];
+ return{k,pos,cx:sx/n,top:my,maxX:mx,dir:wrot(k,dd[0],dd[1],dd[2]),name:w.n};
+}
+const MAKERS=[["daikin","ダイキン",-1,1],["mitsu","三菱電機",1,1],["pana","パナソニック",-1,1],["hitachi","日立",1,1],["toshiba","東芝",-1,1],["mhi","三菱重工",1,1]];
+function normUnits(u){u=u||{};return{on:u.on!==false,s:UNIT_KEYS.includes(u.s)?u.s:"",e:UNIT_KEYS.includes(u.e)?u.e:"",ws:WALLX[u.ws]?u.ws:"rb",we:WALLX[u.we]?u.we:"rb",mk:MAKERS.some(m=>m[0]===u.mk)?u.mk:"daikin",flip:!!u.flip,os:OUTM[u.os]?u.os:"room",oe:OUTM[u.oe]?u.oe:"room",xs:OUT_X[u.xs]?u.xs:"s",xe:OUT_X[u.xe]?u.xe:"s",cs:u.cs==="r"?"r":"f",ce:u.ce==="r"?"r":"f"}}
+function unitSide(cas){const m=MAKERS.find(x=>x[0]===st.units.mk)||MAKERS[0];return(cas?m[2]:1)*(st.units.flip?-1:1)}
+const sideName=s=>s<0?"左":"右";
+st.units=normUnits(st.units);
+function effT(i){const r=st.rows[i];return(r.o&&i>0)?(effT(i-1)+180)%360:r.t}
+const save=()=>{try{localStorage.setItem("pbm1",JSON.stringify(st))}catch(e){}};
+function renderInfo(){
+ const i=st.info,z=SIZES[st.s];
+ const kind=i.kind==="液"?"💧液管":i.kind==="ガス"?"💨ガス管":"";
+ const parts=[i.site&&"🏢 "+i.site,i.line&&"🔢 "+i.line,kind&&kind+" "+z[0]].filter(Boolean);
+ const el=$("#stInfo");el.classList.toggle("on",parts.length>0&&LABM>0);
+ el.innerHTML="";
+ parts.forEach(p=>{const d=document.createElement("div");d.textContent=p;el.appendChild(d)});
+}
+const cur=()=>{const z=SIZES[st.s];return{D:z[1],lim:z[2]}};
+let sel=0,T=null;
+
+function toast(msg){
+ const t=$("#toast");t.textContent=msg;t.classList.add("on");
+ clearTimeout(toast._h);toast._h=setTimeout(()=>t.classList.remove("on"),2000);
+}
+
+function calc(){
+ const {D,lim}=cur();let cum=0,tot=0;
+ const out=st.rows.map(r=>{const back=D*4*r.a/90,shoe=r.l-back;cum+=shoe;tot+=r.l;return{back,shoe,cum,over:tot>lim}});
+ return{out,tot,lim};
+}
+
+$("#sz").innerHTML='<optgroup label="コイル管 20m">'+SIZES.slice(0,5).map((z,i)=>`<option value="${i}">${z[0]}</option>`).join("")+'</optgroup><optgroup label="直管 4m">'+SIZES.slice(5).map((z,i)=>`<option value="${i+5}">${z[0]}</option>`).join("")+"</optgroup>";
+$("#sz").value=st.s;
+$("#sz").onchange=e=>{st.s=+e.target.value;save();upd()};
+
+function render(){
+ const box=$("#rows");box.innerHTML="";
+ sel=clamp(sel,0,st.rows.length-1);
+ st.rows.forEach((r,i)=>{
+  const el=document.createElement("div");el.className="row";
+  el.innerHTML=`<div class="m"><b>${nm(i)}</b><input inputmode="numeric" pattern="[0-9]*" value="${r.l}" aria-label="配管長mm"><button class="ang" aria-label="角度"${r.a?` style="background:${ANGC[r.a]};color:#fff"`:""}>${r.a?r.a+"°":"直管"}</button><div class="tw">${TW.map(([v,e])=>`<button data-t="${v}" class="${effT(i)===v?"on":""}" ${r.a?"":"disabled"}>${e}</button>`).join("")}</div><button class="del" aria-label="削除">🗑️</button></div><div class="inf"></div>`;
+  const inp=el.querySelector("input");
+  el.addEventListener("pointerdown",()=>{if(sel!==i){sel=i;upd()}});
+  inp.oninput=()=>{r.l=Math.max(0,parseInt(inp.value.replace(/[^0-9]/g,""))||0);save();upd()};
+  inp.onfocus=()=>{sel=i;upd();inp.select()};
+  el.querySelector(".ang").onclick=()=>{sel=i;r.a=ANG[(ANG.indexOf(r.a)+1)%ANG.length];save();render()};
+  el.querySelectorAll(".tw button").forEach(b=>b.onclick=()=>{sel=i;r.t=+b.dataset.t;r.o=false;save();render()});
+  el.querySelector(".del").onclick=()=>{if(st.rows.length>1)st.rows.splice(i,1);else st.rows[0]={l:0,a:0,t:0};save();render();if(T)fitT()};
+  box.appendChild(el);
+ });
+ upd();
+}
+
+function upd(){
+ const c=calc();
+ [...$("#rows").children].forEach((el,i)=>{
+  const o=c.out[i],r=st.rows[i];
+  el.classList.toggle("over",o.over);el.classList.toggle("sel",i===sel);
+  el.querySelector(".inf").innerHTML=
+   `<span class="${o.shoe<0?"neg":""}">👞シュー<b>${fmt(o.shoe)}</b></span><span>📍累計<b>${fmt(o.cum)}</b></span>`+
+   (r.a?`<span>✂️引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>↔️U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>↔️差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:"");
+ });
+ const over=c.tot>c.lim;
+ $("#tot").className="tot"+(over?" over":"");
+ const gl=st.goal||0,df=gl-c.tot;
+ $("#tot").innerHTML=`📏<b>${fmt(c.tot)}</b>/${fmt(c.lim)}`+(gl?`<br>🎯<b>${fmt(gl)}</b> ${df>0?"あと"+fmt(df):df===0?"ぴったり✅":"超過"+fmt(-df)}`:"");
+ $("#bar").className="bar"+(over?" over":"");
+ $("#bar i").style.width=Math.min(100,c.tot/c.lim*100)+"%";
+ renderInfo();
+ if(T){build3D();T.dirty=true}
+}
+
+$("#add").onclick=()=>{
+ const last=st.rows[st.rows.length-1];
+ st.rows.push({l:last?last.l:500,a:90,t:0});sel=st.rows.length-1;save();render();
+ if(T)fitT();
+ $("#rows").lastElementChild.scrollIntoView({block:"nearest",behavior:"smooth"});
+};
+
+/* ---------- 3D ---------- */
+function initT(){
+ const cv=$("#cv");
+ const rd=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+ rd.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+ const sc=new THREE.Scene();rd.setClearColor(0x000000,0);
+ const cam=new THREE.PerspectiveCamera(45,1,1,1e6);
+ sc.add(new THREE.HemisphereLight(0xffffff,0x8fb4d4,0.95));
+ const l1=new THREE.DirectionalLight(0xffffff,0.9);l1.position.set(1,2,1.4);sc.add(l1);
+ const l2=new THREE.DirectionalLight(0xbfdcff,0.5);l2.position.set(-1.5,.6,-1);sc.add(l2);
+ const grp=new THREE.Group();sc.add(grp);
+ const gs=new THREE.Scene(),gcam=new THREE.PerspectiveCamera(40,1,0.1,50);
+ const gax=(dir,color,txt)=>{
+  const mt=new THREE.MeshBasicMaterial({color});
+  const sh=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,1,10),mt);
+  sh.position.copy(dir).multiplyScalar(.5);sh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);gs.add(sh);
+  const cn=new THREE.Mesh(new THREE.ConeGeometry(.15,.3,12),mt);
+  cn.position.copy(dir).multiplyScalar(1.12);cn.quaternion.copy(sh.quaternion);gs.add(cn);
+  const lb=label(txt,.6,"#ffffffdd","#"+color.toString(16).padStart(6,"0"));lb.position.copy(dir).multiplyScalar(1.65);gs.add(lb);
+ };
+ gax(new THREE.Vector3(1,0,0),0xdc2626,"前");gax(new THREE.Vector3(0,1,0),0x16a34a,"上");gax(new THREE.Vector3(0,0,1),0x2563eb,"右");
+ gs.add(new THREE.Mesh(new THREE.SphereGeometry(.1,10,8),new THREE.MeshBasicMaterial({color:0x64748b})));
+ T={rd,sc,cam,grp,gs,gcam,w:1,h:1,vi:0,th:.8,ph:1.1,dist:1000,tg:new THREE.Vector3(),ext:1000,center:new THREE.Vector3(),dirty:true};
+
+ const ptrs=new Map();let pm=null,pd=0;
+ const snap=()=>{const a=[...ptrs.values()];if(a.length===2){pm={x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2};pd=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1}};
+ const pan=(dx,dy)=>{
+  cam.updateMatrix();
+  const rt=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0),up=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1);
+  const k=T.dist*0.0016;
+  T.tg.addScaledVector(rt,-dx*k).addScaledVector(up,dy*k);
+ };
+ cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});snap()});
+ const end=e=>{ptrs.delete(e.pointerId);snap()};
+ cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);
+ cv.addEventListener("pointermove",e=>{
+  const p=ptrs.get(e.pointerId);if(!p)return;
+  const ox=p.x,oy=p.y;p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size===1){
+   const dx=p.x-ox,dy=p.y-oy;
+   if(e.buttons&2||e.shiftKey)pan(dx,dy);
+   else{T.th-=dx*0.008;T.ph=clamp(T.ph-dy*0.008,0.05,3.09)}
+  }else if(ptrs.size===2){
+   const a=[...ptrs.values()];
+   const m={x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2},d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;
+   T.dist=clamp(T.dist*pd/d,T.ext*0.05,T.ext*20);
+   pan(m.x-pm.x,m.y-pm.y);pm=m;pd=d;
+  }
+  T.dirty=true;
+ });
+ cv.addEventListener("wheel",e=>{e.preventDefault();T.dist=clamp(T.dist*Math.exp(e.deltaY*0.001),T.ext*0.05,T.ext*20);T.dirty=true},{passive:false});
+ cv.addEventListener("contextmenu",e=>e.preventDefault());
+ new ResizeObserver(sizeT).observe($("#stage"));
+ loop();
+}
+
+function sizeT(){
+ const cv=$("#cv"),w=cv.clientWidth,h=cv.clientHeight;
+ if(!T||!w||!h)return;
+ T.w=w;T.h=h;
+ T.rd.setSize(w,h,false);T.cam.aspect=w/h;T.cam.updateProjectionMatrix();T.dirty=true;
+}
+
+function frameFor(ex){
+ ex=ex.clone().normalize();
+ let up=new THREE.Vector3(0,1,0);if(Math.abs(ex.dot(up))>0.95)up=new THREE.Vector3(0,0,1);
+ const ey=up.clone().addScaledVector(ex,-up.dot(ex)).normalize();
+ return{ex,ey,ez:ex.clone().cross(ey)};
+}
+function rbox(sx,sy,sz,r){
+ try{
+  const sh=new THREE.Shape(),x=sx/2,y=sz/2;
+  sh.moveTo(-x+r,-y);sh.lineTo(x-r,-y);sh.quadraticCurveTo(x,-y,x,-y+r);sh.lineTo(x,y-r);sh.quadraticCurveTo(x,y,x-r,y);
+  sh.lineTo(-x+r,y);sh.quadraticCurveTo(-x,y,-x,y-r);sh.lineTo(-x,-y+r);sh.quadraticCurveTo(-x,-y,-x+r,-y);
+  const g=new THREE.ExtrudeGeometry(sh,{depth:sy,bevelEnabled:false,curveSegments:6});
+  g.rotateX(-Math.PI/2);g.center();return g;
+ }catch(e){return new THREE.BoxGeometry(sx,sy,sz)}
+}
+function makeUnit(type,opt){
+ opt=opt||{};
+ const g=new THREE.Group();let tg=g;
+ const M=c=>new THREE.MeshStandardMaterial({color:c,roughness:.5,metalness:.1});
+ const put=(geo,x,y,z,c)=>{const m=new THREE.Mesh(geo,M(c));m.position.set(x,y,z);tg.add(m);return m};
+ const edge=(m,geo)=>{try{m.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo,25),new THREE.LineBasicMaterial({color:0x1f2937})))}catch(e){}};
+ const bx=(sx,sy,sz,x,y,z,c)=>{const geo=new THREE.BoxGeometry(sx,sy,sz),m=put(geo,x,y,z,c);if(Math.min(sx,sy,sz)>12)edge(m,geo);return m};
+ const rb=(sx,sy,sz,r,x,y,z,c)=>{const geo=rbox(sx,sy,sz,r),m=put(geo,x,y,z,c);edge(m,geo);return m};
+ const cyl=(r,hh,x,y,z,c,sg)=>put(new THREE.CylinderGeometry(r,r,hh,sg||24),x,y,z,c);
+ const WH=0xf1f5f9,DK=0x334155,MD=0x94a3b8;
+ let name="",top=0,cx=0;
+ if(type==="out"){
+  /* 自然な向きで作る：幅Wはx、奥行Dはz（正面=+z）、床=y0。配管口Pnは機種・選んだ位置で決まる。
+     最後に「配管口が原点、配管の向きが+x」になるように箱ごと回す */
+  const om=OUTM[opt.om]||OUTM.room,W=om.w,H=om.h,D=om.d,B=0,X=0,top0=H,FZ=D/2;
+  const xk=outExitKey(opt.om,opt.ox),Pn=outPort(opt.om,xk),RB=OUT_R[xk];
+  const R=v=>[v[0]*RB[0][0]+v[1]*RB[1][0]+v[2]*RB[2][0],v[0]*RB[0][1]+v[1]*RB[1][1]+v[2]*RB[2][1],v[0]*RB[0][2]+v[1]*RB[1][2]+v[2]*RB[2][2]];
+  const body=new THREE.Group();g.add(body);tg=body;
+  body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(...RB[0]),new THREE.Vector3(...RB[1]),new THREE.Vector3(...RB[2])));
+  {const q=R(Pn);body.position.set(-q[0],-q[1],-q[2])}
+  name=om.n;
+  {const q=R([0,H+(om.f==="top"?60:0)-Pn[1],0]),q0=R([-Pn[0],0,-Pn[2]]);cx=q[0]+q0[0];top=q[1]+q0[1];opt.cz=q[2]+q0[2]}
+  rb(W,H,D,Math.min(24,D/8),X,H/2,0,WH);bx(W*.94,40,D*.9,X,B-20,0,0x475569);
+  const fan=(fx,fy,fz,r,face)=>{
+   if(face==="front"){ // 正面(+z)向き
+    const c=cyl(r,8,fx,fy,FZ+2,DK,40);c.rotation.x=Math.PI/2;
+    put(new THREE.TorusGeometry(r,6,6,40),fx,fy,FZ+5,MD);
+    bx(r*2,6,6,fx,fy,FZ+9,MD);bx(6,r*2,6,fx,fy,FZ+9,MD);
+    const q=r*1.25;bx(q*2,5,5,fx,fy+q,FZ+4,MD);bx(q*2,5,5,fx,fy-q,FZ+4,MD);
+   }else{ // 上向き
+    cyl(r,8,fx,fy,fz,DK,40);
+    const ring=put(new THREE.TorusGeometry(r,6,6,40),fx,fy+2,fz,MD);ring.rotation.x=Math.PI/2;
+    bx(r*2,6,6,fx,fy+6,fz,MD);bx(6,6,r*2,fx,fy+6,fz,MD);
+   }
+  };
+  if(om.f==="front"){
+   const r=Math.min(om.nf===2?290:330,W*.38,H*(om.nf===2?.17:.3));
+   for(let i=0;i<om.nf;i++){
+    const y=om.nf===2?B+H*(i?.25:.72):B+H*.55;
+    fan(X,y,0,r,"front");
+   }
+   // 左右の側面と背面は吸込みスリット
+   for(let i=0;i<10;i++){const y=B+40+i*(H-80)/9;bx(6,5,D*.8,X-W/2-1,y,0,MD);bx(W*.8,5,6,X,y,-FZ-1,MD)}
+  }else{
+   const nf=om.nf,r=Math.min(D,W/nf)*.4;
+   for(let i=0;i<nf;i++)fan(nf===1?X:X+(i?1:-1)*W*.25,top0+2,0,r,"top");
+   for(let i=0;i<16;i++){const y=B+60+i*(H-120)/15;bx(W*.9,5,6,X,y,FZ+1,MD);bx(W*.9,5,6,X,y,-FZ-1,MD)}
+   for(let i=0;i<14;i++){const y=B+60+i*(H-120)/13;bx(6,5,D*.85,X-W/2-1,y,0,MD)}
+   if(om.ghp){bx(W*.4,H*.5,6,X+W*.1,B+H*.3,FZ+3,0xcbd5e1);bx(W*.5,200,6,X,B+H*.78,FZ+3,0xfacc15)}
+  }
+  // 正面の目印：正面の上端に赤い帯
+  bx(W*.5,18,6,X,H-45,FZ+3,0xdc2626);
+  // 配管の接続部（バルブカバー）：配管口のまわりの面
+  {const[px,py,pz]=Pn,hz=Math.max(40,Math.min(80,D/2+pz-6,D/2-pz-6)),hh=Math.min(100,py*.5+60);
+   if(xk==="s")bx(8,hh*2,hz*2,px+3,py,pz,MD);
+   else if(xk==="f"||xk==="l")bx(hz*2,hh*2,8,px,py,pz+3,MD);
+   else if(xk==="b")bx(hz*2,hh*2,8,px,py,pz-3,MD);
+   else bx(hz*2,8,hz*2,px,py-3,pz,MD)}
+  tg=g;
+ }else if(type==="cas"){
+  const m=unitSide(true),X=-520,Z=-m*310,Y0=-35,CU=0xc2703a,BR=0xb8860b;
+  name="天カセ（4方向） 配管:"+sideName(m);cx=X;top=Y0+125;
+  bx(840,250,840,X,Y0,Z,0x9ca3af);rb(950,46,950,46,X,Y0-148,Z,WH);
+  bx(560,4,560,X,Y0-173,Z,0xdfe3e8);
+  for(let i=-4;i<=4;i++){bx(540,2,5,X,Y0-176,Z+i*60,MD);bx(5,2,540,X+i*60,Y0-176,Z,MD)}
+  bx(700,5,70,X,Y0-174,Z+390,DK);bx(700,5,70,X,Y0-174,Z-390,DK);bx(70,5,700,X+390,Y0-174,Z,DK);bx(70,5,700,X-390,Y0-174,Z,DK);
+  // 冷媒配管の接続口（角の出っ張り）。配管の起点＝選んだ配管の先端
+  bx(120,160,200,-80,-10,0,0xd5dbe3);
+  const thick=opt.kind!=="液",rA=thick?13:8,rB=thick?8:13,zB=-m*72;
+  [[rA,0],[rB,zB]].forEach(([r,z])=>{
+   const s=cyl(r,80,-40,0,z,CU,16);s.rotation.z=Math.PI/2;
+   const n=cyl(r*1.6,16,-8,0,z,BR,6);n.rotation.z=Math.PI/2;
+  });
+  // ドレン口（反対側の角）
+  const zd=-m*620;
+  bx(70,90,100,-95,Y0-70,zd,0xd5dbe3);
+  const dr=cyl(16,80,-60,Y0-70,zd,0x9ca3af,16);dr.rotation.z=Math.PI/2;
+ }else if(type==="ceil"){
+  /* 天吊：箱は中心が原点。正面=+z、吹出口は正面の下向き。配管は正面から見て右端の後ろ・下から出る */
+  const W=1240,H=210,D=690,ck=opt.ck==="r"?"r":"f",Pn=ck==="r"?[W/2,-H/2+55,-D/2+90]:[W/2-80,-H/2+55,-D/2];
+  const RB=ck==="r"?OUT_R.s:OUT_R.b;
+  const R=v=>[0,1,2].map(j=>v[0]*RB[0][j]+v[1]*RB[1][j]+v[2]*RB[2][j]);
+  const body=new THREE.Group();g.add(body);tg=body;
+  body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(...RB[0]),new THREE.Vector3(...RB[1]),new THREE.Vector3(...RB[2])));
+  {const q=R(Pn);body.position.set(-q[0],-q[1],-q[2])}
+  name="天吊（配管："+(ck==="r"?"右端・裏":"裏面・右下")+"）";
+  {const q=R([-Pn[0],H/2+300-Pn[1],-Pn[2]]);cx=q[0];top=q[1];opt.cz=q[2]}
+  rb(W,H,D,28,0,0,0,WH);
+  bx(W*.9,4,D*.78,0,-H/2-3,-D*.04,0xe8edf2);                                  // 下面の吸込みパネル
+  for(let i=-5;i<=5;i++)bx(W*.84,2,5,0,-H/2-6,-D*.04+i*40,MD);
+  bx(W*.9,54,8,0,22,D/2+1,DK);                                                  // 正面の吹出口（暗い開口）
+  const fl=bx(W*.9,8,86,0,-12,D/2+30,0xf8fafc);fl.rotation.x=0.75;               // 風向フラップ（前・下向き）
+  bx(W*.9,10,8,0,52,D/2+2,MD);
+  [-W/2+100,W/2-100].forEach(x=>[-D/2+100,D/2-100].forEach(z=>cyl(8,300,x,H/2+150,z,0x64748b,10)));
+  if(ck==="r")bx(8,100,170,Pn[0]+3,Pn[1],Pn[2],MD);else bx(170,100,8,Pn[0],Pn[1],Pn[2]-3,MD);   // 配管カバー
+  tg=g;
+ }else{
+  const P=wallPose(opt.wx),ig=new THREE.Group(),keep=tg;tg=ig;
+  bx(800,290,215,0,0,107.5,WH);bx(740,16,110,0,-137,165,DK);bx(700,6,60,0,142,60,MD);bx(70,24,4,260,40,216,0x38bdf8);
+  tg=keep;
+  if(P.k==="d")ig.rotation.z=Math.PI/2;else ig.rotation.y=P.k==="b"?-Math.PI/2:P.k==="l"?Math.PI:0;
+  ig.position.set(P.pos[0],P.pos[1],P.pos[2]);g.add(ig);
+  name="壁掛け（"+P.name+"）";cx=P.cx;top=P.top;
+ }
+ return{g,name,top,cx,cz:opt.cz||0};
+}
+function label(txt,h,bg,fg){
+ const c=document.createElement("canvas"),x=c.getContext("2d");
+ const f='bold 44px -apple-system,"Hiragino Sans",sans-serif';
+ x.font=f;const w=Math.ceil(x.measureText(txt).width)+40;
+ c.width=w;c.height=76;
+ x.font=f;x.fillStyle=bg;x.beginPath();
+ if(x.roundRect)x.roundRect(0,0,w,76,22);else x.rect(0,0,w,76);
+ x.fill();x.fillStyle=fg;x.textBaseline="middle";x.fillText(txt,20,41);
+ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,transparent:true}));
+ s.scale.set(h*w/76,h,1);s.renderOrder=10;s.userData.lab=1;s.userData.ar=w/76;return s;
+}
+function pxl(s,px,off,rad){s.userData.px=px;s.userData.off=off||null;s.userData.rad=rad||0;return s}
+/* ラベルを画面上で一定の大きさにして、配管の横へずらして置く（拡大しても配管を隠さない） */
+function fixLabels(cam,W,H){
+ const kpx=2*Math.tan(cam.fov*Math.PI/360)/H;
+ const sc=P=>{const v=P.clone().project(cam);return[v.x*W/2,v.y*H/2]};
+ T.grp.traverse(o=>{
+  const u=o.userData;if(!u||!u.px)return;
+  const dist=Math.max(1e-3,cam.position.distanceTo(o.position)),wpp=kpx*dist;
+  const hpx=u.px,wpx=u.px*(u.ar||3);
+  o.scale.set(wpx*wpp,hpx*wpp,1);
+  const f=u.off;if(!f||!o.center)return;
+  let n=[0,1];
+  if(f.t==="perp"){
+   const a=sc(f.a),b=sc(f.b),dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);
+   if(L>1){n=[-dy/L,dx/L];if(n[1]<-1e-6||(Math.abs(n[1])<=1e-6&&n[0]<0))n=[-n[0],-n[1]]}
+  }else if(f.t==="out"){
+   const a=sc(o.position),b=sc(o.position.clone().addScaledVector(f.o,T.ext*0.05)),dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);
+   if(L>0.5)n=[dx/L,dy/L];
+  }
+  if(f.dn)n=[-n[0],-n[1]];
+  const off=(u.rad||0)/wpp+7+Math.abs(n[0])*wpx/2+Math.abs(n[1])*hpx/2;
+  o.center.set(0.5-n[0]*off/wpx,0.5-n[1]*off/hpx);
+ });
+}
+
+function build3D(){
+ const V=THREE.Vector3,{D,lim}=cur(),R=4*D;
+ while(T.grp.children.length){const o=T.grp.children.pop();o.traverse(n=>{if(n.geometry)n.geometry.dispose();if(n.material){if(n.material.map)n.material.map.dispose();n.material.dispose()}})}
+ const w0=WALLX[st.units.ws]||WALLX.rb;
+ const outDown=t=>st.units.on&&st.units[t==="s"?"s":"e"]==="out"&&["d","m"].includes(outExitKey(st.units[t==="s"?"os":"oe"],st.units[t==="s"?"xs":"xe"]));
+ const D0=((st.units.on&&st.units.s==="wall"&&w0.k==="d")||outDown("s"))?new V(0,-1,0):new V(1,0,0);
+ const F0=frameFor(D0);
+ let d=F0.ex.clone(),u=F0.ey.clone(),r=F0.ez.clone(),C=new V(),pos=new V();
+ const P=[],dims=[],bends={},ofsL=[],angL=[];
+ const seg=(a,b,row,arc)=>{P.push({a:a.clone(),b:b.clone(),row,arc})};
+ st.rows.forEach((row,i)=>{
+  C=C.clone().addScaledVector(d,row.l);
+  const th=row.a*Math.PI/180;
+  if(!row.a){seg(pos,C,i,-1);if(row.l>0)dims.push({a:pos.clone(),b:C.clone(),l:row.l,i});pos=C.clone();return}
+  const Tn=row.a>=180?R:R*Math.tan(th/2);
+  let e=C.clone().addScaledVector(d,-Tn);
+  if(e.clone().sub(pos).dot(d)<0)e=pos.clone();
+  seg(pos,e,i,-1);if(row.l>0)dims.push({a:pos.clone(),b:C.clone(),l:row.l,i});
+  const tw=effT(i)*Math.PI/180;
+  if(row.o)ofsL.push({a:pos.clone(),b:C.clone(),v:row.l*Math.sin(th)});
+  const b=u.clone().multiplyScalar(Math.cos(tw)).addScaledVector(r,Math.sin(tw));
+  bends[i]={e:e.clone(),b:b.clone(),u:u.clone(),r:r.clone()};
+  const cen=e.clone().addScaledVector(b,R);
+  let prev=e.clone();
+  const N=Math.max(3,Math.ceil(row.a/6));
+  for(let k=1;k<=N;k++){
+   const ph=th*k/N;
+   const q=cen.clone().addScaledVector(b,-R*Math.cos(ph)).addScaledVector(d,R*Math.sin(ph));
+   seg(prev,q,-1,i);prev=q;
+  }
+  {const ph=th/2,mid=cen.clone().addScaledVector(b,-R*Math.cos(ph)).addScaledVector(d,R*Math.sin(ph));
+   angL.push({p:mid,o:mid.clone().sub(cen).normalize(),a:row.a,i});}
+  if(row.a>=180)C=C.clone().addScaledVector(b,2*R);
+  const n=d.clone().cross(b).normalize();
+  d=d.clone().applyAxisAngle(n,th);u=u.clone().applyAxisAngle(n,th);r=r.clone().applyAxisAngle(n,th);
+  pos=prev.clone();
+ });
+ const bb=new THREE.Box3();
+ P.forEach(p=>{bb.expandByPoint(p.a);bb.expandByPoint(p.b)});
+ bb.expandByPoint(new V());
+ const UN=[];
+ if(st.units.on){
+  /* 機器は水平に置く：配管の最後の角度で傾けず、向き（水平の回転）だけ配管に合わせる */
+  const endEx=(()=>{
+   if((st.units.e==="wall"&&(WALLX[st.units.we]||WALLX.rb).k==="d")||outDown("e"))return new V(0,-1,0);
+   let h=new V(-d.x,0,-d.z);
+   if(h.length()<0.2){h=null;
+    for(let i=P.length-1;i>=0;i--){const q=P[i].b.clone().sub(P[i].a);q.y=0;if(q.length()>1e-3){h=q.negate();break}}
+    if(!h)h=new V(-1,0,0)}
+   return h.normalize();
+  })();
+  [[st.units.s,new V(),D0,st.units.ws,st.units.os,st.units.xs,st.units.cs],[st.units.e,pos.clone(),endEx,st.units.we,st.units.oe,st.units.xe,st.units.ce]].forEach(([type,org,ex,wk,omk,oxk,cck])=>{
+   if(!type)return;
+   try{
+    const mk=makeUnit(type,{kind:st.info.kind,wx:wk,om:omk,ox:oxk,ck:cck}),f=frameFor(ex);
+    mk.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(f.ex,f.ey,f.ez));
+    mk.g.position.copy(org);mk.g.updateMatrixWorld(true);
+    bb.union(new THREE.Box3().setFromObject(mk.g));
+    UN.push({g:mk.g,name:mk.name,top:mk.top,cx:mk.cx,cz:mk.cz||0,org,f});
+   }catch(err){console.warn("unit",err)}
+  });
+ }
+ const sz=bb.getSize(new V()),ctr=bb.getCenter(new V());
+ const ext=Math.max(sz.x,sz.y,sz.z,300);
+ const rad=Math.max(D/2,ext*0.011);
+ T.ext=ext;T.center.copy(ctr);
+ let total=0;P.forEach(p=>total+=p.a.distanceTo(p.b));
+ const over=st.rows.reduce((s,x)=>s+x.l,0)>lim;
+ const mat=new THREE.MeshStandardMaterial({color:over?0xf97316:0x2563eb,metalness:0.35,roughness:0.32});
+ const omat=new THREE.MeshBasicMaterial({color:0x0b1f4d,side:THREE.BackSide});
+ const hi=new THREE.MeshStandardMaterial({color:0xfbbf24,metalness:0.3,roughness:0.35});
+ const Y=new V(0,1,0);
+ P.forEach(p=>{
+  const len=p.a.distanceTo(p.b);if(len<1e-6)return;
+  const mt=(p.row===sel||p.arc===sel)?hi:mat;
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,len,20,1),mt);
+  m.position.copy(p.a).add(p.b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(Y,p.b.clone().sub(p.a).normalize());
+  T.grp.add(m);
+  const ol=new THREE.Mesh(new THREE.CylinderGeometry(rad*1.16,rad*1.16,len,20,1,true),omat);
+  ol.position.copy(m.position);ol.quaternion.copy(m.quaternion);T.grp.add(ol);
+  if(p.arc>=0){
+   const s=new THREE.Mesh(new THREE.SphereGeometry(rad,14,10),mt);s.position.copy(p.b);T.grp.add(s);
+   const so=new THREE.Mesh(new THREE.SphereGeometry(rad*1.16,14,10),omat);so.position.copy(p.b);T.grp.add(so);
+  }
+ });
+ dims.forEach(dm=>{
+  const s=label(nm(dm.i)+" "+fmt(dm.l)+"mm",ext*0.042,dm.i===sel?"#fef3c7f2":"#ffffffee","#0c4a6e");
+  s.position.copy(dm.a).add(dm.b).multiplyScalar(0.5);
+  s.userData.min=1;pxl(s,dm.i===sel?24:20,{t:"perp",a:dm.a,b:dm.b},rad);
+  T.grp.add(s);
+ });
+ angL.forEach(g=>{
+  const hh=ext*(g.i===sel?0.065:0.052);
+  const s=label(g.a+"°",hh,ANGC[g.a]||"#475569","#ffffff");
+  s.position.copy(g.p);s.userData.min=1;pxl(s,g.i===sel?26:22,{t:"out",o:g.o},rad);T.grp.add(s);
+ });
+ ofsL.forEach(o=>{const s=label("↔ 差 "+fmt(o.v)+"mm",ext*0.035,"#ede9fef2","#5b21b6");s.position.copy(o.a).add(o.b).multiplyScalar(0.5);pxl(s,19,{t:"perp",a:o.a,b:o.b,dn:true},rad);T.grp.add(s)});
+ const bd=bends[sel];
+ if(bd){
+  const L=ext*0.11,am=new THREE.MeshStandardMaterial({color:0xef4444,roughness:.4});
+  const q=new THREE.Quaternion().setFromUnitVectors(Y,bd.b);
+  const sh=new THREE.Mesh(new THREE.CylinderGeometry(rad*0.4,rad*0.4,L*0.7,10),am);
+  sh.position.copy(bd.e).addScaledVector(bd.b,L*0.35);sh.quaternion.copy(q);T.grp.add(sh);
+  const cn=new THREE.Mesh(new THREE.ConeGeometry(rad*1.1,L*0.3,14),am);
+  cn.position.copy(bd.e).addScaledVector(bd.b,L*0.85);cn.quaternion.copy(q);T.grp.add(cn);
+  const row=st.rows[sel],NM=["上","右","下","左"],si=Math.max(0,[0,90,180,270].indexOf(effT(sel)));
+  const s=label(NM[si]+"へ "+row.a+"°",ext*0.045,"#fee2e2f2","#7f1d1d");
+  s.position.copy(bd.e).addScaledVector(bd.b,L*1.2);pxl(s,22);T.grp.add(s);
+  // 進行方向から見た 上・右・下・左 の目印（曲げ始めの位置）
+  const cr=Math.max(rad*3.4,ext*0.06);
+  const dirs=[bd.u,bd.r,bd.u.clone().negate(),bd.r.clone().negate()];
+  dirs.forEach((v,k)=>{
+   const on=k===si,gm=new THREE.MeshBasicMaterial({color:on?0xef4444:0x94a3b8});
+   const sp=new THREE.Mesh(new THREE.CylinderGeometry(rad*0.14,rad*0.14,cr,6),gm);
+   sp.position.copy(bd.e).addScaledVector(v,cr/2);sp.quaternion.setFromUnitVectors(Y,v);T.grp.add(sp);
+   const dot=new THREE.Mesh(new THREE.SphereGeometry(rad*(on?0.8:0.5),12,8),gm);
+   dot.position.copy(bd.e).addScaledVector(v,cr);T.grp.add(dot);
+   if(!on){const t=label(NM[k],ext*0.032,"#ffffffcc","#475569");t.position.copy(bd.e).addScaledVector(v,cr*1.4);pxl(t,17);T.grp.add(t)}
+  });
+ }
+ UN.forEach(u=>{
+  T.grp.add(u.g);
+  try{
+   const sq=new THREE.Quaternion().setFromUnitVectors(Y,u.f.ex);
+   const ins=new THREE.Mesh(new THREE.CylinderGeometry(rad*1.9,rad*1.9,120,20),new THREE.MeshStandardMaterial({color:0x374151,roughness:.8}));
+   ins.position.copy(u.org).addScaledVector(u.f.ex,-10);ins.quaternion.copy(sq);T.grp.add(ins);
+   const nut=new THREE.Mesh(new THREE.CylinderGeometry(rad*2.4,rad*2.4,16,6),new THREE.MeshStandardMaterial({color:0xb8860b,metalness:.6,roughness:.35}));
+   nut.position.copy(u.org).addScaledVector(u.f.ex,38);nut.quaternion.copy(sq);T.grp.add(nut);
+  }catch(err){console.warn("stub",err)}
+  const s=label("🏠 "+u.name,ext*0.045,"#ffffffee","#0c4a6e");
+  s.position.copy(u.org).addScaledVector(u.f.ex,u.cx).addScaledVector(u.f.ey,u.top).addScaledVector(u.f.ez,u.cz);pxl(s,24,{t:"up"},0);T.grp.add(s);
+ });
+ const flag=(pt,txt,bg,fg,col)=>{
+  const h=ext*0.13;
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(rad*0.28,rad*0.28,h,8),new THREE.MeshStandardMaterial({color:col,roughness:.5}));
+  pole.position.copy(pt);pole.position.y+=h/2;T.grp.add(pole);
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(rad*0.8,14,10),new THREE.MeshStandardMaterial({color:col,roughness:.4}));
+  ball.position.copy(pt);ball.position.y+=h;T.grp.add(ball);
+  const s=label(txt,ext*0.05,bg,fg);s.position.copy(pt);s.position.y+=h;pxl(s,26,{t:"up"},rad*0.8);T.grp.add(s);
+ };
+ flag(new V(),"🟢 起点","#dcfce7f2","#14532d",0x16a34a);
+ flag(pos,"🔴 終点","#fee2e2f2","#7f1d1d",0xdc2626);
+ if(over&&total>lim){
+  let acc=0;
+  for(const p of P){
+   const len=p.a.distanceTo(p.b);
+   if(acc+len>=lim){
+    const t=(lim-acc)/(len||1),pt=p.a.clone().lerp(p.b,t),dir=p.b.clone().sub(p.a).normalize();
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(rad*1.7,rad*0.5,12,28),new THREE.MeshStandardMaterial({color:0xfacc15,metalness:.3,roughness:.4}));
+    ring.position.copy(pt);ring.quaternion.setFromUnitVectors(new V(0,0,1),dir);T.grp.add(ring);
+    const s=label("🔗 継手 "+(lim/1000)+"m",ext*0.04,"#ffedd5f2","#9a3412");
+    s.position.copy(pt);pxl(s,20,{t:"up",dn:true},rad*1.7);T.grp.add(s);
+    break;
+   }
+   acc+=len;
+  }
+ }
+ const sumL=st.rows.reduce((s,x)=>s+x.l,0);
+ $("#chip").className="chip"+(over?" over":"");
+
+ $("#chip").textContent=`📏 ${fmt(sumL)}mm`+(st.goal?` 🎯${fmt(st.goal)}`:"")+(over?" ⚠️":"");
+ T.grp.traverse(o=>{if(o.userData&&o.userData.lab)o.visible=labShow(o)});
+}
+
+function fitT(keep){
+ T.tg.copy(T.center);
+ if(!keep){T.vi=0;T.th=0.8;T.ph=1.1}
+ T.dist=(T.ext/2)/Math.tan(THREE.MathUtils.degToRad(T.cam.fov/2))*1.5;
+ T.cam.near=Math.max(1,T.ext*0.01);T.cam.far=T.ext*100;T.cam.updateProjectionMatrix();
+ T.dirty=true;
+}
+
+function loop(){
+ if(T.dirty){
+  T.dirty=false;
+  const {cam,tg,th,ph,dist}=T;
+  cam.position.set(tg.x+dist*Math.sin(ph)*Math.sin(th),tg.y+dist*Math.cos(ph),tg.z+dist*Math.sin(ph)*Math.cos(th));
+  cam.lookAt(tg);
+  const rd=T.rd,W=T.w,H=T.h;
+  cam.updateMatrixWorld();fixLabels(cam,W,H);
+  rd.setScissorTest(false);rd.setViewport(0,0,W,H);rd.render(T.sc,cam);
+  const g=Math.round(Math.min(104,Math.min(W,H)*0.34)),gx=W-g-4-(T.full?0:46),gy=4;
+  T.gcam.position.copy(cam.position).sub(tg).normalize().multiplyScalar(4.4);
+  T.gcam.up.set(0,1,0);T.gcam.lookAt(0,0,0);
+  rd.setViewport(gx,gy,g,g);rd.setScissor(gx,gy,g,g);rd.setScissorTest(true);
+  rd.autoClear=false;rd.clearDepth();rd.render(T.gs,T.gcam);rd.autoClear=true;rd.setScissorTest(false);
+ }
+ requestAnimationFrame(loop);
+}
+
+const setFull=b=>{if(T)T.full=b;$("#stage").classList.toggle("full",b);setTimeout(sizeT,30)};
+$("#open3").onclick=()=>setFull(true);
+$("#expand").onclick=()=>setFull(true);
+$("#close3").onclick=()=>setFull(false);
+$("#reset3").onclick=()=>{if(T)fitT()};
+const VIEWS=[["斜め",.8,1.1],["正面（横から）",0,Math.PI/2],["真上",0,0.05],["側面（前から）",Math.PI/2,Math.PI/2]];
+$("#viewBtn").onclick=()=>{
+ if(!T)return;T.vi=(T.vi+1)%VIEWS.length;
+ const v=VIEWS[T.vi];T.th=v[1];T.ph=v[2];T.dirty=true;toast("👁 "+v[0]);
+};
+/* 文字のオンオフ */
+let LABM=2;
+try{const v=localStorage.getItem("pbm_lab2");LABM=v==="0"?0:v==="1"?1:2}catch(e){}
+const labShow=o=>LABM===2||(LABM===1&&!!o.userData.min);
+const LABICON=["🚫","🔢","🔤"];
+function applyLabels(){
+ if(T){T.grp.traverse(o=>{if(o.userData&&o.userData.lab)o.visible=labShow(o)});T.dirty=true}
+ $("#labBtn").textContent=LABICON[LABM];$("#labBtn").style.opacity=LABM?1:.6;renderInfo();
+}
+$("#labBtn").onclick=()=>{
+ LABM=(LABM+2)%3;try{localStorage.setItem("pbm_lab2",String(LABM))}catch(e){}
+ applyLabels();toast(["🚫 文字なし","🔢 寸法と角度だけ","🔤 文字すべて"][LABM]);
+};
+$("#labBtn").textContent=LABICON[LABM];$("#labBtn").style.opacity=LABM?1:.6;
+/* 機器の模型 */
+const UNIT_LIST=[["","なし","🚫"],["out","室外機","🌀"],["cas","天カセ","🔲"],["ceil","天吊","▬"],["wall","壁掛け","🧱"]];
+function unitRefresh(){if(T){build3D();fitT(true)}}
+function renderUnitSheet(){
+ [...$("#uOn").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===st.units.on));
+ const mb=$("#uMk");mb.innerHTML="";
+ MAKERS.forEach(([v,n,sd])=>{const b=document.createElement("button");b.className="ubtn"+(st.units.mk===v?" on":"");
+  b.innerHTML=n+'<small style="font-weight:600;opacity:.75">配管 '+sideName(sd*(st.units.flip?-1:1))+'</small>';
+  b.onclick=()=>{st.units.mk=v;save();renderUnitSheet();unitRefresh()};mb.appendChild(b)});
+ [...$("#uFlip").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===st.units.flip));
+ const mk=MAKERS.find(x=>x[0]===st.units.mk);
+ $("#uMkNote").textContent=mk[1]+"の天カセは、冷媒配管の接続口が「"+sideName(mk[2]*(st.units.flip?-1:1))+"」です。メーカーで変わるのは天カセだけで、壁掛けは下の「配管の出る位置」で選びます。左右が実物と合わない時は「左右反転」で直せます。";
+ [["s","#uOS","os","起点"],["e","#uOE","oe","終点"]].forEach(([k,q,ok,lab])=>{
+  const box=$(q);box.innerHTML="";
+  if(st.units[k]==="ceil"){
+   const ck=k==="s"?"cs":"ce",t3=document.createElement("div");t3.className="ctitle";t3.textContent="🔧 天吊：配管をつなぐ位置（"+lab+"）";box.appendChild(t3);
+   const g3=document.createElement("div");g3.className="ugrid";
+   [["f","裏面（右下）"],["r","右端・裏（サブ）"]].forEach(([key,nm])=>{const b=document.createElement("button");b.className="ubtn"+(st.units[ck]===key?" on":"");b.textContent=nm;
+    b.onclick=()=>{st.units[ck]=key;save();renderUnitSheet();unitRefresh()};g3.appendChild(b)});
+   box.appendChild(g3);return;
+  }
+  if(st.units[k]!=="out")return;
+  const t=document.createElement("div");t.className="ctitle";t.textContent="🌀 室外機の種類・馬力（"+lab+"）";box.appendChild(t);
+  const gr=document.createElement("div");gr.className="ugrid";
+  OUT_ORDER.forEach(key=>{const m=OUTM[key],b=document.createElement("button");b.className="ubtn"+(st.units[ok]===key?" on":"");
+   b.innerHTML=m.n+'<small style="font-weight:600;opacity:.75">'+m.sub+'</small>';
+   b.onclick=()=>{st.units[ok]=key;save();renderUnitSheet();unitRefresh()};gr.appendChild(b)});
+  box.appendChild(gr);
+  const xk=k==="s"?"xs":"xe",mkey=st.units[ok];
+  if(outAllow(mkey).length>1){
+   const t2=document.createElement("div");t2.className="ctitle";t2.textContent="🔧 配管をつなぐ位置（"+(OUT_VRV.includes(mkey)?"左下":"右下")+"・"+lab+"）";box.appendChild(t2);
+   const g2=document.createElement("div");g2.className="ugrid";
+   outAllow(mkey).forEach(key=>{const b=document.createElement("button");b.className="ubtn"+(outExitKey(mkey,st.units[xk])===key?" on":"");b.textContent=OUT_X[key];
+    b.onclick=()=>{st.units[xk]=key;save();renderUnitSheet();unitRefresh()};g2.appendChild(b)});
+   box.appendChild(g2);
+  }
+  const n=document.createElement("div");n.className="note";n.textContent=OUT_PKG.includes(mkey)?"大きさは目安です。パッケージの配管は、正面から見て右下から出ます。":mkey==="ghp"?"大きさは目安です。GHPの配管は、正面から見て左下の真正面から出ます。":OUT_VRV.includes(mkey)?"大きさは目安です。ビルマルチの配管は、正面から見て左下から出ます。":"大きさは目安です。配管は、正面から見て右の側面から出ます（ルームエアコンは後ろ寄り・下から100mm上）。";box.appendChild(n);
+ });
+ [["s","#uWS","ws","起点"],["e","#uWE","we","終点"]].forEach(([k,q,wk,lab])=>{
+  const box=$(q);box.innerHTML="";
+  if(st.units[k]!=="wall")return;
+  const t=document.createElement("div");t.className="ctitle";t.textContent="🧱 壁掛け：配管の出る位置（"+lab+"）";box.appendChild(t);
+  const gr=document.createElement("div");gr.className="ugrid";
+  WALL_ORDER.forEach(key=>{
+   const b=document.createElement("button");b.className="ubtn"+(st.units[wk]===key?" on":"");b.textContent=WALLX[key].n;
+   b.onclick=()=>{st.units[wk]=key;save();renderUnitSheet();unitRefresh()};gr.appendChild(b);
+  });
+  box.appendChild(gr);
+ });
+ [["s","#uS"],["e","#uE"]].forEach(([k,q])=>{
+  const box=$(q);box.innerHTML="";
+  UNIT_LIST.forEach(([v,n,ic])=>{
+   const b=document.createElement("button");b.className="ubtn"+(st.units[k]===v?" on":"");
+   b.innerHTML=`<span>${ic}</span>${n}`;
+   b.onclick=()=>{st.units[k]=v;if(v)st.units.on=true;save();renderUnitSheet();unitRefresh()};
+   box.appendChild(b);
+  });
+ });
+}
+$("#unitBtn").onclick=()=>{renderUnitSheet();$("#unitOv").classList.add("on")};
+$("#closeUnit").onclick=()=>$("#unitOv").classList.remove("on");
+$("#unitOv").addEventListener("click",e=>{if(e.target.id==="unitOv")$("#unitOv").classList.remove("on")});
+$("#uFlip").onclick=e=>{const b=e.target.closest("button");if(!b)return;st.units.flip=b.dataset.v==="1";save();renderUnitSheet();unitRefresh()};
+$("#uOn").onclick=e=>{const b=e.target.closest("button");if(!b)return;st.units.on=b.dataset.v==="1";save();renderUnitSheet();unitRefresh()};
+/* 背景写真 */
+const PH_KEY="pbm_photo",PO_KEY="pbm_photo_op";
+function showPhoto(url,op){
+ const pv=$("#photoPrev"),pm=$("#photoMsg");
+ if(url){pv.src=url;pv.style.display="block";pm.textContent="✅ 背景に使っています"}
+ else{pv.style.display="none";pv.removeAttribute("src");pm.textContent="写真はまだありません"}
+ const b=$("#photoBg");
+ if(url){b.style.backgroundImage='url("'+url+'")';b.style.display="block";b.style.opacity=op/100}
+ else{b.style.display="none";b.style.backgroundImage=""}
+}
+(function(){
+ let u=null,o=85;
+ try{u=localStorage.getItem(PH_KEY);o=+localStorage.getItem(PO_KEY)||85}catch(e){}
+ $("#photoOp").value=o;showPhoto(u,o);
+})();
+$("#photoBtn").onclick=()=>$("#photoOv").classList.add("on");
+$("#closePhoto").onclick=()=>$("#photoOv").classList.remove("on");
+$("#photoOv").addEventListener("click",e=>{if(e.target.id==="photoOv")$("#photoOv").classList.remove("on")});
+$("#photoIn").onchange=e=>{
+ const f=e.target.files&&e.target.files[0];if(!f)return;
+ toast("写真を読み込み中…");
+ const fr=new FileReader();
+ fr.onerror=()=>toast("写真を読み込めませんでした");
+ fr.onload=()=>{
+  const img=new Image();
+  img.onload=()=>{
+   const k=Math.min(1,1280/Math.max(img.width,img.height)),c=document.createElement("canvas");
+   c.width=Math.max(1,Math.round(img.width*k));c.height=Math.max(1,Math.round(img.height*k));
+   let d;
+   try{c.getContext("2d").drawImage(img,0,0,c.width,c.height);d=c.toDataURL("image/jpeg",0.72)}
+   catch(err){d=fr.result}
+   try{localStorage.setItem(PH_KEY,d)}catch(err){toast("写真は今回だけ表示（保存容量不足）")}
+   showPhoto(d,+$("#photoOp").value);toast("✅ 背景に追加しました");
+  };
+  img.onerror=()=>toast("この形式の写真は読み込めません（JPEG/PNGで）");
+  img.src=fr.result;
+ };
+ fr.readAsDataURL(f);
+};
+$("#photoOp").oninput=e=>{
+ $("#photoBg").style.opacity=e.target.value/100;
+ try{localStorage.setItem(PO_KEY,e.target.value)}catch(err){}
+};
+$("#rmPhoto").onclick=()=>{
+ try{localStorage.removeItem(PH_KEY)}catch(e){}
+ showPhoto(null,0);toast("写真を消しました");
+};
+
+if(window.THREE){initT();render();sizeT();fitT()}
+else{$("#stage").style.display="none";$("#open3").style.display="none";render()}
+
+/* ---------- クラウド保存・共有 ---------- */
+let DB=null,plans=[];
+function sizeLabel(i){return SIZES[i]?SIZES[i][0]:"?"}
+function planMeta(p){
+ const total=(p.rows||[]).reduce((s,r)=>s+(r.l||0),0);
+ return `${p.dateLabel||""}　${sizeLabel(p.s)}　全長${fmt(total)}mm`;
+}
+function renderPlans(){
+ const box=$("#planList");
+ if(!plans.length){box.innerHTML='<div class="pempty">保存されたプランはまだありません</div>';return}
+ box.innerHTML="";
+ plans.forEach(p=>{
+  const el=document.createElement("div");el.className="pcard";
+  el.innerHTML=`<button class="pmain"><b></b><span></span></button><button class="pdel" aria-label="削除">🗑️</button>`;
+  el.querySelector(".pmain b").textContent=p.title||"無題プラン";
+  el.querySelector(".pmain span").textContent=planMeta(p);
+  el.querySelector(".pmain").onclick=()=>openPlan(p);
+  el.querySelector(".pdel").onclick=(ev)=>{ev.stopPropagation();deletePlan(p)};
+  box.appendChild(el);
+ });
+}
+function openPlan(p){
+ if(!SIZES[p.s]||!Array.isArray(p.rows)||!p.rows.length){toast("読み込めませんでした");return}
+ st.s=p.s;st.rows=JSON.parse(JSON.stringify(p.rows));st.info=normInfo(p.info);st.goal=normGoal(p.goal);st.units=normUnits(p.units);sel=0;save();
+ $("#sz").value=st.s;render();if(T)fitT();
+ closeCloud();toast("「"+(p.title||"無題プラン")+"」を開きました");
+}
+function deletePlan(p){
+ if(!DB)return;
+ if(!confirm((p.title||"無題プラン")+" を削除しますか？"))return;
+ DB.doc("plans/"+p.id).delete().catch(()=>toast("削除できませんでした（権限がない可能性）"));
+}
+function noCloud(){
+ ["#planList",".saverow","#cloudNote"].forEach(s=>{const e=$(s);if(e)e.style.display="none"});
+ $("#cloudTitle").textContent="📤 共有";$("#cloudBtn").textContent="📋";
+}
+async function initCloud(){
+ if(!window.claude){noCloud();return}
+ try{DB=await window.claude.use("db")}catch(e){DB=null}
+ if(!DB){noCloud();return}
+ DB.collection("plans").orderBy("savedAt","desc").limit(30).onSnapshot(
+  snap=>{plans=snap.docs.map(d=>({id:d.id,...(d.data()||{})}));renderPlans()},
+  ()=>{}
+ );
+}
+const openCloud=()=>{$("#cloudOv").classList.add("on")};
+const closeCloud=()=>{$("#cloudOv").classList.remove("on")};
+$("#cloudBtn").onclick=openCloud;
+$("#closeCloud").onclick=closeCloud;
+$("#cloudOv").addEventListener("click",e=>{if(e.target.id==="cloudOv")closeCloud()});
+$("#savePlan").onclick=async ()=>{
+ if(!DB){toast("保存機能が使えません");return}
+ const title=($("#planTitle").value||"").trim()||st.info.site||"無題プラン";
+ const now=new Date();
+ const dateLabel=now.toLocaleDateString("ja-JP",{month:"numeric",day:"numeric",weekday:"short"});
+ try{
+  await DB.collection("plans").add({title,dateLabel,savedAt:Date.now(),s:st.s,rows:JSON.parse(JSON.stringify(st.rows)),info:{...st.info},goal:st.goal||0,units:{...st.units}});
+  $("#planTitle").value="";
+  toast("保存しました");
+ }catch(e){
+  toast(e&&e.code==="invalid_argument"?"閲覧専用のため保存できません":"保存に失敗しました");
+ }
+};
+const markKind=()=>[...$("#fKind").children].forEach(b=>b.classList.toggle("on",b.dataset.k===st.info.kind));
+const closeInfo=()=>$("#infoOv").classList.remove("on");
+$("#infoBtn").onclick=()=>{
+ $("#fSite").value=st.info.site;$("#fLine").value=st.info.line;markKind();
+ $("#infoOv").classList.add("on");
+};
+$("#fSite").oninput=e=>{st.info.site=e.target.value.slice(0,40);save();renderInfo()};
+$("#fLine").oninput=e=>{st.info.line=e.target.value.slice(0,40);save();renderInfo()};
+$("#fKind").onclick=e=>{
+ const b=e.target.closest("button");if(!b)return;
+ st.info.kind=st.info.kind===b.dataset.k?"":b.dataset.k;save();markKind();renderInfo();
+};
+$("#closeInfo").onclick=closeInfo;
+$("#doneInfo").onclick=closeInfo;
+$("#infoOv").addEventListener("click",e=>{if(e.target.id==="infoOv")closeInfo()});
+
+function shareUrl(){
+ const data=encodeURIComponent(JSON.stringify({s:st.s,rows:st.rows,info:st.info,goal:st.goal,units:st.units}));
+ const base=location.origin&&location.origin!=="null"?location.origin+location.pathname:location.href.split("#")[0];
+ return base+"#p="+data;
+}
+async function shareNow(){
+ const url=shareUrl();
+ if(navigator.share){
+  try{await navigator.share({title:"冷媒配管 曲げメモ",text:(st.info.site?st.info.site+" ":"")+"曲げデータを送ります📐",url});return}
+  catch(e){if(e&&e.name==="AbortError")return}
+ }
+ try{await navigator.clipboard.writeText(url);toast("リンクをコピーしました。LINEなどに貼り付けてください")}
+ catch(e){toast("コピーできませんでした")}
+}
+$("#quickShare").onclick=shareNow;
+/* 寸法計算 */
+const OFS=[45,30,15];
+function renderCalc(){
+ const k=sel,d=Math.max(0,+$("#ofsIn").value||0),box=$("#ofsCards");
+ box.innerHTML="";
+ OFS.forEach(deg=>{
+  const th=deg*Math.PI/180,b=document.createElement("button");b.className="card2";
+  b.innerHTML=`<i>${deg}°</i><span>斜め<b>${fmt(d/Math.sin(th))}</b></span><span>進み<b>${fmt(d/Math.tan(th))}</b></span>`;
+  b.onclick=()=>applyOffset(deg);box.appendChild(b);
+ });
+ $("#ofsNote").textContent=k<1?"👆 2行目以降の行を選んでから使います":`👆 タップで ${nm(k)} に入れます（前の ${nm(k-1)} も同じ角度・反対向きに）`;
+ const g=st.goal||0,c=calc(),rest=c.tot-st.rows[k].l,need=g-rest,gr=$("#goalRes"),ga=$("#goalApply");
+ if(!g){gr.textContent="目標の合計を入れると、選んだ行の長さを自動で出します";ga.style.display="none";return}
+ ga.style.display="block";
+ if(need<0){gr.textContent=`⚠️ ${nm(k)}以外だけで ${fmt(rest)}mm あり、目標を超えています`;ga.disabled=true;ga.textContent="入れられません"}
+ else{gr.innerHTML=`今の合計 <b>${fmt(c.tot)}</b> → ${nm(k)} を <b>${fmt(need)}mm</b> にすると <b>${fmt(g)}</b> に合います`;ga.disabled=false;ga.textContent=`✅ ${nm(k)} を ${fmt(need)}mm にする`}
+}
+function applyOffset(deg){
+ const k=sel,d=Math.round(+$("#ofsIn").value||0);
+ if(k<1){toast("2行目以降の行を選んでください");return}
+ if(d<=0){toast("差を入れてください");return}
+ const L=Math.round(d/Math.sin(deg*Math.PI/180)),pv=st.rows[k-1],cu=st.rows[k];
+ pv.a=deg;cu.a=deg;cu.l=L;cu.o=true;
+ save();render();if(T)fitT();$("#calcOv").classList.remove("on");
+ toast(`${nm(k)} を ${fmt(L)}mm・${deg}° に（${nm(k-1)}も${deg}°）`);
+}
+$("#calcBtn").onclick=()=>{$("#goalIn").value=st.goal||"";renderCalc();$("#calcOv").classList.add("on")};
+$("#closeCalc").onclick=()=>$("#calcOv").classList.remove("on");
+$("#calcOv").addEventListener("click",e=>{if(e.target.id==="calcOv")$("#calcOv").classList.remove("on")});
+$("#ofsIn").oninput=renderCalc;
+$("#goalIn").oninput=e=>{st.goal=normGoal(e.target.value.replace(/[^0-9]/g,""));save();upd();renderCalc()};
+$("#goalApply").onclick=()=>{
+ const k=sel,need=(st.goal||0)-(calc().tot-st.rows[k].l);
+ if(need<0)return;
+ st.rows[k].l=need;save();render();$("#calcOv").classList.remove("on");toast(`${nm(k)} を ${fmt(need)}mm にしました`);
+};
+function enc(o){return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+function dec(s){s=s.replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";return JSON.parse(decodeURIComponent(escape(atob(s))))}
+function exportText(){
+ const c=calc(),i=st.info,z=SIZES[st.s];
+ const kind=i.kind==="液"?"液管":i.kind==="ガス"?"ガス管":"";
+ const head=[i.site,i.line,kind,z[0]].filter(Boolean).join(" / ");
+ const ar={0:"⬆️",90:"➡️",180:"⬇️",270:"⬅️"};
+ const lines=st.rows.map((r,k)=>`${nm(k)} ${fmt(r.l)}mm ${r.a?r.a+"°"+ar[effT(k)]:"直管"} シュー${fmt(c.out[k].shoe)} 累計${fmt(c.out[k].cum)}`);
+ return `📐曲げメモ ${head}\n${lines.join("\n")}\n（アプリの「📥貼り付けて読込」に、この下の行ごと貼り付け）\n#PBM:${enc({s:st.s,rows:st.rows,info:st.info,goal:st.goal,units:st.units})}`;
+}
+function applyData(d){
+ if(!d||!SIZES[d.s]||!Array.isArray(d.rows)||!d.rows.length)return false;
+ st={s:d.s,rows:d.rows.slice(0,60).map(r=>({l:Math.max(0,+r.l||0),a:ANG.includes(+r.a)?+r.a:0,t:[0,90,180,270].includes(+r.t)?+r.t:0,o:!!r.o})),info:normInfo(d.info),goal:normGoal(d.goal),units:normUnits(d.units)};
+ sel=0;save();$("#sz").value=st.s;render();if(T)fitT();return true;
+}
+function importText(txt){
+ let d=null;
+ try{
+  const m=txt.match(/#PBM:([A-Za-z0-9_\-]+)/);
+  if(m)d=dec(m[1]);
+  else{const u=txt.match(/#p=([^\s]+)/);if(u)d=JSON.parse(decodeURIComponent(u[1]))}
+ }catch(e){}
+ return applyData(d);
+}
+$("#copyTxt").onclick=async()=>{
+ const t=exportText();
+ try{await navigator.clipboard.writeText(t);toast("コピーしました。LINEなどに貼り付けてください")}
+ catch(e){closeCloud();$("#impTxt").value=t;$("#impOv").classList.add("on");$("#impTxt").select();toast("長押しでコピーしてください")}
+};
+$("#pasteTxt").onclick=()=>{closeCloud();$("#impTxt").value="";$("#impOv").classList.add("on")};
+$("#closeImp").onclick=()=>$("#impOv").classList.remove("on");
+$("#impOv").addEventListener("click",e=>{if(e.target.id==="impOv")$("#impOv").classList.remove("on")});
+$("#doImp").onclick=()=>{
+ if(importText($("#impTxt").value)){$("#impOv").classList.remove("on");toast("読み込みました")}
+ else toast("読み込めませんでした。テキストを確認してください");
+};
+$("#shareLink").onclick=shareNow;
+(function loadFromHash(){
+ const m=location.hash.match(/^#p=(.+)$/);
+ if(!m)return;
+ try{
+  const d=JSON.parse(decodeURIComponent(m[1]));
+  if(SIZES[d.s]&&Array.isArray(d.rows)&&d.rows.length){
+   applyData(d);
+   $("#sz").value=st.s;render();if(T)fitT();
+   history.replaceState(null,"",location.pathname);
+   toast("送られたプランを開きました");
+  }
+ }catch(e){}
+})();
+initCloud();
+</script>
+</body>
+</html>

@@ -254,6 +254,7 @@ input[type=range]{accent-color:var(--acc)}
     <div class="shead"><h3>🔤 文字の表示</h3><button id="closeLab">✕</button></div>
     <div id="labList"></div>
     <div style="display:flex;gap:8px;margin:6px 0 4px"><button class="sharebtn" id="labAll" style="flex:1;margin:0">すべて表示</button><button class="sharebtn" id="labNone" style="flex:1;margin:0">すべて非表示</button></div>
+    <button class="sharebtn" id="labDef" style="width:100%;margin:6px 0 4px">📏📐 寸法と角度だけ（初期設定）</button>
   </div>
 </div>
 <div class="ov" id="cfOv" style="z-index:80;align-items:center;justify-content:center">
@@ -1231,7 +1232,8 @@ $("#viewBtn").onclick=()=>{
 /* 文字のオンオフ */
 const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
 let LABC={};
-try{LABC=JSON.parse(localStorage.getItem("pbm_labc")||"{}")||{}}catch(e){LABC={}}
+const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=(k==="dim"||k==="ang"));return o};
+try{const v=localStorage.getItem("pbm_labc");LABC=v?(JSON.parse(v)||LABDEF()):LABDEF()}catch(e){LABC=LABDEF()}
 const labShow=o=>LABC[o.userData.cat||"other"]!==false;
 function applyLabels(){
  if(T){T.grp.traverse(o=>{if(o.userData&&o.userData.lab)o.visible=labShow(o)});T.dirty=true}
@@ -1252,6 +1254,7 @@ $("#labBtn").onclick=()=>{renderLabSheet();$("#labOv").classList.add("on")};
 $("#closeLab").onclick=()=>$("#labOv").classList.remove("on");
 $("#labOv").addEventListener("click",e=>{if(e.target.id==="labOv")$("#labOv").classList.remove("on")});
 $("#labAll").onclick=()=>{LABCATS.forEach(([k])=>LABC[k]=true);applyLabels();renderLabSheet()};
+$("#labDef").onclick=()=>{LABC=LABDEF();applyLabels();renderLabSheet()};
 $("#labNone").onclick=()=>{LABCATS.forEach(([k])=>LABC[k]=false);applyLabels();renderLabSheet()};
 $("#labBtn").style.opacity=LABCATS.some(([k])=>LABC[k]!==false)?1:.55;
 /* 機器の模型 */

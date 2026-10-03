@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>冷媒配管 曲げメモ</title>
+<title>冷媒配管の曲げメモver1.00</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#0369a1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="曲げメモ">
+<meta name="apple-mobile-web-app-title" content="曲げメモ v1.00">
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
 --bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--sel:#dbeafe;--warn:#ea580c;--warnbg:#fff1e6}
@@ -39,7 +39,7 @@ input[type=range]{accent-color:var(--acc)}
 .hud{position:absolute;display:flex;gap:6px;align-items:center;left:8px;right:8px;top:8px;pointer-events:none}
 .hud>*{pointer-events:auto}
 .stage.full .hud{top:calc(env(safe-area-inset-top,0px) + 10px)}
-.hb{width:36px;height:36px;border-radius:18px;background:#fff;color:#0c4a6e;font-size:17px;box-shadow:0 2px 8px #0c4a6e33;padding:0}
+.hb{width:36px;height:36px;border-radius:18px;background:#fff;overflow:hidden;color:#0c4a6e;font-size:17px;box-shadow:0 2px 8px #0c4a6e33;padding:0}
 .stage.full .hb{width:42px;height:42px;border-radius:21px;font-size:19px}
 .chip{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 auto 0 0;background:#ffffffee;color:#0c4a6e;border-radius:16px;padding:6px 12px;font-weight:800;font-size:14px;box-shadow:0 2px 8px #0c4a6e33;font-variant-numeric:tabular-nums}
 .stage.full .chip{margin:0 auto;font-size:15px}
@@ -47,8 +47,9 @@ input[type=range]{accent-color:var(--acc)}
 #close3{display:none}.stage.full #close3{display:block}.stage.full #expand{display:none}
 .hint{display:none;position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center;font-size:15px;color:#0c4a6e;pointer-events:none}
 .stage.full .hint{display:block}
-#rows{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:2px 2px 8px}
-.row{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:8px 8px 6px;margin-bottom:8px}
+#rows{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:14px 2px 8px}
+.ins{position:absolute;left:50%;top:-17px;transform:translateX(-50%);width:44px;height:24px;border-radius:12px;background:#fff;border:1.5px solid var(--acc);color:var(--acc);font-size:14px;font-weight:900;line-height:1;padding:0;z-index:2}
+.row{position:relative;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:8px 8px 6px;margin-bottom:8px}
 .row.over{border-color:var(--warn);background:var(--warnbg)}
 .row.sel{box-shadow:0 0 0 2.5px #fbbf24}
 .m{display:grid;grid-template-columns:22px minmax(0,1fr) 48px auto 32px;gap:4px;align-items:center}
@@ -67,6 +68,20 @@ input[type=range]{accent-color:var(--acc)}
 .inf b{color:var(--ink);font-size:14px;font-variant-numeric:tabular-nums;margin-left:3px}
 .inf .w{color:var(--warn);font-weight:700}
 .inf .neg b{color:var(--warn)}
+#legbar{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:0 2px 6px;align-items:stretch}
+#legbar:empty{display:none}
+.legadd{flex:1;height:40px;border:2px dashed #94a3b8;border-radius:12px;background:#fff;color:#334155;font-size:14px;font-weight:800}
+.legtabs{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.legtabs::-webkit-scrollbar{display:none}
+.legtab{flex:0 0 auto;min-width:76px;padding:0 12px;height:44px;border-radius:12px;border:2px solid var(--line);background:#fff;font-size:14px;font-weight:800;line-height:1.1;color:#334155}
+.legtab.off{opacity:.45;text-decoration:line-through}
+.legtab .dot{display:inline-block;width:10px;height:10px;border-radius:5px;margin-right:5px;vertical-align:baseline}
+.legtab.on .dot{background:#fff!important}
+.legctx{flex:1 0 100%;height:38px;border-radius:12px;border:1.5px dashed #94a3b8;background:#fff;color:#334155;font-size:13.5px;font-weight:800}
+.legctx.del{border:1.5px solid #fca5a5;color:#b91c1c;background:#fef2f2}
+.legtab small{display:block;font-size:11px;font-weight:700;opacity:.85}
+.legtab.on{color:#fff;border-color:transparent}
+.legdel{flex:none;width:40px;height:44px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-size:15px}
 .dock{flex:none;display:flex;gap:8px;padding:8px 0}
 .dock button{height:54px;border-radius:16px;font-size:16px;font-weight:800}
 .add{flex:1.15;background:var(--acc);color:#fff}
@@ -79,7 +94,13 @@ input[type=range]{accent-color:var(--acc)}
 .card2 b{display:block;font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums}
 .goalres{font-size:14px;line-height:1.55;margin-bottom:8px}
 .calcsep{height:1px;background:var(--line);margin:14px 0 6px}
-.tools{position:absolute;right:8px;top:52px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.tools{position:absolute;right:8px;top:52px;bottom:8px;display:flex;flex-direction:column;align-items:flex-end;gap:var(--hg,6px);z-index:2;transition:transform .22s ease,opacity .22s;touch-action:pan-y;pointer-events:none}
+#tools .hb{pointer-events:auto;touch-action:none;width:var(--hb,36px);height:var(--hb,36px);border-radius:50%;flex:none}
+.tools.hide{transform:translateX(calc(100% + 16px));opacity:0}
+.tools.hide .hb{pointer-events:none}
+.toolsTab{position:absolute;right:0;top:52px;width:22px;height:56px;border-radius:14px 0 0 14px;background:#ffffffdd;color:#0c4a6e;font-size:13px;padding:0;box-shadow:0 2px 8px #0c4a6e33;z-index:2;display:none;border:0}
+.toolsTab.on{display:block}
+.stage.full .toolsTab{top:calc(env(safe-area-inset-top,0px) + 62px)}
 .stage.full .tools{top:calc(env(safe-area-inset-top,0px) + 62px)}
 .ugrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
 .ubtn{height:58px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-size:13.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
@@ -87,7 +108,42 @@ input[type=range]{accent-color:var(--acc)}
 .ubtn.on{background:var(--sel);border-color:var(--acc);color:var(--acc)}
 .share{flex:none;width:54px;background:#16a34a;color:#fff}
 .note{font-size:12px;color:var(--sub);line-height:1.5;padding:0 2px 10px}
-.stinfo{position:absolute;left:8px;bottom:8px;max-width:calc(100% - 16px);background:#ffffffee;color:#0c4a6e;border-radius:12px;padding:5px 10px;font-size:12.5px;font-weight:700;line-height:1.4;box-shadow:0 2px 8px #0c4a6e33;pointer-events:none;display:none}
+.suppill{position:absolute;left:8px;top:50px;max-width:calc(100% - 64px);z-index:2;background:#ffffffee;color:#9f1239;border-radius:12px;padding:5px 10px;font-size:12.5px;font-weight:800;line-height:1.35;box-shadow:0 2px 8px #0c4a6e33;border:0}
+.stage.full .suppill{top:calc(env(safe-area-inset-top,0px) + 62px);font-size:15px;padding:8px 12px}
+.supgrid .field{margin-bottom:8px}
+.labrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px;font-weight:700}
+.lsw{flex:none;min-width:84px;height:40px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-size:14px;font-weight:800;color:#64748b}
+.lsw.on{background:#2563eb;color:#fff;border-color:#2563eb}
+.legundo{flex:none;width:40px;height:44px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-size:17px;padding:0}
+.legundo:disabled{opacity:.35}
+.legadd{font-size:13px}
+.uitog{position:absolute;left:8px;bottom:8px;width:34px;height:34px;border-radius:17px;background:none;overflow:hidden;font-size:16px;padding:0;z-index:3;box-shadow:0 2px 8px #0c4a6e33;border:0}
+.stage.full .uitog{width:40px;height:40px;border-radius:20px;font-size:19px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px)}
+.pmenu{position:absolute;z-index:7;display:none;background:#fff;border-radius:16px;box-shadow:0 6px 24px #0c4a6e66;padding:8px 10px 10px;width:218px}
+.pmenu.on{display:block}
+.pmenu .pt{font-weight:900;font-size:14px;padding:2px 4px 0;display:flex;align-items:center;gap:6px}
+.pmenu .pt i{display:inline-block;width:12px;height:12px;border-radius:6px}
+.pmenu .pm{display:block;width:100%;height:42px;border-radius:12px;background:#eff6ff;color:#0c4a6e;font-weight:800;font-size:14px;margin-top:6px;text-align:left;padding:0 12px}
+.pmenu .pm.red{background:#fef2f2;color:#b91c1c}
+.pmenu .pr{display:flex;gap:6px}
+.pmenu .pr .pm{text-align:center;padding:0;font-size:13px}
+.pmenu .tail{position:absolute;width:16px;height:16px;background:#fff;transform:rotate(45deg);box-shadow:3px 3px 6px #0c4a6e22}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px;margin:4px 0 10px}
+.tbl th{font-size:12px;color:var(--sub);font-weight:700;text-align:left;padding:4px 3px;border-bottom:1.5px solid var(--line)}
+.tbl td{padding:6px 3px;border-bottom:1px solid var(--line);font-weight:700;vertical-align:middle}
+.tbl td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl tr.tot td{font-weight:900;border-bottom:0;font-size:14.5px}
+.tbl .dot{display:inline-block;width:10px;height:10px;border-radius:5px;margin-right:5px}
+.tsz{height:34px;font-size:12.5px;border-radius:8px;border:1.5px solid var(--line);background:var(--bg);max-width:112px;padding:0 4px}
+.legall{flex:0 0 auto;height:44px;padding:0 10px;border-radius:12px;border:1.5px dashed #94a3b8;background:#fff;font-size:12.5px;font-weight:800;color:#334155;line-height:1.1}
+.infoTab{position:absolute;left:0;top:56px;width:22px;height:56px;border-radius:0 14px 14px 0;background:#ffffffdd;color:#0c4a6e;font-size:13px;padding:0;box-shadow:0 2px 8px #0c4a6e33;z-index:2;display:none;border:0}
+.stage.full .infoTab{top:calc(env(safe-area-inset-top,0px) + 62px)}
+.stage.infohide .infoTab{display:block}
+.stage.infohide #chip,.stage.infohide #supPill{display:none}
+.stage.uihide .infoTab{display:none!important}
+#chip,#supPill{touch-action:none}
+.stage.uihide .hud,.stage.uihide .tools,.stage.uihide .toolsTab,.stage.uihide .suppill{display:none!important}
+.stinfo{position:absolute;left:8px;bottom:44px;max-width:calc(100% - 16px);background:#ffffffee;color:#0c4a6e;border-radius:12px;padding:5px 10px;font-size:12.5px;font-weight:700;line-height:1.4;box-shadow:0 2px 8px #0c4a6e33;pointer-events:none;display:none}
 .stinfo.on{display:block}
 .stage.full .stinfo{font-size:15px;left:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 50px);padding:8px 12px}
 .field{margin-bottom:12px}
@@ -123,7 +179,7 @@ input[type=range]{accent-color:var(--acc)}
   <select id="sz" aria-label="配管サイズ"></select>
   <button class="iconbtn" id="infoBtn" aria-label="現場情報">📝</button>
   <button class="iconbtn" id="calcBtn" aria-label="寸法計算">🧮</button>
-  <button class="iconbtn" id="cloudBtn" aria-label="保存・共有">☁️</button>
+  <button class="iconbtn" id="cloudBtn" aria-label="保存・共有" style="display:none">☁️</button>
   <div class="tot" id="tot"></div>
 </div>
 <div class="bar" id="bar"><i></i></div>
@@ -134,15 +190,20 @@ input[type=range]{accent-color:var(--acc)}
   <div class="hud">
     <button class="hb" id="close3" aria-label="閉じる">✕</button>
     <div class="chip" id="chip"></div>
-    <button class="hb" id="reset3" aria-label="視点リセット">🎯</button>
     <button class="hb" id="expand" aria-label="全画面">⛶</button>
   </div>
-  <div class="tools">
-    <button class="hb" id="viewBtn" aria-label="視点切替">🔄</button>
-    <button class="hb" id="photoBtn" aria-label="背景写真">📷</button>
-    <button class="hb" id="unitBtn" aria-label="機器の模型">🏠</button>
-    <button class="hb" id="labBtn" aria-label="文字の表示切替">🔤</button>
+  <button class="toolsTab" id="toolsTab" aria-label="ボタンを出す">◀</button>
+  <div class="tools" id="tools">
+    <button class="hb" id="viewBtn" aria-label="視点切替"><img alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48cGF0aCBkPSJNMjIgNjAgQTMwIDMwIDAgMCAwIDc4IDYwIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PHBvbHlnb24gcG9pbnRzPSI4Miw1MCA4NCw2OCA2OCw2MiIgZmlsbD0iI2ZmZiIvPjxwb2x5Z29uIHBvaW50cz0iMTgsNTAgMTYsNjggMzIsNjIiIGZpbGw9IiNmZmYiLz48cG9seWdvbiBwb2ludHM9IjUwLDI0IDY4LDM0IDUwLDQ0IDMyLDM0IiBmaWxsPSIjZmZmIi8+PHBvbHlnb24gcG9pbnRzPSIzMiwzNCA1MCw0NCA1MCw2NCAzMiw1NCIgZmlsbD0iI2NmZTNmZiIvPjxwb2x5Z29uIHBvaW50cz0iNjgsMzQgNTAsNDQgNTAsNjQgNjgsNTQiIGZpbGw9IiM4ZmJiZmYiLz48L3N2Zz4=" style="width:100%;height:100%;display:block;pointer-events:none"></button>
+    <button class="hb" id="photoBtn" aria-label="背景写真"><img alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48cmVjdCB4PSIzOCIgeT0iMjUiIHdpZHRoPSIyNCIgaGVpZ2h0PSIxMiIgcng9IjMiIGZpbGw9IiNmZmYiLz48cmVjdCB4PSIyMiIgeT0iMzMiIHdpZHRoPSI1NiIgaGVpZ2h0PSIzOCIgcng9IjkiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUyIiByPSIxNCIgZmlsbD0iIzk0YTNiOCIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTIiIHI9IjEwLjUiIGZpbGw9IiMyNTYzZWIiLz48Y2lyY2xlIGN4PSI0NiIgY3k9IjQ4IiByPSIzIiBmaWxsPSIjYmZkYmZlIi8+PC9zdmc+" style="width:100%;height:100%;display:block;pointer-events:none"></button>
+    <button class="hb" id="unitBtn" aria-label="機器の模型"><img alt="" src="data:image/png;base64,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" style="width:100%;height:100%;border-radius:50%;display:block;pointer-events:none"></button>
+    <button class="hb" id="labBtn" aria-label="文字の表示切替"><img alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48dGV4dCB4PSI1MCIgeT0iNjIiIGZvbnQtZmFtaWx5PSItYXBwbGUtc3lzdGVtLEhlbHZldGljYSxBcmlhbCxzYW5zLXNlcmlmIiBmb250LXNpemU9IjM0IiBmb250LXdlaWdodD0iODAwIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5hYmM8L3RleHQ+PC9zdmc+" style="width:100%;height:100%;display:block;pointer-events:none"></button>
+    <button class="hb" id="supBtn" aria-label="支持のオンオフ"><img alt="" src="data:image/png;base64,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" style="width:100%;height:100%;border-radius:50%;display:block;pointer-events:none"></button>
   </div>
+  <div class="pmenu" id="pmenu"></div>
+  <button class="infoTab" id="infoTab" aria-label="文字を出す">▶</button>
+  <button class="uitog" id="uiTog" aria-label="ボタンの表示切替"><img alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48cGF0aCBkPSJNMTYgNTAgUTUwIDIwIDg0IDUwIFE1MCA4MCAxNiA1MCBaIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMTIiIGZpbGw9IiMyNTYzZWIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1LjUiIGZpbGw9IiMwYjJhNjYiLz48L3N2Zz4=" style="width:100%;height:100%;display:block;pointer-events:none"></button>
+  <button class="suppill" id="supPill"></button>
   <div class="stinfo" id="stInfo"></div>
   <div class="hint">👆回転　🤏拡大　✌️移動</div>
 </div>
@@ -159,6 +220,7 @@ input[type=range]{accent-color:var(--acc)}
   </div>
 </div>
 
+<div id="legbar"></div>
 <div id="rows"></div>
 
 <div class="dock">
@@ -167,6 +229,58 @@ input[type=range]{accent-color:var(--acc)}
   <button class="share" id="quickShare" aria-label="今すぐ送る">📤</button>
 </div>
 
+<div class="ov" id="supOv">
+  <div class="sheet" style="overflow-y:auto">
+    <div class="shead"><h3>🔩 支持のルール</h3><button id="closeSup">✕</button></div>
+    <div class="seg" id="supOn" style="margin-bottom:10px"><button data-v="1">⭕ 表示する</button><button data-v="0">🙈 隠す</button></div>
+    <div class="seg" id="supTab" style="margin-bottom:12px"><button data-v="sum">📊 集計（バンドのサイズ）</button><button data-v="rule">⚙️ ルール</button></div>
+    <div id="supSum"></div>
+    <div id="supRule">
+    <div class="note">曲げと曲げの間の長さ（行の長さ）ごとに、支持の数と位置を決めます。数字は変えられます（mm）。</div>
+    <div class="supgrid" id="supFields"></div>
+    <div class="note" id="supCnt"></div>
+    <button class="sharebtn" id="supReset" style="width:100%;background:var(--bg);color:var(--warn)">↩️ 初期値に戻す</button>
+    </div>
+  </div>
+</div>
+<div class="ov" id="tblOv">
+  <div class="sheet" style="overflow-y:auto">
+    <div class="shead"><h3>📋 長さと配管サイズ</h3><button id="closeTbl">✕</button></div>
+    <div id="tblBody"></div>
+  </div>
+</div>
+<div class="ov" id="labOv">
+  <div class="sheet" style="overflow-y:auto">
+    <div class="shead"><h3>🔤 文字の表示</h3><button id="closeLab">✕</button></div>
+    <div id="labList"></div>
+    <div style="display:flex;gap:8px;margin:6px 0 4px"><button class="sharebtn" id="labAll" style="flex:1;margin:0">すべて表示</button><button class="sharebtn" id="labNone" style="flex:1;margin:0">すべて非表示</button></div>
+  </div>
+</div>
+<div class="ov" id="cfOv" style="z-index:80;align-items:center;justify-content:center">
+  <div class="sheet" style="border-radius:20px;max-width:340px;margin:0 20px">
+    <div id="cfMsg" style="font-size:17px;font-weight:800;white-space:pre-line;line-height:1.5;margin:6px 0 16px"></div>
+    <div style="display:flex;gap:10px"><button class="sharebtn" id="cfNo" style="flex:1;margin:0;height:52px">やめる</button><button class="sharebtn" id="cfOk" style="flex:1;margin:0;height:52px;background:#dc2626;color:#fff">削除する</button></div>
+  </div>
+</div>
+<div class="ov" id="gndOv">
+  <div class="sheet" style="overflow-y:auto">
+    <div class="shead"><h3>🟫 地面の設定</h3><button id="closeGnd">✕</button></div>
+    <div class="seg" id="gndOn" style="margin-bottom:12px"><button data-v="1">👁 地面を表示</button><button data-v="0">🙈 隠す</button></div>
+    <div class="ctitle">📐 高さの決め方</div>
+    <div id="gndMode"></div>
+    <div id="gndBody"></div>
+    <div class="note">地面は半透明で表示します。曲げの角・起点・終点に「↕ 地面からの高さ」が出ます（文字の表示設定でオンオフできます）。</div>
+  </div>
+</div>
+<div class="ov" id="shareOv">
+  <div class="sheet">
+    <div class="shead"><h3>📤 送る・読み込む</h3><button id="closeShare">✕</button></div>
+    <button class="sharebtn" id="shApp" style="background:#dbeafe;color:#1e40af">🌐 このアプリのURLを送る</button>
+    <div style="display:flex;gap:8px;margin-bottom:10px"><button class="sharebtn" id="shCopy" style="flex:1;margin:0;padding:0 6px">📋 テキストをコピー</button><button class="sharebtn" id="shPaste" style="flex:1;margin:0;padding:0 6px">📥 貼り付けて読込</button></div>
+    <div class="note">①相手にアプリのURLを送る → ②「テキストをコピー」してLINEなどで送る → 相手が「貼り付けて読込」で同じ図が開きます。</div>
+    <button class="sharebtn" id="shMore" style="display:none;width:100%;background:var(--bg);color:var(--ink,#334155)">☁️ 保存・データ入りリンクはこちら</button>
+  </div>
+</div>
 <div class="ov" id="cloudOv">
   <div class="sheet">
     <div class="shead"><h3 id="cloudTitle">☁️ 保存・共有</h3><button id="closeCloud">✕</button></div>
@@ -200,14 +314,7 @@ input[type=range]{accent-color:var(--acc)}
   <div class="sheet" style="overflow-y:auto">
     <div class="shead"><h3>🏠 機器の模型</h3><button id="closeUnit">✕</button></div>
     <div class="seg" id="uOn" style="margin-bottom:12px"><button data-v="1">👁 表示する</button><button data-v="0">🙈 隠す</button></div>
-    <div class="ctitle">🟢 起点（配管の始まり）</div>
-    <div class="ugrid" id="uS"></div>
-    <div id="uOS"></div>
-    <div id="uWS"></div>
-    <div class="ctitle">🔴 終点</div>
-    <div class="ugrid" id="uE"></div>
-    <div id="uOE"></div>
-    <div id="uWE"></div>
+    <div id="uSlots"></div>
     <div class="ctitle">🏭 メーカー（冷媒配管とドレンの位置）</div>
     <div class="ugrid" id="uMk"></div>
     <div class="seg" id="uFlip" style="margin-bottom:8px"><button data-v="0">そのまま</button><button data-v="1">↔️ 左右反転</button></div>
@@ -253,6 +360,7 @@ let st={s:2,rows:[{l:500,a:90,t:0},{l:800,a:45,t:90}]};
 try{const j=JSON.parse(localStorage.getItem("pbm1"));if(j&&Array.isArray(j.rows)&&j.rows.length&&SIZES[j.s])st=j}catch(e){}
 function normInfo(i){i=i||{};return{site:String(i.site||"").slice(0,40),line:String(i.line||"").slice(0,40),kind:(i.kind==="液"||i.kind==="ガス")?i.kind:""}}
 st.info=normInfo(st.info);
+st.ps=SIZES[st.ps]?st.ps:null;
 const normGoal=g=>Math.max(0,Math.round(+g||0));
 st.goal=normGoal(st.goal);
 const UNIT_KEYS=["","out","cas","ceil","wall"];
@@ -269,13 +377,14 @@ const OUTM={
 const OUT_PKG=["p40","p80","p112"];
 const OUT_X={s:"右側面（前から50mm内側）",f:"正面（表）",b:"背面（裏）",d:"真下（手前）",l:"左下（正面からまっすぐ）",m:"真下（左・手前）"};
 const OUT_VRV=["vrv","vrv2"];
-const outAllow=mk=>OUT_PKG.includes(mk)?["s","f","b","d"]:OUT_VRV.includes(mk)?["l","m"]:mk==="ghp"?["f"]:["s"];
+const outAllow=mk=>OUT_PKG.includes(mk)?["s","f","b","d"]:mk==="room"?["b"]:OUT_VRV.includes(mk)?["l","m"]:mk==="ghp"?["f"]:["s"];
 const OUT_XORDER=["s","f","b","d"];
 /* 自然な向き→配管口基準の向きへの回転（自然のx,y,z軸が移る先） */
 const OUT_R={s:[[1,0,0],[0,1,0],[0,0,1]],f:[[0,0,-1],[0,1,0],[1,0,0]],b:[[0,0,1],[0,1,0],[-1,0,0]],d:[[0,0,-1],[-1,0,0],[0,1,0]],m:[[0,0,-1],[-1,0,0],[0,1,0]],l:[[0,0,-1],[0,1,0],[1,0,0]]};
 function outExitKey(mk,k){const a=outAllow(mk);return a.includes(k)?k:a[0]}
 function outPort(mk,k){
  const m=OUTM[mk]||OUTM.room,W=m.w,D=m.d;
+ if(mk==="room")return[W/2+45,100,-30]; // 右側面の外側45mm、後ろ向きに出る
  if(mk==="ghp")return[-W/2+120,150,D/2];
  if(OUT_VRV.includes(mk))return k==="m"?[-W/2+120,0,D/2-60]:[-W/2+180,175,D/2];
  if(!OUT_PKG.includes(mk))return[W/2,m.py,m.pz];
@@ -302,21 +411,113 @@ function wallPose(key){
  return{k,pos,cx:sx/n,top:my,maxX:mx,dir:wrot(k,dd[0],dd[1],dd[2]),name:w.n};
 }
 const MAKERS=[["daikin","ダイキン",-1,1],["mitsu","三菱電機",1,1],["pana","パナソニック",-1,1],["hitachi","日立",1,1],["toshiba","東芝",-1,1],["mhi","三菱重工",1,1]];
-function normUnits(u){u=u||{};return{on:u.on!==false,s:UNIT_KEYS.includes(u.s)?u.s:"",e:UNIT_KEYS.includes(u.e)?u.e:"",ws:WALLX[u.ws]?u.ws:"rb",we:WALLX[u.we]?u.we:"rb",mk:MAKERS.some(m=>m[0]===u.mk)?u.mk:"daikin",flip:!!u.flip,os:OUTM[u.os]?u.os:"room",oe:OUTM[u.oe]?u.oe:"room",xs:OUT_X[u.xs]?u.xs:"s",xe:OUT_X[u.xe]?u.xe:"s",cs:u.cs==="r"?"r":"f",ce:u.ce==="r"?"r":"f"}}
+const LEGIDS="abcdefghijklmnopqrstuvwx".split("");
+function normUnits(u){u=u||{};const o={on:u.on!==false,s:UNIT_KEYS.includes(u.s)?u.s:"",e:UNIT_KEYS.includes(u.e)?u.e:"",ws:WALLX[u.ws]?u.ws:"rb",we:WALLX[u.we]?u.we:"rb",mk:MAKERS.some(m=>m[0]===u.mk)?u.mk:"daikin",flip:!!u.flip,os:OUTM[u.os]?u.os:"room",oe:OUTM[u.oe]?u.oe:"room",xs:OUT_X[u.xs]?u.xs:"s",xe:OUT_X[u.xe]?u.xe:"s",cs:u.cs==="r"?"r":"f",ce:u.ce==="r"?"r":"f"};
+ LEGIDS.forEach(id=>{const k="L"+id;if(u[k]===undefined)return;
+  o[k]=UNIT_KEYS.includes(u[k])?u[k]:"";o["wL"+id]=WALLX[u["wL"+id]]?u["wL"+id]:"rb";o["oL"+id]=OUTM[u["oL"+id]]?u["oL"+id]:"room";o["xL"+id]=OUT_X[u["xL"+id]]?u["xL"+id]:"s";o["cL"+id]=u["cL"+id]==="r"?"r":"f"});
+ return o}
+/* 旧データ（枝A・枝Bだけ）→ 新形式（枝の一覧）へ */
+function migrateLegacy(o){
+ if(!o||!o.br||o.bl)return;
+ const b=o.br;o.bl=[];
+ if(b.on){
+  o.bl=[{id:"a",p:"m",s:b.a&&b.a.s,rows:b.a&&b.a.rows},{id:"b",p:"m",s:b.b&&b.b.s,rows:b.b&&b.b.rows}];
+  const u=o.units=o.units||{};
+  [["a","e"],["b","f"]].forEach(([id,k])=>{u["L"+id]=u[k]===undefined?"":u[k];u["wL"+id]=u["w"+k];u["oL"+id]=u["o"+k];u["xL"+id]=u["x"+k];u["cL"+id]=u["c"+k]});
+ }
+ delete o.br;
+}
 function unitSide(cas){const m=MAKERS.find(x=>x[0]===st.units.mk)||MAKERS[0];return(cas?m[2]:1)*(st.units.flip?-1:1)}
 const sideName=s=>s<0?"左":"右";
+migrateLegacy(st);
 st.units=normUnits(st.units);
-function effT(i){const r=st.rows[i];return(r.o&&i>0)?(effT(i-1)+180)%360:r.t}
-const save=()=>{try{localStorage.setItem("pbm1",JSON.stringify(st))}catch(e){}};
+/* 支持：曲げの間の長さごとの本数・位置ルール */
+const SUPD={on:true,t1:300,t2:600,t3:1500,t4:2000,off:300,gap:1000};
+function normSup(x){x=x||{};const n=k=>{const v=Math.round(+x[k]);return isFinite(v)&&v>=0&&v<=20000?v:SUPD[k]};
+ return{on:x.on!==false,t1:n("t1"),t2:n("t2"),t3:n("t3"),t4:n("t4"),off:n("off"),gap:Math.max(100,n("gap"))}}
+st.sup=normSup(st.sup);
+/* 地面：基準の決め方 auto=一番低い所 / start=起点の高さ / unit=室内機の下面の高さ */
+function normGnd(x){x=x||{};const h=Math.round(+x.h);return{on:x.on!==false,mode:["auto","start","unit","pipe"].includes(x.mode)?x.mode:"auto",g:typeof x.g==="string"?x.g.slice(0,2):"m",r:Math.max(0,Math.round(+x.r)||0),h:isFinite(h)&&h>=0&&h<=50000?h:2500,unit:typeof x.unit==="string"?x.unit.slice(0,4):""}}
+st.gnd=normGnd(st.gnd);
+function supPos(l){
+ const S=st.sup;if(!S.on||l<=0||l<=S.t1)return[];
+ if(l<=S.t2)return[l/2];
+ const off=Math.min(S.off,l/2),span=l-2*off,p=[off,l-off];
+ let n=Math.max(0,Math.ceil(span/Math.max(100,S.gap)-1e-9)-1);
+ if(l>S.t3&&l<=S.t4)n=Math.max(n,1);
+ for(let k=1;k<=n;k++)p.push(off+span*k/(n+1));
+ return p.sort((a,b)=>a-b);
+}
+const supCount=g=>legRows(g).reduce((s,r)=>s+supPos(r.l).length,0);
+function effT(i,rows){rows=rows||LR();const r=rows[i];return(r.o&&i>0)?(effT(i-1,rows)+180)%360:r.t}
+/* 分岐管：メイン(st.rows)＋枝の一覧(st.bl)。いま編集している配管が leg */
+function normRows(rows,def){
+ if(!Array.isArray(rows)||!rows.length)return def;
+ return rows.slice(0,60).map(r=>({l:Math.max(0,+r.l||0),a:ANG.includes(+r.a)?+r.a:0,t:[0,90,180,270].includes(+r.t)?+r.t:0,o:!!r.o}));
+}
+const DEFROWS=side=>[{l:500,a:45,t:side,o:false},{l:800,a:0,t:0,o:false}];
+function normBL(arr){
+ if(!Array.isArray(arr))return[];
+ const ids=new Set(["m"]),out=[];
+ arr.slice(0,24).forEach(x=>{
+  if(!x||!LEGIDS.includes(x.id)||ids.has(x.id)||!ids.has(x.p))return;
+  ids.add(x.id);out.push({id:x.id,p:x.p,s:SIZES[x.s]?x.s:2,ps:SIZES[x.ps]?x.ps:null,rows:normRows(x.rows,DEFROWS(90))});
+ });
+ return out;
+}
+st.bl=normBL(st.bl);
+let leg="m";
+const legObj=g=>st.bl.find(l=>l.id===g);
+const legRows=g=>g==="m"?st.rows:(legObj(g)||{rows:st.rows}).rows;
+const legSize=g=>g==="m"?st.s:(legObj(g)||{s:st.s}).s;
+const legName=g=>g==="m"?"メイン":"枝"+g.toUpperCase();
+const brOn=()=>st.bl.length>0;
+const legIds=()=>["m",...st.bl.map(l=>l.id)];
+const kids=g=>st.bl.filter(l=>l.p===g);
+const leafSlot=g=>st.bl.length===0?"e":"L"+g;
+const leaves=()=>legIds().filter(g=>kids(g).length===0);
+const slotName=k=>k==="s"?"起点":k==="e"?"終点":"終点"+k.slice(1).toUpperCase()+"（枝"+k.slice(1).toUpperCase()+"）";
+const LEGPAL=["#0d9488","#7c3aed","#0891b2","#4f46e5","#65a30d","#a21caf","#0f766e","#be185d","#1d4ed8","#7e22ce","#047857","#9333ea"];
+const drawnKind=()=>st.info.kind==="液"?"液":"ガス";
+const defPartner=s=>drawnKind()==="ガス"?Math.max(0,s-2):Math.min(SIZES.length-1,s+2);
+const legPS=g=>{const v=g==="m"?st.ps:(legObj(g)||{}).ps;return SIZES[v]?v:defPartner(legSize(g))};
+const legLG=g=>drawnKind()==="液"?{liq:legSize(g),gas:legPS(g)}:{liq:legPS(g),gas:legSize(g)};
+function setLegKind(g,kind,v){const o=g==="m"?st:legObj(g);if(!o)return;if(kind===drawnKind())o.s=v;else o.ps=v}
+const legLen=g=>legRows(g).reduce((a,r)=>a+r.l,0);
+const szN=i=>SIZES[i][0];
+const fmtM=mm=>(mm/1000).toFixed(2)+"m";
+function szSelect(val,on){const sel=document.createElement("select");sel.className="tsz";sel.innerHTML=SIZES.map((z,i)=>`<option value="${i}"${i===val?" selected":""}>${z[0]}</option>`).join("");sel.onchange=()=>on(+sel.value);return sel}
+const legColor=g=>g==="m"?"#2563eb":LEGPAL[Math.max(0,st.bl.findIndex(l=>l.id===g))%LEGPAL.length];
+const LR=()=>legRows(leg);
+let hist=null,hi=0,histT=0;
+const save=(merge)=>{
+ const j=JSON.stringify(st);
+ try{localStorage.setItem("pbm1",j)}catch(e){}
+ if(!hist||j===hist[hi])return;
+ const now=Date.now();
+ if(merge&&hi>0&&hi===hist.length-1&&now-histT<1500)hist[hi]=j;
+ else{hist.length=hi+1;hist.push(j);hi++;if(hist.length>100){hist.shift();hi--}}
+ histT=now;updUndoUI();
+};
+function updUndoUI(){const u=$("#undoBtn"),r=$("#redoBtn");if(!u||!r)return;u.disabled=!(hist&&hi>0);r.disabled=!(hist&&hi<hist.length-1)}
+function histGo(d){
+ if(!hist)return;const n=hi+d;if(n<0||n>=hist.length)return;
+ hi=n;const o=JSON.parse(hist[hi]);
+ st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units)};
+ if(!legIds().includes(leg))leg="m";
+ try{localStorage.setItem("pbm1",JSON.stringify(st))}catch(e){}
+ histT=0;sel=0;render();if(T)fitT(true);updUndoUI();
+ toast(d<0?"↩️ 1つ前に戻しました":"↪️ 1つ先に進めました");
+}
 function renderInfo(){
  const i=st.info,z=SIZES[st.s];
  const kind=i.kind==="液"?"💧液管":i.kind==="ガス"?"💨ガス管":"";
  const parts=[i.site&&"🏢 "+i.site,i.line&&"🔢 "+i.line,kind&&kind+" "+z[0]].filter(Boolean);
- const el=$("#stInfo");el.classList.toggle("on",parts.length>0&&LABM>0);
+ const el=$("#stInfo");el.classList.toggle("on",parts.length>0&&LABC.info!==false);
  el.innerHTML="";
  parts.forEach(p=>{const d=document.createElement("div");d.textContent=p;el.appendChild(d)});
 }
-const cur=()=>{const z=SIZES[st.s];return{D:z[1],lim:z[2]}};
+const cur=g=>{const z=SIZES[legSize(g||leg)];return{D:z[1],lim:z[2]}};
 let sel=0,T=null;
 
 function toast(msg){
@@ -324,56 +525,157 @@ function toast(msg){
  clearTimeout(toast._h);toast._h=setTimeout(()=>t.classList.remove("on"),2000);
 }
 
-function calc(){
- const {D,lim}=cur();let cum=0,tot=0;
- const out=st.rows.map(r=>{const back=D*4*r.a/90,shoe=r.l-back;cum+=shoe;tot+=r.l;return{back,shoe,cum,over:tot>lim}});
+function calc(g){
+ g=g||leg;const {D,lim}=cur(g);let cum=0,tot=0;
+ const out=legRows(g).map(r=>{const back=D*4*r.a/90,shoe=r.l-back;cum+=shoe;tot+=r.l;return{back,shoe,cum,over:tot>lim}});
  return{out,tot,lim};
+}
+
+const HID=new Set();
+let lastTab={g:"",t:0};
+function toggleHide(g){
+ if(HID.has(g))HID.delete(g);else HID.add(g);
+ renderLegBar();if(T){build3D();T.dirty=true}
+ toast(legName(g)+(HID.has(g)?" を非表示にしました（もう一度2回タップで表示）":" を表示しました"));
+}
+function setAllHid(h){
+ HID.clear();if(h)legIds().forEach(g=>HID.add(g));
+ renderLegBar();if(T){build3D();T.dirty=true}
+ toast(h?"配管をすべて非表示にしました":"配管をすべて表示しました");
+}
+const szShort=i=>SIZES[i][0].split(" ")[0];
+function renderLegBar(){
+ if(!legIds().includes(leg))leg="m";
+ const box=$("#legbar");box.innerHTML="";
+ [["undoBtn","↩️","1つ前に戻る",-1],["redoBtn","↪️","1つ先に進む",1]].forEach(([id,ic,lab,d])=>{
+  const b=document.createElement("button");b.className="legundo";b.id=id;b.textContent=ic;b.setAttribute("aria-label",lab);b.onclick=()=>histGo(d);box.appendChild(b);
+ });
+ updUndoUI();
+ if(!brOn()){
+  const b=document.createElement("button");b.className="legadd";b.textContent="🔀 分岐管を追加（メイン → 枝A・枝B）";
+  b.onclick=addBranch;box.appendChild(b);
+ }else{
+  const wrap=document.createElement("div");wrap.className="legtabs";box.appendChild(wrap);
+  let act=null;
+  legIds().forEach(g=>{
+   const col=legColor(g),b=document.createElement("button");b.className="legtab"+(leg===g?" on":"");
+   if(leg===g){b.style.background=col;act=b}else b.style.borderColor=col+"88";
+   b.innerHTML=`<i class="dot" style="background:${col}"></i>${legName(g)}<small>${szShort(legSize(g))}</small>`;
+   if(HID.has(g))b.classList.add("off");
+   b.onclick=()=>{const now=Date.now();
+    if(lastTab.g===g&&now-lastTab.t<450){lastTab={g:"",t:0};toggleHide(g)}
+    else{lastTab={g,t:now};setLeg(g)}};
+   wrap.appendChild(b);
+  });
+  [["👁 全表示",()=>setAllHid(false)],["🙈 全非表示",()=>setAllHid(true)]].forEach(([t,f])=>{const b=document.createElement("button");b.className="legall";b.textContent=t;b.onclick=f;wrap.appendChild(b)});
+  if(act)wrap.scrollLeft=Math.max(0,act.offsetLeft-70);
+  const c=document.createElement("button");c.className="legctx";
+  if(kids(leg).length){c.classList.add("del");c.textContent="🗑 "+legName(leg)+"の先の分岐を削除";c.onclick=removeBranch}
+  else{
+   const used=new Set(st.bl.map(l=>l.id)),fr=LEGIDS.filter(x=>!used.has(x));
+   c.textContent="🔀 "+legName(leg)+"の先に分岐を追加"+(fr.length>=2?"（→ 枝"+fr[0].toUpperCase()+"・枝"+fr[1].toUpperCase()+"）":"");
+   c.onclick=addBranch;
+  }
+  box.appendChild(c);
+ }
+ $("#sz").value=legSize(leg);
+}
+function setLeg(g){if(leg===g)return;leg=g;sel=0;render();if(T){T.dirty=true;focusLeg(g)}}
+/* 選んだ配管が全体に映るようにカメラを動かす（向きはそのまま） */
+function focusLeg(g){
+ if(!T||!T.legBox||!T.legBox[g])return;
+ const V=THREE.Vector3,b=T.legBox[g],c=b.getCenter(new V()),sz=b.getSize(new V());
+ const e=Math.max(sz.x,sz.y,sz.z,600);
+ const d=(e/2)/Math.tan(THREE.MathUtils.degToRad(T.cam.fov/2))*1.8;
+ const t0=T.tg.clone(),d0=T.dist,s0=performance.now();
+ cancelAnimationFrame(focusLeg.h);
+ const step=()=>{const k=Math.min(1,(performance.now()-s0)/350),q=k*(2-k);T.tg.copy(t0).lerp(c,q);T.dist=d0+(d-d0)*q;T.dirty=true;if(k<1)focusLeg.h=requestAnimationFrame(step)};
+ step();
+}
+function addBranch(){
+ const g=leg;if(kids(g).length)return;
+ const used=new Set(st.bl.map(l=>l.id)),free=LEGIDS.filter(x=>!used.has(x));
+ if(free.length<2){toast("これ以上は増やせません");return}
+ const [a,b]=free,sz=Math.max(0,legSize(g)-1),u=st.units,gk=leafSlot(g);
+ st.bl.push({id:a,p:g,s:sz,rows:DEFROWS(90)},{id:b,p:g,s:sz,rows:DEFROWS(270)});
+ [a,b].forEach(id=>{u["L"+id]=u[gk]||"";u["wL"+id]=u["w"+gk];u["oL"+id]=u["o"+gk];u["xL"+id]=u["x"+gk];u["cL"+id]=u["c"+gk]});
+ st.units=normUnits(u);
+ sel=0;save();render();if(T){build3D();fitT()}
+ toast("🔀 "+legName(g)+"の先に枝"+a.toUpperCase()+"・枝"+b.toUpperCase()+"を追加しました");
+}
+function askConfirm(msg,okLabel,cb){
+ $("#cfMsg").textContent=msg;$("#cfOk").textContent=okLabel;
+ $("#cfOk").onclick=()=>{$("#cfOv").classList.remove("on");cb()};
+ $("#cfOv").classList.add("on");
+}
+$("#cfNo").onclick=()=>$("#cfOv").classList.remove("on");
+$("#cfOv").addEventListener("click",e=>{if(e.target.id==="cfOv")$("#cfOv").classList.remove("on")});
+function removeBranch(){
+ const g=leg,sub=new Set(),walk=x=>kids(x).forEach(k=>{sub.add(k.id);walk(k.id)});walk(g);
+ if(!sub.size)return;
+ askConfirm(legName(g)+"の先の分岐管を削除しますか？\n"+[...sub].map(legName).join("・")+" の入力と機器も消えます。","🗑 削除する",()=>{
+  st.bl=st.bl.filter(l=>!sub.has(l.id));
+  const u=st.units;[...sub].forEach(id=>["L","wL","oL","xL","cL"].forEach(p=>delete u[p+id]));
+  st.units=normUnits(u);
+  sel=0;save();render();if(T){build3D();fitT()}
+  toast("分岐管を削除しました（↩️で元に戻せます）");
+ });
 }
 
 $("#sz").innerHTML='<optgroup label="コイル管 20m">'+SIZES.slice(0,5).map((z,i)=>`<option value="${i}">${z[0]}</option>`).join("")+'</optgroup><optgroup label="直管 4m">'+SIZES.slice(5).map((z,i)=>`<option value="${i+5}">${z[0]}</option>`).join("")+"</optgroup>";
 $("#sz").value=st.s;
-$("#sz").onchange=e=>{st.s=+e.target.value;save();upd()};
+$("#sz").onchange=e=>{const v=+e.target.value;if(leg==="m")st.s=v;else legObj(leg).s=v;save();renderLegBar();upd()};
 
 function render(){
+ renderLegBar();
  const box=$("#rows");box.innerHTML="";
- sel=clamp(sel,0,st.rows.length-1);
- st.rows.forEach((r,i)=>{
+ sel=clamp(sel,0,LR().length-1);
+ LR().forEach((r,i)=>{
   const el=document.createElement("div");el.className="row";
   el.innerHTML=`<div class="m"><b>${nm(i)}</b><input inputmode="numeric" pattern="[0-9]*" value="${r.l}" aria-label="配管長mm"><button class="ang" aria-label="角度"${r.a?` style="background:${ANGC[r.a]};color:#fff"`:""}>${r.a?r.a+"°":"直管"}</button><div class="tw">${TW.map(([v,e])=>`<button data-t="${v}" class="${effT(i)===v?"on":""}" ${r.a?"":"disabled"}>${e}</button>`).join("")}</div><button class="del" aria-label="削除">🗑️</button></div><div class="inf"></div>`;
+  const ib=document.createElement("button");ib.className="ins";ib.textContent="＋曲げ";ib.setAttribute("aria-label","この上に曲げを追加");
+  ib.onpointerdown=e=>e.stopPropagation();ib.onclick=e=>{e.stopPropagation();insertRow(i)};el.appendChild(ib);
   const inp=el.querySelector("input");
   el.addEventListener("pointerdown",()=>{if(sel!==i){sel=i;upd()}});
-  inp.oninput=()=>{r.l=Math.max(0,parseInt(inp.value.replace(/[^0-9]/g,""))||0);save();upd()};
+  inp.oninput=()=>{r.l=Math.max(0,parseInt(inp.value.replace(/[^0-9]/g,""))||0);save(true);upd()};
   inp.onfocus=()=>{sel=i;upd();inp.select()};
   el.querySelector(".ang").onclick=()=>{sel=i;r.a=ANG[(ANG.indexOf(r.a)+1)%ANG.length];save();render()};
   el.querySelectorAll(".tw button").forEach(b=>b.onclick=()=>{sel=i;r.t=+b.dataset.t;r.o=false;save();render()});
-  el.querySelector(".del").onclick=()=>{if(st.rows.length>1)st.rows.splice(i,1);else st.rows[0]={l:0,a:0,t:0};save();render();if(T)fitT()};
+  el.querySelector(".del").onclick=()=>{if(LR().length>1)LR().splice(i,1);else LR()[0]={l:0,a:0,t:0};save();render();if(T)fitT()};
   box.appendChild(el);
  });
  upd();
 }
 
+function insertRow(i){
+ const rows=LR(),old=rows[i].l,half=Math.round(old/2);
+ rows.splice(i,0,{l:half,a:90,t:0,o:false});
+ rows[i+1].l=old-half;
+ sel=i;save();render();if(T)T.dirty=true;
+ toast(nm(i)+" に曲げを入れました（前後の長さは半分ずつ）");
+}
 function upd(){
  const c=calc();
  [...$("#rows").children].forEach((el,i)=>{
-  const o=c.out[i],r=st.rows[i];
+  const o=c.out[i],r=LR()[i];
   el.classList.toggle("over",o.over);el.classList.toggle("sel",i===sel);
   el.querySelector(".inf").innerHTML=
    `<span class="${o.shoe<0?"neg":""}">👞シュー<b>${fmt(o.shoe)}</b></span><span>📍累計<b>${fmt(o.cum)}</b></span>`+
-   (r.a?`<span>✂️引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>↔️U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>↔️差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:"");
+   (r.a?`<span>✂️引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>↔️U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>↔️差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+(st.sup.on&&supPos(r.l).length?`<span>🔩<b>${supPos(r.l).length}</b></span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:"");
  });
  const over=c.tot>c.lim;
  $("#tot").className="tot"+(over?" over":"");
  const gl=st.goal||0,df=gl-c.tot;
- $("#tot").innerHTML=`📏<b>${fmt(c.tot)}</b>/${fmt(c.lim)}`+(gl?`<br>🎯<b>${fmt(gl)}</b> ${df>0?"あと"+fmt(df):df===0?"ぴったり✅":"超過"+fmt(-df)}`:"");
+ $("#tot").innerHTML=(brOn()?`<small>${legName(leg)}</small><br>`:"")+`📏<b>${fmt(c.tot)}</b>/${fmt(c.lim)}`+(gl?`<br>🎯<b>${fmt(gl)}</b> ${df>0?"あと"+fmt(df):df===0?"ぴったり✅":"超過"+fmt(-df)}`:"");
  $("#bar").className="bar"+(over?" over":"");
  $("#bar i").style.width=Math.min(100,c.tot/c.lim*100)+"%";
- renderInfo();
+ renderInfo();updSupUI();
  if(T){build3D();T.dirty=true}
 }
 
 $("#add").onclick=()=>{
- const last=st.rows[st.rows.length-1];
- st.rows.push({l:last?last.l:500,a:90,t:0});sel=st.rows.length-1;save();render();
+ const last=LR()[LR().length-1];
+ LR().push({l:last?last.l:500,a:90,t:0});sel=LR().length-1;save();render();
  if(T)fitT();
  $("#rows").lastElementChild.scrollIntoView({block:"nearest",behavior:"smooth"});
 };
@@ -434,7 +736,20 @@ function initT(){
  loop();
 }
 
+/* 右のボタンを縦1列にギリギリ収まる大きさにする */
+function fitTools(){
+ const t=$("#tools");if(!t)return;
+ const n=t.querySelectorAll(".hb").length,full=$("#stage").classList.contains("full"),mx=full?42:36;
+ const avail=t.clientHeight;if(!avail||!n)return;
+ let g=6,sz=Math.floor((avail-g*(n-1))/n);
+ if(sz<mx){g=4;sz=Math.floor((avail-g*(n-1))/n)}
+ sz=Math.max(22,Math.min(mx,sz));
+ t.style.setProperty("--hb",sz+"px");t.style.setProperty("--hg",g+"px");
+}
+window.addEventListener("resize",()=>setTimeout(fitTools,50));
+setTimeout(fitTools,0);
 function sizeT(){
+ fitTools();
  const cv=$("#cv"),w=cv.clientWidth,h=cv.clientHeight;
  if(!T||!w||!h)return;
  T.w=w;T.h=h;
@@ -509,7 +824,11 @@ function makeUnit(type,opt){
   // 正面の目印：正面の上端に赤い帯
   bx(W*.5,18,6,X,H-45,FZ+3,0xdc2626);
   // 配管の接続部（バルブカバー）：配管口のまわりの面
-  {const[px,py,pz]=Pn,hz=Math.max(40,Math.min(80,D/2+pz-6,D/2-pz-6)),hh=Math.min(100,py*.5+60);
+  if(opt.om==="room"){ // 右側面のカバーから出て、側面に沿って後ろ向きに伸びる
+   const[px,py,pz]=Pn;
+   bx(8,200,200,W/2+3,py,pz,MD);
+   const st=cyl(15,px-W/2,W/2+(px-W/2)/2,py,pz,0xb8860b,16);st.rotation.z=Math.PI/2;
+  }else{const[px,py,pz]=Pn,hz=Math.max(40,Math.min(80,D/2+pz-6,D/2-pz-6)),hh=Math.min(100,py*.5+60);
    if(xk==="s")bx(8,hh*2,hz*2,px+3,py,pz,MD);
    else if(xk==="f"||xk==="l")bx(hz*2,hh*2,8,px,py,pz+3,MD);
    else if(xk==="b")bx(hz*2,hh*2,8,px,py,pz-3,MD);
@@ -599,137 +918,218 @@ function fixLabels(cam,W,H){
 }
 
 function build3D(){
- const V=THREE.Vector3,{D,lim}=cur(),R=4*D;
+ const V=THREE.Vector3,br=brOn();
  while(T.grp.children.length){const o=T.grp.children.pop();o.traverse(n=>{if(n.geometry)n.geometry.dispose();if(n.material){if(n.material.map)n.material.map.dispose();n.material.dispose()}})}
  const w0=WALLX[st.units.ws]||WALLX.rb;
- const outDown=t=>st.units.on&&st.units[t==="s"?"s":"e"]==="out"&&["d","m"].includes(outExitKey(st.units[t==="s"?"os":"oe"],st.units[t==="s"?"xs":"xe"]));
+ const outDown=t=>st.units.on&&st.units[t]==="out"&&["d","m"].includes(outExitKey(st.units["o"+t],st.units["x"+t]));
  const D0=((st.units.on&&st.units.s==="wall"&&w0.k==="d")||outDown("s"))?new V(0,-1,0):new V(1,0,0);
  const F0=frameFor(D0);
- let d=F0.ex.clone(),u=F0.ey.clone(),r=F0.ez.clone(),C=new V(),pos=new V();
- const P=[],dims=[],bends={},ofsL=[],angL=[];
- const seg=(a,b,row,arc)=>{P.push({a:a.clone(),b:b.clone(),row,arc})};
- st.rows.forEach((row,i)=>{
-  C=C.clone().addScaledVector(d,row.l);
-  const th=row.a*Math.PI/180;
-  if(!row.a){seg(pos,C,i,-1);if(row.l>0)dims.push({a:pos.clone(),b:C.clone(),l:row.l,i});pos=C.clone();return}
-  const Tn=row.a>=180?R:R*Math.tan(th/2);
-  let e=C.clone().addScaledVector(d,-Tn);
-  if(e.clone().sub(pos).dot(d)<0)e=pos.clone();
-  seg(pos,e,i,-1);if(row.l>0)dims.push({a:pos.clone(),b:C.clone(),l:row.l,i});
-  const tw=effT(i)*Math.PI/180;
-  if(row.o)ofsL.push({a:pos.clone(),b:C.clone(),v:row.l*Math.sin(th)});
-  const b=u.clone().multiplyScalar(Math.cos(tw)).addScaledVector(r,Math.sin(tw));
-  bends[i]={e:e.clone(),b:b.clone(),u:u.clone(),r:r.clone()};
-  const cen=e.clone().addScaledVector(b,R);
-  let prev=e.clone();
-  const N=Math.max(3,Math.ceil(row.a/6));
-  for(let k=1;k<=N;k++){
-   const ph=th*k/N;
-   const q=cen.clone().addScaledVector(b,-R*Math.cos(ph)).addScaledVector(d,R*Math.sin(ph));
-   seg(prev,q,-1,i);prev=q;
-  }
-  {const ph=th/2,mid=cen.clone().addScaledVector(b,-R*Math.cos(ph)).addScaledVector(d,R*Math.sin(ph));
-   angL.push({p:mid,o:mid.clone().sub(cen).normalize(),a:row.a,i});}
-  if(row.a>=180)C=C.clone().addScaledVector(b,2*R);
-  const n=d.clone().cross(b).normalize();
-  d=d.clone().applyAxisAngle(n,th);u=u.clone().applyAxisAngle(n,th);r=r.clone().applyAxisAngle(n,th);
-  pos=prev.clone();
+ /* 1本分の配管をたどる */
+ function trace(rows,p0,d0,u0,r0,Dl){
+  const R=4*Dl;
+  let d=d0.clone(),u=u0.clone(),r=r0.clone(),C=p0.clone(),pos=p0.clone();
+  const P=[],dims=[],bends={},ofsL=[],angL=[];
+  const seg=(a,b,row,arc)=>{P.push({a:a.clone(),b:b.clone(),row,arc})};
+  rows.forEach((row,i)=>{
+   C=C.clone().addScaledVector(d,row.l);
+   const th=row.a*Math.PI/180;
+   if(!row.a){seg(pos,C,i,-1);if(row.l>0)dims.push({a:pos.clone(),b:C.clone(),l:row.l,i});pos=C.clone();return}
+   const Tn=row.a>=180?R:R*Math.tan(th/2);
+   let e=C.clone().addScaledVector(d,-Tn);
+   if(e.clone().sub(pos).dot(d)<0)e=pos.clone();
+   seg(pos,e,i,-1);if(row.l>0)dims.push({a:pos.clone(),b:C.clone(),l:row.l,i});
+   const tw=effT(i,rows)*Math.PI/180;
+   if(row.o)ofsL.push({a:pos.clone(),b:C.clone(),v:row.l*Math.sin(th),i});
+   const b=u.clone().multiplyScalar(Math.cos(tw)).addScaledVector(r,Math.sin(tw));
+   bends[i]={e:e.clone(),b:b.clone(),u:u.clone(),r:r.clone()};
+   const cen=e.clone().addScaledVector(b,R);
+   let prev=e.clone();
+   const N=Math.max(3,Math.ceil(row.a/6));
+   for(let k=1;k<=N;k++){
+    const ph=th*k/N;
+    const q=cen.clone().addScaledVector(b,-R*Math.cos(ph)).addScaledVector(d,R*Math.sin(ph));
+    seg(prev,q,-1,i);prev=q;
+   }
+   {const ph=th/2,mid=cen.clone().addScaledVector(b,-R*Math.cos(ph)).addScaledVector(d,R*Math.sin(ph));
+    angL.push({p:mid,o:mid.clone().sub(cen).normalize(),a:row.a,i});}
+   if(row.a>=180)C=C.clone().addScaledVector(b,2*R);
+   const n=d.clone().cross(b).normalize();
+   d=d.clone().applyAxisAngle(n,th);u=u.clone().applyAxisAngle(n,th);r=r.clone().applyAxisAngle(n,th);
+   pos=prev.clone();
+  });
+  return{P,dims,bends,ofsL,angL,pos,d,u,r};
+ }
+const LG=[];
+ {const z=SIZES[st.s],t=trace(st.rows,new V(),F0.ex,F0.ey,F0.ez,z[1]);
+  LG.push({id:"m",tag:"",col:0x2563eb,css:"#2563eb",rows:st.rows,z,D:z[1],lim:z[2],par:null,...t});}
+ st.bl.forEach(o=>{
+  const par=LG.find(x=>x.id===o.p),z=SIZES[o.s],t=trace(o.rows,par.pos,par.d,par.u,par.r,z[1]),css=legColor(o.id);
+  LG.push({id:o.id,tag:o.id.toUpperCase(),col:parseInt(css.slice(1),16),css,rows:o.rows,z,D:z[1],lim:z[2],par:o.p,...t});
  });
+ T.segs=[];
+ T.legBox={};LG.forEach(L=>{const b=new THREE.Box3();L.P.forEach(p=>{b.expandByPoint(p.a);b.expandByPoint(p.b)});b.expandByPoint(L.pos);T.legBox[L.id]=b});
+ const hasKid=L=>LG.some(x=>x.par===L.id),LEAF=LG.filter(L=>!hasKid(L));
+ LG.forEach(L=>{L.sum=L.rows.reduce((s,x)=>s+x.l,0);L.over=L.sum>L.lim});
  const bb=new THREE.Box3();
- P.forEach(p=>{bb.expandByPoint(p.a);bb.expandByPoint(p.b)});
+ LG.forEach(L=>L.P.forEach(p=>{bb.expandByPoint(p.a);bb.expandByPoint(p.b)}));
  bb.expandByPoint(new V());
+ const endEx=(t,L)=>{
+  const k=st.units[t],wk=st.units["w"+t];
+  if((k==="wall"&&(WALLX[wk]||WALLX.rb).k==="d")||outDown(t))return new V(0,-1,0);
+  let h=new V(-L.d.x,0,-L.d.z);
+  if(h.length()<0.2){h=null;
+   for(let i=L.P.length-1;i>=0;i--){const q=L.P[i].b.clone().sub(L.P[i].a);q.y=0;if(q.length()>1e-3){h=q.negate();break}}
+   if(!h)h=new V(-1,0,0)}
+  return h.normalize();
+ };
  const UN=[];
  if(st.units.on){
-  /* 機器は水平に置く：配管の最後の角度で傾けず、向き（水平の回転）だけ配管に合わせる */
-  const endEx=(()=>{
-   if((st.units.e==="wall"&&(WALLX[st.units.we]||WALLX.rb).k==="d")||outDown("e"))return new V(0,-1,0);
-   let h=new V(-d.x,0,-d.z);
-   if(h.length()<0.2){h=null;
-    for(let i=P.length-1;i>=0;i--){const q=P[i].b.clone().sub(P[i].a);q.y=0;if(q.length()>1e-3){h=q.negate();break}}
-    if(!h)h=new V(-1,0,0)}
-   return h.normalize();
-  })();
-  [[st.units.s,new V(),D0,st.units.ws,st.units.os,st.units.xs,st.units.cs],[st.units.e,pos.clone(),endEx,st.units.we,st.units.oe,st.units.xe,st.units.ce]].forEach(([type,org,ex,wk,omk,oxk,cck])=>{
-   if(!type)return;
+  const ul=[["s",new V(),D0,LG[0]]];
+  LEAF.forEach(L=>{const k=br?"L"+L.id:"e";ul.push([k,L.pos.clone(),endEx(k,L),L])});
+  ul.forEach(([t,org,ex,L])=>{
+   const type=st.units[t];if(!type)return;
    try{
-    const mk=makeUnit(type,{kind:st.info.kind,wx:wk,om:omk,ox:oxk,ck:cck}),f=frameFor(ex);
+    const mk=makeUnit(type,{kind:st.info.kind,wx:st.units["w"+t],om:st.units["o"+t],ox:st.units["x"+t],ck:st.units["c"+t]}),f=frameFor(ex);
     mk.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(f.ex,f.ey,f.ez));
     mk.g.position.copy(org);mk.g.updateMatrixWorld(true);
     bb.union(new THREE.Box3().setFromObject(mk.g));
-    UN.push({g:mk.g,name:mk.name,top:mk.top,cx:mk.cx,cz:mk.cz||0,org,f});
+    UN.push({g:mk.g,name:mk.name,top:mk.top,cx:mk.cx,cz:mk.cz||0,org,f,L,t});
    }catch(err){console.warn("unit",err)}
   });
  }
+ let GY=null;
+ if(st.gnd.on){
+  const G=st.gnd,IN=["cas","ceil","wall"];
+  if(G.mode==="start")GY=-G.h;
+  else if(G.mode==="pipe"){
+   const L=LG.find(x=>x.id===G.g);
+   if(L){const sg=L.P.find(p=>p.row===G.r&&p.arc<0&&p.a.distanceTo(p.b)>1e-3);const y=sg?(sg.a.y+sg.b.y)/2:L.pos.y;GY=y-G.h}
+  }
+  else if(G.mode==="unit"){
+   const u=UN.find(x=>x.t===G.unit&&IN.includes(st.units[x.t]))||UN.find(x=>IN.includes(st.units[x.t]));
+   if(u){const b=new THREE.Box3().setFromObject(u.g);GY=b.min.y-G.h}
+  }
+  if(GY===null)GY=bb.min.y;
+  {const c0=bb.getCenter(new V());bb.expandByPoint(new V(c0.x,GY,c0.z))}
+ }
+ T.gy=GY;
  const sz=bb.getSize(new V()),ctr=bb.getCenter(new V());
  const ext=Math.max(sz.x,sz.y,sz.z,300);
- const rad=Math.max(D/2,ext*0.011);
+ const Dmax=Math.max(...LG.map(L=>L.D));
+ LG.forEach(L=>{L.rad=Math.min(L.D/2*4,Math.max(L.D/2,ext*0.0065*Math.pow(L.D/Dmax,0.9)))});
+ const rad=Math.max(...LG.map(L=>L.rad));
  T.ext=ext;T.center.copy(ctr);
- let total=0;P.forEach(p=>total+=p.a.distanceTo(p.b));
- const over=st.rows.reduce((s,x)=>s+x.l,0)>lim;
- const mat=new THREE.MeshStandardMaterial({color:over?0xf97316:0x2563eb,metalness:0.35,roughness:0.32});
  const omat=new THREE.MeshBasicMaterial({color:0x0b1f4d,side:THREE.BackSide});
  const hi=new THREE.MeshStandardMaterial({color:0xfbbf24,metalness:0.3,roughness:0.35});
  const Y=new V(0,1,0);
- P.forEach(p=>{
-  const len=p.a.distanceTo(p.b);if(len<1e-6)return;
-  const mt=(p.row===sel||p.arc===sel)?hi:mat;
-  const m=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,len,20,1),mt);
-  m.position.copy(p.a).add(p.b).multiplyScalar(0.5);
-  m.quaternion.setFromUnitVectors(Y,p.b.clone().sub(p.a).normalize());
-  T.grp.add(m);
-  const ol=new THREE.Mesh(new THREE.CylinderGeometry(rad*1.16,rad*1.16,len,20,1,true),omat);
-  ol.position.copy(m.position);ol.quaternion.copy(m.quaternion);T.grp.add(ol);
-  if(p.arc>=0){
-   const s=new THREE.Mesh(new THREE.SphereGeometry(rad,14,10),mt);s.position.copy(p.b);T.grp.add(s);
-   const so=new THREE.Mesh(new THREE.SphereGeometry(rad*1.16,14,10),omat);so.position.copy(p.b);T.grp.add(so);
+ LG.forEach(L=>{
+  if(HID.has(L.id))return;
+  const rd=L.rad,tg=L.tag;
+  const mat=new THREE.MeshStandardMaterial({color:L.col,metalness:0.35,roughness:0.32});
+  const matO=new THREE.MeshStandardMaterial({color:0xf97316,metalness:0.35,roughness:0.32});
+  let acc=0;
+  const cyl=(pa,pb,mt,sph,rowi)=>{
+   const len=pa.distanceTo(pb);if(len<1e-6)return;
+   T.segs.push({g:L.id,a:pa.clone(),b:pb.clone(),row:rowi});
+   const m=new THREE.Mesh(new THREE.CylinderGeometry(rd,rd,len,20,1),mt);
+   m.position.copy(pa).add(pb).multiplyScalar(0.5);
+   m.quaternion.setFromUnitVectors(Y,pb.clone().sub(pa).normalize());
+   T.grp.add(m);
+   const ol=new THREE.Mesh(new THREE.CylinderGeometry(rd*1.16,rd*1.16,len,20,1,true),omat);
+   ol.position.copy(m.position);ol.quaternion.copy(m.quaternion);T.grp.add(ol);
+   if(sph){
+    const s=new THREE.Mesh(new THREE.SphereGeometry(rd,14,10),mt);s.position.copy(pb);T.grp.add(s);
+    const so=new THREE.Mesh(new THREE.SphereGeometry(rd*1.16,14,10),omat);so.position.copy(pb);T.grp.add(so);
+   }
+  };
+  L.P.forEach(p=>{
+   const len=p.a.distanceTo(p.b);
+   const hl=L.id===leg&&(p.row===sel||p.arc===sel),sph=p.arc>=0;
+   if(len<1e-6){return}
+   const ri=p.row>=0?p.row:p.arc;
+   if(hl)cyl(p.a,p.b,hi,sph,ri);
+   else if(acc>=L.lim)cyl(p.a,p.b,matO,sph,ri);
+   else if(acc+len>L.lim){
+    const pt=p.a.clone().lerp(p.b,(L.lim-acc)/len);
+    cyl(p.a,pt,mat,false,ri);cyl(pt,p.b,matO,sph,ri);
+   }else cyl(p.a,p.b,mat,sph,ri);
+   acc+=len;
+  });
+  const cs=L.id===leg;
+  L.dims.forEach(dm=>{
+   const on=cs&&dm.i===sel;
+   const s=label(tg+nm(dm.i)+" "+fmt(dm.l)+"mm",ext*0.042,on?"#fef3c7f2":"#ffffffee","#0c4a6e");
+   s.position.copy(dm.a).add(dm.b).multiplyScalar(0.5);
+   s.userData.cat="dim";pxl(s,on?24:20,{t:"perp",a:dm.a,b:dm.b},rd);
+   T.grp.add(s);
+  });
+  if(st.sup.on)L.dims.forEach(dm=>{
+   const dir=dm.b.clone().sub(dm.a);if(dir.length()<1e-6)return;dir.normalize();
+   const p0=dm.b.clone().addScaledVector(dir,-dm.l);
+   supPos(dm.l).forEach(x=>{
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(rd*1.55,rd*0.32,10,24),new THREE.MeshStandardMaterial({color:0xe11d48,metalness:.2,roughness:.45}));
+    ring.position.copy(p0).addScaledVector(dir,x);ring.quaternion.setFromUnitVectors(new V(0,0,1),dir);T.grp.add(ring);
+   });
+  });
+  L.angL.forEach(g=>{
+   const on=cs&&g.i===sel;
+   const s=label(g.a+"°",ext*(on?0.065:0.052),ANGC[g.a]||"#475569","#ffffff");
+   s.position.copy(g.p);s.userData.cat="ang";pxl(s,on?26:22,{t:"out",o:g.o},rd);T.grp.add(s);
+  });
+  L.ofsL.forEach(o=>{const s=label("↔ 差 "+fmt(o.v)+"mm",ext*0.035,"#ede9fef2","#5b21b6");s.position.copy(o.a).add(o.b).multiplyScalar(0.5);s.userData.cat="ofs";pxl(s,19,{t:"perp",a:o.a,b:o.b,dn:true},rd);T.grp.add(s)});
+  if(br){
+   /* 配管サイズの表示：いちばん長い直管の真ん中 */
+   let best=null,bl=0;L.P.forEach(p=>{if(p.arc<0){const l=p.a.distanceTo(p.b);if(l>bl){bl=l;best=p}}});
+   if(best){
+    const s=label(legName(L.id)+" "+L.z[0],ext*0.045,L.css+"f2","#ffffff");
+    s.position.copy(best.a).add(best.b).multiplyScalar(0.5);s.userData.cat="size";
+    pxl(s,22,{t:"perp",a:best.a,b:best.b,dn:true},rd);T.grp.add(s);
+   }
   }
  });
- dims.forEach(dm=>{
-  const s=label(nm(dm.i)+" "+fmt(dm.l)+"mm",ext*0.042,dm.i===sel?"#fef3c7f2":"#ffffffee","#0c4a6e");
-  s.position.copy(dm.a).add(dm.b).multiplyScalar(0.5);
-  s.userData.min=1;pxl(s,dm.i===sel?24:20,{t:"perp",a:dm.a,b:dm.b},rad);
-  T.grp.add(s);
+LG.filter(L=>hasKid(L)&&!HID.has(L.id)).forEach(P0=>{
+  /* 分岐の継手 */
+  const jr=P0.rad*1.4;
+  const jm=new THREE.Mesh(new THREE.SphereGeometry(jr,18,14),new THREE.MeshStandardMaterial({color:0xb45309,metalness:.6,roughness:.35}));
+  jm.position.copy(P0.pos);T.grp.add(jm);
+  const s=label("🔀 分岐",ext*0.045,"#fef3c7f2","#92400e");
+  s.position.copy(P0.pos);s.userData.cat="size";pxl(s,22,{t:"up"},jr);T.grp.add(s);
  });
- angL.forEach(g=>{
-  const hh=ext*(g.i===sel?0.065:0.052);
-  const s=label(g.a+"°",hh,ANGC[g.a]||"#475569","#ffffff");
-  s.position.copy(g.p);s.userData.min=1;pxl(s,g.i===sel?26:22,{t:"out",o:g.o},rad);T.grp.add(s);
- });
- ofsL.forEach(o=>{const s=label("↔ 差 "+fmt(o.v)+"mm",ext*0.035,"#ede9fef2","#5b21b6");s.position.copy(o.a).add(o.b).multiplyScalar(0.5);pxl(s,19,{t:"perp",a:o.a,b:o.b,dn:true},rad);T.grp.add(s)});
- const bd=bends[sel];
+ const cl=LG.find(x=>x.id===leg)||LG[0],bd=HID.has(cl.id)?null:cl.bends[sel];
  if(bd){
-  const L=ext*0.11,am=new THREE.MeshStandardMaterial({color:0xef4444,roughness:.4});
+  const rd=cl.rad,L=ext*0.11,am=new THREE.MeshStandardMaterial({color:0xef4444,roughness:.4});
   const q=new THREE.Quaternion().setFromUnitVectors(Y,bd.b);
-  const sh=new THREE.Mesh(new THREE.CylinderGeometry(rad*0.4,rad*0.4,L*0.7,10),am);
+  const sh=new THREE.Mesh(new THREE.CylinderGeometry(rd*0.4,rd*0.4,L*0.7,10),am);
   sh.position.copy(bd.e).addScaledVector(bd.b,L*0.35);sh.quaternion.copy(q);T.grp.add(sh);
-  const cn=new THREE.Mesh(new THREE.ConeGeometry(rad*1.1,L*0.3,14),am);
+  const cn=new THREE.Mesh(new THREE.ConeGeometry(rd*1.1,L*0.3,14),am);
   cn.position.copy(bd.e).addScaledVector(bd.b,L*0.85);cn.quaternion.copy(q);T.grp.add(cn);
-  const row=st.rows[sel],NM=["上","右","下","左"],si=Math.max(0,[0,90,180,270].indexOf(effT(sel)));
+  const row=cl.rows[sel],NM=["上","右","下","左"],si=Math.max(0,[0,90,180,270].indexOf(effT(sel,cl.rows)));
   const s=label(NM[si]+"へ "+row.a+"°",ext*0.045,"#fee2e2f2","#7f1d1d");
-  s.position.copy(bd.e).addScaledVector(bd.b,L*1.2);pxl(s,22);T.grp.add(s);
+  s.position.copy(bd.e).addScaledVector(bd.b,L*1.2);s.userData.cat="bend";pxl(s,22);T.grp.add(s);
   // 進行方向から見た 上・右・下・左 の目印（曲げ始めの位置）
-  const cr=Math.max(rad*3.4,ext*0.06);
+  const cr=Math.max(rd*3.4,ext*0.06);
   const dirs=[bd.u,bd.r,bd.u.clone().negate(),bd.r.clone().negate()];
   dirs.forEach((v,k)=>{
    const on=k===si,gm=new THREE.MeshBasicMaterial({color:on?0xef4444:0x94a3b8});
-   const sp=new THREE.Mesh(new THREE.CylinderGeometry(rad*0.14,rad*0.14,cr,6),gm);
+   const sp=new THREE.Mesh(new THREE.CylinderGeometry(rd*0.14,rd*0.14,cr,6),gm);
    sp.position.copy(bd.e).addScaledVector(v,cr/2);sp.quaternion.setFromUnitVectors(Y,v);T.grp.add(sp);
-   const dot=new THREE.Mesh(new THREE.SphereGeometry(rad*(on?0.8:0.5),12,8),gm);
+   const dot=new THREE.Mesh(new THREE.SphereGeometry(rd*(on?0.8:0.5),12,8),gm);
    dot.position.copy(bd.e).addScaledVector(v,cr);T.grp.add(dot);
-   if(!on){const t=label(NM[k],ext*0.032,"#ffffffcc","#475569");t.position.copy(bd.e).addScaledVector(v,cr*1.4);pxl(t,17);T.grp.add(t)}
+   if(!on){const t=label(NM[k],ext*0.032,"#ffffffcc","#475569");t.position.copy(bd.e).addScaledVector(v,cr*1.4);t.userData.cat="bend";pxl(t,17);T.grp.add(t)}
   });
  }
  UN.forEach(u=>{
   T.grp.add(u.g);
+  const rd=u.L.rad;
   try{
    const sq=new THREE.Quaternion().setFromUnitVectors(Y,u.f.ex);
-   const ins=new THREE.Mesh(new THREE.CylinderGeometry(rad*1.9,rad*1.9,120,20),new THREE.MeshStandardMaterial({color:0x374151,roughness:.8}));
+   const ins=new THREE.Mesh(new THREE.CylinderGeometry(rd*1.9,rd*1.9,120,20),new THREE.MeshStandardMaterial({color:0x374151,roughness:.8}));
    ins.position.copy(u.org).addScaledVector(u.f.ex,-10);ins.quaternion.copy(sq);T.grp.add(ins);
-   const nut=new THREE.Mesh(new THREE.CylinderGeometry(rad*2.4,rad*2.4,16,6),new THREE.MeshStandardMaterial({color:0xb8860b,metalness:.6,roughness:.35}));
+   const nut=new THREE.Mesh(new THREE.CylinderGeometry(rd*2.4,rd*2.4,16,6),new THREE.MeshStandardMaterial({color:0xb8860b,metalness:.6,roughness:.35}));
    nut.position.copy(u.org).addScaledVector(u.f.ex,38);nut.quaternion.copy(sq);T.grp.add(nut);
   }catch(err){console.warn("stub",err)}
-  const s=label("🏠 "+u.name,ext*0.045,"#ffffffee","#0c4a6e");
-  s.position.copy(u.org).addScaledVector(u.f.ex,u.cx).addScaledVector(u.f.ey,u.top).addScaledVector(u.f.ez,u.cz);pxl(s,24,{t:"up"},0);T.grp.add(s);
+  const s=label("🏠 "+(br&&u.t!=="s"?u.t.slice(1).toUpperCase()+" ":"")+u.name,ext*0.045,"#ffffffee","#0c4a6e");
+  s.position.copy(u.org).addScaledVector(u.f.ex,u.cx).addScaledVector(u.f.ey,u.top).addScaledVector(u.f.ez,u.cz);s.userData.cat="unit";pxl(s,24,{t:"up"},0);T.grp.add(s);
  });
  const flag=(pt,txt,bg,fg,col)=>{
   const h=ext*0.13;
@@ -737,30 +1137,60 @@ function build3D(){
   pole.position.copy(pt);pole.position.y+=h/2;T.grp.add(pole);
   const ball=new THREE.Mesh(new THREE.SphereGeometry(rad*0.8,14,10),new THREE.MeshStandardMaterial({color:col,roughness:.4}));
   ball.position.copy(pt);ball.position.y+=h;T.grp.add(ball);
-  const s=label(txt,ext*0.05,bg,fg);s.position.copy(pt);s.position.y+=h;pxl(s,26,{t:"up"},rad*0.8);T.grp.add(s);
+  const s=label(txt,ext*0.05,bg,fg);s.position.copy(pt);s.position.y+=h;s.userData.cat="flag";pxl(s,26,{t:"up"},rad*0.8);T.grp.add(s);
  };
- flag(new V(),"🟢 起点","#dcfce7f2","#14532d",0x16a34a);
- flag(pos,"🔴 終点","#fee2e2f2","#7f1d1d",0xdc2626);
- if(over&&total>lim){
-  let acc=0;
-  for(const p of P){
-   const len=p.a.distanceTo(p.b);
-   if(acc+len>=lim){
-    const t=(lim-acc)/(len||1),pt=p.a.clone().lerp(p.b,t),dir=p.b.clone().sub(p.a).normalize();
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(rad*1.7,rad*0.5,12,28),new THREE.MeshStandardMaterial({color:0xfacc15,metalness:.3,roughness:.4}));
-    ring.position.copy(pt);ring.quaternion.setFromUnitVectors(new V(0,0,1),dir);T.grp.add(ring);
-    const s=label("🔗 継手 "+(lim/1000)+"m",ext*0.04,"#ffedd5f2","#9a3412");
-    s.position.copy(pt);pxl(s,20,{t:"up",dn:true},rad*1.7);T.grp.add(s);
-    break;
-   }
-   acc+=len;
+ if(GY!==null){
+  const size=Math.max(sz.x,sz.z)*1.5+1500;
+  if(THREE.PlaneGeometry){
+   const pl=new THREE.Mesh(new THREE.PlaneGeometry(size,size),new THREE.MeshBasicMaterial({color:0x7c8f5a,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
+   pl.rotation.x=-Math.PI/2;pl.position.set(ctr.x,GY,ctr.z);pl.renderOrder=-1;T.grp.add(pl);
   }
+  if(THREE.GridHelper){
+   const gh=new THREE.GridHelper(size,Math.max(4,Math.round(size/500)),0x55663a,0x8a9a6a);
+   gh.material.transparent=true;gh.material.opacity=.28;gh.material.depthWrite=false;gh.position.set(ctr.x,GY+0.5,ctr.z);T.grp.add(gh);
+  }
+  /* 地面からの高さ（曲げの角・起点・終点） */
+  const pts=[],seen=new Set(),addP=(p,rd,end)=>{const k=[p.x,p.y,p.z].map(v=>Math.round(v/5)).join(",");if(seen.has(k))return;seen.add(k);pts.push({p,rd,end})};
+  /* 高さが変わった所だけ表示（起点は必ず） */
+  const lastH={};
+  LG.forEach(L=>{
+   let prev=L.id==="m"?0:(lastH[L.par]!==undefined?lastH[L.par]:null);
+   const chk=(p,end)=>{const h=p.y;if(prev===null||Math.abs(h-prev)>10){if(!HID.has(L.id))addP(p,L.rad,end);prev=h}else if(end&&!HID.has(L.id))pts.push({p,rd:L.rad,end,nolab:true})};
+   if(L.id==="m"&&!HID.has("m"))addP(new V(),L.rad,true);
+   L.dims.forEach(dm=>chk(dm.b,false));
+   if(!hasKid(L))chk(L.pos,true);
+   lastH[L.id]=prev;
+  });
+  const lm=new THREE.MeshBasicMaterial({color:0x64748b,transparent:true,opacity:.6});
+  pts.forEach(({p,rd,end,nolab})=>{
+   const h=p.y-GY;
+   if(end&&h>1){const ln=new THREE.Mesh(new THREE.CylinderGeometry(rad*0.12,rad*0.12,h,6),lm);ln.position.set(p.x,GY+h/2,p.z);T.grp.add(ln)}
+   if(nolab)return;
+   const s=label("↕ "+fmt(h),ext*0.035,"#ecfccbf2","#365314");s.position.copy(p);s.userData.cat="gnd";pxl(s,17,{t:"up",dn:true},rd);T.grp.add(s);
+  });
  }
- const sumL=st.rows.reduce((s,x)=>s+x.l,0);
- $("#chip").className="chip"+(over?" over":"");
-
- $("#chip").textContent=`📏 ${fmt(sumL)}mm`+(st.goal?` 🎯${fmt(st.goal)}`:"")+(over?" ⚠️":"");
+ if(!HID.has("m"))flag(new V(),"🟢 起点","#dcfce7f2","#14532d",0x16a34a);
+ LEAF.filter(L=>!HID.has(L.id)).forEach(L=>flag(L.pos,br?"🔴 終点"+L.tag:"🔴 終点","#fee2e2f2","#7f1d1d",0xdc2626));
+ const anyOver=LG.some(L=>L.over);
+ $("#chip").className="chip"+(anyOver?" over":"");
+ $("#chip").innerHTML=ICO(RULER_ICO)+(br?LG.map(L=>legName(L.id)+" "+fmt(L.sum)).join(" ／ ")+(anyOver?" ⚠️":""):`${fmt(LG[0].sum)}mm`+(st.goal?` 🎯${fmt(st.goal)}`:"")+(anyOver?" ⚠️":""));
+  updSupUI();
  T.grp.traverse(o=>{if(o.userData&&o.userData.lab)o.visible=labShow(o)});
+}
+
+function updSupUI(){
+const S=st.sup,p=$("#supPill");if(!p)return;
+ if(!S.on){p.innerHTML=ICO($("#supBtn img").src,"1.5em")+"支持 OFF ⚙️";p.style.color="#64748b"}
+ else{p.style.color="";p.innerHTML=ICO($("#supBtn img").src,"1.5em")+"支持 "+supShort()+" ⚙️"}
+ $("#supBtn").style.opacity=S.on?1:.55;
+}
+function supShort(){
+ const ids=legIds(),tot=ids.reduce((a,g)=>a+supCount(g),0);
+ return ids.length===1?tot+"箇所":"計"+tot+"箇所 ／ "+legName(leg)+" "+supCount(leg)+"箇所";
+}
+function supSummary(){
+ const ids=legIds(),c=ids.map(supCount);
+ return ids.length===1?c[0]+"箇所":"計"+c.reduce((a,b)=>a+b,0)+"箇所（"+ids.map((g,i)=>legName(g)+c[i]).join("／")+"）";
 }
 
 function fitT(keep){
@@ -780,7 +1210,7 @@ function loop(){
   const rd=T.rd,W=T.w,H=T.h;
   cam.updateMatrixWorld();fixLabels(cam,W,H);
   rd.setScissorTest(false);rd.setViewport(0,0,W,H);rd.render(T.sc,cam);
-  const g=Math.round(Math.min(104,Math.min(W,H)*0.34)),gx=W-g-4-(T.full?0:46),gy=4;
+  const g=Math.round(Math.min(104,Math.min(W,H)*0.34)),gx=W-g-4-(T.full?0:(()=>{const t=$("#tools");return t.classList.contains("hide")?0:t.offsetWidth+6})()),gy=4;
   T.gcam.position.copy(cam.position).sub(tg).normalize().multiplyScalar(4.4);
   T.gcam.up.set(0,1,0);T.gcam.lookAt(0,0,0);
   rd.setViewport(gx,gy,g,g);rd.setScissor(gx,gy,g,g);rd.setScissorTest(true);
@@ -793,26 +1223,37 @@ const setFull=b=>{if(T)T.full=b;$("#stage").classList.toggle("full",b);setTimeou
 $("#open3").onclick=()=>setFull(true);
 $("#expand").onclick=()=>setFull(true);
 $("#close3").onclick=()=>setFull(false);
-$("#reset3").onclick=()=>{if(T)fitT()};
 const VIEWS=[["斜め",.8,1.1],["正面（横から）",0,Math.PI/2],["真上",0,0.05],["側面（前から）",Math.PI/2,Math.PI/2]];
 $("#viewBtn").onclick=()=>{
  if(!T)return;T.vi=(T.vi+1)%VIEWS.length;
- const v=VIEWS[T.vi];T.th=v[1];T.ph=v[2];T.dirty=true;toast("👁 "+v[0]);
+ const v=VIEWS[T.vi];fitT(true);T.th=v[1];T.ph=v[2];T.dirty=true;toast("🔄 "+v[0]);
 };
 /* 文字のオンオフ */
-let LABM=2;
-try{const v=localStorage.getItem("pbm_lab2");LABM=v==="0"?0:v==="1"?1:2}catch(e){}
-const labShow=o=>LABM===2||(LABM===1&&!!o.userData.min);
-const LABICON=["🚫","🔢","🔤"];
+const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
+let LABC={};
+try{LABC=JSON.parse(localStorage.getItem("pbm_labc")||"{}")||{}}catch(e){LABC={}}
+const labShow=o=>LABC[o.userData.cat||"other"]!==false;
 function applyLabels(){
  if(T){T.grp.traverse(o=>{if(o.userData&&o.userData.lab)o.visible=labShow(o)});T.dirty=true}
- $("#labBtn").textContent=LABICON[LABM];$("#labBtn").style.opacity=LABM?1:.6;renderInfo();
+ const any=LABCATS.some(([k])=>LABC[k]!==false);
+ $("#labBtn").style.opacity=any?1:.55;renderInfo();
+ try{localStorage.setItem("pbm_labc",JSON.stringify(LABC))}catch(e){}
 }
-$("#labBtn").onclick=()=>{
- LABM=(LABM+2)%3;try{localStorage.setItem("pbm_lab2",String(LABM))}catch(e){}
- applyLabels();toast(["🚫 文字なし","🔢 寸法と角度だけ","🔤 文字すべて"][LABM]);
-};
-$("#labBtn").textContent=LABICON[LABM];$("#labBtn").style.opacity=LABM?1:.6;
+function renderLabSheet(){
+ const box=$("#labList");box.innerHTML="";
+ LABCATS.forEach(([k,n])=>{
+  const on=LABC[k]!==false,r=document.createElement("div");r.className="labrow";
+  r.innerHTML=`<span>${n}</span><button class="lsw${on?" on":""}">${on?"表示":"非表示"}</button>`;
+  r.querySelector("button").onclick=()=>{LABC[k]=!on;applyLabels();renderLabSheet()};
+  box.appendChild(r);
+ });
+}
+$("#labBtn").onclick=()=>{renderLabSheet();$("#labOv").classList.add("on")};
+$("#closeLab").onclick=()=>$("#labOv").classList.remove("on");
+$("#labOv").addEventListener("click",e=>{if(e.target.id==="labOv")$("#labOv").classList.remove("on")});
+$("#labAll").onclick=()=>{LABCATS.forEach(([k])=>LABC[k]=true);applyLabels();renderLabSheet()};
+$("#labNone").onclick=()=>{LABCATS.forEach(([k])=>LABC[k]=false);applyLabels();renderLabSheet()};
+$("#labBtn").style.opacity=LABCATS.some(([k])=>LABC[k]!==false)?1:.55;
 /* 機器の模型 */
 const UNIT_LIST=[["","なし","🚫"],["out","室外機","🌀"],["cas","天カセ","🔲"],["ceil","天吊","▬"],["wall","壁掛け","🧱"]];
 function unitRefresh(){if(T){build3D();fitT(true)}}
@@ -825,10 +1266,14 @@ function renderUnitSheet(){
  [...$("#uFlip").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===st.units.flip));
  const mk=MAKERS.find(x=>x[0]===st.units.mk);
  $("#uMkNote").textContent=mk[1]+"の天カセは、冷媒配管の接続口が「"+sideName(mk[2]*(st.units.flip?-1:1))+"」です。メーカーで変わるのは天カセだけで、壁掛けは下の「配管の出る位置」で選びます。左右が実物と合わない時は「左右反転」で直せます。";
- [["s","#uOS","os","起点"],["e","#uOE","oe","終点"]].forEach(([k,q,ok,lab])=>{
+const SLOTS=[["s","起点"],...(brOn()?leaves().map(g=>["L"+g,slotName("L"+g)]):[["e","終点"]])];
+ {const SL=$("#uSlots");SL.innerHTML="";
+  SLOTS.forEach(([k,lab])=>{const sec=document.createElement("div");
+   sec.innerHTML=`<div class="ctitle">${k==="s"?"🟢 起点（配管の始まり）":"🔴 "+lab}</div><div class="ugrid" id="u${k}"></div><div id="uO${k}"></div><div id="uW${k}"></div>`;SL.appendChild(sec)});}
+  SLOTS.map(([k,lab])=>[k,"#uO"+k,"o"+k,lab]).forEach(([k,q,ok,lab])=>{
   const box=$(q);box.innerHTML="";
   if(st.units[k]==="ceil"){
-   const ck=k==="s"?"cs":"ce",t3=document.createElement("div");t3.className="ctitle";t3.textContent="🔧 天吊：配管をつなぐ位置（"+lab+"）";box.appendChild(t3);
+   const ck="c"+k,t3=document.createElement("div");t3.className="ctitle";t3.textContent="🔧 天吊：配管をつなぐ位置（"+lab+"）";box.appendChild(t3);
    const g3=document.createElement("div");g3.className="ugrid";
    [["f","裏面（右下）"],["r","右端・裏（サブ）"]].forEach(([key,nm])=>{const b=document.createElement("button");b.className="ubtn"+(st.units[ck]===key?" on":"");b.textContent=nm;
     b.onclick=()=>{st.units[ck]=key;save();renderUnitSheet();unitRefresh()};g3.appendChild(b)});
@@ -841,7 +1286,7 @@ function renderUnitSheet(){
    b.innerHTML=m.n+'<small style="font-weight:600;opacity:.75">'+m.sub+'</small>';
    b.onclick=()=>{st.units[ok]=key;save();renderUnitSheet();unitRefresh()};gr.appendChild(b)});
   box.appendChild(gr);
-  const xk=k==="s"?"xs":"xe",mkey=st.units[ok];
+  const xk="x"+k,mkey=st.units[ok];
   if(outAllow(mkey).length>1){
    const t2=document.createElement("div");t2.className="ctitle";t2.textContent="🔧 配管をつなぐ位置（"+(OUT_VRV.includes(mkey)?"左下":"右下")+"・"+lab+"）";box.appendChild(t2);
    const g2=document.createElement("div");g2.className="ugrid";
@@ -849,9 +1294,9 @@ function renderUnitSheet(){
     b.onclick=()=>{st.units[xk]=key;save();renderUnitSheet();unitRefresh()};g2.appendChild(b)});
    box.appendChild(g2);
   }
-  const n=document.createElement("div");n.className="note";n.textContent=OUT_PKG.includes(mkey)?"大きさは目安です。パッケージの配管は、正面から見て右下から出ます。":mkey==="ghp"?"大きさは目安です。GHPの配管は、正面から見て左下の真正面から出ます。":OUT_VRV.includes(mkey)?"大きさは目安です。ビルマルチの配管は、正面から見て左下から出ます。":"大きさは目安です。配管は、正面から見て右の側面から出ます（ルームエアコンは後ろ寄り・下から100mm上）。";box.appendChild(n);
+  const n=document.createElement("div");n.className="note";n.textContent=OUT_PKG.includes(mkey)?"大きさは目安です。パッケージの配管は、正面から見て右下から出ます。":mkey==="ghp"?"大きさは目安です。GHPの配管は、正面から見て左下の真正面から出ます。":OUT_VRV.includes(mkey)?"大きさは目安です。ビルマルチの配管は、正面から見て左下から出ます。":"大きさは目安です。配管は、正面から見て右の側面から出ます（ルームエアコンは右側面の外側から後ろ向き・下から100mm上）。";box.appendChild(n);
  });
- [["s","#uWS","ws","起点"],["e","#uWE","we","終点"]].forEach(([k,q,wk,lab])=>{
+ SLOTS.map(([k,lab])=>[k,"#uW"+k,"w"+k,lab]).forEach(([k,q,wk,lab])=>{
   const box=$(q);box.innerHTML="";
   if(st.units[k]!=="wall")return;
   const t=document.createElement("div");t.className="ctitle";t.textContent="🧱 壁掛け：配管の出る位置（"+lab+"）";box.appendChild(t);
@@ -862,7 +1307,7 @@ function renderUnitSheet(){
   });
   box.appendChild(gr);
  });
- [["s","#uS"],["e","#uE"]].forEach(([k,q])=>{
+ SLOTS.map(([k])=>[k,"#u"+k]).forEach(([k,q])=>{
   const box=$(q);box.innerHTML="";
   UNIT_LIST.forEach(([v,n,ic])=>{
    const b=document.createElement("button");b.className="ubtn"+(st.units[k]===v?" on":"");
@@ -877,6 +1322,239 @@ $("#closeUnit").onclick=()=>$("#unitOv").classList.remove("on");
 $("#unitOv").addEventListener("click",e=>{if(e.target.id==="unitOv")$("#unitOv").classList.remove("on")});
 $("#uFlip").onclick=e=>{const b=e.target.closest("button");if(!b)return;st.units.flip=b.dataset.v==="1";save();renderUnitSheet();unitRefresh()};
 $("#uOn").onclick=e=>{const b=e.target.closest("button");if(!b)return;st.units.on=b.dataset.v==="1";save();renderUnitSheet();unitRefresh()};
+const RULER_ICO="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48ZyB0cmFuc2Zvcm09InJvdGF0ZSgtNDAgNTAgNTApIj48cmVjdCB4PSIxNCIgeT0iMzgiIHdpZHRoPSI3MiIgaGVpZ2h0PSIyNCIgcng9IjQiIGZpbGw9IiNmZmYiLz48ZyBzdHJva2U9IiMyNTYzZWIiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48bGluZSB4MT0iMjQiIHkxPSIzOCIgeDI9IjI0IiB5Mj0iNTAiLz48bGluZSB4MT0iMzQiIHkxPSIzOCIgeDI9IjM0IiB5Mj0iNDYiLz48bGluZSB4MT0iNDQiIHkxPSIzOCIgeDI9IjQ0IiB5Mj0iNTAiLz48bGluZSB4MT0iNTQiIHkxPSIzOCIgeDI9IjU0IiB5Mj0iNDYiLz48bGluZSB4MT0iNjQiIHkxPSIzOCIgeDI9IjY0IiB5Mj0iNTAiLz48bGluZSB4MT0iNzQiIHkxPSIzOCIgeDI9Ijc0IiB5Mj0iNDYiLz48L2c+PC9nPjwvc3ZnPg==";
+const ICO=(src,h)=>`<img alt="" src="${src}" style="height:${h||"1.25em"};width:${h||"1.25em"};vertical-align:-0.28em;margin-right:5px;border-radius:50%">`;
+const UI_EYE="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48cGF0aCBkPSJNMTYgNTAgUTUwIDIwIDg0IDUwIFE1MCA4MCAxNiA1MCBaIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMTIiIGZpbGw9IiMyNTYzZWIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1LjUiIGZpbGw9IiMwYjJhNjYiLz48L3N2Zz4=",UI_EYEOFF="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48cGF0aCBkPSJNMTYgNTAgUTUwIDIwIDg0IDUwIFE1MCA4MCAxNiA1MCBaIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMTIiIGZpbGw9IiMyNTYzZWIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1LjUiIGZpbGw9IiMwYjJhNjYiLz48bGluZSB4MT0iMjQiIHkxPSI3NiIgeDI9Ijc2IiB5Mj0iMjQiIHN0cm9rZT0iIzBiNTdkMCIgc3Ryb2tlLXdpZHRoPSIxMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PGxpbmUgeDE9IjI0IiB5MT0iNzYiIHgyPSI3NiIgeTI9IjI0IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+";
+/* 3Dのボタンをまとめて隠す／出す */
+$("#uiTog").onclick=()=>{const h=$("#stage").classList.toggle("uihide");$("#uiTog").firstChild.src=h?UI_EYEOFF:UI_EYE;toast(h?"ボタンを隠しました（左下の👁で戻す）":"ボタンを表示しました")};
+/* 3Dの配管を2回タップ → 吹き出しメニュー */
+function pickLeg(cx,cy){
+ if(!T||!T.segs||!T.segs.length||!T.w)return null;
+ const cv=$("#cv"),r=cv.getBoundingClientRect(),px=cx-r.left,py=cy-r.top;
+ T.cam.updateMatrixWorld();
+ const sc=p=>{const v=p.clone().project(T.cam);return v.z>1?null:[(v.x*.5+.5)*T.w,(-v.y*.5+.5)*T.h]};
+ let best=null,bd=1e9;
+ T.segs.forEach(sg=>{
+  const a=sc(sg.a),b=sc(sg.b);if(!a||!b)return;
+  const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;
+  let t=L2<1e-6?0:((px-a[0])*dx+(py-a[1])*dy)/L2;t=Math.max(0,Math.min(1,t));
+  const d=Math.hypot(px-(a[0]+dx*t),py-(a[1]+dy*t));
+  if(d<bd){bd=d;best=sg}
+ });
+ return bd<=26?best:null;
+}
+const closePMenu=()=>$("#pmenu").classList.remove("on");
+function placeMenu(html,cx,cy,act){
+ const m=$("#pmenu"),stg=$("#stage").getBoundingClientRect();
+ m.innerHTML=html+'<div class="tail"></div>';m.classList.add("on");
+ const W=stg.width,H=stg.height,mw=218,mh=m.offsetHeight||190,x=cx-stg.left,y=cy-stg.top;
+ const left=Math.max(8,Math.min(W-mw-8,x-mw/2));
+ const up=y>mh+30,top=up?y-mh-14:Math.min(H-mh-8,y+14);
+ m.style.left=left+"px";m.style.top=Math.max(8,top)+"px";
+ const tl=m.querySelector(".tail");tl.style.left=Math.max(14,Math.min(mw-30,x-left-8))+"px";
+ if(up)tl.style.bottom="-7px";else tl.style.top="-7px";
+ m.onclick=e=>{if(e.target.closest(".pt")){closePMenu();openTable();return}const b=e.target.closest("button");if(!b)return;closePMenu();act(b.dataset.a)};
+}
+const ALLROW='<button class="pm" data-a="tbl">📋 長さと配管サイズの表</button><div class="pr"><button class="pm" data-a="all">👁 配管 全表示</button><button class="pm" data-a="none">🙈 全非表示</button></div>';
+function openPMenu(sg,cx,cy){
+ const g=sg.g,col=legColor(g);
+ leg=g;if(sg.row>=0)sel=sg.row;render();
+ placeMenu(`<div class="pt"><i style="background:${col}"></i>${legName(g)}　${SIZES[legSize(g)][0]}</div>
+  <button class="pm" data-a="solo">👁 この配管だけ表示</button>
+  <button class="pm red" data-a="hide">🙈 この配管を非表示</button>
+  <button class="pm" data-a="ght">📏 この配管の高さを指定</button>`+ALLROW,cx,cy,a=>{
+  if(a==="tbl"){openTable();return}
+  if(a==="ght"){const G=st.gnd;G.on=true;G.mode="pipe";G.g=g;G.r=Math.max(0,sg.row);gndChanged();openGndSheet();setTimeout(()=>{const i=$("#gndBody input");if(i)i.focus()},250);return}
+  if(a==="solo"){HID.clear();legIds().forEach(x=>{if(x!==g)HID.add(x)});renderLegBar();if(T){build3D();T.dirty=true}toast(legName(g)+" だけ表示しています")}
+  else if(a==="hide")toggleHide(g);
+  else setAllHid(a==="none");
+ });
+}
+function openEmptyMenu(cx,cy){
+ const on=st.units.on;
+ placeMenu(`<div class="pt">⚙️ 表示の設定</div>
+  <button class="pm${on?" red":""}" data-a="unit">${on?"🙈 機器の模型を隠す":"👁 機器の模型を表示"}</button>
+  <div class="pr"><button class="pm${st.gnd.on?" red":""}" data-a="gnd">${st.gnd.on?"🙈 地面を隠す":"👁 地面を表示"}</button><button class="pm" data-a="gset">📐 地面の高さ</button></div>`+ALLROW,cx,cy,a=>{
+  if(a==="tbl"){openTable();return}
+  if(a==="unit"){st.units.on=!on;save();unitRefresh();toast(st.units.on?"機器の模型を表示しました":"機器の模型を隠しました")}
+  else if(a==="gnd"){st.gnd.on=!st.gnd.on;save();unitRefresh();toast(st.gnd.on?"地面を表示しました":"地面を隠しました")}
+  else if(a==="gset")openGndSheet();
+  else setAllHid(a==="none");
+ });
+}
+(function(){
+ const cv=$("#cv");let d0=null,last=null,n=0;
+ cv.addEventListener("pointerdown",e=>{n++;d0=n===1?{x:e.clientX,y:e.clientY,t:Date.now()}:null;closePMenu()});
+ const up=e=>{
+  const was=n;n=Math.max(0,n-1);
+  if(was!==1||!d0)return;
+  const mv=Math.hypot(e.clientX-d0.x,e.clientY-d0.y),dt=Date.now()-d0.t;d0=null;
+  if(mv>10||dt>350){last=null;return}
+  const now=Date.now();
+  if(last&&now-last.t<380&&Math.hypot(e.clientX-last.x,e.clientY-last.y)<36){
+   last=null;const sg=pickLeg(e.clientX,e.clientY);if(sg)openPMenu(sg,e.clientX,e.clientY);else openEmptyMenu(e.clientX,e.clientY);
+  }else last={x:e.clientX,y:e.clientY,t:now};
+ };
+ cv.addEventListener("pointerup",up);
+ cv.addEventListener("pointercancel",()=>{n=0;d0=null});
+})();
+/* 左上の文字（寸法の合計・支持の数）：左へスワイプでしまう／▶で出す */
+(function(){
+ const st0=$("#stage"),tab=$("#infoTab");
+ const set=h=>{st0.classList.toggle("infohide",h);try{localStorage.setItem("pbm_info",h?"1":"0")}catch(e){}};
+ let sx=null,sy=0,sw=0;
+ const down=e=>{sx=e.clientX;sy=e.clientY};
+ const up=(e,dir)=>{if(sx===null)return false;const dx=e.clientX-sx,dy=e.clientY-sy;sx=null;
+  if(Math.abs(dx)>30&&Math.abs(dx)>Math.abs(dy)*1.2&&(dir<0?dx<0:dx>0)){set(dir<0);sw=Date.now();return true}return false};
+ [$("#chip"),$("#supPill")].forEach(el=>{
+  el.addEventListener("pointerdown",down);
+  el.addEventListener("pointerup",e=>{up(e,-1)});
+  el.addEventListener("pointercancel",()=>{sx=null});
+  el.addEventListener("click",e=>{if(Date.now()-sw<400){e.stopImmediatePropagation();e.preventDefault()}},true);
+ });
+ tab.addEventListener("pointerdown",down);
+ tab.addEventListener("pointerup",e=>{if(!up(e,1))set(false)});
+ try{if(localStorage.getItem("pbm_info")==="1")set(true)}catch(e){}
+})();
+/* ボタン列：右へスワイプでしまう／◀を左へスワイプ(タップ)で出す */
+(function(){
+ const tl=$("#tools"),tab=$("#toolsTab");
+ const setHide=h=>{tl.classList.toggle("hide",h);tab.classList.toggle("on",h);try{localStorage.setItem("pbm_tools",h?"1":"0")}catch(e){}};
+ let sx=null,sy=0,sw=0;
+ const down=e=>{sx=e.clientX;sy=e.clientY};
+ const up=(e,hide)=>{if(sx===null)return;const dx=e.clientX-sx,dy=e.clientY-sy;sx=null;
+  if(Math.abs(dx)>30&&Math.abs(dx)>Math.abs(dy)*1.2){setHide(dx>0?true:false);sw=Date.now();return true}};
+ tl.addEventListener("click",e=>{if(Date.now()-sw<400){e.stopPropagation();e.preventDefault()}},true);
+ tl.addEventListener("pointerdown",down);
+ tl.addEventListener("pointerup",e=>{up(e)});
+ tl.addEventListener("pointercancel",()=>{sx=null});
+ tab.addEventListener("pointerdown",down);
+ tab.addEventListener("pointerup",e=>{if(!up(e))setHide(false)});
+ try{if(localStorage.getItem("pbm_tools")==="1")setHide(true)}catch(e){}
+})();
+/* 長さと配管サイズの表（材料・ガス充填量用） */
+function kindSeg(box,after){
+ const sg=document.createElement("div");sg.className="seg";sg.style.marginBottom="8px";
+ [["液","💧 液管"],["ガス","💨 ガス管"]].forEach(([k,n])=>{const b=document.createElement("button");b.textContent="曲げているのは "+n;b.className=drawnKind()===k?"on":"";
+  b.onclick=()=>{if(drawnKind()===k)return;
+   const ids=legIds(),old=ids.map(g=>legLG(g));st.info.kind=k;
+   ids.forEach((g,i)=>{const o=g==="m"?st:legObj(g),z=old[i];if(k==="液"){o.s=z.liq;o.ps=z.gas}else{o.s=z.gas;o.ps=z.liq}});
+   save();render();after()};sg.appendChild(b)});
+ box.appendChild(sg);
+}
+function renderTable(){
+ const box=$("#tblBody");box.innerHTML="";
+ kindSeg(box,renderTable);
+ const t=document.createElement("table");t.className="tbl";
+ t.innerHTML="<tr><th>配管</th><th style='text-align:right'>長さ</th><th>💧 液管</th><th>💨 ガス管</th></tr>";
+ let tot=0;const byL={},byG={};
+ legIds().forEach(g=>{
+  const len=legLen(g),sz=legLG(g);tot+=len;byL[sz.liq]=(byL[sz.liq]||0)+len;byG[sz.gas]=(byG[sz.gas]||0)+len;
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td><i class="dot" style="background:${legColor(g)}"></i>${legName(g)}</td><td class="n">${fmtM(len)}</td><td></td><td></td>`;
+  tr.children[2].appendChild(szSelect(sz.liq,v=>{setLegKind(g,"液",v);save();render();renderTable()}));
+  tr.children[3].appendChild(szSelect(sz.gas,v=>{setLegKind(g,"ガス",v);save();render();renderTable()}));
+  t.appendChild(tr);
+ });
+ const tr=document.createElement("tr");tr.className="tot";tr.innerHTML=`<td>合計（全体）</td><td class="n">${fmtM(tot)}</td><td colspan="2" style="font-size:12px;color:var(--sub)">液管・ガス管 各 ${fmtM(tot)}</td>`;t.appendChild(tr);
+ box.appendChild(t);
+ const sum=(title,obj)=>{const d=document.createElement("div");d.innerHTML=`<div class="ctitle">${title}</div>`;
+  const tb=document.createElement("table");tb.className="tbl";
+  Object.keys(obj).map(Number).sort((a,b)=>a-b).forEach(i=>{tb.insertAdjacentHTML("beforeend",`<tr><td>${szN(i)}</td><td class="n">${fmtM(obj[i])}</td><td class="n" style="color:var(--sub)">${fmt(obj[i])}mm</td></tr>`)});
+  d.appendChild(tb);box.appendChild(d)};
+ sum("💧 液管サイズ別の長さ（追加充填量の計算に）",byL);
+ sum("💨 ガス管サイズ別の長さ",byG);
+ box.insertAdjacentHTML("beforeend",'<div class="note">長さは各行の長さ（曲げの角から角まで）の合計です。曲げている配管のサイズは上のプルダウンと同じで、もう片方のサイズはここで選べます。</div>');
+}
+function openTable(){renderTable();$("#tblOv").classList.add("on")}
+$("#chip").addEventListener("click",()=>openTable());
+$("#chip").style.cursor="pointer";
+$("#closeTbl").onclick=()=>$("#tblOv").classList.remove("on");
+$("#tblOv").addEventListener("click",e=>{if(e.target.id==="tblOv")$("#tblOv").classList.remove("on")});
+/* 支持の集計（バンドのサイズ用） */
+let supTab="sum";
+function renderSupSum(){
+ const box=$("#supSum");box.innerHTML="";
+ if(!st.sup.on){box.innerHTML='<div class="note">支持が「隠す」になっています。「表示する」にすると集計が出ます。</div>';return}
+ kindSeg(box,()=>{renderSupSum();updSupUI()});
+ const t=document.createElement("table");t.className="tbl";
+ t.innerHTML="<tr><th>配管</th><th>💧 液管</th><th>💨 ガス管</th><th style='text-align:right'>支持</th></tr>";
+ let tot=0;const byL={},byG={},byP={};
+ legIds().forEach(g=>{const n=supCount(g),sz=legLG(g);tot+=n;byL[sz.liq]=(byL[sz.liq]||0)+n;byG[sz.gas]=(byG[sz.gas]||0)+n;const pk=sz.liq+"/"+sz.gas;byP[pk]=(byP[pk]||0)+n;
+  t.insertAdjacentHTML("beforeend",`<tr><td><i class="dot" style="background:${legColor(g)}"></i>${legName(g)}</td><td>${szN(sz.liq)}</td><td>${szN(sz.gas)}</td><td class="n">${n}箇所</td></tr>`)});
+ t.insertAdjacentHTML("beforeend",`<tr class="tot"><td colspan="3">合計</td><td class="n">${tot}箇所</td></tr>`);
+ box.appendChild(t);
+ const sec=(title,obj,lab)=>{let h=`<div class="ctitle">${title}</div><table class="tbl">`;Object.keys(obj).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(k=>{if(obj[k])h+=`<tr><td>${lab(k)}</td><td class="n">${obj[k]}箇所</td></tr>`});box.insertAdjacentHTML("beforeend",h+"</table>")};
+ sec("🔗 液管とガス管を共吊りする時（組み合わせ別）",byP,k=>{const [a,b]=k.split("/").map(Number);return "💧"+szN(a)+" ＋ 💨"+szN(b)});
+ sec("💧 液管サイズ別（別々に吊る時）",byL,k=>szN(+k));
+ sec("💨 ガス管サイズ別（別々に吊る時）",byG,k=>szN(+k));
+ box.insertAdjacentHTML("beforeend",'<div class="note">もう片方の配管サイズは「📋 長さと配管サイズ」の表で変えられます。</div>');
+}
+function showSupTab(){[...$("#supTab").children].forEach(b=>b.classList.toggle("on",b.dataset.v===supTab));$("#supSum").style.display=supTab==="sum"?"":"none";$("#supRule").style.display=supTab==="rule"?"":"none";if(supTab==="sum")renderSupSum()}
+$("#supTab").onclick=e=>{const b=e.target.closest("button");if(!b)return;supTab=b.dataset.v;showSupTab()};
+/* 地面の設定 */
+const GMODES=[["auto","🤖 自動（いちばん低い所が地面）"],["start","🟢 起点の高さで決める"],["unit","🏠 室内機の下面の高さで決める"],["pipe","📏 配管の高さで決める"]];
+function openGndSheet(){renderGndSheet();$("#gndOv").classList.add("on")}
+function gndChanged(merge){save(merge);if(T){build3D();T.dirty=true}}
+function renderGndSheet(){
+ const G=st.gnd;
+ [...$("#gndOn").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===G.on));
+ const mb=$("#gndMode");mb.innerHTML="";
+ GMODES.forEach(([k,n])=>{const b=document.createElement("button");b.className="ubtn";b.style.cssText="width:100%;height:48px;margin-bottom:6px;flex-direction:row;justify-content:flex-start;padding:0 14px;font-size:14.5px"+(G.mode===k?";background:#2563eb;color:#fff;border-color:#2563eb":"");b.textContent=n;
+  b.onclick=()=>{G.mode=k;gndChanged();renderGndSheet()};mb.appendChild(b)});
+ const bd=$("#gndBody");bd.innerHTML="";
+ if(G.mode==="auto"){bd.innerHTML='<div class="note">配管と機器のいちばん低い所を地面にします。室外機を置いている時はこれが便利です。</div>';return}
+ if(G.mode==="pipe"){
+  if(!legIds().includes(G.g)){G.g=leg;G.r=sel}
+  bd.insertAdjacentHTML("beforeend",`<div class="note" style="font-size:14px">📏 基準の配管：<b>${legName(G.g)} の ${nm(Math.min(G.r,legRows(G.g).length-1))}</b>（その直管の真ん中の高さ）<br>3Dで配管を2回タップ →「📏 この配管の高さを指定」で選び直せます。</div>`);
+  const b2=document.createElement("button");b2.className="sharebtn";b2.style.cssText="width:100%;margin:0 0 10px";b2.textContent="✏️ いま選んでいる行（"+legName(leg)+" "+nm(sel)+"）にする";
+  b2.onclick=()=>{G.g=leg;G.r=sel;gndChanged();renderGndSheet()};bd.appendChild(b2);
+ }
+ const f=document.createElement("div");f.className="field";
+ f.innerHTML=`<label>${G.mode==="start"?"起点（配管の始まり）の地面からの高さ":G.mode==="pipe"?"その配管の地面からの高さ（天井内なら天井高さ−下がり寸法など）":"室内機の下面の地面からの高さ"}（mm）</label><input inputmode="numeric" pattern="[0-9]*" value="${G.h}">`;
+ const inp=f.querySelector("input");inp.onfocus=()=>inp.select();
+ inp.oninput=()=>{const v=parseInt(inp.value.replace(/[^0-9]/g,""));if(!isFinite(v))return;G.h=Math.min(50000,v);gndChanged(true)};
+ inp.onblur=()=>{inp.value=G.h};
+ bd.appendChild(f);
+ if(G.mode==="unit"){
+  const IN=["cas","ceil","wall"],slots=[["s","起点"],...(brOn()?leaves().map(g=>["L"+g,slotName("L"+g)]):[["e","終点"]])].filter(([k])=>IN.includes(st.units[k]));
+  if(!slots.length){bd.insertAdjacentHTML("beforeend",'<div class="note">⚠️ 室内機（天カセ・天吊・壁掛け）がまだありません。🏠 機器の模型で選ぶと使えます。それまでは自動で決めます。</div>');return}
+  const cur=slots.some(([k])=>k===G.unit)?G.unit:slots[0][0];
+  const t=document.createElement("div");t.className="ctitle";t.textContent="🏠 どの室内機で決める？";bd.appendChild(t);
+  const gr=document.createElement("div");gr.className="ugrid";
+  slots.forEach(([k,n])=>{const nm=(UNIT_LIST.find(x=>x[0]===st.units[k])||["","",""])[1],b=document.createElement("button");b.className="ubtn"+(cur===k?" on":"");b.innerHTML=n+'<small style="font-weight:600;opacity:.75">'+nm+'</small>';
+   b.onclick=()=>{G.unit=k;gndChanged();renderGndSheet()};gr.appendChild(b)});
+  bd.appendChild(gr);
+  if(!st.units.on)bd.insertAdjacentHTML("beforeend",'<div class="note">⚠️ 機器の模型が「隠す」になっていると、室内機の下面で決められません（自動になります）。</div>');
+ }
+}
+$("#closeGnd").onclick=()=>$("#gndOv").classList.remove("on");
+$("#gndOv").addEventListener("click",e=>{if(e.target.id==="gndOv")$("#gndOv").classList.remove("on")});
+$("#gndOn").onclick=e=>{const b=e.target.closest("button");if(!b)return;st.gnd.on=b.dataset.v==="1";gndChanged();renderGndSheet()};
+/* 支持 */
+const SUPF=[["t1","この長さ以下は、支持なし"],["t2","この長さ以下は、中央に1箇所"],["t3","この長さ以下は、両端に2箇所"],["t4","この長さ以下は、両端＋中央に1箇所"],["off","両端の支持の位置（曲げの端から）"],["gap","支持の間隔の上限（これ以上あけない。超える分は自動で追加）"]];
+function supCnt(){$("#supCnt").textContent=st.sup.on?"合計 "+supSummary().replace(/^計/,""):""}
+function supChanged(){save();upd();supCnt()}
+function renderSupSheet(){
+ [...$("#supOn").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===st.sup.on));
+ const box=$("#supFields");box.innerHTML="";
+ SUPF.forEach(([k,lab])=>{
+  const f=document.createElement("div");f.className="field";
+  f.innerHTML=`<label>${lab}（mm）</label><input inputmode="numeric" pattern="[0-9]*" value="${st.sup[k]}">`;
+  const inp=f.querySelector("input");
+  inp.onfocus=()=>inp.select();
+  inp.oninput=()=>{const v=parseInt(inp.value.replace(/[^0-9]/g,""));if(!isFinite(v))return;st.sup[k]=Math.min(20000,v);save(true);upd();supCnt()};
+  inp.onblur=()=>{inp.value=st.sup[k]};
+  box.appendChild(f);
+ });
+ supCnt();showSupTab();
+}
+$("#supBtn").onclick=()=>{st.sup.on=!st.sup.on;save();upd();toast(st.sup.on?"🔩 支持を表示":"🔩 支持を隠す")};
+$("#supPill").onclick=()=>{renderSupSheet();$("#supOv").classList.add("on")};
+$("#closeSup").onclick=()=>$("#supOv").classList.remove("on");
+$("#supOv").addEventListener("click",e=>{if(e.target.id==="supOv")$("#supOv").classList.remove("on")});
+$("#supOn").onclick=e=>{const b=e.target.closest("button");if(!b)return;st.sup.on=b.dataset.v==="1";supChanged();renderSupSheet()};
+$("#supReset").onclick=()=>{st.sup={...SUPD};supChanged();renderSupSheet()};
 /* 背景写真 */
 const PH_KEY="pbm_photo",PO_KEY="pbm_photo_op";
 function showPhoto(url,op){
@@ -951,7 +1629,7 @@ function renderPlans(){
 }
 function openPlan(p){
  if(!SIZES[p.s]||!Array.isArray(p.rows)||!p.rows.length){toast("読み込めませんでした");return}
- st.s=p.s;st.rows=JSON.parse(JSON.stringify(p.rows));st.info=normInfo(p.info);st.goal=normGoal(p.goal);st.units=normUnits(p.units);sel=0;save();
+ st.s=p.s;st.rows=JSON.parse(JSON.stringify(p.rows));migrateLegacy(p);st.bl=normBL(p.bl);leg="m";st.info=normInfo(p.info);st.goal=normGoal(p.goal);st.units=normUnits(p.units);sel=0;save();
  $("#sz").value=st.s;render();if(T)fitT();
  closeCloud();toast("「"+(p.title||"無題プラン")+"」を開きました");
 }
@@ -984,7 +1662,7 @@ $("#savePlan").onclick=async ()=>{
  const now=new Date();
  const dateLabel=now.toLocaleDateString("ja-JP",{month:"numeric",day:"numeric",weekday:"short"});
  try{
-  await DB.collection("plans").add({title,dateLabel,savedAt:Date.now(),s:st.s,rows:JSON.parse(JSON.stringify(st.rows)),info:{...st.info},goal:st.goal||0,units:{...st.units}});
+  await DB.collection("plans").add({title,dateLabel,savedAt:Date.now(),s:st.s,rows:JSON.parse(JSON.stringify(st.rows)),bl:JSON.parse(JSON.stringify(st.bl)),info:{...st.info},goal:st.goal||0,units:{...st.units}});
   $("#planTitle").value="";
   toast("保存しました");
  }catch(e){
@@ -1008,20 +1686,41 @@ $("#doneInfo").onclick=closeInfo;
 $("#infoOv").addEventListener("click",e=>{if(e.target.id==="infoOv")closeInfo()});
 
 function shareUrl(){
- const data=encodeURIComponent(JSON.stringify({s:st.s,rows:st.rows,info:st.info,goal:st.goal,units:st.units}));
+ const data=encodeURIComponent(JSON.stringify({s:st.s,rows:st.rows,ps:st.ps,bl:st.bl,sup:st.sup,gnd:st.gnd,info:st.info,goal:st.goal,units:st.units}));
  const base=location.origin&&location.origin!=="null"?location.origin+location.pathname:location.href.split("#")[0];
  return base+"#p="+data;
 }
 async function shareNow(){
  const url=shareUrl();
  if(navigator.share){
-  try{await navigator.share({title:"冷媒配管 曲げメモ",text:(st.info.site?st.info.site+" ":"")+"曲げデータを送ります📐",url});return}
+  try{await navigator.share({title:"冷媒配管の曲げメモver1.00",text:(st.info.site?st.info.site+" ":"")+"曲げデータを送ります📐",url});return}
   catch(e){if(e&&e.name==="AbortError")return}
  }
  try{await navigator.clipboard.writeText(url);toast("リンクをコピーしました。LINEなどに貼り付けてください")}
  catch(e){toast("コピーできませんでした")}
 }
-$("#quickShare").onclick=shareNow;
+const APP_URL="https://akija114.github.io/Reibai-Magememo/";
+async function sendOrCopy(opt,okMsg){
+ if(navigator.share){
+  try{await navigator.share(opt);return}
+  catch(e){if(e&&e.name==="AbortError")return}
+ }
+ const t=opt.url||opt.text;
+ try{await navigator.clipboard.writeText(t);toast(okMsg)}
+ catch(e){$("#shareOv").classList.remove("on");$("#impTxt").value=t;$("#impOv").classList.add("on");$("#impTxt").select();toast("長押しでコピーしてください")}
+}
+const closeShare=()=>$("#shareOv").classList.remove("on");
+$("#quickShare").onclick=()=>$("#shareOv").classList.add("on");
+$("#closeShare").onclick=closeShare;
+$("#shareOv").addEventListener("click",e=>{if(e.target.id==="shareOv")closeShare()});
+$("#shApp").onclick=()=>sendOrCopy({title:"冷媒配管の曲げメモ",text:"冷媒配管の曲げメモ📐 ",url:APP_URL},"URLをコピーしました");
+$("#shCopy").onclick=async()=>{
+ const t=exportText();
+ try{await navigator.clipboard.writeText(t);toast("コピーしました。LINEなどに貼り付けてください")}
+ catch(e){closeShare();$("#impTxt").value=t;$("#impOv").classList.add("on");$("#impTxt").select();toast("長押しでコピーしてください")}
+};
+$("#shPaste").onclick=()=>{closeShare();$("#impTxt").value="";$("#impOv").classList.add("on")};
+$("#shMore").onclick=()=>{closeShare();$("#cloudBtn").click()};
 /* 寸法計算 */
 const OFS=[45,30,15];
 function renderCalc(){
@@ -1033,7 +1732,7 @@ function renderCalc(){
   b.onclick=()=>applyOffset(deg);box.appendChild(b);
  });
  $("#ofsNote").textContent=k<1?"👆 2行目以降の行を選んでから使います":`👆 タップで ${nm(k)} に入れます（前の ${nm(k-1)} も同じ角度・反対向きに）`;
- const g=st.goal||0,c=calc(),rest=c.tot-st.rows[k].l,need=g-rest,gr=$("#goalRes"),ga=$("#goalApply");
+ const g=st.goal||0,c=calc(),rest=c.tot-LR()[k].l,need=g-rest,gr=$("#goalRes"),ga=$("#goalApply");
  if(!g){gr.textContent="目標の合計を入れると、選んだ行の長さを自動で出します";ga.style.display="none";return}
  ga.style.display="block";
  if(need<0){gr.textContent=`⚠️ ${nm(k)}以外だけで ${fmt(rest)}mm あり、目標を超えています`;ga.disabled=true;ga.textContent="入れられません"}
@@ -1043,7 +1742,7 @@ function applyOffset(deg){
  const k=sel,d=Math.round(+$("#ofsIn").value||0);
  if(k<1){toast("2行目以降の行を選んでください");return}
  if(d<=0){toast("差を入れてください");return}
- const L=Math.round(d/Math.sin(deg*Math.PI/180)),pv=st.rows[k-1],cu=st.rows[k];
+ const L=Math.round(d/Math.sin(deg*Math.PI/180)),pv=LR()[k-1],cu=LR()[k];
  pv.a=deg;cu.a=deg;cu.l=L;cu.o=true;
  save();render();if(T)fitT();$("#calcOv").classList.remove("on");
  toast(`${nm(k)} を ${fmt(L)}mm・${deg}° に（${nm(k-1)}も${deg}°）`);
@@ -1054,24 +1753,31 @@ $("#calcOv").addEventListener("click",e=>{if(e.target.id==="calcOv")$("#calcOv")
 $("#ofsIn").oninput=renderCalc;
 $("#goalIn").oninput=e=>{st.goal=normGoal(e.target.value.replace(/[^0-9]/g,""));save();upd();renderCalc()};
 $("#goalApply").onclick=()=>{
- const k=sel,need=(st.goal||0)-(calc().tot-st.rows[k].l);
+ const k=sel,need=(st.goal||0)-(calc().tot-LR()[k].l);
  if(need<0)return;
- st.rows[k].l=need;save();render();$("#calcOv").classList.remove("on");toast(`${nm(k)} を ${fmt(need)}mm にしました`);
+ LR()[k].l=need;save();render();$("#calcOv").classList.remove("on");toast(`${nm(k)} を ${fmt(need)}mm にしました`);
 };
 function enc(o){return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
 function dec(s){s=s.replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";return JSON.parse(decodeURIComponent(escape(atob(s))))}
 function exportText(){
- const c=calc(),i=st.info,z=SIZES[st.s];
+ const i=st.info;
  const kind=i.kind==="液"?"液管":i.kind==="ガス"?"ガス管":"";
- const head=[i.site,i.line,kind,z[0]].filter(Boolean).join(" / ");
+ const head=[i.site,i.line,kind,brOn()?"分岐あり":SIZES[st.s][0]].filter(Boolean).join(" / ");
  const ar={0:"⬆️",90:"➡️",180:"⬇️",270:"⬅️"};
- const lines=st.rows.map((r,k)=>`${nm(k)} ${fmt(r.l)}mm ${r.a?r.a+"°"+ar[effT(k)]:"直管"} シュー${fmt(c.out[k].shoe)} 累計${fmt(c.out[k].cum)}`);
- return `📐曲げメモ ${head}\n${lines.join("\n")}\n（アプリの「📥貼り付けて読込」に、この下の行ごと貼り付け）\n#PBM:${enc({s:st.s,rows:st.rows,info:st.info,goal:st.goal,units:st.units})}`;
+ const legText=g=>{
+  const c=calc(g),rows=legRows(g);
+  const ls=rows.map((r,k)=>`${nm(k)} ${fmt(r.l)}mm ${r.a?r.a+"°"+ar[effT(k,rows)]:"直管"} シュー${fmt(c.out[k].shoe)} 累計${fmt(c.out[k].cum)}`);
+  return (brOn()?`■${legName(g)} ${SIZES[legSize(g)][0]}\n`:"")+ls.join("\n");
+ };
+ const body=legIds().map(legText).join("\n");
+ const supLine=st.sup.on?"🔩支持 "+supSummary()+"\n":"";
+ return `📐曲げメモ ${head}\n${body}\n${supLine}（アプリの「📥貼り付けて読込」に、この下の行ごと貼り付け）\n#PBM:${enc({s:st.s,ps:st.ps,rows:st.rows,bl:st.bl,gnd:st.gnd,sup:st.sup,info:st.info,goal:st.goal,units:st.units})}`;
 }
 function applyData(d){
  if(!d||!SIZES[d.s]||!Array.isArray(d.rows)||!d.rows.length)return false;
- st={s:d.s,rows:d.rows.slice(0,60).map(r=>({l:Math.max(0,+r.l||0),a:ANG.includes(+r.a)?+r.a:0,t:[0,90,180,270].includes(+r.t)?+r.t:0,o:!!r.o})),info:normInfo(d.info),goal:normGoal(d.goal),units:normUnits(d.units)};
- sel=0;save();$("#sz").value=st.s;render();if(T)fitT();return true;
+ migrateLegacy(d);
+ st={s:d.s,rows:d.rows.slice(0,60).map(r=>({l:Math.max(0,+r.l||0),a:ANG.includes(+r.a)?+r.a:0,t:[0,90,180,270].includes(+r.t)?+r.t:0,o:!!r.o})),info:normInfo(d.info),goal:normGoal(d.goal),units:normUnits(d.units),ps:SIZES[d.ps]?d.ps:null,bl:normBL(d.bl),sup:d.sup?normSup(d.sup):st.sup,gnd:d.gnd?normGnd(d.gnd):st.gnd};
+ leg="m";sel=0;save();$("#sz").value=st.s;render();if(T)fitT();return true;
 }
 function importText(txt){
  let d=null;
@@ -1108,6 +1814,7 @@ $("#shareLink").onclick=shareNow;
   }
  }catch(e){}
 })();
+hist=[JSON.stringify(st)];hi=0;updUndoUI();
 initCloud();
 </script>
 </body>

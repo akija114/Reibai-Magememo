@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>冷媒配管の曲げメモver1.00</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -2752,14 +2752,16 @@ function planGestures(){
  const setAim=f=>{const q=[f[0],f[1]-OFF],ip=toImg(q),sn=PV.mode==="col"?ip:planSnap(ip);aim={f,s:q,snap:sn,snapped:Math.hypot(sn[0]-ip[0],sn[1]-ip[1])>0.01};redraw()};
  cv.addEventListener("pointerdown",e=>{e.preventDefault();cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,rel(e));moved=false;
   if(pts.size===1){st0={p:rel(e),ox:PV.ox,oy:PV.oy};if(PV.mode!=="move"&&PLAN)setAim(rel(e))}
-  if(pts.size===2){aim=null;const [a,b]=[...pts.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,z:PV.z,c:[(a[0]+b[0])/2,(a[1]+b[1])/2],ox:PV.ox,oy:PV.oy};moved=true;redraw()}});
+  if(pts.size===2){aim=null;st0=null;const [a,b]=[...pts.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,z:PV.z,c:[(a[0]+b[0])/2,(a[1]+b[1])/2],ox:PV.ox,oy:PV.oy};moved=true;redraw()}});
  cv.addEventListener("pointermove",e=>{if(!pts.has(e.pointerId))return;e.preventDefault();pts.set(e.pointerId,rel(e));
   if(pts.size===2&&pinch){const [a,b]=[...pts.values()],c=[(a[0]+b[0])/2,(a[1]+b[1])/2],z=Math.max(0.03,Math.min(30,pinch.z*Math.hypot(a[0]-b[0],a[1]-b[1])/pinch.d));
    PV.ox=c[0]-(pinch.c[0]-pinch.ox)*z/pinch.z;PV.oy=c[1]-(pinch.c[1]-pinch.oy)*z/pinch.z;PV.z=z;redraw();return}
   if(pts.size===1&&st0){const p=rel(e),dx=p[0]-st0.p[0],dy=p[1]-st0.p[1];if(Math.hypot(dx,dy)>6)moved=true;
    if(aim){setAim(p);return}
    if(moved){PV.ox=st0.ox+dx;PV.oy=st0.oy+dy;redraw()}}});
- const up=e=>{const was=pts.size;pts.delete(e.pointerId);if(pts.size<2)pinch=null;
+ const up=e=>{const was=pts.size;pts.delete(e.pointerId);
+  if(was===2){pinch=null;aim=null;   // 2本指→1本指：残った指から続けて動かせるように、今の位置で取り直す（前の位置に戻らない）
+   if(pts.size===1&&PV.mode==="move"){const r=[...pts.values()][0];st0={p:r,ox:PV.ox,oy:PV.oy};moved=true}else st0=null;redraw();return}
   if(!pts.size)st0=null;
   if(was!==1||!aim||!PLAN){if(!pts.size&&aim){aim=null;redraw()}return}
   const p=aim.snap;aim=null;
@@ -2770,6 +2772,7 @@ function planGestures(){
   else if(PV.mode==="trace"){if(!PLAN.mmpp){toast("先に縮尺を合わせてください");planDraw();return}PLAN.route.push(p);planDraw()}
   else planDraw()};
  cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",e=>{pts.delete(e.pointerId);pinch=null;st0=null;aim=null;redraw()});
+ cv.addEventListener("lostpointercapture",e=>{if(pts.has(e.pointerId)){pts.delete(e.pointerId);if(pts.size<2)pinch=null;if(!pts.size){st0=null;aim=null}}});
  cv.addEventListener("wheel",e=>{e.preventDefault();const r=cv.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top,z=Math.max(0.03,Math.min(30,PV.z*Math.exp(-e.deltaY*0.0015)));PV.ox=cx-(cx-PV.ox)*z/PV.z;PV.oy=cy-(cy-PV.oy)*z/PV.z;PV.z=z;redraw()},{passive:false});
  /* iPhoneの画面ごとの拡大（ピンチ・ダブルタップ）を止める：これが「違う所が拡大される」原因 */
  const ov=$("#planOv");["touchstart","touchmove"].forEach(t=>wr.addEventListener(t,e=>{if(e.cancelable)e.preventDefault()},{passive:false}));

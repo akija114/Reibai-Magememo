@@ -2599,9 +2599,10 @@ function openDraw(){
    <label style="height:40px;padding:0 12px;border-radius:12px;font-weight:800;font-size:13px;background:#2563eb;display:flex;align-items:center;flex:none">📄 図面を開く<input id="plFile" type="file" accept="application/pdf,image/*" style="display:none"></label>
    ${bt("plPrev","◀")}<span id="plPg" style="font-size:13px;flex:none"></span>${bt("plNext","▶")}<span style="flex:1"></span>${bt("plClose","✕ 閉じる")}</div>
    <div id="plInfo" style="padding:0 10px 6px;font-size:12.5px;line-height:1.45;color:#cbd5e1"></div>
+   <div id="plPanel" style="display:none;max-height:42vh;overflow-y:auto;background:#f8fafc;color:#0f172a;padding:10px;font-size:13.5px"></div>
    <div id="plWrap" style="flex:1;position:relative;overflow:hidden;touch-action:none;background:#e2e8f0"><canvas id="plCv" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas></div>
    <div style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 8px calc(env(safe-area-inset-bottom,0px) + 8px);background:#0f172a">
-    ${bt("plMove","✋ 動かす")}${bt("plCal","📏 縮尺を2点で")}${bt("plTrace","✏️ なぞる")}${bt("plCol","🎨 色で絞る")}${bt("plUndo","1つ戻す")}${bt("plClear","消す")}
+    ${bt("plMove","✋ 動かす")}${bt("plCal","📏 縮尺を2点で")}${bt("plTrace","✏️ なぞる")}${bt("plFind","🔍 室内機を探す","background:#7c3aed;color:#fff")}${bt("plList","📋 墨出しリスト","background:#0891b2;color:#fff")}${bt("plCol","🎨 色で絞る")}${bt("plUndo","1つ戻す")}${bt("plClear","消す")}
     <select id="plDen" style="height:40px;border-radius:12px;font-weight:800;font-size:13px;padding:0 6px;color:#0f172a;background:#fff"><option value="">縮尺</option><option>30</option><option>50</option><option>60</option><option>100</option><option>150</option><option>200</option></select>
     <label style="display:flex;align-items:center;gap:4px;font-size:12px">配管の高さ<input id="plH" inputmode="numeric" style="width:64px;height:36px;border-radius:10px;border:0;padding:0 6px;font-size:14px;color:#0f172a;background:#fff">mm</label>
     <label style="display:flex;align-items:center;gap:4px;font-size:12px">天井高<input id="plCH" inputmode="numeric" style="width:64px;height:36px;border-radius:10px;border:0;padding:0 6px;font-size:14px;color:#0f172a;background:#fff">mm</label>
@@ -2618,6 +2619,7 @@ function openDraw(){
   $("#plDen").onchange=e=>{if(!PLAN)return;const d=+e.target.value;if(d&&PLAN.ptpx){PLAN.den=d;PLAN.mmpp=25.4/72/PLAN.ptpx*d;planWalls();planDraw()}else if(d)toast("写真の図面は「縮尺を2点で」で合わせてください")};
   $("#plH").onchange=e=>{if(PLAN)PLAN.H=Math.max(0,parseInt(e.target.value)||0)};$("#plCH").onchange=e=>{if(PLAN)PLAN.CH=Math.max(0,parseInt(e.target.value)||0)};
   $("#plMake").onclick=planMake;
+  $("#plFind").onclick=()=>planFindUI();$("#plList").onclick=()=>planListUI();
   planGestures();
  }
  ov.style.display="flex";PV.md(PLAN&&PLAN.mmpp?"trace":"move");planFit();planDraw();
@@ -2638,7 +2640,7 @@ async function planLoad(f){
  }catch(e){console.warn(e);toast("図面を読み込めませんでした（ネットにつながっているか確認してください）")}
 }
 async function planPage(n){
- const P=PLAN,page=await P.pdf.getPage(n),v0=page.getViewport({scale:1}),sc=Math.min(4,4096/Math.max(v0.width,v0.height),Math.sqrt(12e6/(v0.width*v0.height))),vp=page.getViewport({scale:sc});
+ const P=PLAN,page=await P.pdf.getPage(n),v0=page.getViewport({scale:1}),sc=Math.min(4,3200/Math.max(v0.width,v0.height),Math.sqrt(6e6/(v0.width*v0.height))),vp=page.getViewport({scale:sc});
  const c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);
  await page.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
  P.page=n;P.img=c;P.W=c.width;P.H0=c.height;P.ptpx=sc;P.segs=[];P.texts=[];P.walls=[];P.route=[];
@@ -2657,14 +2659,14 @@ async function planPage(n){
   P.segs=P.segs.filter(s2=>Math.hypot(s2[2]-s2[0],s2[3]-s2[1])>1.5);
  }catch(e){console.warn("ops",e)}
  /* 文字：天井高（CH=2500 など）と縮尺（1/50 など） */
- try{const tc=await page.getTextContent();tc.items.forEach(it=>{const m=pdfjsLib.Util.transform(vp.transform,it.transform);P.texts.push({s:it.str,x:m[4],y:m[5]})});
+ try{const tc=await page.getTextContent();tc.items.forEach(it=>{const m=pdfjsLib.Util.transform(vp.transform,it.transform);P.texts.push({s:it.str,x:m[4],y:m[5],w:(it.width||0)*sc,h:Math.hypot(it.transform[2],it.transform[3])*sc})});
   const all=P.texts.map(t=>t.s).join(" ").replace(/[０-９]/g,c2=>String.fromCharCode(c2.charCodeAt(0)-65248)).replace(/[＝：]/g,"=");
   const ch={};(all.match(/C\.?\s?H\s*=?\s*([1-6][0-9]{3})/gi)||[]).concat(all.match(/天井高\D{0,4}([1-6][0-9]{3})/g)||[]).forEach(x=>{const v=+(x.match(/([1-6][0-9]{3})/)||[])[1];if(v)ch[v]=(ch[v]||0)+1});
   const best=Object.keys(ch).sort((a,b)=>ch[b]-ch[a])[0];if(best)P.CH=+best;P.chList=Object.keys(ch);
   const dm=all.match(/(?:S\s*=?\s*)?1\s*[\/／:]\s*(30|50|60|100|150|200)\b/);if(dm){P.den=+dm[1];P.mmpp=25.4/72/sc*P.den;P.denTxt=1}
  }catch(e){console.warn("text",e)}
  $("#plPg").textContent=n+"/"+P.pdf.numPages+"ページ";$("#plDen").value=P.den?String(P.den):"";
- planWalls();planFit();PV.md(P.mmpp?"trace":"cal");planDraw();
+ try{planAnalyze()}catch(e){console.warn("analyze",e)}planWalls();planFit();PV.md(P.mmpp?"trace":"cal");planDraw();
  toast(P.segs.length>50?"CADの図面です。線に吸い付きます"+(P.den?"（縮尺 1/"+P.den+"）":"。縮尺を選ぶか2点で合わせてください"):"線のデータがない図面です（スキャン）。縮尺を2点で合わせてなぞってください");
 }
 /* 壁：グレー・黒の平行な2本線（間隔90〜300mm・長さ1500mm以上）を壁とみなす */
@@ -2687,7 +2689,7 @@ function planInfo(){const P=PLAN,el=$("#plInfo");if(!el)return;
  if(!P){el.textContent="PDF（CADから書き出したもの）か写真の図面を開いてください。";return}
  const tot=P.route.reduce((s2,p,i)=>i?s2+plLen(P.route[i-1],p):0,0);
  el.innerHTML=(PV.mode==="col"?"🎨 なぞりたい配管の線を1本タップ → その色の線だけに吸い付きます":PV.mode==="cal"?"📏 長さの分かる2点をタップ → 実際の長さを入力":PV.mode==="trace"?"✏️ 配管の起点（室内機の配管口）から、曲がる所を順にタップ。線や端に吸い付きます":"✋ 指で動かす・2本指で拡大")+
-  "<br>縮尺："+(P.mmpp?(P.den?"1/"+P.den+(P.denTxt?"<span style='color:#fcd34d'>（図面の表記。印刷で縮んでいることがあるので、通り芯の寸法などで「縮尺を2点で」確認がおすすめ）</span>":""):"2点で合わせ済み"):"<b style='color:#fca5a5'>未設定</b>")+(P.fcol?"　絞り込み：<span style='display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;background:"+P.fcol+"'></span>":"")+"　線："+P.segs.length+"本　壁："+P.walls.length+"か所"+(P.CH?"　天井高："+P.CH+(P.chList&&P.chList.length>1?"（候補 "+P.chList.join("・")+"）":""):"")+
+  "<br>縮尺："+(P.mmpp?(P.autoScale?"通り芯の寸法から自動で合わせ済み（"+P.autoScale+"か所一致）":P.den?"1/"+P.den+(P.denTxt?"<span style='color:#fcd34d'>（図面の表記。印刷で縮んでいることがあるので、通り芯の寸法などで「縮尺を2点で」確認がおすすめ）</span>":""):"2点で合わせ済み"):"<b style='color:#fca5a5'>未設定</b>")+(P.fcol?"　絞り込み：<span style='display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;background:"+P.fcol+"'></span>":"")+"　線："+P.segs.length+"本　壁："+P.walls.length+"か所"+(P.CH?"　天井高："+P.CH+(P.chList&&P.chList.length>1?"（候補 "+P.chList.join("・")+"）":""):"")+
   (P.route.length>1?"<br>配管："+P.route.slice(1).map((p,i)=>fmt(Math.round(plLen(P.route[i],p)/10)*10)).join("→")+"　<b>合計 約"+fmt(Math.round(tot/10)*10)+"mm</b>":"");
  $("#plH").value=P.H||"";$("#plCH").value=P.CH||"";
 }
@@ -2700,6 +2702,12 @@ function planDraw(){
  x.strokeStyle="rgba(37,99,235,.55)";x.lineCap="round";P.walls.forEach(w=>{x.lineWidth=Math.max(2/PV.z,w.t/(P.mmpp||1));x.beginPath();x.moveTo(...w.a);x.lineTo(...w.b);x.stroke()});
  x.restore();
  const sp=p=>[p[0]*PV.z+PV.ox,p[1]*PV.z+PV.oy];
+ if(P.grids){x.font="bold 12px sans-serif";x.textAlign="center";
+  P.grids.forEach(g=>{x.strokeStyle="rgba(147,51,234,.55)";x.lineWidth=1.5;x.setLineDash([8,5]);x.beginPath();
+   if(g.ax==="X"){const a=sp([g.v,0]),b=sp([g.v,P.H0]);x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1])}else{const a=sp([0,g.v]),b=sp([P.W,g.v]);x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1])}x.stroke();x.setLineDash([])})}
+ if(P.cols)P.cols.forEach(c=>{const q=sp([c.cx,c.cy]);x.strokeStyle="#64748b";x.lineWidth=1.5;x.beginPath();x.moveTo(q[0]-6,q[1]);x.lineTo(q[0]+6,q[1]);x.moveTo(q[0],q[1]-6);x.lineTo(q[0],q[1]+6);x.stroke()});
+ if(P.units)P.units.forEach((u,i)=>{const q=sp([u.cx,u.cy]);x.strokeStyle="#dc2626";x.lineWidth=2;x.beginPath();x.arc(q[0],q[1],9,0,7);x.moveTo(q[0]-14,q[1]);x.lineTo(q[0]+14,q[1]);x.moveTo(q[0],q[1]-14);x.lineTo(q[0],q[1]+14);x.stroke();
+  x.fillStyle="#dc2626";x.font="bold 12px sans-serif";x.textAlign="left";x.fillText(String(i+1),q[0]+10,q[1]-10)});
  if(P.route.length){x.strokeStyle="#ea580c";x.lineWidth=5;x.lineJoin="round";x.beginPath();P.route.forEach((p,i)=>{const q=sp(p);i?x.lineTo(...q):x.moveTo(...q)});x.stroke();
   P.route.forEach((p,i)=>{const q=sp(p);x.fillStyle=i?"#ea580c":"#16a34a";x.beginPath();x.arc(q[0],q[1],i?6:8,0,7);x.fill()});
   x.font="bold 13px sans-serif";x.textAlign="center";
@@ -2738,6 +2746,94 @@ function planGestures(){
  cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",e=>{pts.delete(e.pointerId);pinch=null;st0=null});
  cv.addEventListener("wheel",e=>{e.preventDefault();const r=cv.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top,z=Math.max(0.05,Math.min(20,PV.z*Math.exp(-e.deltaY*0.0015)));PV.ox=cx-(cx-PV.ox)*z/PV.z;PV.oy=cy-(cy-PV.oy)*z/PV.z;PV.z=z;planDraw()},{passive:false});
  window.addEventListener("resize",()=>{if($("#planOv")&&$("#planOv").style.display!=="none")planDraw()});
+}
+/* ===== 図面の解析：通り芯（X・Y）・縮尺の自動合わせ・四角（室内機・柱）・墨出しリスト ===== */
+function planAnalyze(){
+ const P=PLAN,T2=P.texts.map(t=>({s:(t.s||"").replace(/[\s　]/g,"").replace(/[Ｘｘ]/g,"X").replace(/[Ｙｙ]/g,"Y").replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)),cx:t.x+(t.w||0)/2,cy:t.y-(t.h||0)/2,h:t.h||10}));
+ /* 通り芯：X1・Y5などの記号の真ん中を通る、長い縦線・横線 */
+ const lab={};T2.forEach(t=>{const m=t.s.match(/^([XY])(\d{1,2})$/);if(m){const k=m[1]+m[2];(lab[k]=lab[k]||[]).push(t)}});
+ const grids=[];
+ Object.keys(lab).forEach(k=>{const ax=k[0],ts=lab[k],c=ts.reduce((a,t)=>a+(ax==="X"?t.cx:t.cy),0)/ts.length,tol=Math.max(8,ts[0].h*1.2),acc={};
+  P.segs.forEach(s2=>{const vert=Math.abs(s2[0]-s2[2])<0.8,hor=Math.abs(s2[1]-s2[3])<0.8;
+   if(ax==="X"&&vert&&Math.abs(s2[0]-c)<tol){const k2=Math.round(s2[0]*4)/4;acc[k2]=(acc[k2]||0)+Math.abs(s2[3]-s2[1])}
+   if(ax==="Y"&&hor&&Math.abs(s2[1]-c)<tol){const k2=Math.round(s2[1]*4)/4;acc[k2]=(acc[k2]||0)+Math.abs(s2[2]-s2[0])}});
+  const best=Object.keys(acc).sort((a,b)=>acc[b]-acc[a])[0],v=best!=null&&acc[best]>(ax==="X"?P.H0:P.W)*0.15?+best:c;
+  grids.push({ax,n:k,v,ok:best!=null})});
+ grids.sort((a,b)=>a.ax===b.ax?a.v-b.v:a.ax<b.ax?-1:1);P.grids=grids;
+ /* 縮尺の自動合わせ：となりの通り芯の間に書いてある寸法（14650など）から */
+ const rs=[];["X","Y"].forEach(ax=>{const G=grids.filter(g=>g.ax===ax);for(let i=0;i<G.length-1;i++){const a=G[i].v,b=G[i+1].v,mid=(a+b)/2,d=b-a;if(d<20)continue;
+  const LB=Object.keys(lab).filter(k=>k[0]===ax).flatMap(k=>lab[k]),hh=LB.length?LB[0].h:10;
+  T2.forEach(t=>{const v=+t.s.replace(/,/g,"");if(!(v>=500&&v<=30000)||!/^[0-9,]+$/.test(t.s))return;const p=ax==="X"?t.cx:t.cy,q=ax==="X"?t.cy:t.cx;
+   if(Math.abs(p-mid)<d*0.2&&LB.some(l=>Math.abs((ax==="X"?l.cy:l.cx)-q)<hh*8))rs.push(v/d)})}});
+ if(rs.length>=2){let med=0,ok=0;rs.forEach(r=>{const c=rs.filter(q=>Math.abs(q/r-1)<0.015);if(c.length>ok){ok=c.length;med=c.reduce((x,y)=>x+y,0)/c.length}});
+  if(ok>=2){P.mmpp=med;P.den=0;P.denTxt=0;P.autoScale=ok}}
+ /* 四角（閉じた長方形）を線から探す */
+ const H=[],V=[];P.segs.forEach(s2=>{if(Math.abs(s2[1]-s2[3])<0.6&&Math.abs(s2[2]-s2[0])>4)H.push([Math.min(s2[0],s2[2]),Math.max(s2[0],s2[2]),s2[1],s2[4]]);else if(Math.abs(s2[0]-s2[2])<0.6&&Math.abs(s2[3]-s2[1])>4)V.push([Math.min(s2[1],s2[3]),Math.max(s2[1],s2[3]),s2[0],s2[4]])});
+ const vx={};V.forEach(v=>{const k=Math.round(v[2]*2);(vx[k]=vx[k]||[]).push(v)});
+ const hasV=(x,y0,y1)=>{for(const d of [-1,0,1]){for(const v of vx[Math.round(x*2)+d]||[])if(v[0]<=y0+0.8&&v[1]>=y1-0.8)return true}return false};
+ const grp={};H.forEach(h=>{const k=Math.round(h[0]*2)+":"+Math.round(h[1]*2);(grp[k]=grp[k]||[]).push(h)});
+ const rects=[];Object.values(grp).forEach(g=>{if(g.length<2)return;g.sort((a,b)=>a[2]-b[2]);const L=g[0][1]-g[0][0];
+  for(let i=0;i<g.length;i++)for(let j=i+1;j<g.length;j++){const dy=g[j][2]-g[i][2];if(dy<0.3*L||dy>3*L)continue;
+   if(hasV(g[i][0],g[i][2],g[j][2])&&hasV(g[i][1],g[i][2],g[j][2])){rects.push({x0:g[i][0],x1:g[i][1],y0:g[i][2],y1:g[j][2],col:g[i][3]});break}}});
+ P.rects=rects;planClassify();
+}
+function planClassify(){
+ const P=PLAN;if(!P.rects||!P.mmpp){P.cand=[];return}
+ const mm=P.mmpp,neu=c=>{if(!c)return true;const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);return Math.max(r,g,b)-Math.min(r,g,b)<24};
+ const gs={};P.rects.forEach(r=>{const w=Math.round((r.x1-r.x0)*mm/10)*10,h=Math.round((r.y1-r.y0)*mm/10)*10;if(Math.max(w,h)<300||Math.max(w,h)>2200)return;
+  const k=w+"x"+h+"|"+(r.col||"");(gs[k]=gs[k]||{w,h,col:r.col,neu:neu(r.col),list:[]}).list.push(r)});
+ const near=(a,b)=>Math.abs(a-b)/b<0.07;
+ P.cand=Object.values(gs).filter(g=>g.list.length>=1).map(g=>{let hit=null;
+  Object.keys(CAS2M).forEach(k=>{const m=CAS2M[k];[[m.pa,m.pb,"パネル"],[m.oa,m.ob,"開口"],[m.L,m.W,"本体"]].forEach(([a,b,t])=>{if(!hit&&((near(g.w,a)&&near(g.h,b))||(near(g.w,b)&&near(g.h,a))))hit={k,t}})});
+  if(!hit&&!g.neu&&Math.abs(g.w-g.h)<60&&g.w>=820&&g.w<=980)hit={k:"dk_fhcp80",t:"4方向の形"};
+  return{...g,hit}}).sort((a,b)=>(b.hit?1:0)-(a.hit?1:0)||b.list.length-a.list.length).slice(0,12);
+}
+const MSUM={X:{dir:1,mm:0},Y:{dir:1,mm:0}};   // 逃げ墨の初期値（通り芯ごとに上書きできる）
+function planFindUI(){
+ const P=PLAN,pn=$("#plPanel");if(!P){toast("先に図面を開いてください");return}
+ if(!P.mmpp){toast("先に縮尺を合わせてください");return}
+ if(!P.rects){try{planAnalyze()}catch(e){}}
+ planClassify();
+ if(!P.cand||!P.cand.length){pn.style.display="block";pn.innerHTML="四角い記号が見つかりませんでした（スキャンの図面や、四角が線で描かれていない図面では探せません）。";return}
+ const cn=c=>"<span style='display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;background:"+(c||"#000")+"'></span>";
+ pn.style.display="block";
+ pn.innerHTML="<b>🔍 図面の中の四角（大きさ別）</b>　室内機の四角を選んでください（複数OK）<br>"+P.cand.map((g,i)=>`<label style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid #e2e8f0"><input type="checkbox" data-i="${i}" ${g.sel||(!P.unitsChosen&&g.hit&&!g.neu)?"checked":""} style="width:22px;height:22px">${cn(g.col)} <b>${fmt(g.w)}×${fmt(g.h)}</b>・${g.list.length}個 ${g.hit?"<span style='color:#7c3aed'>→ "+CAS2M[g.hit.k].n+"（"+g.hit.t+"に近い）</span>":g.neu?"<span style='color:#64748b'>（グレー：柱など）</span>":""}</label>`).join("")+
+  `<div style="display:flex;gap:6px;margin-top:8px"><button id="plFindOk" style="flex:1;height:42px;border-radius:12px;background:#7c3aed;color:#fff;font-weight:800">この四角を室内機にする</button><button id="plFindClose" style="height:42px;padding:0 14px;border-radius:12px;background:#e2e8f0;font-weight:800">閉じる</button></div>
+   <div style="margin-top:6px;color:#475569;font-size:12px">グレーで600〜1300くらいの四角は柱として、柱芯にも使います。</div>`;
+ $("#plFindClose").onclick=()=>{pn.style.display="none"};
+ $("#plFindOk").onclick=()=>{const ch=[...pn.querySelectorAll("input[type=checkbox]")];P.units=[];P.cols=[];
+  P.cand.forEach((g,i)=>{g.sel=ch[i].checked;if(g.sel)g.list.forEach(r=>P.units.push({cx:(r.x0+r.x1)/2,cy:(r.y0+r.y1)/2,w:g.w,h:g.h,k:g.hit&&g.hit.k}))});
+  P.rects.forEach(r=>{const w=(r.x1-r.x0)*P.mmpp,h=(r.y1-r.y0)*P.mmpp,c=r.col;const gray=!c||(Math.max(...[1,3,5].map(k=>parseInt(c.slice(k,k+2),16)))-Math.min(...[1,3,5].map(k=>parseInt(c.slice(k,k+2),16))))<24;
+   if(gray&&w>=600&&w<=1300&&h>=600&&h<=1300&&Math.abs(w-h)<200)P.cols.push({cx:(r.x0+r.x1)/2,cy:(r.y0+r.y1)/2})});
+  {const tol=300/P.mmpp,U2=[];P.units.forEach(u=>{if(!U2.some(v=>Math.hypot(v.cx-u.cx,v.cy-u.cy)<tol))U2.push(u)});P.units=U2}   // 二重の四角（パネルと本体など）は1台にまとめる
+  {const tol=300/P.mmpp,C2=[];P.cols.forEach(u=>{if(!C2.some(v=>Math.hypot(v.cx-u.cx,v.cy-u.cy)<tol))C2.push(u)});P.cols=C2}
+  P.units.sort((a,b)=>Math.round(a.cy*P.mmpp/1000)-Math.round(b.cy*P.mmpp/1000)||a.cx-b.cx);P.unitsChosen=1;planDraw();planListUI()};
+}
+function planListUI(){
+ const P=PLAN,pn=$("#plPanel");if(!P||!P.units||!P.units.length){toast("先に「室内機を探す」で室内機を選んでください");return}
+ P.nige=P.nige||{};const nige=n=>P.nige[n]||{dir:MSUM[n[0]].dir,mm:MSUM[n[0]].mm};
+ const mm=P.mmpp,GX=(P.grids||[]).filter(g=>g.ax==="X"),GY=(P.grids||[]).filter(g=>g.ax==="Y"),useCol=P.refCol&&P.cols&&P.cols.length;
+ const near=(arr,v)=>arr.reduce((b,g)=>!b||Math.abs(g.v-v)<Math.abs(b.v-v)?g:b,null);
+ const fx=v=>(v>=0?"右へ ":"左へ ")+fmt(Math.round(Math.abs(v))),fy=v=>(v>=0?"下へ ":"上へ ")+fmt(Math.round(Math.abs(v)));
+ const rows=P.units.map((u,i)=>{let a="",b="",tx="";
+  if(useCol){const c=P.cols.reduce((b2,c2)=>!b2||Math.hypot(c2.cx-u.cx,c2.cy-u.cy)<Math.hypot(b2.cx-u.cx,b2.cy-u.cy)?c2:b2,null);
+   a="柱芯から "+fx((u.cx-c.cx)*mm);b=fy((u.cy-c.cy)*mm);tx=`${i+1}) 柱芯から ${fx((u.cx-c.cx)*mm)}・${fy((u.cy-c.cy)*mm)}`}
+  else{const gx=near(GX,u.cx),gy=near(GY,u.cy);
+   if(gx){const d=(u.cx-gx.v)*mm,n=nige(gx.n),dn=d-n.dir*n.mm;a=`${gx.n}から ${fx(d)}`+(n.mm?`<br><b style="color:#0e7490">逃げ墨（${gx.n} ${n.dir>0?"右":"左"}${fmt(n.mm)}）から ${fx(dn)}</b>`:"")}
+   if(gy){const d=(u.cy-gy.v)*mm,n=nige(gy.n),dn=d-n.dir*n.mm;b=`${gy.n}から ${fy(d)}`+(n.mm?`<br><b style="color:#0e7490">逃げ墨（${gy.n} ${n.dir>0?"下":"上"}${fmt(n.mm)}）から ${fy(dn)}</b>`:"")}
+   tx=`${i+1}) `+(gx?`${gx.n}${(()=>{const d=(u.cx-gx.v)*mm,n=nige(gx.n);return n.mm?"逃げ墨("+(n.dir>0?"右":"左")+n.mm+")から"+fx(d-n.dir*n.mm):"から"+fx(d)})()}`:"")+"・"+(gy?`${gy.n}${(()=>{const d=(u.cy-gy.v)*mm,n=nige(gy.n);return n.mm?"逃げ墨("+(n.dir>0?"下":"上")+n.mm+")から"+fy(d-n.dir*n.mm):"から"+fy(d)})()}`:"")}
+  return{h:`<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 4px;font-weight:800;color:#dc2626">${i+1}</td><td style="padding:6px 4px">${a}</td><td style="padding:6px 4px">${b}</td></tr>`,tx}});
+ const gl=(P.grids||[]).map(g=>{const n=nige(g.n);return`<span style="display:inline-flex;align-items:center;gap:3px;margin:2px 6px 2px 0">${g.n}<select data-g="${g.n}" data-k="dir" style="height:30px;border-radius:8px">${g.ax==="X"?`<option value="1"${n.dir>0?" selected":""}>右</option><option value="-1"${n.dir<0?" selected":""}>左</option>`:`<option value="1"${n.dir>0?" selected":""}>下</option><option value="-1"${n.dir<0?" selected":""}>上</option>`}</select><input data-g="${g.n}" data-k="mm" inputmode="numeric" value="${n.mm||""}" placeholder="0" style="width:58px;height:30px;border-radius:8px;border:1px solid #cbd5e1;padding:0 4px">mm</span>`}).join("");
+ pn.style.display="block";
+ pn.innerHTML=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>📋 墨出しリスト（室内機の芯）</b><span style="flex:1"></span>
+   <button id="plRef" style="height:34px;padding:0 10px;border-radius:10px;background:#e0f2fe;font-weight:800">${useCol?"基準：柱芯":"基準：通り芯"}</button><button id="plCopy" style="height:34px;padding:0 10px;border-radius:10px;background:#0891b2;color:#fff;font-weight:800">コピー</button><button id="plLClose" style="height:34px;padding:0 10px;border-radius:10px;background:#e2e8f0;font-weight:800">閉じる</button></div>
+  ${useCol?"":`<div style="margin:6px 0;font-size:12.5px;color:#334155">逃げ墨（返り墨）：通り芯から何mmずらして墨を打ったか（例：X2 右1000）。入れると、逃げ墨からの寸法を計算します。<br>${gl||"通り芯（X1・Y1など）が見つかりませんでした"}</div>`}
+  <table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="color:#64748b;font-size:12px"><td>No</td><td>左右（X）</td><td>上下（Y）</td></tr>${rows.map(r=>r.h).join("")}</table>
+  <div style="font-size:12px;color:#64748b;margin-top:6px">右・左・上・下は図面の向きです。寸法は図面の線から計算した値（目安）なので、大事な所は図面の寸法でも確認してください。</div>`;
+ pn.querySelectorAll("[data-g]").forEach(el=>el.onchange=()=>{const n=el.dataset.g,o=P.nige[n]||nige(n);if(el.dataset.k==="dir")o.dir=+el.value;else o.mm=Math.max(0,parseInt(el.value)||0);P.nige[n]={...o};planListUI()});
+ $("#plRef").onclick=()=>{if(!P.cols||!P.cols.length){toast("柱（グレーの四角）が見つかりませんでした");return}P.refCol=!P.refCol;planListUI()};
+ $("#plCopy").onclick=()=>{const t="墨出しリスト（室内機の芯）\n"+rows.map(r=>r.tx).join("\n");try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}};
+ $("#plLClose").onclick=()=>{pn.style.display="none"};
 }
 /* なぞった線 → 曲げメモの行（水平の配管として）。図面の起点＝配管の起点、最初の区間＝+x */
 function planToWorld(p){const M=PLAN.map,dx=(p[0]-M.P0[0])*PLAN.mmpp,dy=(p[1]-M.P0[1])*PLAN.mmpp,c=Math.cos(M.th),s2=Math.sin(M.th);return[dx*c+dy*s2,-dx*s2+dy*c]}

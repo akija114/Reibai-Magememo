@@ -2750,29 +2750,33 @@ function planGestures(){
    x.font="bold 14px sans-serif";x.fillStyle="#9a3412";x.fillText(fmt(l)+"mm",sq[0]+12,sq[1]-12)}
  };
  const setAim=f=>{const q=[f[0],f[1]-OFF],ip=toImg(q),sn=PV.mode==="col"?ip:planSnap(ip);aim={f,s:q,snap:sn,snapped:Math.hypot(sn[0]-ip[0],sn[1]-ip[1])>0.01};redraw()};
- cv.addEventListener("pointerdown",e=>{e.preventDefault();cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,rel(e));moved=false;
-  if(pts.size===1){st0={p:rel(e),ox:PV.ox,oy:PV.oy};if(PV.mode!=="move"&&PLAN)setAim(rel(e))}
-  if(pts.size===2){aim=null;st0=null;const [a,b]=[...pts.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,z:PV.z,c:[(a[0]+b[0])/2,(a[1]+b[1])/2],ox:PV.ox,oy:PV.oy};moved=true;redraw()}});
- cv.addEventListener("pointermove",e=>{if(!pts.has(e.pointerId))return;e.preventDefault();pts.set(e.pointerId,rel(e));
-  if(pts.size===2&&pinch){const [a,b]=[...pts.values()],c=[(a[0]+b[0])/2,(a[1]+b[1])/2],z=Math.max(0.03,Math.min(30,pinch.z*Math.hypot(a[0]-b[0],a[1]-b[1])/pinch.d));
-   PV.ox=c[0]-(pinch.c[0]-pinch.ox)*z/pinch.z;PV.oy=c[1]-(pinch.c[1]-pinch.oy)*z/pinch.z;PV.z=z;redraw();return}
-  if(pts.size===1&&st0){const p=rel(e),dx=p[0]-st0.p[0],dy=p[1]-st0.p[1];if(Math.hypot(dx,dy)>6)moved=true;
-   if(aim){setAim(p);return}
-   if(moved){PV.ox=st0.ox+dx;PV.oy=st0.oy+dy;redraw()}}});
- const up=e=>{const was=pts.size;pts.delete(e.pointerId);
-  if(was===2){pinch=null;aim=null;   // 2本指→1本指：残った指から続けて動かせるように、今の位置で取り直す（前の位置に戻らない）
-   if(pts.size===1&&PV.mode==="move"){const r=[...pts.values()][0];st0={p:r,ox:PV.ox,oy:PV.oy};moved=true}else st0=null;redraw();return}
-  if(!pts.size)st0=null;
-  if(was!==1||!aim||!PLAN){if(!pts.size&&aim){aim=null;redraw()}return}
-  const p=aim.snap;aim=null;
+ /* 指の操作はタッチイベントで直接扱う（iPhoneで一番安定）。マウスはポインターで扱う */
+ const place=p=>{if(!PLAN)return;
   if(PV.mode==="cal"){PV.cal.push(p);planDraw();if(PV.cal.length===2){const d=Math.hypot(PV.cal[1][0]-PV.cal[0][0],PV.cal[1][1]-PV.cal[0][1]);
     setTimeout(()=>{const v=parseFloat((prompt("この2点の実際の長さ（mm）は？","1000")||"").replace(/[^0-9.]/g,""));if(v>0&&d>0){PLAN.mmpp=v/d;PLAN.den=0;PLAN.autoScale=0;$("#plDen").value="";planWalls();toast("縮尺を合わせました");PV.md("trace")}else PV.cal=[];planDraw()},30)}}
   else if(PV.mode==="col"){let bp=null,bd=14/PV.z;for(const s2 of PLAN.segs){const dx=s2[2]-s2[0],dy=s2[3]-s2[1],l2=dx*dx+dy*dy;if(!l2)continue;let t=((p[0]-s2[0])*dx+(p[1]-s2[1])*dy)/l2;t=Math.max(0,Math.min(1,t));const d=Math.hypot(s2[0]+dx*t-p[0],s2[1]+dy*t-p[1]);if(d<bd){bd=d;bp=s2}}
     if(bp&&bp[4]){PLAN.fcol=bp[4];toast("この色の線だけに吸い付きます（もう一度押すと解除）");PV.md("trace")}else toast("線の上に十字を合わせて離してください");planDraw()}
   else if(PV.mode==="trace"){if(!PLAN.mmpp){toast("先に縮尺を合わせてください");planDraw();return}PLAN.route.push(p);planDraw()}
   else planDraw()};
- cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",e=>{pts.delete(e.pointerId);pinch=null;st0=null;aim=null;redraw()});
- cv.addEventListener("lostpointercapture",e=>{if(pts.has(e.pointerId)){pts.delete(e.pointerId);if(pts.size<2)pinch=null;if(!pts.size){st0=null;aim=null}}});
+ let G=null;   // 今のジェスチャー：{n:指の数, base:{c,d,z,ox,oy}}
+ const tp=t=>{const r=cv.getBoundingClientRect();return[t.clientX-r.left,t.clientY-r.top]};
+ const startG=ts=>{if(ts.length>=2){const a=tp(ts[0]),b=tp(ts[1]);G={n:2,c:[(a[0]+b[0])/2,(a[1]+b[1])/2],d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,z:PV.z,ox:PV.ox,oy:PV.oy};aim=null}
+  else if(ts.length===1){const a=tp(ts[0]);G={n:1,p:a,ox:PV.ox,oy:PV.oy,aimOk:G===null};if(PV.mode!=="move"&&PLAN&&G.aimOk)setAim(a)}else G=null;redraw()};
+ cv.addEventListener("touchstart",e=>{e.preventDefault();startG(e.touches)},{passive:false});
+ cv.addEventListener("touchmove",e=>{e.preventDefault();if(!G)return;const ts=e.touches;
+  if(G.n===2&&ts.length>=2){const a=tp(ts[0]),b=tp(ts[1]),c=[(a[0]+b[0])/2,(a[1]+b[1])/2],z=Math.max(0.03,Math.min(30,G.z*Math.hypot(a[0]-b[0],a[1]-b[1])/G.d));
+   PV.ox=c[0]-(G.c[0]-G.ox)*z/G.z;PV.oy=c[1]-(G.c[1]-G.oy)*z/G.z;PV.z=z;redraw();return}
+  if(G.n===1&&ts.length===1){const p=tp(ts[0]);if(aim){setAim(p);return}if(PV.mode==="move"){PV.ox=G.ox+p[0]-G.p[0];PV.oy=G.oy+p[1]-G.p[1];redraw()}}},{passive:false});
+ const tend=e=>{e.preventDefault();const ts=e.touches;
+  if(G&&G.n===1&&ts.length===0&&aim&&e.type==="touchend"){const p=aim.snap;aim=null;G=null;place(p);return}
+  if(ts.length===0){G=null;aim=null;redraw();return}
+  // 指が減った：残りの指の今の位置から取り直す（位置が飛ばない）。2本→1本のあとは狙いを出さない
+  if(ts.length===1){const a=tp(ts[0]);G={n:1,p:a,ox:PV.ox,oy:PV.oy,aimOk:false};aim=null;redraw()}else startG(ts)};
+ cv.addEventListener("touchend",tend,{passive:false});cv.addEventListener("touchcancel",tend,{passive:false});
+ /* マウス（パソコン） */
+ cv.addEventListener("pointerdown",e=>{if(e.pointerType!=="mouse")return;cv.setPointerCapture(e.pointerId);const p=rel(e);st0={p,ox:PV.ox,oy:PV.oy};moved=false;if(PV.mode!=="move"&&PLAN)setAim(p)});
+ cv.addEventListener("pointermove",e=>{if(e.pointerType!=="mouse"||!st0)return;const p=rel(e);if(aim){setAim(p);return}if(PV.mode==="move"){PV.ox=st0.ox+p[0]-st0.p[0];PV.oy=st0.oy+p[1]-st0.p[1];redraw()}});
+ cv.addEventListener("pointerup",e=>{if(e.pointerType!=="mouse")return;st0=null;if(aim){const p=aim.snap;aim=null;place(p)}});
  cv.addEventListener("wheel",e=>{e.preventDefault();const r=cv.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top,z=Math.max(0.03,Math.min(30,PV.z*Math.exp(-e.deltaY*0.0015)));PV.ox=cx-(cx-PV.ox)*z/PV.z;PV.oy=cy-(cy-PV.oy)*z/PV.z;PV.z=z;redraw()},{passive:false});
  /* iPhoneの画面ごとの拡大（ピンチ・ダブルタップ）を止める：これが「違う所が拡大される」原因 */
  const ov=$("#planOv");["touchstart","touchmove"].forEach(t=>wr.addEventListener(t,e=>{if(e.cancelable)e.preventDefault()},{passive:false}));

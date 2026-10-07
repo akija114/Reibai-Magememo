@@ -2688,7 +2688,7 @@ const plLen=(a,b)=>Math.hypot(b[0]-a[0],b[1]-a[1])*(PLAN.mmpp||0);
 function planInfo(){const P=PLAN,el=$("#plInfo");if(!el)return;
  if(!P){el.textContent="PDF（CADから書き出したもの）か写真の図面を開いてください。";return}
  const tot=P.route.reduce((s2,p,i)=>i?s2+plLen(P.route[i-1],p):0,0);
- el.innerHTML=(PV.mode==="col"?"🎨 なぞりたい配管の線を1本タップ → その色の線だけに吸い付きます":PV.mode==="cal"?"📏 長さの分かる2点をタップ → 実際の長さを入力":PV.mode==="trace"?"✏️ 配管の起点（室内機の配管口）から、曲がる所を順にタップ。線や端に吸い付きます":"✋ 指で動かす・2本指で拡大")+
+ el.innerHTML=(PV.mode==="col"?"🎨 十字をなぞりたい配管の線に合わせて離す → その色の線だけに吸い付きます":PV.mode==="cal"?"📏 十字を長さの分かる2点に合わせて離す → 実際の長さを入力（2本指で拡大）":PV.mode==="trace"?"✏️ 指を置くと少し上に十字が出ます。十字を曲がり角に合わせて離すと点が置けます（緑の◯＝線に吸い付き）。2本指で拡大・移動":"✋ 指で動かす・2本指で拡大")+
   "<br>縮尺："+(P.mmpp?(P.autoScale?"通り芯の寸法から自動で合わせ済み（"+P.autoScale+"か所一致）":P.den?"1/"+P.den+(P.denTxt?"<span style='color:#fcd34d'>（図面の表記。印刷で縮んでいることがあるので、通り芯の寸法などで「縮尺を2点で」確認がおすすめ）</span>":""):"2点で合わせ済み"):"<b style='color:#fca5a5'>未設定</b>")+(P.fcol?"　絞り込み：<span style='display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;background:"+P.fcol+"'></span>":"")+"　線："+P.segs.length+"本　壁："+P.walls.length+"か所"+(P.CH?"　天井高："+P.CH+(P.chList&&P.chList.length>1?"（候補 "+P.chList.join("・")+"）":""):"")+
   (P.route.length>1?"<br>配管："+P.route.slice(1).map((p,i)=>fmt(Math.round(plLen(P.route[i],p)/10)*10)).join("→")+"　<b>合計 約"+fmt(Math.round(tot/10)*10)+"mm</b>":"");
  $("#plH").value=P.H||"";$("#plCH").value=P.CH||"";
@@ -2728,24 +2728,53 @@ function planSnap(p){
  return p;
 }
 function planGestures(){
- const cv=$("#plCv"),pts=new Map();let st0=null,moved=false,pinch=null;
- const img=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left-PV.ox)/PV.z,(e.clientY-r.top-PV.oy)/PV.z]};
- cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,{x:e.clientX,y:e.clientY});moved=false;
-  if(pts.size===1)st0={x:e.clientX,y:e.clientY,ox:PV.ox,oy:PV.oy};
-  if(pts.size===2){const [a,b]=[...pts.values()],r=cv.getBoundingClientRect();pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z:PV.z,cx:(a.x+b.x)/2-r.left,cy:(a.y+b.y)/2-r.top,ox:PV.ox,oy:PV.oy};moved=true}});
- cv.addEventListener("pointermove",e=>{if(!pts.has(e.pointerId))return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(pts.size===2&&pinch){const [a,b]=[...pts.values()],z=Math.max(0.05,Math.min(20,pinch.z*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d));PV.ox=pinch.cx-(pinch.cx-pinch.ox)*z/pinch.z;PV.oy=pinch.cy-(pinch.cy-pinch.oy)*z/pinch.z;PV.z=z;planDraw();return}
-  if(st0&&pts.size===1){const dx=e.clientX-st0.x,dy=e.clientY-st0.y;if(Math.hypot(dx,dy)>8)moved=true;if(moved){PV.ox=st0.ox+dx;PV.oy=st0.oy+dy;planDraw()}}});
- const up=e=>{const was=pts.size;pts.delete(e.pointerId);if(pts.size<2)pinch=null;if(was!==1||moved||!PLAN){if(!pts.size)st0=null;return}st0=null;
-  const p=img(e);
-  if(PV.mode==="cal"){PV.cal.push(planSnap(p));planDraw();if(PV.cal.length===2){const d=Math.hypot(PV.cal[1][0]-PV.cal[0][0],PV.cal[1][1]-PV.cal[0][1]);
-    setTimeout(()=>{const v=parseFloat((prompt("この2点の実際の長さ（mm）は？","1000")||"").replace(/[^0-9.]/g,""));if(v>0&&d>0){PLAN.mmpp=v/d;PLAN.den=0;$("#plDen").value="";planWalls();toast("縮尺を合わせました");PV.md("trace")}else PV.cal=[];planDraw()},30)}}
-  else if(PV.mode==="col"){let bp=null,bd=12/PV.z;for(const s2 of PLAN.segs){const dx=s2[2]-s2[0],dy=s2[3]-s2[1],l2=dx*dx+dy*dy;if(!l2)continue;let t=((p[0]-s2[0])*dx+(p[1]-s2[1])*dy)/l2;t=Math.max(0,Math.min(1,t));const d=Math.hypot(s2[0]+dx*t-p[0],s2[1]+dy*t-p[1]);if(d<bd){bd=d;bp=s2}}
-    if(bp&&bp[4]){PLAN.fcol=bp[4];toast("この色の線だけに吸い付きます（もう一度押すと解除）");PV.md("trace")}else toast("線をタップしてください");planDraw()}
-  else if(PV.mode==="trace"){if(!PLAN.mmpp){toast("先に縮尺を合わせてください");return}PLAN.route.push(planSnap(p));planDraw()}};
- cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",e=>{pts.delete(e.pointerId);pinch=null;st0=null});
- cv.addEventListener("wheel",e=>{e.preventDefault();const r=cv.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top,z=Math.max(0.05,Math.min(20,PV.z*Math.exp(-e.deltaY*0.0015)));PV.ox=cx-(cx-PV.ox)*z/PV.z;PV.oy=cy-(cy-PV.oy)*z/PV.z;PV.z=z;planDraw()},{passive:false});
- window.addEventListener("resize",()=>{if($("#planOv")&&$("#planOv").style.display!=="none")planDraw()});
+ /* 1本指：「動かす」モードは移動、それ以外は狙い点（指の少し上の十字）を動かして、離した所に置く（拡大鏡つき）
+    2本指：拡大・縮小と移動（指の真ん中を中心に） */
+ const cv=$("#plCv"),wr=$("#plWrap"),pts=new Map();let st0=null,moved=false,pinch=null,aim=null,raf=0;
+ const OFF=70,rel=e=>{const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]},toImg=q=>[(q[0]-PV.ox)/PV.z,(q[1]-PV.oy)/PV.z];
+ const redraw=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;planDraw();if(aim)drawAim()})};
+ const drawAim=()=>{const x=cv.getContext("2d"),dpr=window.devicePixelRatio||1,P=PLAN;x.setTransform(dpr,0,0,dpr,0,0);
+  const q=aim.s,ip=aim.snap,sq=[ip[0]*PV.z+PV.ox,ip[1]*PV.z+PV.oy];
+  // 拡大鏡（左上か右上）
+  const R=62,cx=q[0]<cv.clientWidth/2?cv.clientWidth-R-10:R+10,cy=R+10,mag=3;
+  x.save();x.beginPath();x.arc(cx,cy,R,0,7);x.closePath();x.fillStyle="#fff";x.fill();x.clip();
+  x.translate(cx,cy);x.scale(PV.z*mag,PV.z*mag);x.translate(-ip[0],-ip[1]);if(P&&P.img)x.drawImage(P.img,0,0);x.restore();
+  x.strokeStyle="#0f172a";x.lineWidth=3;x.beginPath();x.arc(cx,cy,R,0,7);x.stroke();
+  x.strokeStyle="#dc2626";x.lineWidth=1.5;x.beginPath();x.moveTo(cx-R,cy);x.lineTo(cx+R,cy);x.moveTo(cx,cy-R);x.lineTo(cx,cy+R);x.stroke();
+  // 狙い点
+  x.strokeStyle="#dc2626";x.lineWidth=2;x.beginPath();x.moveTo(sq[0]-18,sq[1]);x.lineTo(sq[0]+18,sq[1]);x.moveTo(sq[0],sq[1]-18);x.lineTo(sq[0],sq[1]+18);x.stroke();
+  x.beginPath();x.arc(sq[0],sq[1],aim.snapped?8:5,0,7);x.strokeStyle=aim.snapped?"#16a34a":"#dc2626";x.stroke();
+  x.strokeStyle="rgba(15,23,42,.35)";x.setLineDash([3,3]);x.beginPath();x.moveTo(aim.f[0],aim.f[1]);x.lineTo(q[0],q[1]);x.stroke();x.setLineDash([]);
+  if(P&&P.route.length&&PV.mode==="trace"&&P.mmpp){const L=P.route[P.route.length-1],l=Math.round(Math.hypot(ip[0]-L[0],ip[1]-L[1])*P.mmpp/10)*10,lq=[L[0]*PV.z+PV.ox,L[1]*PV.z+PV.oy];
+   x.strokeStyle="rgba(234,88,12,.7)";x.lineWidth=3;x.beginPath();x.moveTo(lq[0],lq[1]);x.lineTo(sq[0],sq[1]);x.stroke();
+   x.font="bold 14px sans-serif";x.fillStyle="#9a3412";x.fillText(fmt(l)+"mm",sq[0]+12,sq[1]-12)}
+ };
+ const setAim=f=>{const q=[f[0],f[1]-OFF],ip=toImg(q),sn=PV.mode==="col"?ip:planSnap(ip);aim={f,s:q,snap:sn,snapped:Math.hypot(sn[0]-ip[0],sn[1]-ip[1])>0.01};redraw()};
+ cv.addEventListener("pointerdown",e=>{e.preventDefault();cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,rel(e));moved=false;
+  if(pts.size===1){st0={p:rel(e),ox:PV.ox,oy:PV.oy};if(PV.mode!=="move"&&PLAN)setAim(rel(e))}
+  if(pts.size===2){aim=null;const [a,b]=[...pts.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,z:PV.z,c:[(a[0]+b[0])/2,(a[1]+b[1])/2],ox:PV.ox,oy:PV.oy};moved=true;redraw()}});
+ cv.addEventListener("pointermove",e=>{if(!pts.has(e.pointerId))return;e.preventDefault();pts.set(e.pointerId,rel(e));
+  if(pts.size===2&&pinch){const [a,b]=[...pts.values()],c=[(a[0]+b[0])/2,(a[1]+b[1])/2],z=Math.max(0.03,Math.min(30,pinch.z*Math.hypot(a[0]-b[0],a[1]-b[1])/pinch.d));
+   PV.ox=c[0]-(pinch.c[0]-pinch.ox)*z/pinch.z;PV.oy=c[1]-(pinch.c[1]-pinch.oy)*z/pinch.z;PV.z=z;redraw();return}
+  if(pts.size===1&&st0){const p=rel(e),dx=p[0]-st0.p[0],dy=p[1]-st0.p[1];if(Math.hypot(dx,dy)>6)moved=true;
+   if(aim){setAim(p);return}
+   if(moved){PV.ox=st0.ox+dx;PV.oy=st0.oy+dy;redraw()}}});
+ const up=e=>{const was=pts.size;pts.delete(e.pointerId);if(pts.size<2)pinch=null;
+  if(!pts.size)st0=null;
+  if(was!==1||!aim||!PLAN){if(!pts.size&&aim){aim=null;redraw()}return}
+  const p=aim.snap;aim=null;
+  if(PV.mode==="cal"){PV.cal.push(p);planDraw();if(PV.cal.length===2){const d=Math.hypot(PV.cal[1][0]-PV.cal[0][0],PV.cal[1][1]-PV.cal[0][1]);
+    setTimeout(()=>{const v=parseFloat((prompt("この2点の実際の長さ（mm）は？","1000")||"").replace(/[^0-9.]/g,""));if(v>0&&d>0){PLAN.mmpp=v/d;PLAN.den=0;PLAN.autoScale=0;$("#plDen").value="";planWalls();toast("縮尺を合わせました");PV.md("trace")}else PV.cal=[];planDraw()},30)}}
+  else if(PV.mode==="col"){let bp=null,bd=14/PV.z;for(const s2 of PLAN.segs){const dx=s2[2]-s2[0],dy=s2[3]-s2[1],l2=dx*dx+dy*dy;if(!l2)continue;let t=((p[0]-s2[0])*dx+(p[1]-s2[1])*dy)/l2;t=Math.max(0,Math.min(1,t));const d=Math.hypot(s2[0]+dx*t-p[0],s2[1]+dy*t-p[1]);if(d<bd){bd=d;bp=s2}}
+    if(bp&&bp[4]){PLAN.fcol=bp[4];toast("この色の線だけに吸い付きます（もう一度押すと解除）");PV.md("trace")}else toast("線の上に十字を合わせて離してください");planDraw()}
+  else if(PV.mode==="trace"){if(!PLAN.mmpp){toast("先に縮尺を合わせてください");planDraw();return}PLAN.route.push(p);planDraw()}
+  else planDraw()};
+ cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",e=>{pts.delete(e.pointerId);pinch=null;st0=null;aim=null;redraw()});
+ cv.addEventListener("wheel",e=>{e.preventDefault();const r=cv.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top,z=Math.max(0.03,Math.min(30,PV.z*Math.exp(-e.deltaY*0.0015)));PV.ox=cx-(cx-PV.ox)*z/PV.z;PV.oy=cy-(cy-PV.oy)*z/PV.z;PV.z=z;redraw()},{passive:false});
+ /* iPhoneの画面ごとの拡大（ピンチ・ダブルタップ）を止める：これが「違う所が拡大される」原因 */
+ const ov=$("#planOv");["touchstart","touchmove"].forEach(t=>wr.addEventListener(t,e=>{if(e.cancelable)e.preventDefault()},{passive:false}));
+ ["gesturestart","gesturechange","gestureend"].forEach(t=>ov.addEventListener(t,e=>e.preventDefault(),{passive:false}));
+ window.addEventListener("resize",()=>{if(ov.style.display!=="none")planDraw()});
 }
 /* ===== 図面の解析：通り芯（X・Y）・縮尺の自動合わせ・四角（室内機・柱）・墨出しリスト ===== */
 function planAnalyze(){

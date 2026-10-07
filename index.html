@@ -16,7 +16,7 @@
 --bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--sel:#dbeafe;--warn:#ea580c;--warnbg:#fff1e6}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--sel:#17405f;--warn:#fb923c;--warnbg:#3a2415}}
 :root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--sel:#17405f;--warn:#fb923c;--warnbg:#3a2415}
-html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+html{height:100%;overscroll-behavior:none;scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
 *,*:before,*:after{box-sizing:border-box}
 body{margin:0;height:100%;display:flex;flex-direction:column;overflow:hidden;padding:8px 10px 0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",Meiryo,sans-serif;-webkit-tap-highlight-color:transparent}
 button,input,select{font:inherit;color:inherit}
@@ -154,7 +154,7 @@ input[type=range]{accent-color:var(--acc)}
 .gdtxt b{font-size:16px;color:#0c4a6e}
 .gdtxt b.bk,.gdtxt b.fw{display:inline-block;margin:2px 0;padding:2px 8px;border-radius:8px;font-size:16px;color:#fff;background:#dc2626}.gdtxt b.fw{background:#ea580c}
 .gdtxt .big{display:block;font-size:15px;font-weight:900;color:#c2410c;margin-top:3px}
-.gdopt{display:flex;gap:8px;margin-top:6px}.gdopt #gdDie{flex:1.6;height:38px;border-radius:12px;background:#eff6ff;color:#1e40af;font-weight:800;font-size:12.5px;border:1.5px solid #bfdbfe}
+.gdopt{display:flex;gap:8px;margin-top:6px}.gdben{flex:1;height:38px;border-radius:12px;background:#fff7ed;color:#9a3412;font-weight:800;font-size:12.5px;border:1.5px solid #fed7aa}.gdopt #gdDie{flex:1.6;height:38px;border-radius:12px;background:#eff6ff;color:#1e40af;font-weight:800;font-size:12.5px;border:1.5px solid #bfdbfe}
 .gdwarn{font-size:13px;font-weight:800;border-radius:10px;padding:6px 10px;margin:0 0 4px;display:none}
 .gdwarn.on{display:block}.gdwarn.bad{background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5}.gdwarn.ok{background:#f0fdf4;color:#166534;border:1.5px solid #86efac}
 #gdRev{flex:1.6;height:38px;border-radius:12px;background:#fff7ed;color:#9a3412;font-weight:800;font-size:12.5px;border:1.5px solid #fdba74}
@@ -282,6 +282,7 @@ input[type=range]{accent-color:var(--acc)}
       <div class="gdwarn" id="gdWarn"></div>
       <div class="gdopt"><button id="gdRev"></button><label class="gdh">台の高さ<input id="gdH" inputmode="numeric" pattern="[0-9]*">mm</label></div>
       <div class="gdopt"><button id="gdDie"></button><button class="gdend" id="gdEnd">✕ やめる</button></div>
+      <div class="gdopt"><button id="gdBen" class="gdben"></button></div>
       <div class="gdleg" id="gdLeg"></div>
     </div>
   </div>
@@ -366,10 +367,18 @@ input[type=range]{accent-color:var(--acc)}
     <div id="gndMode"></div>
     <div id="gndBody"></div>
     <div class="note">地面は半透明で表示します。曲げの角・起点・終点に「↕ 地面からの高さ」が出ます（文字の表示設定でオンオフできます）。</div>
-    <div class="ctitle" style="margin-top:14px">🔲 天井</div>
-    <div class="seg" id="ceilOn" style="margin-bottom:10px"><button data-v="1">🔲 天井を表示</button><button data-v="0">🙈 隠す</button></div>
+    <div class="ctitle" style="margin-top:14px" id="ceilTtl">天井</div>
+    <div class="seg" id="ceilOn" style="margin-bottom:10px"><button data-v="1" id="ceilOnB">天井を表示</button><button data-v="0">🙈 隠す</button></div>
     <div class="field"><label>天井の高さ（地面から・mm）</label><input id="ceilH" inputmode="numeric" pattern="[0-9]*"></div>
     <div class="note" id="ceilNote"></div>
+  </div>
+</div>
+<div class="ov" id="benOv" style="z-index:70">
+  <div class="sheet" style="overflow-y:auto">
+    <div class="shead"><h3 id="benTtl">使うベンダー</h3><button id="closeBen">✕</button></div>
+    <div id="benList"></div>
+    <div id="benTbl"></div>
+    <div class="note">バック＝曲げ半径R×角度÷90（90°ならRと同じ）。逆向きの「前に出す」はその半分です。表にないサイズは R＝外径×4 で計算します。各ベンダーは対応しているサイズだけで計算します。対応外のサイズは、曲げ手順のボタンに⚠️が出て、標準（外径×4）と標準の模型で表示します。</div>
   </div>
 </div>
 <div class="ov" id="tutOv" style="z-index:90;align-items:center;justify-content:center;background:#0c1a33cc">
@@ -487,23 +496,34 @@ st.ps=SIZES[st.ps]?st.ps:null;
 const normGoal=g=>Math.max(0,Math.round(+g||0));
 st.goal=normGoal(st.goal);
 const UNIT_KEYS=["","out","cas","cas2","ceil","wall"];
-/* 三菱 天カセ2方向 PL-RP…LA18（メーカー図面の寸法） A=パネル長 B=天井開口 C D=吊りボルトピッチ */
+/* メーカー機種（天井カセット）。メーカー図面の寸法（mm）。天井面＝0、配管は長手（L）の+x側端面から出る。
+   L×W×H=本体（長手×奥行×高さ）、top=天井面から本体天面、pa×pb×pt=パネル、oa×ob=天井開口、ba×bb=吊りボルトピッチ、
+   nk=天井面からネコ（吊り金具）、liq/gas/dr=端面での位置（z：端面を正面に見て右が−、y：天井面から） */
+const MI2=(n,A,B,C,D,g,l)=>({mk:"mitsu",kind:"2方向",n,L:C,W:650,H:267,top:290,pa:A,pb:710,pt:45,oa:B,ob:670,ba:D,bb:574,nk:100,gas:{z:-173,y:168},liq:{z:-103,y:168},dr:{z:175,y:235},g,l,mi:1,tg:"（端から152）",tl:"（端から222）",td:"（端から500）"});
+const DK2=(n,L,pa,oa,ba,g,l)=>({mk:"daikin",kind:"2方向",sub:"エコ・ダブルフロー",n,L,W:620,H:305,top:350,pa,pb:700,pt:45,oa,ob:640,ba,bb:520,nk:160,liq:{z:35,y:215},gas:{z:-50,y:215},dr:{z:-190,y:270},g,l,tg:"（中心から右50）",tl:"（中心から左35）",td:"（中心から右190）"});
 const CAS2M={
- "40":{n:"PL-RP40",A:1080,B:1040,C:770,D:824,g:"12.7",l:"6.35"},
- "56":{n:"PL-RP45/50/56/63",A:1250,B:1210,C:940,D:994,g:"12.7",l:"6.35"},
- "80":{n:"PL-RP71/80",A:1250,B:1210,C:940,D:994,g:"15.88",l:"9.52"}};
-const CAS2_ORDER=["40","56","80"];
+ "40":MI2("PL-RP40LA18",1080,1040,770,824,"12.7","6.35"),
+ "56":MI2("PL-RP45/50/56/63LA18",1250,1210,940,994,"12.7","6.35"),
+ "80":MI2("PL-RP71/80LA18",1250,1210,940,994,"15.88","9.52"),
+ dk_fhgp50:DK2("FHGP50FB",775,1070,1030,820,"12.7","6.4"),
+ dk_fhgp80:DK2("FHGP80FB",990,1285,1245,1035,"15.9","9.5"),
+ dk_fhgp160:DK2("FHGP140GA / FHGP160FB",1445,1740,1700,1490,"15.9","9.5"),
+ dk_fhcp80:{mk:"daikin",kind:"4方向",sub:"S-ラウンドフロー",n:"FHCP80EM",L:840,W:840,H:288,top:288,pa:950,pb:950,pt:50,oa:885,ob:885,oTxt:"860〜910",ba:710,bb:780,nk:130,liq:{z:-280,y:125},gas:{z:-330,y:165},dr:{z:340,y:175},g:"15.9",l:"9.5",tg:"（中心から右330）",tl:"（中心から右280）",td:"（中心から左340）"},
+ dk_fhkp80:{mk:"daikin",kind:"1方向",sub:"シングルフロー（SZRK160CDの室内機×2）",n:"FHKP80GA",L:1200,W:598,H:185,top:185,pa:1380,pb:658,pt:45,oa:1340,ob:618,ba:1250,bb:432,nk:99,liq:{z:161,y:69},gas:{z:98,y:137},dr:{z:8,y:175},g:"15.9",l:"9.5",tg:"（中心から左98）",tl:"（中心から左161）",td:""}};
+const CAS2_MAKERS=[["mitsu","三菱電機"],["daikin","ダイキン"]];
+const CAS2_ORDER=["40","56","80","dk_fhgp50","dk_fhgp80","dk_fhgp160","dk_fhcp80","dk_fhkp80"];
 /* 室外機の種類。w=幅(mm) h=高さ d=奥行 f=ファン(front=正面 / top=上吹き) 大きさは目安 */
 const OUTM={
  room:{py:100,pz:-75,n:"ルームエアコン",sub:"ハウジング",w:800,h:550,d:290,f:"front",nf:1},
  p40:{py:200,pz:0,n:"パッケージ P40〜63",sub:"小型",w:950,h:800,d:350,f:"front",nf:1},
  p80:{py:200,pz:0,n:"パッケージ P80",sub:"ファン1個",w:990,h:1330,d:370,f:"front",nf:1},
+ dk160:{py:410,pz:0,n:"ダイキン RZRP160C",sub:"P160・SZRK160CDの室外機",w:940,h:1080,d:320,f:"front",nf:1},
  p112:{py:200,pz:0,n:"パッケージ P112〜160",sub:"ファン2段",w:1000,h:1690,d:370,f:"front",nf:2},
  vrv:{py:250,pz:0,n:"ビルマルチ 小",sub:"上吹き1ファン",w:930,h:1690,d:765,f:"top",nf:1},
  vrv2:{py:250,pz:0,n:"ビルマルチ 大",sub:"上吹き2ファン",w:1700,h:1690,d:765,f:"top",nf:2},
  ghp:{py:250,pz:0,n:"GHP",sub:"ガスヒートポンプ",w:1000,h:1800,d:1100,f:"top",nf:1,ghp:true}
 };
-const OUT_PKG=["p40","p80","p112"];
+const OUT_PKG=["p40","p80","p112","dk160"];
 const OUT_X={s:"右側面（前から50mm内側）",f:"正面（表）",b:"背面（裏）",d:"真下（手前）",l:"左下（正面からまっすぐ）",m:"真下（左・手前）"};
 const OUT_VRV=["vrv","vrv2"];
 const outAllow=mk=>OUT_PKG.includes(mk)?["s","f","b","d"]:mk==="room"?["b"]:OUT_VRV.includes(mk)?["l","m"]:mk==="ghp"?["f"]:["s"];
@@ -516,10 +536,11 @@ function outPort(mk,k){
  if(mk==="room")return[W/2+45,100,-30]; // 右側面の外側45mm、後ろ向きに出る
  if(mk==="ghp")return[-W/2+120,150,D/2];
  if(OUT_VRV.includes(mk))return k==="m"?[-W/2+120,0,D/2-60]:[-W/2+180,175,D/2];
+ if(mk==="dk160")return k==="f"?[W/2-70,410,D/2]:k==="b"?[W/2-70,410,-D/2]:k==="d"?[W/2-70,0,D/2-75]:[W/2,410,D/2-75];   // 閉鎖弁は右前・高さ400〜417
  if(!OUT_PKG.includes(mk))return[W/2,m.py,m.pz];
  return k==="f"?[W/2-120,200,D/2]:k==="b"?[W/2-120,200,-D/2]:k==="d"?[W/2-120,0,D/2-60]:[W/2,200,D/2-50];
 }
-const OUT_ORDER=["room","p40","p80","p112","vrv","vrv2","ghp"];
+const OUT_ORDER=["room","p40","p80","p112","vrv","vrv2","ghp","dk160"];
 const WALLX={
  rb:{n:"右後ろ",k:"b",p:[290,-60,0]},rs:{n:"右横",k:"r",p:[400,-60,60]},rd:{n:"右下",k:"d",p:[290,-145,60]},
  lb:{n:"左後ろ",k:"b",p:[-290,-60,0]},ls:{n:"左横",k:"l",p:[-400,-60,60]},ld:{n:"左下",k:"d",p:[-290,-145,60]}};
@@ -625,6 +646,22 @@ st.bl=normBL(st.bl);
 let leg="m";
 let GUIDE=null;   // 曲げ手順（ベンダー）モード
 let GUIDE_H=750;try{GUIDE_H=+localStorage.getItem("pbm_bh")||750}catch(e){}   // ベンダーの台の高さ（床から配管まで）
+/* 使うベンダー：曲げ半径R（配管の中心）をサイズごとに持つ。表にないサイズは R=外径×4（4D）。バック＝R×角度/90 */
+const BENDERS={
+ ta515:{n:"ギアベンダー TA515",sub:"TASCO 青い本体・クランク・三脚・7分〜44（R=4D）",R:{},S:[22.22,25.4,28.58,31.75,38.1,44.45]},
+ g4d:{n:"ラチェット式",sub:"TASCO ギア式直管ベンダー・三脚・7/8・1・1-1/8（R=4D）",R:{},S:[22.22,25.4,28.58]},
+ ek:{n:"電動 TA515EK-N",sub:"TASCO 電動・三脚・7/8〜1-1/2（ダイスの刻印R）",R:{"22.22":98,"25.4":101,"28.58":102},S:[22.22,25.4,28.58,31.75,38.1]},
+ mb:{n:"手動ミニ TA515MB",sub:"TASCO 直管ミニベンダー・1/2〜1-1/4（R=4D）",R:{},S:[12.7,15.88,19.05,22.22,25.4,28.58,31.75]},
+ lev:{n:"レバー式 TA540G",sub:"TASCO 2段式クイックアクションカラーベンダー・3分〜6分（メーカーR）",R:{"9.52":23.8,"12.7":38,"15.88":57.2,"19.05":76.2},S:[9.52,12.7,15.88,19.05]},
+ levb:{n:"レバー式 TA540B",sub:"TASCO 2段式クイックアクション（青）・4分〜7分・R未確認（仮に外径×4）",R:{},S:[12.7,15.88,19.05,22.22],unk:1},
+ rat:{n:"ラチェットベンダー TA512AX",sub:"TASCO ラチェットベンダーセット・2分〜7分・R未確認（仮に外径×4）",R:{},S:[6.35,9.52,12.7,15.88,19.05,22.22],unk:1},
+ my:{n:"マイベンダー",sub:"自分でRを入れる・全サイズ",R:{}}};
+let BENDER="ta515",MYR={};try{const b=localStorage.getItem("pbm_bender");if(BENDERS[b])BENDER=b;MYR=JSON.parse(localStorage.getItem("pbm_myR")||"{}")||{}}catch(e){}
+const isStr=D=>{const z=SIZES.find(x=>x[1]===D);return !!z&&z[2]<=4000};   // 4m直管のサイズ（7分〜）
+const benOn=D=>BENDER==="my"||(BENDERS[BENDER].S||[]).includes(D);   // ベンダーごとの対応サイズだけ。対応外は標準（外径×4）
+const szName=D=>(SIZES.find(x=>x[1]===D)||[""])[0];
+const bR=D=>{if(!benOn(D))return 4*D;const t=BENDER==="my"?MYR:BENDERS[BENDER].R,v=+t[String(D)];return v>0?v:4*D};
+const bRtxt=D=>{if(!benOn(D))return "外径×4";if(BENDERS[BENDER].unk)return "R未確認・仮に外径×4";const t=BENDER==="my"?MYR:BENDERS[BENDER].R;return +t[String(D)]>0?"R"+fmt(bR(D)):"外径×4"};
 let DIE_R=false;try{DIE_R=localStorage.getItem("pbm_die")==="R"}catch(e){}   // ダイスが後ろから見て右側
 const legObj=g=>st.bl.find(l=>l.id===g);
 const legRows=g=>g==="m"?st.rows:(legObj(g)||{rows:st.rows}).rows;
@@ -680,13 +717,20 @@ const cur=g=>{const z=SIZES[legSize(g||leg)];return{D:z[1],lim:z[2]}};
 let sel=0,T=null;
 
 function toast(msg){
- const t=$("#toast");t.textContent=msg;t.classList.add("on");
+ const t=$("#toast");t.textContent=msg;t.style.pointerEvents="";t.classList.add("on");
  clearTimeout(toast._h);toast._h=setTimeout(()=>t.classList.remove("on"),2000);
+}
+/* 消した直後だけ「↶ 元に戻す」を出す（4秒） */
+function toastUndo(msg){
+ const t=$("#toast");t.innerHTML=msg+' <button style="margin-left:8px;background:#fbbf24;color:#111827;font-weight:800;border-radius:12px;padding:5px 11px;font-size:13px">↶ 元に戻す</button>';
+ t.style.pointerEvents="auto";t.classList.add("on");
+ t.querySelector("button").onclick=()=>{histGo(-1);t.classList.remove("on");t.style.pointerEvents=""};
+ clearTimeout(toast._h);toast._h=setTimeout(()=>{t.classList.remove("on");t.style.pointerEvents=""},4000);
 }
 
 function calc(g){
  g=g||leg;const {D,lim}=cur(g);let cum=0,tot=0;
- const out=legRows(g).map(r=>{const back=D*4*r.a/90,shoe=r.l-back;cum+=shoe;tot+=r.l;return{back,shoe,cum,over:tot>lim}});
+ const out=legRows(g).map(r=>{const back=bR(D)*r.a/90,shoe=r.l-back;cum+=shoe;tot+=r.l;return{back,shoe,cum,over:tot>lim}});
  return{out,tot,lim};
 }
 
@@ -806,7 +850,7 @@ function render(){
    gi.oninput=()=>{let v=+gi.value;const m=Math.round(v/45)*45;if(Math.abs(v-m)<=6)v=m;gi.value=v;
     r.t=normT(v);r.o=false;el.querySelector(".twb").innerHTML=dirIco(r.t)+`<span class="twt">${dirShort2(r.t)}</span>`;el.querySelector(".gval").textContent=dirName(r.t);sel=i;save(true);upd()};
   }
-  el.querySelector(".del").onclick=()=>{if(LR().length>1)LR().splice(i,1);else LR()[0]={l:0,a:0,t:0};save();render();if(T)fitT()};
+  el.querySelector(".del").onclick=()=>{const nn=nm(i);if(LR().length>1)LR().splice(i,1);else LR()[0]={l:0,a:0,t:0};save();render();if(T)fitT();toastUndo(nn+" を削除しました")};
   box.appendChild(el);
  });
  upd();
@@ -836,7 +880,7 @@ function upd(){
  const over=c.tot>c.lim;
  $("#tot").className="tot"+(over?" over":"");
  const gl=st.goal||0,df=gl-c.tot;
- $("#tot").innerHTML=(brOn()?`<small>${legName(leg)}</small><br>`:"")+`📏<b>${fmt(c.tot)}</b>/${fmt(c.lim)}`+(gl?`<br>🎯<b>${fmt(gl)}</b> ${df>0?"あと"+fmt(df):df===0?"ぴったり✅":"超過"+fmt(-df)}`:"");
+ $("#tot").innerHTML=(brOn()?`<small>${legName(leg)}</small><br>`:"")+`📏<b>${fmt(c.tot)}</b>/${fmt(c.lim)}`+(over?`<br><b style="color:#dc2626">⚠️${fmt(c.tot-c.lim)}オーバー</b>`:`<br><span style="color:#15803d">残り<b>${fmt(c.lim-c.tot)}</b></span>`)+(gl?`<br>🎯<b>${fmt(gl)}</b> ${df>0?"あと"+fmt(df):df===0?"ぴったり✅":"超過"+fmt(-df)}`:"");
  $("#bar").className="bar"+(over?" over":"");
  $("#bar i").style.width=Math.min(100,c.tot/c.lim*100)+"%";
  renderInfo();updSupUI();
@@ -905,6 +949,11 @@ function initT(){
  });
  cv.addEventListener("wheel",e=>{e.preventDefault();T.dist=clamp(T.dist*Math.exp(e.deltaY*0.001),T.ext*0.05,T.ext*20);T.dirty=true},{passive:false});
  cv.addEventListener("contextmenu",e=>e.preventDefault());
+ /* スマホで3Dを回転・拡大している最中に、画面全体が引っ張られてスクロール／拡大しないようにする */
+ ["#cv","#dirOv","#gdGrab","#chip","#supPill","#tools"].forEach(q=>{const el=$(q);if(!el)return;
+  el.addEventListener("touchmove",e=>{if(e.cancelable)e.preventDefault()},{passive:false});
+  if(q==="#cv")el.addEventListener("touchstart",e=>{if(e.touches.length>1&&e.cancelable)e.preventDefault()},{passive:false})});
+ ["gesturestart","gesturechange"].forEach(t=>document.addEventListener(t,e=>{if(e.target&&e.target.closest&&e.target.closest("#stage"))e.preventDefault()},{passive:false}));
  new ResizeObserver(sizeT).observe($("#stage"));
  loop();
 }
@@ -1026,42 +1075,42 @@ function makeUnit(type,opt){
   bx(70,90,100,-95,Y0-70,zd,0xd5dbe3);
   const dr=cyl(16,80,-60,Y0-70,zd,0x9ca3af,16);dr.rotation.z=Math.PI/2;
  }else if(type==="cas2"){
-  /* 三菱 天カセ2方向（PL-RP…LA18）。自然な向き：長手=x、配管は+x側の端面（670側）から+xへ出る。天井面=y0。
-     本体 高さ267（天井面から上）、パネル A×710（天井から下へ45）、天井開口 B×670、吊りボルト D×574 */
-  const md=CAS2M[opt.mm]||CAS2M["56"],A=md.A,Bo=md.B,DD=md.D,HB=267,TOP=290,Bw=md.C,Dw=650,sd=st.units.flip?-1:1;
-  /* 端面（650幅）を正面から見て：ガス=右端から152・液=右端から222（ガスの70左）、どちらも天面から122。
-     ドレン(VP-25)=右端から500（左寄り）・天面から約55。正面から見た右＝-z */
-  const gas=opt.kind!=="液",yG=TOP-122,yL=TOP-122,zG=-sd*(Dw/2-152),zL=-sd*(Dw/2-222),zD=-sd*(Dw/2-500),yD=TOP-55;
-  const Pn=[Bw/2+60,gas?yG:yL,gas?zG:zL];
+  /* メーカー機種の天井カセット。自然な向き：長手=x、配管は+x側の端面から+xへ出る。天井面=y0。 */
+  const md=CAS2M[opt.mm]||CAS2M["56"],sd=st.units.flip?-1:1,Lb=md.L,Wb=md.W,HB=md.H,TOP=md.top,YT=TOP+420,yH=md.nk;
+  const gas=opt.kind!=="液",G0={z:md.gas.z*sd,y:md.gas.y},L0={z:md.liq.z*sd,y:md.liq.y},D0r={z:md.dr.z*sd,y:md.dr.y},sel=gas?G0:L0;
+  const Pn=[Lb/2+60,sel.y,sel.z];
   const body=new THREE.Group();g.add(body);tg=body;body.position.set(-Pn[0],-Pn[1],-Pn[2]);
-  const CU=0xc2703a,BRS=0xb8860b,OR=0xf97316,RD=0xdc2626;
-  name="三菱 2方向 "+md.n;cx=-Pn[0];top=TOP+430-Pn[1];opt.cz=-Pn[2];
-  bx(Bw,HB,Dw,0,TOP-HB/2,0,0x9ca3af);                                                   // 本体（天井裏）
-  rb(A,45,710,20,0,-22.5,0,WH);                                                      // パネル
-  [-1,1].forEach(k=>{bx(A*.82,5,62,0,-47,k*262,DK);const fl=bx(A*.8,6,70,0,-52,k*262,0xf8fafc);fl.rotation.x=k*0.5});  // 2方向の吹出口
-  bx(A*.62,4,330,0,-46,0,0xdfe3e8);for(let i=-5;i<=5;i++)bx(A*.6,2,5,0,-49,i*30,MD);   // 吸込みグリル
-  // 天井開口 B×670（オレンジの枠）
-  const ow=16,oy=3;bx(Bo+ow,4,ow,0,oy,335,OR);bx(Bo+ow,4,ow,0,oy,-335,OR);bx(ow,4,670,Bo/2,oy,0,OR);bx(ow,4,670,-Bo/2,oy,0,OR);
-  // 吊りボルト D×574（赤）
-  /* 吊り金具は両端面（670側）の角4か所。本体長さC、金具は端面から外へ出て、ボルト芯は本体端から27外＝ピッチD。
-     ネコ（吊り金具）は本体天面から190下＝天井面から100上（図面の190・290） */
-  const yH=TOP-190,YT=TOP+420;
-  [-1,1].forEach(k=>[-287,287].forEach(z=>{const x=k*DD/2;
-   bx(8,90,70,k*(Bw/2+4),yH+35,z,0x64748b);                 // 端面に付く立ち上がり
-   bx(DD/2-Bw/2+30,8,70,k*(Bw/2+(DD/2-Bw/2+30)/2),yH,z,0x64748b);  // 外へ出る受け
-   cyl(10,YT-yH+40,x,(YT+yH-40)/2,z,RD,10);                 // 吊りボルト
-   cyl(17,14,x,yH+12,z,BRS,6);cyl(17,14,x,yH-12,z,BRS,6);    // ナット（上下）
-  }));
-  bx(DD,4,4,0,YT,287,RD);bx(DD,4,4,0,YT,-287,RD);bx(4,4,574,DD/2,YT,0,RD);bx(4,4,574,-DD/2,YT,0,RD);
-  // 配管接続口（端面のへこみ）とドレン
-  bx(10,140,185,Bw/2+4,TOP-116,-sd*(Dw/2-189),MD);
-  [[yG,zG,gas?13:9],[yL,zL,gas?9:13]].forEach(([y,z,r])=>{const c=cyl(r*.75,60,Bw/2+30,y,z,CU,16);c.rotation.z=Math.PI/2;const n=cyl(r*1.5,16,Bw/2+12,y,z,BRS,6);n.rotation.z=Math.PI/2});
-  {bx(10,70,70,Bw/2+4,yD,zD,MD);const d=cyl(17,90,Bw/2+45,yD,zD,0xe5e7eb,16);d.rotation.z=Math.PI/2;
-   const w=cyl(14,14,Bw/2+8,TOP-163,zD,0xe5e7eb,16);w.rotation.z=Math.PI/2;                    // 排水確認用給水口
-   const pl=cyl(13,14,Bw/2+8,TOP-260,-sd*(Dw/2-530),0x94a3b8,16);pl.rotation.z=Math.PI/2}     // ドレン抜き
+  const CU=0xc2703a,BRS=0xb8860b,OR=0xf97316,RD=0xdc2626,mkN=(CAS2_MAKERS.find(x=>x[0]===md.mk)||["",""])[1];
+  name=mkN+" "+md.kind+" "+md.n;cx=-Pn[0];top=TOP+430-Pn[1];opt.cz=-Pn[2];
+  bx(Lb,HB,Wb,0,TOP-HB/2,0,0x9ca3af);                                                      // 本体（天井裏）
+  rb(md.pa,md.pt,md.pb,20,0,-md.pt/2,0,WH);                                                  // パネル
+  const py=-md.pt-2,sl=(lx,lz,x,z,rx,rz)=>{bx(lx,5,lz,x,py,z,DK);const f=bx(lx*.97,6,lz*.97+8,x,py-5,z,0xf8fafc);if(rx)f.rotation.x=rx;if(rz)f.rotation.z=rz};
+  if(md.kind==="4方向"){const q=md.pa/2-80,ln=md.pa*.6;sl(ln,60,0,q,0,q,0.5);sl(ln,60,0,-q,0,-0.5);sl(60,ln,q,0,0,0,-0.5);sl(60,ln,-q,0,0,0,0.5);
+   bx(md.pa*.5,4,md.pb*.5,0,py+1,0,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.48,2,5,0,py-2,i*md.pb*.045,MD)}
+  else if(md.kind==="1方向"){const q=md.pb/2-80;sl(md.pa*.8,62,0,-q,-0.5);
+   bx(md.pa*.82,4,md.pb*.5,0,py+1,md.pb*.12,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.8,2,5,0,py-2,md.pb*.12+i*md.pb*.045,MD)}
+  else{const q=md.pb/2-93;[-1,1].forEach(k=>sl(md.pa*.82,62,0,k*q,k*0.5));
+   bx(md.pa*.62,4,md.pb*.46,0,py+1,0,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.6,2,5,0,py-2,i*md.pb*.042,MD)}
+  // 天井開口（オレンジの枠）
+  {const ow=16,oy=3,oa=md.oa,ob=md.ob;bx(oa+ow,4,ow,0,oy,ob/2,OR);bx(oa+ow,4,ow,0,oy,-ob/2,OR);bx(ow,4,ob,oa/2,oy,0,OR);bx(ow,4,ob,-oa/2,oy,0,OR)}
+  // 吊りボルト（赤）とネコ（吊り金具）
+  const out=md.ba/2>Lb/2+5;
+  [-1,1].forEach(k=>[-1,1].forEach(w=>{const x=k*md.ba/2,z=w*md.bb/2;
+   if(out){bx(8,90,70,k*(Lb/2+4),yH+35,z,0x64748b);bx(md.ba/2-Lb/2+30,8,70,k*(Lb/2+(md.ba/2-Lb/2+30)/2),yH,z,0x64748b)}   // 端面から外へ出る金具
+   else bx(90,8,90,x,yH,z,0x64748b);                                                                                  // 角の金具
+   cyl(10,YT-yH+40,x,(YT+yH-40)/2,z,RD,10);cyl(17,14,x,yH+12,z,BRS,6);cyl(17,14,x,yH-12,z,BRS,6)}));
+  bx(md.ba,4,4,0,YT,md.bb/2,RD);bx(md.ba,4,4,0,YT,-md.bb/2,RD);bx(4,4,md.bb,md.ba/2,YT,0,RD);bx(4,4,md.bb,-md.ba/2,YT,0,RD);
+  // 配管接続口とドレン
+  if(md.mi)bx(10,140,185,Lb/2+4,TOP-116,-sd*(Wb/2-189),MD);
+  else bx(10,Math.abs(G0.y-L0.y)+90,Math.abs(G0.z-L0.z)+90,Lb/2+4,(G0.y+L0.y)/2,(G0.z+L0.z)/2,MD);
+  [[G0,gas?13:9],[L0,gas?9:13]].forEach(([q,r])=>{const c=cyl(r*.75,60,Lb/2+30,q.y,q.z,CU,16);c.rotation.z=Math.PI/2;const n=cyl(r*1.5,16,Lb/2+12,q.y,q.z,BRS,6);n.rotation.z=Math.PI/2});
+  {bx(10,70,70,Lb/2+4,D0r.y,D0r.z,MD);const d=cyl(17,90,Lb/2+45,D0r.y,D0r.z,0xe5e7eb,16);d.rotation.z=Math.PI/2;
+   if(md.mi){const w=cyl(14,14,Lb/2+8,TOP-163,D0r.z,0xe5e7eb,16);w.rotation.z=Math.PI/2;const pl=cyl(13,14,Lb/2+8,TOP-260,-sd*(Wb/2-530),0x94a3b8,16);pl.rotation.z=Math.PI/2}}
   const L=(t,x,y,z)=>({t,p:[x-Pn[0],y-Pn[1],z-Pn[2]]});
-  opt.c2={ceil:[-Pn[0],-Pn[1],-Pn[2]],neko:[DD/2-Pn[0],yH-Pn[1],287-Pn[2]],top:TOP};
-  opt.labs=[L("天井開口 "+Bo+"×670",0,-60,-420),L("吊りボルト "+DD+"×574",0,TOP+470,0),L("ガスφ"+md.g+"（端から152）",Bw/2+90,TOP+70,zG),L("液φ"+md.l+"（端から222）",Bw/2+90,yL-110,zL),L("ドレン VP-25（端から500）",Bw/2+90,TOP+70,zD),L("パネル "+A+"×710",-A/2,-60,0)];
+  opt.c2={ceil:[-Pn[0],-Pn[1],-Pn[2]],neko:[md.ba/2-Pn[0],yH-Pn[1],md.bb/2-Pn[2]],top:TOP};
+  opt.labs=[L("天井開口 "+(md.oTxt||md.oa)+"×"+(md.oTxt||md.ob),0,-60,-md.pb/2-80),L("吊りボルト "+md.ba+"×"+md.bb,0,TOP+470,0),
+   L("ガスφ"+md.g+(md.tg||"")+" 天井から"+md.gas.y,Lb/2+90,Math.max(G0.y,L0.y)+150,G0.z),L("液φ"+md.l+(md.tl||"")+" 天井から"+md.liq.y,Lb/2+90,Math.min(G0.y,L0.y)-110,L0.z),
+   L("ドレン VP-25"+(md.td||""),Lb/2+90,TOP+70,D0r.z),L("パネル "+md.pa+"×"+md.pb,-md.pa/2,-60,0)];
   tg=g;
  }else if(type==="ceil"){
   /* 天吊：箱は中心が原点。正面=+z、吹出口は正面の下向き。配管は正面から見て右端の後ろ・下から出る */
@@ -1092,14 +1141,19 @@ function makeUnit(type,opt){
  }
  return{g,name,top,cx,cz:opt.cz||0,labs:opt.labs,c2:opt.c2};
 }
-function label(txt,h,bg,fg){
+/* 今回の機器・天井・ネコのアイコン（青い丸・銀の縁で統一） */
+const NICO={"u_cas2": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ3IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2JkNWUxIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImJyIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmRlNjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTE2MjA3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDkiIGZpbGw9InVybCgjcikiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MiIgZmlsbD0idXJsKCNnKSIvPjxlbGxpcHNlIGN4PSIzNiIgY3k9IjI1IiByeD0iMjIiIHJ5PSI5IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMyIgdHJhbnNmb3JtPSJyb3RhdGUoLTI1IDM2IDI1KSIvPjxyZWN0IHg9IjI4IiB5PSIyNiIgd2lkdGg9IjQ0IiBoZWlnaHQ9IjI0IiByeD0iMiIgZmlsbD0iI2NiZDVlMSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjIuNSIvPjxyZWN0IHg9IjE2IiB5PSI1MCIgd2lkdGg9IjY4IiBoZWlnaHQ9IjExIiByeD0iMyIgZmlsbD0idXJsKCN3KSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjIuNSIvPjxyZWN0IHg9IjIxIiB5PSI1NCIgd2lkdGg9IjE4IiBoZWlnaHQ9IjMuNSIgcng9IjEuNSIgZmlsbD0iIzFlMjkzYiIvPjxyZWN0IHg9IjYxIiB5PSI1NCIgd2lkdGg9IjE4IiBoZWlnaHQ9IjMuNSIgcng9IjEuNSIgZmlsbD0iIzFlMjkzYiIvPjxnIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiIGZpbGw9Im5vbmUiPjxwYXRoIGQ9Ik0yOSA2NiBMMjEgNzYiLz48cGF0aCBkPSJNNzEgNjYgTDc5IDc2Ii8+PC9nPjxwb2x5Z29uIHBvaW50cz0iMTYsODAgMTgsNzAgMjYsNzYiIGZpbGw9IiNmZmYiLz48cG9seWdvbiBwb2ludHM9Ijg0LDgwIDgyLDcwIDc0LDc2IiBmaWxsPSIjZmZmIi8+PC9zdmc+", "u_cas": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ3IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2JkNWUxIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImJyIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmRlNjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTE2MjA3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDkiIGZpbGw9InVybCgjcikiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MiIgZmlsbD0idXJsKCNnKSIvPjxlbGxpcHNlIGN4PSIzNiIgY3k9IjI1IiByeD0iMjIiIHJ5PSI5IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMyIgdHJhbnNmb3JtPSJyb3RhdGUoLTI1IDM2IDI1KSIvPjxyZWN0IHg9IjIwIiB5PSIyMCIgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiByeD0iNiIgZmlsbD0idXJsKCN3KSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjIuNSIvPjxyZWN0IHg9IjM2IiB5PSIzNiIgd2lkdGg9IjI4IiBoZWlnaHQ9IjI4IiByeD0iMiIgZmlsbD0iI2UyZThmMCIgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjIiLz48ZyBmaWxsPSIjMWUyOTNiIj48cmVjdCB4PSIzMCIgeT0iMjYiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0IiByeD0iMiIvPjxyZWN0IHg9IjMwIiB5PSI3MCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQiIHJ4PSIyIi8+PHJlY3QgeD0iMjYiIHk9IjMwIiB3aWR0aD0iNCIgaGVpZ2h0PSI0MCIgcng9IjIiLz48cmVjdCB4PSI3MCIgeT0iMzAiIHdpZHRoPSI0IiBoZWlnaHQ9IjQwIiByeD0iMiIvPjwvZz48L3N2Zz4=", "u_out": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ3IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2JkNWUxIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImJyIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmRlNjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTE2MjA3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDkiIGZpbGw9InVybCgjcikiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MiIgZmlsbD0idXJsKCNnKSIvPjxlbGxpcHNlIGN4PSIzNiIgY3k9IjI1IiByeD0iMjIiIHJ5PSI5IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMyIgdHJhbnNmb3JtPSJyb3RhdGUoLTI1IDM2IDI1KSIvPjxyZWN0IHg9IjE4IiB5PSIyNiIgd2lkdGg9IjY0IiBoZWlnaHQ9IjQ4IiByeD0iNSIgZmlsbD0idXJsKCN3KSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjIuNSIvPjxjaXJjbGUgY3g9IjQ0IiBjeT0iNTAiIHI9IjE2IiBmaWxsPSIjMzM0MTU1Ii8+PGNpcmNsZSBjeD0iNDQiIGN5PSI1MCIgcj0iMTYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzk0YTNiOCIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBhdGggZD0iTTQ0IDM2IFY2NCBNMzAgNTAgSDU4IiBzdHJva2U9IiM5NGEzYjgiIHN0cm9rZS13aWR0aD0iMyIvPjxnIHN0cm9rZT0iIzk0YTNiOCIgc3Ryb2tlLXdpZHRoPSIyLjUiPjxsaW5lIHgxPSI2NiIgeTE9IjM0IiB4Mj0iNzYiIHkyPSIzNCIvPjxsaW5lIHgxPSI2NiIgeTE9IjQwIiB4Mj0iNzYiIHkyPSI0MCIvPjxsaW5lIHgxPSI2NiIgeTE9IjQ2IiB4Mj0iNzYiIHkyPSI0NiIvPjwvZz48cmVjdCB4PSIyNCIgeT0iNzQiIHdpZHRoPSIxMCIgaGVpZ2h0PSI1IiBmaWxsPSIjMzM0MTU1Ii8+PHJlY3QgeD0iNjYiIHk9Ijc0IiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgZmlsbD0iIzMzNDE1NSIvPjwvc3ZnPg==", "u_ceil": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ3IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2JkNWUxIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImJyIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmRlNjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTE2MjA3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDkiIGZpbGw9InVybCgjcikiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MiIgZmlsbD0idXJsKCNnKSIvPjxlbGxpcHNlIGN4PSIzNiIgY3k9IjI1IiByeD0iMjIiIHJ5PSI5IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMyIgdHJhbnNmb3JtPSJyb3RhdGUoLTI1IDM2IDI1KSIvPjxnIHN0cm9rZT0iI2UyZThmMCIgc3Ryb2tlLXdpZHRoPSIzLjUiPjxsaW5lIHgxPSIyOCIgeTE9IjE4IiB4Mj0iMjgiIHkyPSI0MCIvPjxsaW5lIHgxPSI3MiIgeTE9IjE4IiB4Mj0iNzIiIHkyPSI0MCIvPjwvZz48cmVjdCB4PSIxNiIgeT0iMzgiIHdpZHRoPSI2OCIgaGVpZ2h0PSIyNiIgcng9IjYiIGZpbGw9InVybCgjdykiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIyLjUiLz48cmVjdCB4PSIyMiIgeT0iNTYiIHdpZHRoPSI1NiIgaGVpZ2h0PSI1IiByeD0iMiIgZmlsbD0iIzFlMjkzYiIvPjxwYXRoIGQ9Ik0zMCA2OCBMMjYgNzggTTUwIDY4IFY3OSBNNzAgNjggTDc0IDc4IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMy41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=", "u_wall": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ3IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2JkNWUxIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImJyIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmRlNjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTE2MjA3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDkiIGZpbGw9InVybCgjcikiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MiIgZmlsbD0idXJsKCNnKSIvPjxlbGxpcHNlIGN4PSIzNiIgY3k9IjI1IiByeD0iMjIiIHJ5PSI5IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMyIgdHJhbnNmb3JtPSJyb3RhdGUoLTI1IDM2IDI1KSIvPjxyZWN0IHg9IjE0IiB5PSIxOCIgd2lkdGg9IjEwIiBoZWlnaHQ9IjY0IiBmaWxsPSIjZDZjM2ExIiBzdHJva2U9IiM3YTVhMmEiIHN0cm9rZS13aWR0aD0iMiIvPjxyZWN0IHg9IjI0IiB5PSIzMiIgd2lkdGg9IjYyIiBoZWlnaHQ9IjI4IiByeD0iOCIgZmlsbD0idXJsKCN3KSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjIuNSIvPjxyZWN0IHg9IjMwIiB5PSI1NCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjQiIHJ4PSIyIiBmaWxsPSIjMWUyOTNiIi8+PHJlY3QgeD0iNzAiIHk9IjM4IiB3aWR0aD0iOSIgaGVpZ2h0PSI0IiByeD0iMiIgZmlsbD0iIzM4YmRmOCIvPjxwYXRoIGQ9Ik00MiA2NCBMMzggNzQgTTU2IDY0IFY3NiBNNzAgNjQgTDc0IDc0IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMy41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=", "u_none": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ3IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2JkNWUxIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImJyIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmRlNjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTE2MjA3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDkiIGZpbGw9InVybCgjcikiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MiIgZmlsbD0idXJsKCNnKSIvPjxlbGxpcHNlIGN4PSIzNiIgY3k9IjI1IiByeD0iMjIiIHJ5PSI5IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMyIgdHJhbnNmb3JtPSJyb3RhdGUoLTI1IDM2IDI1KSIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjIyIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNyIvPjxsaW5lIHgxPSIzNSIgeTE9IjY1IiB4Mj0iNjUiIHkyPSIzNSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjwvc3ZnPg==", "ceilh": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ3IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2JkNWUxIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImJyIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmRlNjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTE2MjA3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDkiIGZpbGw9InVybCgjcikiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MiIgZmlsbD0idXJsKCNnKSIvPjxlbGxpcHNlIGN4PSIzNiIgY3k9IjI1IiByeD0iMjIiIHJ5PSI5IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMyIgdHJhbnNmb3JtPSJyb3RhdGUoLTI1IDM2IDI1KSIvPjxyZWN0IHg9IjE2IiB5PSIyMCIgd2lkdGg9IjY4IiBoZWlnaHQ9IjEwIiByeD0iMiIgZmlsbD0iI2RiZWFmZSIgc3Ryb2tlPSIjMWUzYThhIiBzdHJva2Utd2lkdGg9IjIuNSIvPjxnIHN0cm9rZT0iIzkzYzVmZCIgc3Ryb2tlLXdpZHRoPSIyIj48bGluZSB4MT0iMzgiIHkxPSIyMCIgeDI9IjM4IiB5Mj0iMzAiLz48bGluZSB4MT0iNjEiIHkxPSIyMCIgeDI9IjYxIiB5Mj0iMzAiLz48L2c+PHJlY3QgeD0iMTYiIHk9IjcyIiB3aWR0aD0iNjgiIGhlaWdodD0iOSIgcng9IjIiIGZpbGw9IiNkNmMzYTEiIHN0cm9rZT0iIzdhNWEyYSIgc3Ryb2tlLXdpZHRoPSIyLjUiLz48bGluZSB4MT0iNTAiIHkxPSI0MCIgeDI9IjUwIiB5Mj0iNjIiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSI2IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cG9seWdvbiBwb2ludHM9IjUwLDMyIDM5LDQ1IDYxLDQ1IiBmaWxsPSIjZmZmIi8+PHBvbHlnb24gcG9pbnRzPSI1MCw3MCAzOSw1NyA2MSw1NyIgZmlsbD0iI2ZmZiIvPjwvc3ZnPg==", "neko": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ3IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2JkNWUxIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImJyIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmRlNjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTE2MjA3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDkiIGZpbGw9InVybCgjcikiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MiIgZmlsbD0idXJsKCNnKSIvPjxlbGxpcHNlIGN4PSIzNiIgY3k9IjI1IiByeD0iMjIiIHJ5PSI5IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMyIgdHJhbnNmb3JtPSJyb3RhdGUoLTI1IDM2IDI1KSIvPjxyZWN0IHg9IjE0IiB5PSI2OCIgd2lkdGg9IjcyIiBoZWlnaHQ9IjgiIHJ4PSIyIiBmaWxsPSIjZGJlYWZlIiBzdHJva2U9IiMxZTNhOGEiIHN0cm9rZS13aWR0aD0iMiIvPjxyZWN0IHg9IjE2IiB5PSIzNCIgd2lkdGg9IjI2IiBoZWlnaHQ9IjMwIiByeD0iMiIgZmlsbD0iI2NiZDVlMSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjIuNSIvPjxyZWN0IHg9IjQwIiB5PSIzOCIgd2lkdGg9IjUiIGhlaWdodD0iMTgiIGZpbGw9IiM2NDc0OGIiLz48cmVjdCB4PSI0MCIgeT0iNTIiIHdpZHRoPSIzMCIgaGVpZ2h0PSI2IiByeD0iMSIgZmlsbD0iIzY0NzQ4YiIgc3Ryb2tlPSIjMWUyOTNiIiBzdHJva2Utd2lkdGg9IjEuNSIvPjxsaW5lIHgxPSI2MCIgeTE9IjE0IiB4Mj0iNjAiIHkyPSI2NiIgc3Ryb2tlPSIjZWY0NDQ0IiBzdHJva2Utd2lkdGg9IjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPjxwb2x5Z29uIHBvaW50cz0iNTMsNDYgNjcsNDYgNjksNTAgNjcsNTEgNTMsNTEgNTEsNTAiIGZpbGw9InVybCgjYnIpIiBzdHJva2U9IiM3MTNmMTIiIHN0cm9rZS13aWR0aD0iMS4yIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLC0xKSIvPjxwb2x5Z29uIHBvaW50cz0iNTMsNTkgNjcsNTkgNjksNjIgNjcsNjQgNTMsNjQgNTEsNjIiIGZpbGw9InVybCgjYnIpIiBzdHJva2U9IiM3MTNmMTIiIHN0cm9rZS13aWR0aD0iMS4yIi8+PC9zdmc+", "udim": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ3IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2JkNWUxIi8+PC9saW5lYXJHcmFkaWVudD48bGluZWFyR3JhZGllbnQgaWQ9ImJyIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmRlNjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYTE2MjA3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDkiIGZpbGw9InVybCgjcikiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0MiIgZmlsbD0idXJsKCNnKSIvPjxlbGxpcHNlIGN4PSIzNiIgY3k9IjI1IiByeD0iMjIiIHJ5PSI5IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuMyIgdHJhbnNmb3JtPSJyb3RhdGUoLTI1IDM2IDI1KSIvPjxyZWN0IHg9IjIyIiB5PSIzNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjM4IiByeD0iMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmI5MjNjIiBzdHJva2Utd2lkdGg9IjUiLz48cmVjdCB4PSIzMSIgeT0iNDQiIHdpZHRoPSIzOCIgaGVpZ2h0PSIyMiIgcng9IjIiIGZpbGw9IiNjYmQ1ZTEiIHN0cm9rZT0iIzMzNDE1NSIgc3Ryb2tlLXdpZHRoPSIyIi8+PGxpbmUgeDE9IjI0IiB5MT0iMjQiIHgyPSI3NiIgeTI9IjI0IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMy41Ii8+PHBvbHlnb24gcG9pbnRzPSIyMCwyNCAzMCwxOCAzMCwzMCIgZmlsbD0iI2ZmZiIvPjxwb2x5Z29uIHBvaW50cz0iODAsMjQgNzAsMTggNzAsMzAiIGZpbGw9IiNmZmYiLz48L3N2Zz4="};
+const NI=(k,h)=>`<img alt="" src="${NICO[k]}" style="width:${h||"1.45em"};height:${h||"1.45em"};vertical-align:-0.4em;margin-right:4px">`;
+const NIMG={};try{Object.keys(NICO).forEach(k=>{const im=new Image();im.onload=()=>{clearTimeout(NIMG._t);NIMG._t=setTimeout(()=>{if(T&&T.grp&&!GUIDE&&!DV)try{build3D();T.dirty=true}catch(e){}},120)};im.src=NICO[k];NIMG[k]=im})}catch(e){}
+function label(txt,h,bg,fg,ik){
  const c=document.createElement("canvas"),x=c.getContext("2d");
  const f='bold 44px -apple-system,"Hiragino Sans",sans-serif';
- x.font=f;const w=Math.ceil(x.measureText(txt).width)+40;
+ const im=ik&&NIMG[ik]&&NIMG[ik].complete&&NIMG[ik].naturalWidth?NIMG[ik]:null,ip=im?62:0;
+ x.font=f;const w=Math.ceil(x.measureText(txt).width)+40+ip;
  c.width=w;c.height=76;
  x.font=f;x.fillStyle=bg;x.beginPath();
  if(x.roundRect)x.roundRect(0,0,w,76,22);else x.rect(0,0,w,76);
- x.fill();x.fillStyle=fg;x.textBaseline="middle";x.fillText(txt,20,41);
+ x.fill();if(im)try{x.drawImage(im,10,8,60,60)}catch(e){}x.fillStyle=fg;x.textBaseline="middle";x.fillText(txt,20+ip,41);
  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,transparent:true}));
  s.scale.set(h*w/76,h,1);s.renderOrder=10;s.userData.lab=1;s.userData.ar=w/76;return s;
 }
@@ -1142,7 +1196,7 @@ function build3D(){
  const F0=frameFor(D0);
  /* 1本分の配管をたどる */
  function trace(rows,p0,d0,u0,r0,Dl){
-  const R=4*Dl;
+  const R=bR(Dl);
   let d=d0.clone(),u=u0.clone(),r=r0.clone(),C=p0.clone(),pos=p0.clone();
   const P=[],dims=[],bends={},ofsL=[],angL=[],frames=[];
   const seg=(a,b,row,arc)=>{P.push({a:a.clone(),b:b.clone(),row,arc})};
@@ -1295,7 +1349,7 @@ const LG=[];
   });
   L.angL.forEach(g=>{
    const on=cs&&g.i===sel;
-   const s=label(g.a+"°",ext*(on?0.065:0.052),ANGC[g.a]||"#475569","#ffffff");
+   const s=label(g.a+"°"+(g.a>=180?" 返し":""),ext*(on?0.065:0.052),ANGC[g.a]||"#475569","#ffffff");
    s.position.copy(g.p);s.userData.cat="ang";pxl(s,on?26:22,{t:"out",o:g.o},rd);T.grp.add(s);
   });
   L.ofsL.forEach(o=>{const s=label("↔ 差 "+fmt(o.v)+"mm",ext*0.035,"#ede9fef2","#5b21b6");s.position.copy(o.a).add(o.b).multiplyScalar(0.5);s.userData.cat="ofs";pxl(s,19,{t:"perp",a:o.a,b:o.b,dn:true},rd);T.grp.add(s)});
@@ -1352,7 +1406,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   }catch(err){console.warn("stub",err)}
   const s=label("🏠 "+(br&&u.t!=="s"?u.t.slice(1).toUpperCase()+" ":"")+u.name,ext*0.045,"#ffffffee","#0c4a6e");
   s.position.copy(u.org).addScaledVector(u.f.ex,u.cx).addScaledVector(u.f.ey,u.top).addScaledVector(u.f.ez,u.cz);s.userData.cat="unit";pxl(s,24,{t:"up"},0);T.grp.add(s);
-  (u.labs||[]).forEach(q=>{const w=u.g.localToWorld(new V(q.p[0],q.p[1],q.p[2])),b=label("📐 "+q.t,ext*0.035,"#fff7edf2","#9a3412");b.position.copy(w);b.userData.cat="udim";pxl(b,18);T.grp.add(b)});
+  (u.labs||[]).forEach(q=>{const w=u.g.localToWorld(new V(q.p[0],q.p[1],q.p[2])),b=label(q.t,ext*0.035,"#fff7edf2","#9a3412","udim");b.position.copy(w);b.userData.cat="udim";pxl(b,18);T.grp.add(b)});
  });
  const flag=(pt,txt,bg,fg,col)=>{
   const h=ext*0.13;
@@ -1372,14 +1426,14 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    const gh=new THREE.GridHelper(size,Math.max(4,Math.round(size/910)),0x2563eb,0x60a5fa);
    gh.material.transparent=true;gh.material.opacity=.22;gh.material.depthWrite=false;gh.position.set(ctr.x,CY-0.5,ctr.z);T.grp.add(gh);
   }
-  const s=label("🔲 天井"+(GY!==null?" 地面から "+fmt(CY-GY):""),ext*0.035,"#dbeafef2","#1e3a8a");
+  const s=label("天井"+(GY!==null?" 地面から "+fmt(CY-GY):""),ext*0.035,"#dbeafef2","#1e3a8a","ceilh");
   s.position.set(ctr.x-size*0.3,CY,ctr.z-size*0.3);s.userData.cat="gnd";pxl(s,18);T.grp.add(s);
  }
  UN.forEach(u=>{if(!u.c2)return; // ネコ（吊り金具）の高さ
   const p=u.c2.nk,parts=[];
   if(GY!==null&&(st.gnd.on||st.gnd.c))parts.push("地面から "+fmt(p.y-GY));
   parts.push("天井から "+fmt(CY!==null?p.y-CY:100));
-  const s=label("🐱 ネコ "+parts.join(" ／ "),ext*0.035,"#fef9c3f2","#713f12");
+  const s=label("ネコ（吊り金具） "+parts.join(" ／ "),ext*0.035,"#fef9c3f2","#713f12","neko");
   s.position.copy(p);s.userData.cat="neko";pxl(s,19,{t:"up"},0);T.grp.add(s);
  });
  if(GY!==null&&st.gnd.on){
@@ -1431,7 +1485,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   if(L&&fr&&row){
    const t=effT(i,rows)*Math.PI/180,b=fr.u.clone().multiplyScalar(Math.cos(t)).addScaledVector(fr.r,Math.sin(t));
    const sg=DIE_R?-1:1,n=fr.d.clone().cross(b).normalize().multiplyScalar(sg),e3=fr.d.clone().cross(n).normalize();
-   const Dl=L.D,R=4*Dl,Tn=row.a>=180?R:R*Math.tan(row.a*Math.PI/360);
+   const Dl=L.D,R=bR(Dl),Tn=row.a>=180?R:R*Math.tan(row.a*Math.PI/360);
    const rev=!!(GUIDE.rev&&GUIDE.rev[i]),TnOf=aa=>aa>=180?R:R*Math.tan(aa*Math.PI/360);
    const traceR=rx=>{if(GUIDE.g==="m")return trace(rx,new V(),F0.ex,F0.ey,F0.ez,Dl);const o=legObj(GUIDE.g),par=LG.find(x=>x.id===o.p);return trace(rx,par.pos,par.d,par.u,par.r,Dl)};
    /* 配管の置き方（ベンダーに対する向き）。rev＝逆向き（反対から差し込む）：まだ真っ直ぐな残りをガイド側に置き、曲げた側がシューに巻き付く */
@@ -1463,6 +1517,95 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    const add=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z*sg);bg.add(o);return o};
    /* TA515のような形：青い本体（左右に長い）の上に、左にシュー（半円）、右にガイド。右端にハンドル、下に三脚。
       配管は前後（x）に通り、シューとガイドの間にはさむ。シューは配管の左（ダイス側）、ハンドルは右。 */
+   const lg0=new THREE.MeshStandardMaterial({color:0x1f2937,roughness:.6});
+   const BMOD=["g4d","ek","mb","lev","levb","rat"].includes(BENDER)?BENDER:"std";   // 選んだベンダーの模型（対応外サイズでも形は見せる）
+   const blk=new THREE.MeshStandardMaterial({color:0x1f2937,metalness:.3,roughness:.5});
+   const legTo=(x0,y0,z0,x1,z1,rr,mat)=>{const p0=new V(x0,y0,z0*sg),p1=new V(x1,-GUIDE_H,z1*sg),l=new THREE.Mesh(new THREE.CylinderGeometry(rr,rr,p0.distanceTo(p1),8),mat);l.position.copy(p0).add(p1).multiplyScalar(.5);l.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());bg.add(l)};
+   const rod=(x0,y0,z0,x1,y1,z1,rr,mat)=>{const p0=new V(x0,y0,z0*sg),p1=new V(x1,y1,z1*sg),l=new THREE.Mesh(new THREE.CylinderGeometry(rr,rr,p0.distanceTo(p1),10),mat);l.position.copy(p0).add(p1).multiplyScalar(.5);l.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());bg.add(l)};
+   if(BMOD==="g4d"){
+   /* 手動ギア式直管ベンダー（TASCO）：黒い本体、シューの下に黒いギア（歯付き）と銀の分度盤、
+      シューの軸の上にソケット＋ラチェットハンドル、反対側にガイド、下に三脚 */
+    add(new THREE.CylinderGeometry(R,R,Dl*1.25,40,1,false,0,Math.PI),metal,-Tn,0,-R);                          // シュー
+    add(new THREE.CylinderGeometry(R*1.45,R*1.45,Dl*0.55,40,1,false,0,Math.PI),blk,-Tn,-Dl*0.95,-R);              // ギア
+    for(let k=0;k<=18;k++){const t=k*Math.PI/18,tt=add(new THREE.BoxGeometry(R*0.12,Dl*0.55,R*0.12),blk,-Tn+Math.sin(t)*R*1.5,-Dl*0.95,-R+Math.cos(t)*R*1.5)}
+    add(new THREE.CylinderGeometry(R*1.8,R*1.8,Dl*0.12,48,1,false,0,Math.PI),metal,-Tn,-Dl*1.3,-R);               // 分度盤（銀）
+    for(let k=0;k<=12;k++){const t=k*Math.PI/12;add(new THREE.BoxGeometry(R*0.03,Dl*0.14,R*0.03),dark,-Tn+Math.sin(t)*R*1.7,-Dl*1.24,-R+Math.cos(t)*R*1.7)}
+    add(new THREE.CylinderGeometry(R*0.17,R*0.17,R*0.75,14),metal,-Tn,Dl*0.62+R*0.37,-R);                         // ソケット
+    rod(-Tn,Dl*0.62+R*0.7,-R,-Tn+R*1.6,Dl*0.62+R*1.5,R*3.4,R*0.07,metal);                                         // ラチェットハンドル
+    rod(-Tn+R*1.25,Dl*0.62+R*1.33,R*2.6,-Tn+R*1.6,Dl*0.62+R*1.5,R*3.4,R*0.11,red);                               // にぎり
+    add(new THREE.BoxGeometry(R*1.6,Dl*1.3,Dl*1.4),blk,-Tn-R*0.85,0,Dl*1.25);                                      // ガイド
+    const kb=add(new THREE.CylinderGeometry(R*0.32,R*0.32,R*0.35,20),blk,-Tn-R*1.9,0,Dl*1.25);kb.rotation.z=Math.PI/2; // ガイドのつまみ
+    const top=-Dl*1.4,BH=R*0.55;
+    add(new THREE.BoxGeometry(R*3.6,BH,R*3.2),blk,-Tn-R*0.3,top-BH/2,-R*0.5);                                     // 本体
+    add(new THREE.CylinderGeometry(R*0.16,R*0.16,R*1.6,10),blk,-Tn-R*0.3,top-BH-R*0.8,-R*0.5);                     // 支柱
+    [0,2.1,4.2].forEach(k=>legTo(-Tn-R*0.3,top-BH-R*1.5,-R*0.5,-Tn-R*0.3+Math.cos(k)*R*3.2,-R*0.5+Math.sin(k)*R*3.2,R*0.07,lg0));
+   }else if(BMOD==="lev"||BMOD==="levb"){
+   /* レバー式（2段式クイックアクション）：色付きの丸いシュー＋フック、固定ハンドルと動くハンドル（ガイド付き）。手に持って使う */
+    const cc=BMOD==="levb"?0x1e40af:Dl<11?0xdc2626:Dl<14?0xeab308:Dl<17?0x1d4ed8:0x0f766e,col=new THREE.MeshStandardMaterial({color:cc,roughness:.45,metalness:.2});
+    add(new THREE.CylinderGeometry(R,R,Dl*1.25,40),col,-Tn,0,-R);                                                   // シュー（丸）
+    add(new THREE.CylinderGeometry(R*0.25,R*0.25,Dl*1.5,16),metal,-Tn,0,-R);                                        // 中心
+    add(new THREE.BoxGeometry(R*0.5,Dl*1.2,Dl*0.5),metal,-Tn-R*0.6,0,Dl*0.75);                                      // フック
+    const gc=new THREE.MeshStandardMaterial({color:BMOD==="levb"?0x3b5bdb:0x111827,roughness:.6});
+    rod(-Tn,Dl*0.9,-R,-Tn-R*1.2-Math.max(R*5,300),Dl*0.9,-R*0.6,Math.max(Dl*0.28,5),metal);                        // 固定ハンドル
+    rod(-Tn-R*1.2-Math.max(R*5,300)*0.75,Dl*0.9,-R*0.7,-Tn-R*1.2-Math.max(R*5,300),Dl*0.9,-R*0.6,Math.max(Dl*0.45,8),gc);
+    add(new THREE.BoxGeometry(R*0.9,Dl*1.4,Dl*1.3),metal,-Tn+R*0.35,0,Dl*1.15);                                      // ガイド
+    rod(-Tn,-Dl*0.9,-R,-Tn+R*1.2+Math.max(R*5,300),-Dl*0.9,Dl*1.4,Math.max(Dl*0.28,5),metal);                       // 動くハンドル
+    rod(-Tn+R*1.2+Math.max(R*5,300)*0.75,-Dl*0.9,Dl*1.25,-Tn+R*1.2+Math.max(R*5,300),-Dl*0.9,Dl*1.4,Math.max(Dl*0.45,8),gc);
+   }else if(BMOD==="rat"){
+   /* ラチェットベンダー TA512AX：金色の半円シュー、黒い本体（ラチェットレバー）、反対側にローラーのガイド枠。手に持って使う */
+    const gd=new THREE.MeshStandardMaterial({color:0xc8a24a,metalness:.6,roughness:.3});
+    add(new THREE.CylinderGeometry(R,R,Dl*1.25,40,1,false,0,Math.PI),gd,-Tn,0,-R);                                  // シュー
+    const L5=Math.max(R*5,260);
+    add(new THREE.BoxGeometry(R*0.8,Dl*1.1,L5),blk,-Tn,Dl*1.0,-R-L5/2);                                               // 本体（シューの後ろへ）
+    rod(-Tn,Dl*1.6,-R-L5*0.4,-Tn+R*0.4,Dl*1.6+R*0.2,-R-L5*1.05,Math.max(Dl*0.2,4),metal);                             // ラチェットレバー
+    add(new THREE.BoxGeometry(R*3.2,Dl*0.6,Dl*1.0),blk,-Tn-R*0.2,-Dl*0.9,Dl*1.15);                                    // ガイド枠
+    [-1,0,1].forEach(k=>{const r1=add(new THREE.CylinderGeometry(Dl*0.55,Dl*0.55,Dl*1.2,16),dark,-Tn-R*0.2+k*R*1.2,0,Dl*1.15)});  // ローラー
+    rod(-Tn,-Dl*0.6,-R,-Tn-R*0.2,-Dl*0.6,Dl*1.15,Math.max(Dl*0.25,5),dark);                                            // 枠の腕
+   }else if(BMOD==="mb"){
+   /* 手動式直管ミニベンダー TA515MB：銀のアルミ本体（横に黒い取っ手）、上に銀のシュー（フック付き）、
+      ガイドを送りねじで押す、端に青いクランクハンドル。テーブルクランプで作業台の端に固定 */
+    add(new THREE.CylinderGeometry(R,R,Dl*1.25,40,1,false,0,Math.PI),metal,-Tn,0,-R);                          // シュー
+    add(new THREE.CylinderGeometry(R*0.3,R*0.3,Dl*1.4,6),metal,-Tn,Dl*0.1,-R);                                     // シューの軸
+    add(new THREE.BoxGeometry(R*0.45,Dl*1.25,R*0.3),metal,-Tn+R*0.95,0,-R*1.15);                                   // フック
+    const al=new THREE.MeshStandardMaterial({color:0xd7dde3,metalness:.6,roughness:.3}),bt=-Dl*0.75,bh=R*1.15;
+    add(new THREE.BoxGeometry(R*1.55,bh,R*2.8),al,-Tn,bt-bh/2,R*0.05);                                             // 本体
+    add(new THREE.BoxGeometry(R*0.14,R*0.32,R*1.2),blk,-Tn+R*0.84,bt-bh*0.55,-R*0.2);                              // 横の取っ手
+    const brs=new THREE.MeshStandardMaterial({color:0xb08d57,metalness:.5,roughness:.4});
+    add(new THREE.BoxGeometry(R*0.9,Dl*1.3,Dl*1.4),brs,-Tn-R*0.15,0,Dl*1.25);                                      // ガイド
+    add(new THREE.BoxGeometry(R*0.6,R*0.45,R*0.4),blk,-Tn,Dl*0.6+R*0.2,Dl*1.25+R*0.35);                            // ガイドの押さえ
+    rod(-Tn,bt+Dl*0.3,Dl*1.25+R*0.3,-Tn,bt+Dl*0.3,R*1.45,Dl*0.2,metal);                                             // 送りねじ
+    add(new THREE.BoxGeometry(R*1.0,R*0.9,R*0.22),blk,-Tn,bt-R*0.25,R*1.5);                                         // 端の板
+    const bl=new THREE.MeshStandardMaterial({color:0x1d4ed8,roughness:.45});
+    rod(-Tn,bt-R*0.05,R*1.6,-Tn,bt-R*0.05,R*2.15,R*0.09,bl);rod(-Tn,bt-R*0.05,R*2.15,-Tn,bt-R*2.3,R*2.25,R*0.09,bl); // クランク
+    rod(-Tn,bt-R*2.3,R*2.25,-Tn,bt-R*2.3,R*3.0,R*0.13,blk);                                                          // にぎり
+    const wd=new THREE.MeshStandardMaterial({color:0xc8a26a,roughness:.8}),ty=bt-bh;
+    add(new THREE.BoxGeometry(R*6,R*0.25,R*7),wd,-Tn,ty-R*0.125,-R*2.2);                                              // 作業台（端に固定）
+    add(new THREE.BoxGeometry(R*0.8,R*0.9,R*0.35),blk,-Tn,ty-R*0.6,R*1.1);                                            // テーブルクランプ
+    add(new THREE.CylinderGeometry(R*0.22,R*0.22,R*0.2,14),blk,-Tn,ty-R*1.15,R*1.1);
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([u,w])=>legTo(-Tn+u*R*2.6,ty-R*0.25,-R*2.2+w*R*3.2,-Tn+u*R*2.6,-R*2.2+w*R*3.2,R*0.09,wd));
+   }else if(BMOD==="ek"){
+   /* 電動ベンダー TA515EK-N：黒いヘッドの上にダイス（7/8・1は黄色、1-1/8は銀）、茶色の曲げアームとノブ、
+      黄色のモーター＋黒いグリップ、後ろに持ち運び枠。三脚に立てて使う */
+    const dc=Dl<28?new THREE.MeshStandardMaterial({color:0xfacc15,roughness:.5}):metal;
+    add(new THREE.CylinderGeometry(R,R,Dl*1.25,40,1,false,0,Math.PI),dc,-Tn,0,-R);                             // ダイス
+    add(new THREE.CylinderGeometry(R*1.3,R*1.3,Dl*0.7,40),blk,-Tn,-Dl*1.0,-R);                                       // ヘッド
+    add(new THREE.BoxGeometry(R*0.28,R*0.4,R*0.28),dark,-Tn,Dl*0.62+R*0.2,-R);                                        // 角軸
+    const brn=new THREE.MeshStandardMaterial({color:0x7c3f2a,roughness:.6});
+    add(new THREE.BoxGeometry(R*0.75,Dl*0.45,R*2.9),brn,-Tn,Dl*0.62+R*0.05,-R*0.05);                                // 曲げアーム
+    add(new THREE.BoxGeometry(R*1.4,Dl*1.3,Dl*1.4),blk,-Tn-R*0.7,0,Dl*1.25);                                         // ガイド（シューガイド）
+    add(new THREE.CylinderGeometry(R*0.07,R*0.07,R*0.9,10),dark,-Tn,Dl*0.62+R*0.5,R*1.25);                           // ノブの軸
+    add(new THREE.SphereGeometry(R*0.2,16,12),blk,-Tn,Dl*0.62+R*1.0,R*1.25);                                         // ノブ
+    const my2=-Dl*1.0-R*0.15;
+    add(new THREE.BoxGeometry(R*1.6,R*0.75,R*1.3),blk,-Tn,my2,R*0.9);                                                 // ギアボックス
+    const mo=add(new THREE.CylinderGeometry(R*0.5,R*0.5,R*2.3,24),new THREE.MeshStandardMaterial({color:0xfacc15,roughness:.45}),-Tn,my2,R*2.7);mo.rotation.x=Math.PI/2; // モーター
+    const gr=add(new THREE.CylinderGeometry(R*0.32,R*0.36,R*1.9,18),blk,-Tn,my2,R*4.8);gr.rotation.x=Math.PI/2;      // グリップ
+    rod(-Tn,my2,R*5.75,-Tn+R*1.4,my2-R*0.5,R*6.3,R*0.05,blk);                                                        // コード
+    rod(-Tn-R*0.9,my2-R*0.2,-R*2.4,-Tn+R*0.9,my2-R*0.2,-R*2.4,R*0.06,blk);                                            // 持ち運び枠
+    rod(-Tn-R*0.9,my2-R*0.2,-R*2.4,-Tn-R*0.9,my2-R*0.2,-R*1.2,R*0.06,blk);rod(-Tn+R*0.9,my2-R*0.2,-R*2.4,-Tn+R*0.9,my2-R*0.2,-R*1.2,R*0.06,blk);
+    add(new THREE.BoxGeometry(R*1.8,R*0.3,R*1.8),blk,-Tn,my2-R*0.55,R*0.3);                                              // 三脚の受け台
+    add(new THREE.CylinderGeometry(R*0.16,R*0.16,R*1.6,10),blk,-Tn,my2-R*1.45,R*0.3);                                    // 支柱
+    [0,2.1,4.2].forEach(k=>legTo(-Tn,my2-R*2.1,R*0.3,-Tn+Math.cos(k)*R*3.2,R*0.3+Math.sin(k)*R*3.2,R*0.07,lg0));         // 三脚
+   }else{
    const top=-Dl*0.75,BH=R*1.15,BX0=-Tn-R*1.7,BX1=-Tn+R*1.2,BZ0=-R*1.35,BZ1=R*4.2;
    add(new THREE.BoxGeometry(BX1-BX0,BH,BZ1-BZ0),blue,(BX0+BX1)/2,top-BH/2,(BZ0+BZ1)/2);                       // 本体
    const sh=add(new THREE.CylinderGeometry(R,R,Dl*1.25,40,1,false,0,Math.PI),metal,-Tn,0,-R);                   // シュー（半円）
@@ -1477,6 +1620,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
     const leg=new THREE.Mesh(new THREE.CylinderGeometry(R*0.07,R*0.07,len,8),lg);
     const p0=new V((BX0+BX1)/2,top-BH,(BZ0+BZ1)/2*sg),p1=p0.clone().add(new V(lx,-len*0.95,lz*sg));
     leg.position.copy(p0).add(p1).multiplyScalar(0.5);leg.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());bg.add(leg)});
+   }
    const mk=add(new THREE.TorusGeometry(Dl*0.8,Dl*0.2,10,24),red,-Tn,0,0);mk.rotation.y=Math.PI/2;
    try{
     (T.bgrp||T.grp).add(bg);
@@ -1490,7 +1634,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
     const ln=new THREE.Mesh(new THREE.CylinderGeometry(Dl*0.12,Dl*0.12,a1.distanceTo(b1),6),dm);ln.position.copy(a1).add(b1).multiplyScalar(.5);ln.quaternion.setFromUnitVectors(Y,b1.clone().sub(a1).normalize());T.bgrp.add(ln);
     [[Pw,a1],[Cw,b1]].forEach(([p,q])=>{const tk=new THREE.Mesh(new THREE.CylinderGeometry(Dl*0.1,Dl*0.1,p.distanceTo(q),6),dm);tk.position.copy(p).add(q).multiplyScalar(.5);tk.quaternion.setFromUnitVectors(Y,q.clone().sub(p).normalize());T.bgrp.add(tk)});
     const s1=label("曲げ寸法 "+fmt(row.l)+"mm",R*0.6,"#ffffffee","#0c4a6e");s1.position.copy(a1).add(b1).multiplyScalar(.5);pxl(s1,24,{t:"perp",a:a1,b:b1},Dl*0.2);T.bgrp.add(s1);
-    const bk=Dl*4*row.a/90,s2=label(rev?"赤いラインから 前に出す "+fmt(bk/2)+"mm":"赤いラインから バック "+fmt(bk)+"mm",R*0.6,rev?"#ea580cf2":"#dc2626f2","#ffffff");
+    const bk=R*row.a/90,s2=label(rev?"赤いラインから 前に出す "+fmt(bk/2)+"mm":"赤いラインから バック "+fmt(bk)+"mm",R*0.6,rev?"#ea580cf2":"#dc2626f2","#ffffff");
     s2.position.set(-Tn,0,0);pxl(s2,24,{t:"up",dn:true},R*0.5);T.bgrp.add(s2);
    }catch(e){(T.bgrp||T.grp).add(bg)}
    // 前の曲げ（もう曲げた配管）が、配管の後ろから見てどっちを向くか
@@ -1554,7 +1698,7 @@ $("#viewBtn").onclick=()=>{
  const v=VIEWS[T.vi];fitT(true);T.th=v[1];T.ph=v[2];T.dirty=true;toast("🔄 "+v[0]);
 };
 /* 文字のオンオフ */
-const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["udim","📐 機器の寸法（開口・吊りボルト）"],["neko","🐱 ネコ（吊り金具）の高さ"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
+const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["udim","@udim機器の寸法（開口・吊りボルト）"],["neko","@nekoネコ（吊り金具）の高さ"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
 let LABC={};
 const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=(k==="dim"||k==="ang"||k==="udim"||k==="neko"));return o};
 try{const v=localStorage.getItem("pbm_labc");LABC=v?(JSON.parse(v)||LABDEF()):LABDEF()}catch(e){LABC=LABDEF()}
@@ -1569,7 +1713,7 @@ function renderLabSheet(){
  const box=$("#labList");box.innerHTML="";
  LABCATS.forEach(([k,n])=>{
   const on=LABC[k]!==false,r=document.createElement("div");r.className="labrow";
-  r.innerHTML=`<span>${n}</span><button class="lsw${on?" on":""}">${on?"表示":"非表示"}</button>`;
+  r.innerHTML=`<span>${n[0]==="@"?NI(n.slice(1,5))+n.slice(5):n}</span><button class="lsw${on?" on":""}">${on?"表示":"非表示"}</button>`;
   r.querySelector("button").onclick=()=>{LABC[k]=!on;applyLabels();renderLabSheet()};
   box.appendChild(r);
  });
@@ -1582,7 +1726,7 @@ $("#labDef").onclick=()=>{LABC=LABDEF();applyLabels();renderLabSheet()};
 $("#labNone").onclick=()=>{LABCATS.forEach(([k])=>LABC[k]=false);applyLabels();renderLabSheet()};
 $("#labBtn").style.opacity=LABCATS.some(([k])=>LABC[k]!==false)?1:.55;
 /* 機器の模型 */
-const UNIT_LIST=[["","なし","🚫"],["out","室外機","🌀"],["cas","天カセ","🔲"],["cas2","天カセ2方向","▭"],["ceil","天吊","▬"],["wall","壁掛け","🧱"]];
+const UNIT_LIST=[["","なし","u_none"],["out","室外機","u_out"],["cas","天カセ","u_cas"],["cas2","メーカー機種","u_cas2"],["ceil","天吊","u_ceil"],["wall","壁掛け","u_wall"]];
 function unitRefresh(){if(T){build3D();fitT(true)}}
 function renderUnitSheet(){
  [...$("#uOn").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===st.units.on));
@@ -1607,14 +1751,19 @@ const SLOTS=[["s","起点"],...(brOn()?leaves().map(g=>["L"+g,slotName("L"+g)]):
    box.appendChild(g3);return;
   }
   if(st.units[k]==="cas2"){
-   const mk2="m"+k,t3=document.createElement("div");t3.className="ctitle";t3.textContent="▭ 三菱 天カセ2方向：機種（"+lab+"）";box.appendChild(t3);
+   const mk2="m"+k,cur=CAS2M[st.units[mk2]]||CAS2M["56"];
+   const t3=document.createElement("div");t3.className="ctitle";t3.innerHTML=NI("u_cas2")+"メーカー機種（"+lab+"）";box.appendChild(t3);
+   const tb=document.createElement("div");tb.className="seg";tb.style.marginBottom="8px";
+   CAS2_MAKERS.forEach(([mk,mn])=>{const b=document.createElement("button");b.textContent=mn;if(cur.mk===mk)b.classList.add("on");
+    b.onclick=()=>{if(cur.mk===mk)return;st.units[mk2]=CAS2_ORDER.find(x=>CAS2M[x].mk===mk);save();renderUnitSheet();unitRefresh()};tb.appendChild(b)});
+   box.appendChild(tb);
    const g3=document.createElement("div");g3.className="ugrid";
-   CAS2_ORDER.forEach(key=>{const m=CAS2M[key],b=document.createElement("button");b.className="ubtn"+(st.units[mk2]===key?" on":"");
-    b.innerHTML=m.n+'<small style="font-weight:600;opacity:.75">ガスφ'+m.g+' 液φ'+m.l+'</small>';
+   CAS2_ORDER.filter(x=>CAS2M[x].mk===cur.mk).forEach(key=>{const m=CAS2M[key],b=document.createElement("button");b.className="ubtn"+(st.units[mk2]===key?" on":"");
+    b.innerHTML=m.n.replace(/ \/ /g,"／<br>")+'<small style="font-weight:600;opacity:.75">'+m.kind+'・ガスφ'+m.g+' 液φ'+m.l+'</small>';
     b.onclick=()=>{st.units[mk2]=key;save();renderUnitSheet();unitRefresh()};g3.appendChild(b)});
    box.appendChild(g3);
-   const m=CAS2M[st.units[mk2]]||CAS2M["56"],n=document.createElement("div");n.className="note";
-   n.textContent="図面寸法：天井開口 "+m.B+"×670／パネル "+m.A+"×710／本体長さ "+m.C+"／吊りボルト "+m.D+"×574（両端面の角4か所・開口端から108・48）／本体高さ 267・天面〜天井面 290／ネコ（吊り金具）は天面から190＝天井面から100上。配管とドレンは670側の端面から出ます（端面を正面に見て：ガスは右端から152・液はその70左＝222、どちらも天面から122／ドレンVP-25は右端から500・天面の近く）。左右が逆なら上の「左右反転」で直せます。";
+   const m=cur,n=document.createElement("div");n.className="note";
+   n.textContent=(CAS2_MAKERS.find(x=>x[0]===m.mk)||["",""])[1]+" "+m.n+"（天井カセット形 "+m.kind+(m.sub?"・"+m.sub:"")+"）　図面寸法：本体 "+m.L+"×"+m.W+"（天井面から天面まで"+m.top+"）／パネル "+m.pa+"×"+m.pb+"／天井開口 "+(m.oTxt?m.oTxt+"×"+m.oTxt:m.oa+"×"+m.ob)+"／吊りボルト "+m.ba+"×"+m.bb+"／ネコ（吊り金具）は天井面から"+m.nk+"上／配管 ガスφ"+m.g+"・液φ"+m.l+"・ドレンVP-25（配管とドレンは同じ端面）。左右が逆なら上の「左右反転」で直せます。";
    box.appendChild(n);return;
   }
   if(st.units[k]!=="out")return;
@@ -1649,7 +1798,7 @@ const SLOTS=[["s","起点"],...(brOn()?leaves().map(g=>["L"+g,slotName("L"+g)]):
   const box=$(q);box.innerHTML="";
   UNIT_LIST.forEach(([v,n,ic])=>{
    const b=document.createElement("button");b.className="ubtn"+(st.units[k]===v?" on":"");
-   b.innerHTML=`<span>${ic}</span>${n}`;
+   b.innerHTML=`<span><img alt="" src="${NICO[ic]}" style="width:30px;height:30px;display:block;margin:0 auto 2px"></span>${n}`;
    b.onclick=()=>{st.units[k]=v;if(v)st.units.on=true;save();renderUnitSheet();unitRefresh()};
    box.appendChild(b);
   });
@@ -1728,7 +1877,7 @@ function drawDial(){
  svg.innerHTML=h;
  const r=LR()[DV.i];
  $("#dirTop").innerHTML=`🔍 進む方向を向いて見た図（${legName(DV.g)} ${nm(DV.i)} の曲げ）<br><small>赤い丸を指で回して向きを決めます。色付きの目印（天井・床・起点側・前の配管）を手がかりにしてください</small>`;
- $("#dirVal").innerHTML=`向き <b>${dirName(t)}</b>　／　曲げ角度 <b>${r.a}°</b>`;
+ $("#dirVal").innerHTML=`向き <b>${dirName(t)}</b>　／　曲げ角度 <b>${r.a}°${r.a>=180?"（返し）":""}</b>`;
  const ab=$("#dirAngs");ab.innerHTML="";
  [15,30,45,90,180].forEach(a=>{const b=document.createElement("button");b.textContent=a+"°";if(r.a===a){b.classList.add("on");b.style.background=ANGC[a]}
   b.onclick=()=>{r.a=a;applyDV();drawDial()};ab.appendChild(b)});
@@ -1801,19 +1950,21 @@ function showGuideStep(){
   const el=Math.round(Math.atan2(Math.abs(p.y),Math.abs(p.z))*180/Math.PI),side=(DIE_R?p.z>0:p.z<0)?"ダイス側":"ダイスと反対側",ud=p.y>=0?"上":"下";
   const pn=G.rev?"前の配管（シュー側の先）":"前の配管";how=el<=2?`${pn}は台の上に寝かせる（${side}）`:el>=88?`${pn}は真${ud}に向ける`:`${pn}を台の面から ${ud}へ ${el}°（${side}）`;
  }
- const Dg=SIZES[legSize(GUIDE.g)][1],aa=rows[i].a,back=Dg*4*aa/90,fwd=back/2,rv2=!!GUIDE.rev[i];
+ const Dg=SIZES[legSize(GUIDE.g)][1],aa=rows[i].a,back=bR(Dg)*aa/90,fwd=back/2,rv2=!!GUIDE.rev[i];
  $("#gdTxt").innerHTML=`曲げ寸法 <b>${fmt(rows[i].l)}</b>mm<br><small>（${i>0?"前の曲げの角から":"端から"}、この曲げの角まで）</small><br>`+
-  `印を赤いライン（シューの0）に合わせて<br>`+(rv2?`<b class="fw">前に出す ${fmt(fwd)}mm</b><small>（逆向き：外径×4÷2${aa!==90?"×"+aa+"/90":""}）</small>`:`<b class="bk">バック ${fmt(back)}mm</b><small>（外径×4${aa!==90?"×"+aa+"/90":""}）</small>`)+
-  `<br>曲げ角度 <b>${aa}°</b> <small>（戻り分 1〜2°多めに）</small><span class="big">${how}</span><small style="color:#94a3b8">シュー位置で印をつける時：前の印から ${fmt(c.shoe)}（端から ${fmt(c.cum)}）</small>`;
+  `印を赤いライン（シューの0）に合わせて<br>`+(rv2?`<b class="fw">前に出す ${fmt(fwd)}mm</b><small>（逆向き：${bRtxt(Dg)}÷2${aa!==90?"×"+aa+"/90":""}）</small>`:`<b class="bk">バック ${fmt(back)}mm</b><small>（${bRtxt(Dg)}${aa!==90?"×"+aa+"/90":""}）</small>`)+
+  `<br>曲げ角度 <b>${aa}°${aa>=180?"（返し）":""}</b> <small>（戻り分 1〜2°多めに）</small><span class="big">${how}</span><small style="color:#94a3b8">シュー位置で印をつける時：前の印から ${fmt(c.shoe)}（端から ${fmt(c.cum)}）</small>`;
+ $("#gdBen").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:20px;height:20px;vertical-align:-5px;margin-right:4px">ベンダー：${benOn(Dg)?BENDERS[BENDER].n+"（"+bRtxt(Dg)+"）":"⚠️ "+BENDERS[BENDER].n+"は "+szName(Dg)+" 非対応（標準 外径×4で表示）"} ▸`;
  $("#gdDie").textContent="ダイスの位置：後ろから見て "+(DIE_R?"右 ▶（タップで左）":"◀ 左（タップで右）");
  const rv=!!GUIDE.rev[i],gb=$("#gdRev");gb.classList.toggle("on",rv);gb.textContent=rv?"🔄 逆向きで曲げる（ON）":"🔄 逆向きにする（反対から差す）";
  $("#gdH").value=GUIDE_H;
  const H=GUIDE_H,rr=G.rad||0,hitN=G.minN<-H+rr,hitR=G.minR<-H+rr,w=$("#gdWarn");
  if(hitN||hitR){w.className="gdwarn on "+((rv?hitR:hitN)?"bad":"ok");
   w.textContent=(rv?hitR:hitN)?("⚠️ このままだと床に当たります（約"+fmt(-H+rr-(rv?G.minR:G.minN))+"mm）"+((rv?hitN:hitR)?"。逆にしても当たるので、置き方を工夫してください":"。「🔄 "+(rv?"逆向きをやめる":"逆向き")+"」なら当たりません")):("✅ この置き方なら床に当たりません"+(rv?"（逆向き）":""));}
- else{w.className="gdwarn"}
+ else{w.className="gdwarn";w.textContent=""}
+ if(!benOn(Dg)){const t0=(hitN||hitR)?" "+w.textContent:"";w.className="gdwarn on bad";w.textContent="⚠️ "+BENDERS[BENDER].n+"は "+szName(Dg)+" に対応していません（計算は標準 外径×4）。"+t0}
  const hitNow=rv?hitR:hitN;
- $("#gdMini").innerHTML=`<span>${nm(i)} 曲げ寸法 ${fmt(rows[i].l)}</span><span class="${rv?"fw":"bk"}">${rv?"前に出す":"バック"} ${fmt(rv?fwd:back)}</span><span>${rows[i].a}°</span>${hitNow?'<span class="warn">⚠️床</span>':""}<button class="more" id="gdMore">詳細 ▲</button>`;
+ $("#gdMini").innerHTML=`<span>${nm(i)} 曲げ寸法 ${fmt(rows[i].l)}</span><span class="${rv?"fw":"bk"}">${rv?"前に出す":"バック"} ${fmt(rv?fwd:back)}</span><span>${rows[i].a}°${rows[i].a>=180?"返し":""}</span>${hitNow?'<span class="warn">⚠️床</span>':""}<button class="more" id="gdMore">詳細 ▲</button>`;
  $("#gdMore").onclick=()=>setGdMini(false);
  $("#gdPrev").disabled=GUIDE.k===0;$("#gdNext").textContent=GUIDE.k>=N-1?"✅ 終わり":"次の曲げ ▶";
 }
@@ -1878,6 +2029,25 @@ $("#gdEnd").onclick=closeGuide;
 $("#gdRev").onclick=()=>{if(!GUIDE||gdBusy)return;GUIDE.rev[GUIDE.i]=!GUIDE.rev[GUIDE.i];showGuideStep()};
 $("#gdH").onfocus=e=>e.target.select();
 $("#gdH").onchange=()=>{const v=parseInt($("#gdH").value.replace(/[^0-9]/g,""));if(v>0){GUIDE_H=Math.min(3000,v);try{localStorage.setItem("pbm_bh",String(GUIDE_H))}catch(e){}if(GUIDE)showGuideStep()}};
+function benChanged(){try{localStorage.setItem("pbm_bender",BENDER);localStorage.setItem("pbm_myR",JSON.stringify(MYR))}catch(e){}try{upd()}catch(e){}if(T){try{build3D();T.dirty=true}catch(e){}}if(GUIDE)showGuideStep()}
+function renderBenSheet(){
+ $("#benTtl").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:26px;height:26px;vertical-align:-7px;margin-right:6px">使うベンダー`;
+ const L=$("#benList");L.innerHTML="";
+ Object.keys(BENDERS).forEach(k=>{const b=BENDERS[k],e=document.createElement("button");e.className="ubtn";
+  e.style.cssText="width:100%;height:54px;margin-bottom:6px;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 14px;font-size:14.5px"+(BENDER===k?";background:#2563eb;color:#fff;border-color:#2563eb":"");
+  e.innerHTML=b.n+'<small style="font-weight:600;opacity:.8">'+b.sub+'</small>';e.onclick=()=>{BENDER=k;benChanged();renderBenSheet()};L.appendChild(e)});
+ const T2=$("#benTbl");let h='<div class="ctitle" style="margin-top:10px">サイズごとの曲げ半径R・90°のバック（mm）</div><table style="width:100%;border-collapse:collapse;font-size:14px">';
+ h+='<tr style="color:#64748b;font-size:12px"><td>サイズ</td><td>R</td><td style="text-align:right">バック90°</td><td style="text-align:right">45°</td></tr>';
+ SIZES.forEach(([n,D])=>{const r=bR(D),my=BENDER==="my";
+  if(!my&&!benOn(D)){h+=`<tr style="border-top:1px solid #e2e8f0;color:#94a3b8"><td style="padding:7px 0">${n}</td><td colspan="3" style="font-size:12px">対応外（このベンダーでは曲げられない）</td></tr>`;return}
+  h+=`<tr style="border-top:1px solid #e2e8f0"><td style="padding:7px 0">${n}</td><td>${my?`<input data-d="${D}" inputmode="decimal" value="${MYR[String(D)]||""}" placeholder="${fmt(4*D)}" style="width:76px;height:34px;border:1.5px solid #cbd5e1;border-radius:9px;padding:0 8px;font-size:15px">`:fmt(r)+(BENDERS[BENDER].R[String(D)]?"":'<small style="color:#94a3b8">（4D）</small>')}</td><td style="text-align:right;font-weight:800">${fmt(r)}</td><td style="text-align:right">${fmt(r/2)}</td></tr>`});
+ T2.innerHTML=h+'</table>';
+ T2.querySelectorAll("input").forEach(i=>{i.onfocus=()=>i.select();i.onchange=()=>{const v=parseFloat(i.value);if(v>0)MYR[i.dataset.d]=Math.min(2000,v);else delete MYR[i.dataset.d];benChanged();renderBenSheet()}});
+}
+function openBenSheet(){renderBenSheet();$("#benOv").classList.add("on")}
+$("#gdBen").onclick=openBenSheet;
+$("#closeBen").onclick=()=>$("#benOv").classList.remove("on");
+$("#benOv").addEventListener("click",e=>{if(e.target.id==="benOv")$("#benOv").classList.remove("on")});
 $("#gdDie").onclick=()=>{DIE_R=!DIE_R;try{localStorage.setItem("pbm_die",DIE_R?"R":"L")}catch(e){}showGuideStep()};
 /* 3Dの配管を2回タップ → 吹き出しメニュー */
 function pickLeg(cx,cy){
@@ -1927,14 +2097,16 @@ function openEmptyMenu(cx,cy){
  placeMenu(`<div class="pt">⚙️ 表示の設定</div>
   <button class="pm${on?" red":""}" data-a="unit">${on?"🙈 機器の模型を隠す":"👁 機器の模型を表示"}</button>
   <div class="pr"><button class="pm${st.gnd.on?" red":""}" data-a="gnd">${st.gnd.on?"🙈 地面を隠す":"👁 地面を表示"}</button><button class="pm" data-a="gset">📐 地面の高さ</button></div>
-  <div class="pr"><button class="pm${st.gnd.c?" red":""}" data-a="ceil">${st.gnd.c?"🙈 天井を隠す":"🔲 天井を表示"}</button><button class="pm" data-a="cset">📐 天井の高さ</button></div>
-  <button class="pm${LABC.neko!==false?" red":""}" data-a="neko">${LABC.neko!==false?"🙈 ネコの高さを隠す":"🐱 ネコの高さを表示"}</button>`+ALLROW,cx,cy,a=>{
+  <div class="pr"><button class="pm${st.gnd.c?" red":""}" data-a="ceil">${st.gnd.c?"🙈 天井を隠す":NI("ceilh")+"天井を表示"}</button><button class="pm" data-a="cset">${NI("ceilh")}天井の高さ</button></div>
+  <button class="pm" data-a="ben"><img alt="" src="${icoSrc("bender")}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">ベンダー：${BENDERS[BENDER].n}</button>
+  <button class="pm${LABC.neko!==false?" red":""}" data-a="neko">${LABC.neko!==false?"🙈 ネコの高さを隠す":NI("neko")+"ネコ（吊り金具）の高さを表示"}</button>`+ALLROW,cx,cy,a=>{
   if(a==="tbl"){openTable();return}
   if(a==="unit"){st.units.on=!on;save();unitRefresh();toast(st.units.on?"機器の模型を表示しました":"機器の模型を隠しました")}
   else if(a==="gnd"){st.gnd.on=!st.gnd.on;save();unitRefresh();toast(st.gnd.on?"地面を表示しました":"地面を隠しました")}
   else if(a==="gset")openGndSheet();
   else if(a==="ceil"){st.gnd.c=!st.gnd.c;save();unitRefresh();toast(st.gnd.c?"天井を表示しました":"天井を隠しました")}
   else if(a==="cset"){st.gnd.c=true;gndChanged();openGndSheet();setTimeout(()=>{const i=$("#ceilH");if(i){i.scrollIntoView({block:"center"});i.focus()}},250)}
+  else if(a==="ben")openBenSheet();
   else if(a==="neko"){LABC.neko=LABC.neko===false;applyLabels();toast(LABC.neko?"ネコの高さを表示しました":"ネコの高さを隠しました")}
   else setAllHid(a==="none");
  });
@@ -2121,7 +2293,7 @@ function renderGndSheet(){
  const G=st.gnd;
  [...$("#ceilOn").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===G.c));
  {const i=$("#ceilH");if(document.activeElement!==i)i.value=G.ch}
- $("#ceilNote").textContent=UNIT_KEYS.length&&Object.keys(st.units).some(k=>st.units[k]==="cas2")?"▭ 天カセ2方向がある時（高さの決め方が「自動」）は、天カセの天井面＝天井に合わせて、地面は天井高さぶん下に置きます。ネコは天井から100上です。🐱 ネコの高さは文字の表示設定か、3Dの何もない所を2回タップでオンオフできます。":"天井は青い半透明で表示します。3Dの何もない所を2回タップ →「📐 天井の高さ」でも変えられます。";
+ $("#ceilNote").textContent=UNIT_KEYS.length&&Object.keys(st.units).some(k=>st.units[k]==="cas2")?"メーカー機種（天カセ）がある時（高さの決め方が「自動」）は、天カセの天井面＝天井に合わせて、地面は天井高さぶん下に置きます。ネコの高さは機種ごとの図面の値です。ネコの高さは文字の表示設定か、3Dの何もない所を2回タップでオンオフできます。":"天井は青い半透明で表示します。3Dの何もない所を2回タップ →「📐 天井の高さ」でも変えられます。";
  [...$("#gndOn").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===G.on));
  const mb=$("#gndMode");mb.innerHTML="";
  GMODES.forEach(([k,n])=>{const b=document.createElement("button");b.className="ubtn";b.style.cssText="width:100%;height:48px;margin-bottom:6px;flex-direction:row;justify-content:flex-start;padding:0 14px;font-size:14.5px"+(G.mode===k?";background:#2563eb;color:#fff;border-color:#2563eb":"");b.textContent=n;
@@ -2154,6 +2326,7 @@ function renderGndSheet(){
 }
 $("#closeGnd").onclick=()=>$("#gndOv").classList.remove("on");
 $("#gndOv").addEventListener("click",e=>{if(e.target.id==="gndOv")$("#gndOv").classList.remove("on")});
+$("#ceilTtl").innerHTML=NI("ceilh")+"天井";$("#ceilOnB").innerHTML=NI("ceilh","1.3em")+"天井を表示";
 $("#ceilOn").onclick=e=>{const b=e.target.closest("button");if(!b)return;st.gnd.c=b.dataset.v==="1";gndChanged();renderGndSheet()};
 {const i=$("#ceilH");i.onfocus=()=>i.select();i.oninput=()=>{const v=parseInt(i.value.replace(/[^0-9]/g,""));if(!isFinite(v)||v<500)return;st.gnd.ch=Math.min(20000,v);gndChanged(true)};i.onblur=()=>{i.value=st.gnd.ch}}
 $("#gndOn").onclick=e=>{const b=e.target.closest("button");if(!b)return;st.gnd.on=b.dataset.v==="1";gndChanged();renderGndSheet()};

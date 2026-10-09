@@ -447,9 +447,10 @@ html.lx .ofsrow .seg{width:170px}
 <div class="ov" id="shareOv">
   <div class="sheet">
     <div class="shead"><h3>📤 送る・読み込む</h3><button id="closeShare">✕</button></div>
-    <button class="sharebtn" id="shApp" style="background:#dbeafe;color:#1e40af">🌐 このアプリのURLを送る</button>
-    <div style="display:flex;gap:8px;margin-bottom:10px"><button class="sharebtn" id="shCopy" style="flex:1;margin:0;padding:0 6px">📋 テキストをコピー</button><button class="sharebtn" id="shPaste" style="flex:1;margin:0;padding:0 6px">📥 貼り付けて読込</button></div>
-    <div class="note">①相手にアプリのURLを送る → ②「テキストをコピー」してLINEなどで送る → 相手が「貼り付けて読込」で同じ図が開きます。</div>
+    <button class="sharebtn" id="shSend" style="background:#16a34a;color:#fff">📤 LINEなどで送る（リンク1本）</button>
+    <div style="display:flex;gap:8px;margin-bottom:10px"><button class="sharebtn" id="shCopy" style="flex:1;margin:0;padding:0 6px">📋 テキストでコピー</button><button class="sharebtn" id="shPaste" style="flex:1;margin:0;padding:0 6px">📥 貼り付けて読込</button></div>
+    <button class="sharebtn" id="shApp" style="background:#dbeafe;color:#1e40af">🌐 アプリのURLだけ送る</button>
+    <div class="note">「LINEなどで送る」→ 送る相手を選ぶだけ。曲げの内容と、壁・障害物・室内機などの一覧が書かれて、下にリンクが1本付きます。「テキストでコピー」は内容＋読み込み用のデータ付き。相手はそのまま「📥 貼り付けて読込」に貼り付ければ同じ図が開きます。相手はリンクをタップすると同じ図が開きます。ホーム画面のアプリで開きたい時は、LINEでリンクを長押し→コピー → ホーム画面のアプリを開く → 上に出る緑の「📋 コピーしたプランを開く」を押すだけです。</div>
     <button class="sharebtn" id="shMore" style="display:none;width:100%;background:var(--bg);color:var(--ink,#334155)">☁️ 保存・データ入りリンクはこちら</button>
   </div>
 </div>
@@ -613,8 +614,14 @@ const CAS2M={
 CAS2M.mbz5022={mk:"mitsu",kind:"フリービルトイン",sub:"ハウジングエアコン・システムマルチ用",bi:1,n:"MBZ-5022AS-IN",L:450,W:770,H:230,top:230,pa:450,pb:835,pt:0,oa:450,ob:835,ba:398,bb:777,nk:180,
  gas:{z:341,y:145},liq:{z:286,y:121},dr:{z:285,y:200},g:"9.52",l:"6.35",dn:"ドレン VP20（ホース接続部・電気品箱側の端から100mm）",tg:"（電気品箱側の端から44mm）",tl:"（電気品箱側の端から99mm）",eb:[300,200,65,-30,130,417],
  spec:"冷房5.0kW／単相200V（電源は室外ユニットから供給）／質量18kg／電線：内外接続 VVFφ2.0×3本（S1・S2・S3、条件を満たせばφ1.6も可）／配管・ドレンは本体の背面から（フレア接続）／ドレン VP20（ドレンホース有効長166・断熱材外径φ32・接続部内径φ25、立ち上げは本体下面から500以下、その先は下り勾配1/100以上）／吊りボルトピッチ 777×398／設計圧力4.15MPa／接続室外機 MXZ-6821〜10221AS／外形 230×770(+65)×450"};
+/* 三菱 4方向天井カセット PL-ZRP80HA5（据付工事説明書 bh79f170h01 の5・6ページ）
+   本体840×840・天井面から天面298（本体281＋天井とのすき間17）／化粧パネル950×950（天井面から35下）／天井開口860〜910／吊ボルトピッチ795（配管の出る面と平行）×660／ネコは天井面から105（50〜70は全ねじの出寸法）
+   配管の出る面を正面に見て：ガスφ15.88 中心から左271・天井から140、液φ9.52 中心から左331・天井から170、ドレンVP-25 中心から右357・天井から190。接続口は角の切り欠きの奥（側面から約77〜80mm内側） */
+CAS2M.mi_zrp80={mk:"mitsu",kind:"4方向",sub:"スリム（ZRPシリーズ）",n:"PL-ZRP80HA5",L:840,W:840,H:281,top:298,pa:950,pb:950,pt:35,oa:885,ob:885,oTxt:"860〜910",ba:660,bb:795,nk:105,
+ gas:{z:271,y:140},liq:{z:331,y:170},dr:{z:-357,y:190},pin:78,g:"15.88",l:"9.52",tg:"（中心から左271mm）",tl:"（中心から左331mm）",td:"（中心から右357mm・天井から190mm）",
+ doc:"https://dl.mitsubishielectric.co.jp/dl/ldg/wink/ssl/wink_doc/m_contents/wink/PAC_IM/bh79f170h01.pdf"};
 const CAS2_MAKERS=[["mitsu","三菱電機"],["daikin","ダイキン"]];
-const CAS2_ORDER=["40","56","80","mbz5022","dk_fhgp50","dk_fhgp80","dk_fhgp160","dk_fhcp80","dk_fhkp80"];
+const CAS2_ORDER=["40","56","80","mi_zrp80","mbz5022","dk_fhgp50","dk_fhgp80","dk_fhgp160","dk_fhcp80","dk_fhkp80"];
 /* 室外機の種類。w=幅(mm) h=高さ d=奥行 f=ファン(front=正面 / top=上吹き) 大きさは目安 */
 const OUTM={
  room:{py:100,pz:-75,n:"ルームエアコン",sub:"ハウジング",w:800,h:550,d:290,f:"front",nf:1},
@@ -1190,7 +1197,7 @@ function makeUnit(type,opt){
   /* メーカー機種の天井カセット。自然な向き：長手=x、配管は+x側の端面から+xへ出る。天井面=y0。 */
   const md=CAS2M[opt.mm]||CAS2M["56"],sd=st.units.flip?-1:1,Lb=md.L,Wb=md.W,HB=md.H,TOP=md.top,YT=TOP+420,yH=md.nk;
   const gas=opt.kind!=="液",G0={z:md.gas.z*sd,y:md.gas.y},L0={z:md.liq.z*sd,y:md.liq.y},D0r={z:md.dr.z*sd,y:md.dr.y},sel=gas?G0:L0;
-  const Pn=[Lb/2+60,sel.y,sel.z];
+  const PX=Lb/2-(md.pin||0),Pn=[PX+60,sel.y,sel.z];
   const body=new THREE.Group();g.add(body);tg=body;body.position.set(-Pn[0],-Pn[1],-Pn[2]);
   const CU=0xc2703a,BRS=0xb8860b,OR=0xf97316,RD=0xdc2626,mkN=(CAS2_MAKERS.find(x=>x[0]===md.mk)||["",""])[1];
   name=mkN+" "+md.kind+" "+md.n;cx=-Pn[0];top=TOP+430-Pn[1];opt.cz=-Pn[2];
@@ -1226,13 +1233,14 @@ function makeUnit(type,opt){
   tagD("upanel",()=>dimR(md.pa,md.pb,-md.pt-8,0x0284c7,1,-1,150))}            // パネル（青・パネルの下）
   // 配管接続口とドレン
   if(md.mi)bx(10,140,185,Lb/2+4,TOP-116,-sd*(Wb/2-189),MD);
+  else if(md.pin){bx(md.pin+4,Math.abs(G0.y-L0.y)+110,Math.abs(G0.z-L0.z)+130,Lb/2-md.pin/2+2,(G0.y+L0.y)/2,(G0.z+L0.z)/2,DK);bx(10,Math.abs(G0.y-L0.y)+90,Math.abs(G0.z-L0.z)+90,PX+4,(G0.y+L0.y)/2,(G0.z+L0.z)/2,MD)}   // 角の切り欠きの奥に接続口
   else bx(10,Math.abs(G0.y-L0.y)+90,Math.abs(G0.z-L0.z)+90,Lb/2+4,(G0.y+L0.y)/2,(G0.z+L0.z)/2,MD);
-  [[G0,gas?13:9],[L0,gas?9:13]].forEach(([q,r])=>{const c=cyl(r*.75,60,Lb/2+30,q.y,q.z,CU,16);c.rotation.z=Math.PI/2;const n=cyl(r*1.5,16,Lb/2+12,q.y,q.z,BRS,6);n.rotation.z=Math.PI/2});
+  [[G0,gas?13:9],[L0,gas?9:13]].forEach(([q,r])=>{const c=cyl(r*.75,60,PX+30,q.y,q.z,CU,16);c.rotation.z=Math.PI/2;const n=cyl(r*1.5,16,PX+12,q.y,q.z,BRS,6);n.rotation.z=Math.PI/2});
   if(md.eb)bx(md.eb[0],md.eb[1],md.eb[2],md.eb[3],md.eb[4],md.eb[5]*sd,0x6b7280);
   if(!md.nodr){bx(10,70,70,Lb/2+4,D0r.y,D0r.z,MD);const d=cyl(17,90,Lb/2+45,D0r.y,D0r.z,0xe5e7eb,16);d.rotation.z=Math.PI/2;
    if(md.mi){const w=cyl(14,14,Lb/2+8,TOP-163,D0r.z,0xe5e7eb,16);w.rotation.z=Math.PI/2;const pl=cyl(13,14,Lb/2+8,TOP-260,-sd*(Wb/2-530),0x94a3b8,16);pl.rotation.z=Math.PI/2}}
   const L=(t,x,y,z,c)=>({t,c,p:[x-Pn[0],y-Pn[1],z-Pn[2]]}),hw=v=>v%2?(v/2).toFixed(1):fmt(v/2);
-  opt.c2={ceil:[-Pn[0],-Pn[1],-Pn[2]],neko:[md.ba/2-Pn[0],yH-Pn[1],md.bb/2-Pn[2]],top:TOP,bolts:[[-1,-1],[1,-1],[1,1],[-1,1]].map(([u,w])=>[u*md.ba/2-Pn[0],yH-Pn[1],w*md.bb/2-Pn[2]]),ba:md.ba,bb:md.bb};
+  opt.c2={ceil:[-Pn[0],-Pn[1],-Pn[2]],neko:[md.ba/2-Pn[0],yH-Pn[1],md.bb/2-Pn[2]],top:TOP,nkTxt:md.nkTxt||"",bolts:[[-1,-1],[1,-1],[1,1],[-1,1]].map(([u,w])=>[u*md.ba/2-Pn[0],yH-Pn[1],w*md.bb/2-Pn[2]]),ba:md.ba,bb:md.bb};
   const oh=t=>{const m=String(t).match(/(\d+)〜(\d+)/);return m?hw(+m[1])+"〜"+hw(+m[2]):hw(+t)};
   const _bi=md.bi;opt.labs=[L("天井開口 "+(md.oTxt||fmt(md.oa))+"（半割 "+(md.oTxt?oh(md.oTxt):hw(md.oa))+"）",0,70,-md.ob/2-150,"uopen"),L("天井開口 "+(md.oTxt||fmt(md.ob))+"（半割 "+(md.oTxt?oh(md.oTxt):hw(md.ob))+"）",md.oa/2+150,70,0,"uopen"),L("吊りピッチ "+fmt(md.ba)+"（半割 "+hw(md.ba)+"）",0,YT+60,md.bb/2+170,"ubolt"),L("吊りピッチ "+fmt(md.bb)+"（半割 "+hw(md.bb)+"）",-md.ba/2-170,YT+60,0,"ubolt"),
    L("ガスφ"+md.g+(md.tg||"")+(md.bi?" 本体下面から":" 天井から")+fmt(md.gas.y)+"mm",Lb/2+90,Math.max(G0.y,L0.y)+150,G0.z,"upipe"),L("液φ"+md.l+(md.tl||"")+(md.bi?" 本体下面から":" 天井から")+fmt(md.liq.y)+"mm",Lb/2+90,Math.min(G0.y,L0.y)-110,L0.z,"upipe"),
@@ -1408,7 +1416,7 @@ const LG=[];
     mk.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(f.ex,f.ey,f.ez));
     mk.g.position.copy(org);mk.g.updateMatrixWorld(true);
     bb.union(new THREE.Box3().setFromObject(mk.g));
-    const c2=mk.c2?{cy:mk.g.localToWorld(new V(...mk.c2.ceil)).y,ctr:mk.g.localToWorld(new V(...mk.c2.ceil)),nk:mk.g.localToWorld(new V(...mk.c2.neko)),bolts:mk.c2.bolts.map(b=>mk.g.localToWorld(new V(...b))),ba:mk.c2.ba,bb:mk.c2.bb}:null;
+    const c2=mk.c2?{cy:mk.g.localToWorld(new V(...mk.c2.ceil)).y,ctr:mk.g.localToWorld(new V(...mk.c2.ceil)),nk:mk.g.localToWorld(new V(...mk.c2.neko)),bolts:mk.c2.bolts.map(b=>mk.g.localToWorld(new V(...b))),ba:mk.c2.ba,bb:mk.c2.bb,nkTxt:mk.c2.nkTxt||""}:null;
     UN.push({g:mk.g,name:mk.name,top:mk.top,cx:mk.cx,cz:mk.cz||0,labs:mk.labs||[],c2,org,f,L,t});
    }catch(err){console.warn("unit",err)}
   });
@@ -1582,7 +1590,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
  UN.forEach(u=>{if(!u.c2)return; // ネコ（吊り金具）の高さ
   const p=u.c2.nk,parts=[];
   if(GY!==null&&(st.gnd.on||st.gnd.c))parts.push("地面から "+fmt(p.y-GY));
-  parts.push("天井から "+fmt(CY!==null?p.y-CY:100));
+  parts.push("天井から "+(u.c2.nkTxt||fmt(CY!==null?p.y-CY:100)));
   const s=label("ネコ（吊り金具） "+parts.join(" ／ "),ext*0.035,"#fef9c3f2","#713f12","neko");
   s.position.copy(p);s.userData.cat="neko";pxl(s,19,{t:"up"},0);T.grp.add(s);
   if(GY!==null&&(st.gnd.on||st.gnd.c)&&p.y-GY>200){ // 地面→ネコの矢印（ネコの色）
@@ -1952,8 +1960,9 @@ const SLOTS=[["s","起点"],...(st.nopipe?[]:brOn()?leaves().map(g=>["L"+g,slotN
    box.appendChild(g3);
    const m=cur,n=document.createElement("div");n.className="note";
    if(m.bi)n.textContent=(CAS2_MAKERS.find(x=>x[0]===m.mk)||["",""])[1]+" "+m.n+"（"+m.kind+"形・"+m.sub+"）　"+m.spec+"。配管ガスφ"+m.g+"・液φ"+m.l+"。外形図（GA-MBZ5022AS）の寸法で作っています。高さの基準（天井高さ）は本体の下面です。左右が逆なら上の「左右反転」で直せます。";
-   else n.textContent=(CAS2_MAKERS.find(x=>x[0]===m.mk)||["",""])[1]+" "+m.n+"（天井カセット形 "+m.kind+(m.sub?"・"+m.sub:"")+"）　図面寸法：本体 "+m.L+"×"+m.W+"（天井面から天面まで"+m.top+"）／パネル "+m.pa+"×"+m.pb+"／天井開口 "+(m.oTxt?m.oTxt+"×"+m.oTxt:m.oa+"×"+m.ob)+"／吊りボルト "+m.ba+"×"+m.bb+"／ネコ（吊り金具）は天井面から"+m.nk+"上／配管 ガスφ"+m.g+"・液φ"+m.l+"・ドレンVP-25（配管とドレンは同じ端面）。左右が逆なら上の「左右反転」で直せます。";
+   else n.textContent=(CAS2_MAKERS.find(x=>x[0]===m.mk)||["",""])[1]+" "+m.n+"（天井カセット形 "+m.kind+(m.sub?"・"+m.sub:"")+"）　図面寸法：本体 "+m.L+"×"+m.W+"（天井面から天面まで"+m.top+"）／パネル "+m.pa+"×"+m.pb+"／天井開口 "+(m.oTxt?m.oTxt+"×"+m.oTxt:m.oa+"×"+m.ob)+"／吊りボルト "+m.ba+"×"+m.bb+"／ネコ（吊り金具）は天井面から"+(m.nkTxt||m.nk)+"上／配管 ガスφ"+m.g+"・液φ"+m.l+"・ドレンVP-25（配管とドレンは同じ端面）。左右が逆なら上の「左右反転」で直せます。";
    box.appendChild(n);
+   if(m.doc){const db=document.createElement("button");db.className="sharebtn";db.style.cssText="width:100%;margin:8px 0 0;background:#1e40af;color:#fff";db.textContent="📘 据付工事説明書を開く（メーカーのPDF）";db.onclick=()=>{try{window.open(m.doc,"_blank")}catch(e){location.href=m.doc}};box.appendChild(db)}
    {const sb=document.createElement("button");sb.className="sharebtn";sb.style.cssText="width:100%;margin:8px 0 0";sb.textContent="📄 仕様書（PDF）を読む";sb.onclick=()=>openSpecReader();box.appendChild(sb)}
    return;
   }
@@ -2856,7 +2865,16 @@ function openDraw(){
 /* ===== かんたん図面（順番に進むだけ）：①図面 → ②縮尺 → ③原点 → ④何を追加？ → 各作業（戻る・次へ・キャンセルだけ） ===== */
 const W={on:true,step:"open",sub:"",img:null,s0:0,cand:null,pick:null,im:""};
 try{if(localStorage.getItem("pbmPlanClassic")==="1")W.on=false}catch(e){}
-const WZ_ADD=[["ind","❄️","室内機を追加","図面の室内機の四角をタップ → 同じ大きさをまとめて置けます"],["wall","🧱","壁を追加","部屋をぐるっと／1本ずつ／図面の壁を取り込む"],["beam","🟫","梁を追加","梁の中心線を2点タップ"],["col","🏛","柱を追加","柱の角を対角に2点タップ"],["out","🌀","室外機を追加","室外機の真ん中をタップ（機種を選んで）"],["hole","🕳️","配管を通す穴を追加","壁の上の穴の位置をタップ"],["spot","🟩","室外機の置き場を追加","置く場所の範囲を対角に2点タップ"]];
+const WZ_ADD=[["ind","❄️","室内機を追加","図面の室内機の四角をタップ → 同じ大きさをまとめて置けます"],["wall","🧱","壁を追加","部屋をぐるっと／1本ずつ／図面の壁を取り込む"],["beam","🟫","梁を追加","梁の中心線を2点タップ"],["col","🏛","柱を追加","柱の角を対角に2点タップ"],["out","🌀","室外機を追加","室外機の真ん中をタップ（機種を選んで）"],["hole","🕳️","配管を通す穴を追加","壁の上の穴の位置をタップ"],["spot","🟩","室外機の置き場を追加","置く場所の範囲を対角に2点タップ"],["door","🚪","扉を追加","壁の上の扉の真ん中をタップ（引き戸・開き戸）"]];
+function wzShowWalls(){return !W.on||W.step==="t:auto"||(W.step==="t:wall"&&BT.tool==="rng")}
+function calApply(v){const P=PLAN;if(!P||PV.cal.length<2)return false;const d=Math.hypot(PV.cal[1][0]-PV.cal[0][0],PV.cal[1][1]-PV.cal[0][1]);
+ if(!(v>0&&d>0)){toast("長さを数字で入れてください");return false}P.mmpp=v/d;P.den=0;P.autoScale=0;try{$("#plDen").value=""}catch(e){}try{planWalls()}catch(e){}PV.cal=[];toast("縮尺を合わせました（この2点＝"+fmt(v)+"mm）");if(W.on)setTimeout(wzCalDone,10);planDraw();return true}
+function askNum(title,def,ok,cancel){const ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center";
+ ov.innerHTML=`<div style="background:#fff;color:#0f172a;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 16px)"><b style="font-size:17px">${title}</b>
+  <div style="display:flex;align-items:center;gap:8px;margin:12px 0"><input id="askV" inputmode="numeric" value="${uVal(def)}" style="flex:1;height:52px;border-radius:12px;border:2px solid #2563eb;padding:0 12px;font-size:22px;font-weight:800"><b>mm</b></div>
+  <div style="display:flex;gap:8px"><button id="askNo" style="flex:1;height:50px;border-radius:12px;font-weight:800;font-size:16px;background:#e2e8f0;border:0">やめる</button><button id="askOk" style="flex:2;height:50px;border-radius:12px;font-weight:800;font-size:16px;background:#16a34a;color:#fff;border:0">決定</button></div></div>`;
+ document.body.appendChild(ov);const i=ov.querySelector("#askV");setTimeout(()=>{try{i.focus();i.select()}catch(e){}},50);
+ ov.querySelector("#askOk").onclick=()=>{const v=uParse(i.value);ov.remove();ok(v)};ov.querySelector("#askNo").onclick=()=>{ov.remove();cancel&&cancel()}}
 function wzMem(){try{return JSON.parse(localStorage.getItem("pbmPlanMem")||"{}")||{}}catch(e){return{}}}
 function wzKey(){const P=PLAN;return P&&P.fkey?P.fkey+"|"+(P.page||1):""}
 function wzSave(){const P=PLAN,k=wzKey();if(!k||!P||!P.mmpp)return;const m=wzMem();m[k]={mmpp:P.mmpp,den:P.den||0,org:P.org||null,CH:P.CH||0,t:Date.now()};
@@ -2877,11 +2895,11 @@ function wzGo(step,sub){if(!step.startsWith("t:"))W.fold=false;W.step=step;W.sub
  if(step==="org")wzMode("bld","org");
  else if(step==="cal")wzMode("cal");
  else if(step.startsWith("t:")){W.s0=BT.stack.length;const k=step.slice(2);
-  const tl={ind:"indpick",wall:"room",beam:"beam",col:"col",out:"out",hole:"hole",spot:"spot",auto:"none",del:"del"}[k];W.sel=[];W.delStack=[];W.autoRes=null;wzMode("bld",tl);if(k==="ind")W.sub="pick"}
+  const tl={ind:"indpick",wall:"room",beam:"beam",col:"col",out:"out",hole:"hole",spot:"spot",door:"door",auto:"none",del:"del"}[k];W.sel=[];W.delStack=[];W.autoRes=null;wzMode("bld",tl);if(k==="ind")W.sub="pick"}
  else wzMode("move");
  wzRender();planDraw()}
 function wzInp(k,l,u){return`<label style="display:inline-flex;align-items:center;gap:4px;font-size:13px;margin:3px 8px 3px 0">${l}<input data-wz="${k}" inputmode="numeric" value="${uVal(BT[k])}" style="width:70px;height:36px;border-radius:9px;border:1.5px solid #cbd5e1;padding:0 6px;font-size:15px">${u||"mm"}</label>`}
-function wzBtn(id,t,bg,fg,ex){return`<button id="${id}" style="min-height:44px;padding:6px 12px;border-radius:12px;font-weight:800;font-size:14px;background:${bg||"#fff"};color:${fg||"#0f172a"};border:1.5px solid ${bg?bg:"#cbd5e1"};${ex||""}">${t}</button>`}
+function wzBtn(id,t,bg,fg,ex){return`<button id="${id}" style="min-height:44px;padding:6px 12px;border-radius:12px;font-weight:800;font-size:14px;background:${bg||"#fff"};color:${fg||"#0f172a"};border:1.5px solid ${bg&&bg!=="#fff"?bg:"#94a3b8"};box-shadow:0 1px 3px rgba(0,0,0,.12);${ex||""}">${t}</button>`}
 function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.step;let h="",title="",bk=true,nx=true,nxT="次へ ▶";
  const cnt=k=>st.bld.filter(o=>o.k===k).length,sess=()=>{let n=0;for(let i=W.s0;i<BT.stack.length;i++)n+=BT.stack[i];return n};
  if(s==="open"){title="① 図面を開く";bk=false;nx=false;
@@ -2891,9 +2909,10 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
   h=`<p>図面の<b>1mmが実際の何mmか</b>を決めます。ここがズレると、壁も室内機も全部ズレます。</p>`+
    (P&&P.mmpp?`<div style="background:#ecfdf5;border-radius:10px;padding:8px;margin-bottom:8px">いまの縮尺：<b>${den?"1/"+den:"2点で合わせ済み"}</b>${P.autoScale?"（通り芯の寸法と一致）":den&&P.denTxt?"（図面の表記から）":""}</div>${wzBtn("wzOkScale","✅ この縮尺でOK（次へ）","#16a34a","#fff","width:100%;margin-bottom:6px")}`:`<div style="background:#fef2f2;border-radius:10px;padding:8px;margin-bottom:8px;color:#b91c1c">縮尺がまだ決まっていません</div>`)+
    (canDen?`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px"><span style="font-size:13px">縮尺を選ぶ：</span>${[30,50,60,100,150,200].map(d=>`<button data-den="${d}" style="height:40px;padding:0 10px;border-radius:10px;font-weight:800;border:1.5px solid #cbd5e1;background:${den===d?"#fbbf24":"#fff"}">1/${d}</button>`).join("")}</div>`:"")+
-   wzBtn("wzCal","📏 長さの分かる2点で合わせる（いちばん確実）","#fff","#0f172a","width:100%")}
+   wzBtn("wzCal","📏 長さの分かる2点で合わせる（いちばん確実）","#2563eb","#fff","width:100%;margin-top:4px")}
  else if(s==="cal"){title="② 縮尺：2点で合わせる";nx=false;
-  h=`<p>長さの分かる2点（<b>通り芯と通り芯</b>、寸法の書いてある壁の端など）をタップ。2点目を置くと、実際の長さ（mm）を聞きます。</p><p style="font-size:13px;color:#475569">置いた点：${PV.cal.length} / 2　　2本指で拡大すると正確に置けます</p>`}
+  h=PV.cal.length<2?`<p>長さの分かる2点（<b>通り芯と通り芯</b>、寸法の書いてある壁の端など）を、1点ずつタップ。</p><p style="font-size:14px;font-weight:800;color:#2563eb">置いた点：${PV.cal.length} / 2</p><p style="font-size:12.5px;color:#475569">2本指で拡大すると正確に置けます。間違えたら「◀ 戻る」。</p>`:
+   `<p>✅ 2点を置きました。<b>この2点の実際の長さ</b>を入れて「決定」。</p><div style="display:flex;align-items:center;gap:8px;margin:6px 0"><input id="wzCalV" inputmode="numeric" placeholder="例：3200" style="flex:1;min-width:0;width:100%;height:50px;border-radius:12px;border:2px solid #2563eb;padding:0 12px;font-size:20px;font-weight:800"><b>mm</b></div>${wzBtn("wzCalOk","✅ 決定（縮尺を合わせる）","#16a34a","#fff","width:100%")}<p style="font-size:12.5px;color:#475569;margin-top:4px">2点目の位置を直すなら、もう一度タップ。</p>`}
  else if(s==="org"){title="③ 原点（0,0）を決める";nx=!!(P&&P.org);
   const m=wzMem()[wzKey()];
   h=`<p>位置を測る<b>基準の点</b>です。現場で測れる所（<b>柱の角・部屋の角・通り芯の交点</b>）をタップ。壁や室内機の位置は、ここから何mmで出ます。</p>`+
@@ -2936,7 +2955,9 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
   else if(k==="out")h=`<p>室外機の<b>真ん中</b>をタップ。</p><label style="display:block;font-size:13px;margin:4px 0">機種：<select id="wzOm" style="height:40px;border-radius:10px;font-size:14px;font-weight:700;max-width:100%">${Object.keys(OUTM).map(x=>`<option value="${x}"${x===BT.om?" selected":""}>${OUTM[x].n}（${OUTM[x].w}×${OUTM[x].d}×高さ${OUTM[x].h}）</option>`).join("")}</select></label>
    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${wzBtn("wzORot","向き：正面が"+["下","左","上","右"][((BT.or||0)/90)%4]+"（押して回す）")}${wzInp("oy","置く高さ（床から）")}</div>`+done;
   else if(k==="hole")h=(cnt("wall")?`<p>壁の上の、<b>穴を開ける位置</b>をタップ。</p>`:`<p style="color:#b91c1c"><b>先に壁が必要です。</b>「キャンセル」→「壁を追加」で壁を置いてから来てください。</p>`)+wzInp("hd","穴の直径")+wzInp("hy","穴の中心の高さ（床から）")+done;
-  else if(k==="spot")h=`<p>室外機を置く<b>場所の範囲</b>を、対角に2点タップ（バルコニーや架台など）。</p>`+done}
+  else if(k==="spot")h=`<p>室外機を置く<b>場所の範囲</b>を、対角に2点タップ（バルコニーや架台など）。</p>`+done;
+  else if(k==="door")h=`<div style="display:flex;gap:4px;margin-bottom:6px">${[["slide","引き戸"],["swing","開き戸"]].map(([t,l])=>`<button data-dt2="${t}" style="flex:1;height:40px;border-radius:10px;font-weight:800;font-size:14px;border:1.5px solid #cbd5e1;background:${BT.dt===t?"#fbbf24":"#fff"}">${l}</button>`).join("")}</div>`+
+   (cnt("wall")?`<p>壁の上の、<b>扉の真ん中</b>をタップ。壁に吸い付きます。</p>`:`<p style="color:#b91c1c"><b>先に壁が必要です。</b>「キャンセル」→「壁を追加」で壁を置いてから来てください。</p>`)+wzInp("dw","扉の幅")+wzInp("dh","扉の高さ")+done}
  bl.innerHTML=`<div style="background:#fff;color:#0f172a;border-radius:16px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-size:14px;line-height:1.5;max-height:100%;overflow:auto;position:relative">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><b style="font-size:16px;flex:1">${title}</b><button id="wzFold" style="height:30px;padding:0 9px;border-radius:9px;background:#e2e8f0;font-weight:800;font-size:12px">${W.fold?"▼ 開く":"▲ 小さく"}</button></div>
   <div style="display:${W.fold?"none":"block"}">${h}</div></div><div style="width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:12px solid #fff;margin-left:28px"></div>`;
@@ -2944,6 +2965,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
  const on=(id,f)=>{const e=$("#"+id);if(e)e.onclick=f};
  on("wzFold",()=>{W.fold=!W.fold;wzRender()});
  on("wzOpen",()=>$("#plFile").click());
+ on("wzCalOk",()=>{const v=uParse(($("#wzCalV")||{}).value||"");calApply(v)});
  on("wzOkScale",()=>{wzSave();wzGo(P.org?"menu":"org")});on("wzCal",()=>wzGo("cal"));
  bl.querySelectorAll("[data-den]").forEach(b=>b.onclick=()=>{const d=+b.dataset.den;if(P&&P.ptpx){P.den=d;P.autoScale=0;P.mmpp=25.4/72/P.ptpx*d;try{$("#plDen").value=d}catch(e){}try{planWalls()}catch(e){}wzRender();planDraw();toast("縮尺を1/"+d+"にしました")}});
  on("wzOldOrg",()=>{const m=wzMem()[wzKey()];if(m&&m.org){P.org=m.org.slice();wzRender();planDraw()}});
@@ -2962,7 +2984,8 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
  {const e=$("#wzOm");if(e)e.onchange=()=>{BT.om=e.value}}
  on("wzORot",()=>{BT.or=((BT.or||0)+90)%360;wzRender()});
  bl.querySelectorAll("[data-wt]").forEach(b=>b.onclick=()=>{BT.tool=b.dataset.wt;BT.pts=[];wzRender();planDraw()});
- on("wzSide",()=>{BT.side*=-1;wzRender()});on("wzRoom",()=>{planBldRoom();wzRender()});
+ on("wzSide",()=>{BT.side*=-1;wzRender()});
+ bl.querySelectorAll("[data-dt2]").forEach(b=>b.onclick=()=>{BT.dt=b.dataset.dt2;wzRender()});on("wzRoom",()=>{planBldRoom();wzRender()});
  bl.querySelectorAll("[data-wz]").forEach(i=>i.oninput=()=>{const v=uParse(i.value);if(isFinite(v))BT[i.dataset.wz]=Math.abs(v)});
 }
 /* 室内機：タップした所の四角 → 同じ大きさの四角をまとめる */
@@ -2999,7 +3022,7 @@ function bldFoot(o,i){let hw=o.w/2,hd=o.d/2,cx=o.x,cz=o.z;
  return{cx,cz,hw:Math.max(hw,60),hd:Math.max(hd,60),th:o.r*Math.PI/180}}
 function bldHit(q){let best=-1,ba=1e18;st.bld.forEach((o,i)=>{const f=bldFoot(o,i),co=Math.cos(f.th),si=Math.sin(f.th),dx=q[0]-f.cx,dz=q[1]-f.cz,lx=dx*co+dz*si,lz=-dx*si+dz*co;
   if(Math.abs(lx)<=f.hw+80&&Math.abs(lz)<=f.hd+80){const a=f.hw*f.hd+(o.k==="hole"?-1e12:0);if(a<ba){ba=a;best=i}}});return best}
-function bldDesc(o){const K=BLDK[o.k]||{i:"",n:""};return K.i+" "+K.n+"（"+(o.k==="wall"?"厚"+fmt(o.d)+"・長さ"+fmt(o.w):o.k==="hole"?"φ"+fmt(o.w):fmt(o.w)+"×"+fmt(o.d))+"）"}
+function bldDesc(o){const K=BLDK[o.k]||{i:"",n:""};return K.i+" "+K.n+"（"+(o.k==="wall"?"厚"+fmt(o.d)+"・長さ"+fmt(o.w):o.k==="hole"?"φ"+fmt(o.w):o.k==="door"?(o.m==="swing"?"開き戸":"引き戸")+" 幅"+fmt(o.w):fmt(o.w)+"×"+fmt(o.d))+"）"}
 function wzDel(idx){if(!idx.length)return;const s=[...new Set(idx)].sort((a,b)=>b-a),rec=s.map(i=>({i,o:st.bld[i]}));s.forEach(i=>st.bld.splice(i,1));
  (W.delStack=W.delStack||[]).push(rec.reverse());BT.stack=[];W.s0=0;W.sel=[];bldChanged();wzRender();planDraw();toast(s.length+"個 消しました（「◀ 戻る」で元に戻せます）")}
 function wzUndel(){const r=W.delStack&&W.delStack.pop();if(!r)return false;r.forEach(({i,o})=>st.bld.splice(Math.min(i,st.bld.length),0,o));bldChanged();wzRender();planDraw();toast("元に戻しました");return true}
@@ -3117,7 +3140,7 @@ function planStepGo(i){const P=PLAN;
  if(i===5){planMake()}}
 
 /* ===== 図面の上から、壁・柱・障害物・室内機・穴を置く（図面の上の点 → 原点からのmm） ===== */
-const BT={tool:"org",t:150,wh:0,ih:300,side:1,bh:500,by:0,hd:65,hy:2200,bw:400,bd:700,bb:2700,om:"p40",or:0,oy:0,pts:[],stack:[]};
+const BT={tool:"org",t:150,wh:0,ih:300,side:1,bh:500,by:0,hd:65,hy:2200,bw:400,bd:700,bb:2700,om:"p40",or:0,oy:0,dw:800,dh:2000,dt:"slide",pts:[],stack:[]};
 const BT_TOOLS=[["org","🎯 原点"],["room","🏠 部屋の内側"],["wall","🧱 壁1本"],["rng","📥 図面の壁を取り込む"],["col","🏛 柱"],["box","📦 障害物"],["ind","❄️ 室内機"],["hole","🕳️ 穴"]];
 const BT_HELP={org:"原点（0,0）にする点をタップ。部屋の基準にする角や、室内機の位置など。最初に1回決めます。",room:"部屋の「内側」の角を順にタップ。最初の点の近くをもう一度タップ（または下の「閉じる」）で、外側に壁ができます。",wall:"壁の面の両端を2点タップ。厚みは「壁の厚み」で、付ける側は下のボタンで切り替え。",rng:"図面から自動で見つけた壁（青い帯）を、四角の範囲でまとめて取り込みます。範囲の対角を2点タップ。",col:"柱の対角の2点をタップ（柱の角から角）。",box:"障害物（ダクト・設備など）の対角の2点をタップ。高さは下の欄。",ind:"室内機の中心をタップ。機種はあとで3Dの編集画面で変えられます。",hole:"配管を通す穴を、壁の近くでタップ。壁の厚みに合わせて向きが決まります。"};
 function planBldPanel(){if(W.on){wzRender();return}const el=$("#plPanel");if(!el)return;PV.bldPanelOn=true;el.style.display="block";
@@ -3172,6 +3195,12 @@ function planBldPlace(p){const P=PLAN;if(!P.mmpp){toast("先に縮尺を合わ�
  if(tool==="col"||tool==="box"){if(n<2){planDraw();return}const a=btW(BT.pts[0]),b=btW(BT.pts[1]);BT.pts=[];const w=Math.abs(b[0]-a[0]),d=Math.abs(b[1]-a[1]);if(w<30||d<30){toast("小さすぎます。対角の2点をタップしてください");planDraw();return}
   const o={k:tool,x:(a[0]+b[0])/2,z:(a[1]+b[1])/2,w,d,r:0,full:tool==="col",h:tool==="col"?600:BT.bh,y:tool==="col"?0:BT.by};btAdd([o]);toast(tool==="col"?"柱を置きました":"障害物を置きました");return}
  if(tool==="ind"){const q=btW(BT.pts[0]);BT.pts=[];const o=bldNew("ind",{x:q[0],z:q[1]});o.h=Math.max(10,BT.ih||300);btAdd([normBld([o])[0]]);toast("室内機を置きました。3Dで機種や向きを直せます");return}
+ if(tool==="door"){const q=btW(BT.pts[0]);BT.pts=[];let best=null,bd=1e9;
+  st.bld.forEach(o=>{if(o.k!=="wall")return;const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=q[0]-o.x,dz=q[1]-o.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;
+   if(Math.abs(lx)<=o.w/2+100&&Math.abs(lz)<=o.d/2+400&&Math.abs(lz)<bd){bd=Math.abs(lz);best={o,lx,co,si}}});
+  if(!best){toast("壁の近くをタップしてください（先に壁を置いてください）");planDraw();return}
+  const o=best.o,dw=Math.max(300,BT.dw||800),lx=Math.max(-o.w/2+dw/2,Math.min(o.w/2-dw/2,best.lx));
+  btAdd(normBld([{k:"door",x:Math.round(o.x+lx*best.co),z:Math.round(o.z+lx*best.si),w:dw,d:o.d,h:Math.max(500,BT.dh||2000),y:0,r:o.r,full:false,m:BT.dt}]));toast((BT.dt==="swing"?"開き戸":"引き戸")+"を置きました");return}
  if(tool==="hole"){const q=btW(BT.pts[0]);BT.pts=[];let best=null,bd=1e9;
   st.bld.forEach(o=>{if(o.k!=="wall")return;const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=q[0]-o.x,dz=q[1]-o.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;
    if(Math.abs(lx)<=o.w/2+100&&Math.abs(lz)<=o.d/2+400&&Math.abs(lz)<bd){bd=Math.abs(lz);best={o,lx,co,si}}});
@@ -3191,7 +3220,7 @@ function planPlaceUnits(){const P=PLAN;if(!P||!P.units||!P.units.length){toast("
  btAdd(L);toast("室内機を"+L.length+"台置きました（箱の大きさは図面の四角どおり。3Dで機種や高さを直せます）")}
 function planBldDraw(x,sp){const P=PLAN;if((PV.mode!=="bld"&&!W.on)||!P||!P.mmpp)return;
  if(P.org){const q=sp(P.org);x.strokeStyle="#16a34a";x.lineWidth=3;x.beginPath();x.moveTo(q[0]-14,q[1]);x.lineTo(q[0]+14,q[1]);x.moveTo(q[0],q[1]-14);x.lineTo(q[0],q[1]+14);x.stroke();x.fillStyle="#16a34a";x.font="bold 12px sans-serif";x.textAlign="left";x.fillText("原点",q[0]+8,q[1]-8);
-  const col={col:"#64748b",wall:"#2563eb",beam:"#a16207",box:"#f97316",ind:"#2563eb",hole:"#111827",out:"#475569",spot:"#16a34a"};
+  const col={col:"#64748b",wall:"#2563eb",beam:"#a16207",box:"#f97316",ind:"#2563eb",hole:"#111827",out:"#475569",spot:"#16a34a",door:"#b45309"};
   st.bld.forEach((o,i)=>{const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th);let hw=o.w/2,hd=o.d/2;if(o.k==="ind"){const m=T&&T.bldM&&T.bldM.find(z=>z.i===i);if(m){hw=m.hw;hd=m.hd}}if(o.k==="hole"){hw=o.w/2+20;hd=o.d/2}
    const cx=o.k==="ind"&&T&&T.bldM&&T.bldM.find(z=>z.i===i)?T.bldM.find(z=>z.i===i).c.x:o.x,cz=o.k==="ind"&&T&&T.bldM&&T.bldM.find(z=>z.i===i)?T.bldM.find(z=>z.i===i).c.z:o.z;
    const pts=[[-hw,-hd],[hw,-hd],[hw,hd],[-hw,hd]].map(([a,b])=>sp(btP(cx+a*co-b*si,cz+a*si+b*co)));
@@ -3255,6 +3284,15 @@ function planWalls(){
    const pr=(x,y)=>(x-A.s[0])*A.ux+(y-A.s[1])*A.uy,b1=pr(B2.s[0],B2.s[1]),b2=pr(B2.s[2],B2.s[3]),lo=Math.max(0,Math.min(b1,b2)),hi=Math.min(A.l,Math.max(b1,b2));
    if((hi-lo)*mm<1500)continue;
    const sg=((B2.s[0]-A.s[0])*(-A.uy)+(B2.s[1]-A.s[1])*A.ux)>0?1:-1,off=d/mm/2*sg,nx=-A.uy*off,ny=A.ux*off;
+   /* 表や文字の枠を壁と間違えない：①2本の線の間に、数字以外の文字（表の文字）がある ②同じ始まり・終わりの線が何本も並ぶ（表の行） */
+   {const dpx=d/mm,inGap=(x,y)=>{const t=(x-A.s[0])*A.ux+(y-A.s[1])*A.uy,n=((x-A.s[0])*(-A.uy)+(y-A.s[1])*A.ux)*sg;return t>=lo-2&&t<=hi+2&&n>dpx*0.1&&n<dpx*0.9};
+    const word=t=>/[ぁ-んァ-ヶ一-龠]{2,}/.test(t)&&!/^[\s\d,.+\-=FLCHφ()（）]+$/.test(t);
+    if(P.texts&&P.texts.some(tx=>tx.s&&word(tx.s)&&inGap(tx.x+(tx.w||0)/2,tx.y-(tx.h||0)/2)))continue;
+    const tol=Math.max(3,dpx*0.15);let rowN=0;
+    for(let k=0;k<L.length&&rowN<2;k++){if(k===i||k===j)continue;const C=L[k];if(Math.abs(A.ux*C.uy-A.uy*C.ux)>0.03)continue;
+     const dc=Math.abs((C.s[0]-A.s[0])*(-A.uy)+(C.s[1]-A.s[1])*A.ux),q=dc/dpx,qr=Math.round(q);if(qr<1||qr>4||Math.abs(q-qr)>0.12||Math.abs(dc-dpx)<dpx*0.12)continue;const c1=pr(C.s[0],C.s[1]),c2=pr(C.s[2],C.s[3]);
+     if(Math.abs(Math.min(c1,c2))<tol&&Math.abs(Math.max(c1,c2)-A.l)<tol)rowN++}
+    if(rowN>=2)continue}
    P.walls.push({a:[A.s[0]+A.ux*lo+nx,A.s[1]+A.uy*lo+ny],b:[A.s[0]+A.ux*hi+nx,A.s[1]+A.uy*hi+ny],t:d});used.add(i);used.add(j);break}}
 }
 function planFit(){const P=PLAN,wr=$("#plWrap");if(!P||!wr)return;const W=wr.clientWidth,H=wr.clientHeight;PV.z=Math.min(W/P.W,H/P.H0)*0.95;PV.ox=(W-P.W*PV.z)/2;PV.oy=(H-P.H0*PV.z)/2}
@@ -3273,7 +3311,7 @@ function planDraw(){
  const x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
  const P=PLAN;if(!P||!P.img)return;
  x.save();x.translate(PV.ox,PV.oy);x.scale(PV.z,PV.z);x.drawImage(P.img,0,0);
- x.strokeStyle="rgba(37,99,235,.55)";x.lineCap="round";(!W.on||W.step==="t:auto"||(W.step==="t:wall"&&BT.tool==="rng")?P.walls:[]).forEach(w=>{x.lineWidth=Math.max(2/PV.z,w.t/(P.mmpp||1));x.beginPath();x.moveTo(...w.a);x.lineTo(...w.b);x.stroke()});
+ x.strokeStyle="rgba(37,99,235,.55)";x.lineCap="round";(wzShowWalls()?P.walls:[]).forEach(w=>{x.lineWidth=Math.max(2/PV.z,w.t/(P.mmpp||1));x.beginPath();x.moveTo(...w.a);x.lineTo(...w.b);x.stroke()});
  x.restore();
  const sp=p=>[p[0]*PV.z+PV.ox,p[1]*PV.z+PV.oy];
  if(P.grids){x.font="bold 12px sans-serif";x.textAlign="center";
@@ -3327,8 +3365,9 @@ function planGestures(){
  const setAim=f=>{const q=[f[0],f[1]-OFF],ip=toImg(q),sn=PV.mode==="col"?ip:planSnap(ip);aim={f,s:q,snap:sn,snapped:Math.hypot(sn[0]-ip[0],sn[1]-ip[1])>0.01};redraw()};
  /* 指の操作はタッチイベントで直接扱う（iPhoneで一番安定）。マウスはポインターで扱う */
  const place=p=>{if(!PLAN)return;
-  if(PV.mode==="cal"){PV.cal.push(p);planDraw();if(PV.cal.length===2){const d=Math.hypot(PV.cal[1][0]-PV.cal[0][0],PV.cal[1][1]-PV.cal[0][1]);
-    setTimeout(()=>{const v=uParse(prompt("この2点の実際の長さ（mm）は？",uVal(1000))||"");if(v>0&&d>0){PLAN.mmpp=v/d;PLAN.den=0;PLAN.autoScale=0;$("#plDen").value="";planWalls();if(W.on)setTimeout(wzCalDone,10);toast("縮尺を合わせました");PV.md("trace")}else PV.cal=[];planDraw()},30)}}
+  if(PV.mode==="cal"){if(PV.cal.length>=2)PV.cal[1]=p;else PV.cal.push(p);planDraw();
+   if(W.on){wzRender();return}
+   if(PV.cal.length===2)askNum("この2点の実際の長さ（mm）は？",1000,v=>{if(!calApply(v)){PV.cal=[];planDraw()}else PV.md("trace")},()=>{PV.cal=[];planDraw()})}
   else if(PV.mode==="col"){let bp=null,bd=14/PV.z;for(const s2 of PLAN.segs){const dx=s2[2]-s2[0],dy=s2[3]-s2[1],l2=dx*dx+dy*dy;if(!l2)continue;let t=((p[0]-s2[0])*dx+(p[1]-s2[1])*dy)/l2;t=Math.max(0,Math.min(1,t));const d=Math.hypot(s2[0]+dx*t-p[0],s2[1]+dy*t-p[1]);if(d<bd){bd=d;bp=s2}}
     if(bp&&bp[4]){PLAN.fcol=bp[4];toast("この色の線だけに吸い付きます（もう一度押すと解除）");PV.md("trace")}else toast("線の上に十字を合わせて離してください");planDraw()}
   else if(PV.mode==="bld"){planBldPlace(p)}
@@ -3612,13 +3651,13 @@ function openRoutePos(){
  draw();
 }
 /* ===== 建物（壁・柱・梁・障害物）：3Dに箱で置く。位置は起点（配管の始まり）からのmm、高さは床から ===== */
-const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"}};
+const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"},door:{n:"扉",c:0xb45309,i:"🚪"}};
 function normBld(a){const n=v=>Math.round(+v||0);return(Array.isArray(a)?a:[]).slice(0,300).filter(o=>o&&typeof o==="object").map(o=>{const k=BLDK[o.k]?o.k:"box";
- return{k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):""}})}
+ return{k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):k==="door"?(o.m==="swing"?"swing":"slide"):""}})}
 st.bld=normBld(st.bld);
 const bldCH=()=>T&&T.CHh?T.CHh:st.gnd.ch;
 function bldNew(k,p){const CH=bldCH();
- const o=k==="col"?{w:600,d:600,h:CH,y:0,full:true}:k==="wall"?{w:3000,d:150,h:CH,y:0,full:true}:k==="beam"?{w:4000,d:400,h:700,y:CH+300,full:false}:k==="ind"?{w:840,d:840,h:300,y:0,full:false,m:CAS2M[RP.im]?RP.im:"56"}:k==="hole"?{w:65,d:150,h:65,y:2200,full:false}:{w:500,d:500,h:300,y:CH+100,full:false};
+ const o=k==="col"?{w:600,d:600,h:CH,y:0,full:true}:k==="wall"?{w:3000,d:150,h:CH,y:0,full:true}:k==="beam"?{w:4000,d:400,h:700,y:CH+300,full:false}:k==="ind"?{w:840,d:840,h:300,y:0,full:false,m:CAS2M[RP.im]?RP.im:"56"}:k==="hole"?{w:65,d:150,h:65,y:2200,full:false}:k==="door"?{w:800,d:150,h:2000,y:0,full:false,m:"slide"}:{w:500,d:500,h:300,y:CH+100,full:false};
  return normBld([{k,x:p?p.x:0,z:p?p.z:0,r:0,...o}])[0]}
 /* 3Dに描く（build3Dから呼ぶ。GY＝床の高さ） */
 function addBld3D(GY,CH,ext){
@@ -3633,14 +3672,46 @@ function addBld3D(GY,CH,ext){
    g.position.set(o.x,GY+o.y,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;T.grp.add(g);
    T.bldM.push({i,k:"hole",c:new THREE.Vector3(o.x,GY+o.y,o.z),hw:o.w/2+30,hd:o.d/2+20,hh:o.w/2+30,r:o.r,y0:GY+o.y-o.w/2,h:o.w});
    const s3=label("🕳️ 穴 φ"+fmt(o.w)+" 床から"+fmt(o.y),ext*0.026,"#fef9c3f2","#713f12");s3.position.set(o.x,GY+o.y+o.w/2+ext*0.03,o.z);s3.userData.cat="bld";pxl(s3,15);T.grp.add(s3);return}
-  const m=new THREE.Mesh(new THREE.BoxGeometry(o.w,h,o.d),new THREE.MeshStandardMaterial({color:K.c,transparent:true,opacity:o.k==="box"||o.k==="out"?.7:o.k==="spot"?.3:.45,depthWrite:false,roughness:.8}));
+  if(o.k==="door"){const g=new THREE.Group(),th=-o.r*Math.PI/180,W2=o.w,H2=o.h||2000,D2=o.d||150,wood=new THREE.MeshStandardMaterial({color:0xc08a4a,roughness:.7}),fr=new THREE.MeshStandardMaterial({color:0x6b4423,roughness:.6});
+   const bx2=(w,h2,d,x,y,z,mt)=>{const mm=new THREE.Mesh(new THREE.BoxGeometry(w,h2,d),mt);mm.position.set(x,y,z);g.add(mm);return mm};
+   bx2(40,H2,D2+20,-W2/2-20,H2/2,0,fr);bx2(40,H2,D2+20,W2/2+20,H2/2,0,fr);bx2(W2+80,40,D2+20,0,H2+20,0,fr);   // 枠
+   if(o.m==="swing"){const p=new THREE.Group();p.position.set(-W2/2,0,D2/2);const pn=new THREE.Mesh(new THREE.BoxGeometry(W2,H2-10,40),wood);pn.position.set(W2/2,H2/2,20);p.add(pn);p.rotation.y=-0.5;g.add(p);
+    for(let k=0;k<10;k++){const a0=k/10*Math.PI/2,a1=(k+1)/10*Math.PI/2,ax=-W2/2+W2*Math.cos(a0),az=D2/2+W2*Math.sin(a0),bx3=-W2/2+W2*Math.cos(a1),bz=D2/2+W2*Math.sin(a1),L2=Math.hypot(bx3-ax,bz-az);
+     const sg=bx2(L2,6,14,(ax+bx3)/2,4,(az+bz)/2,new THREE.MeshBasicMaterial({color:0xb45309}));sg.rotation.y=-Math.atan2(bz-az,bx3-ax)}}
+   else{bx2(W2,H2-10,35,W2*0.35,H2/2,D2/2+30,wood);bx2(W2*2,20,30,W2/2,H2+5,D2/2+30,fr)}   // 引き戸：少し開いた戸と上のレール
+   g.position.set(o.x,y0,o.z);g.rotation.y=th;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
+   T.bldM.push({i,k:"door",c:new THREE.Vector3(o.x,y0+H2/2,o.z),hw:W2/2,hd:D2/2,hh:H2/2,r:o.r,y0,h:H2});
+   const s4=label("🚪 "+(o.m==="swing"?"開き戸":"引き戸")+" 幅"+fmt(W2),ext*0.026,"#fef3c7f2","#78350f");s4.position.set(o.x,y0+H2+ext*0.03,o.z);s4.userData.cat="bld";pxl(s4,15);T.grp.add(s4);return}
+  const isW=o.k==="wall";
+  const m=new THREE.Mesh(new THREE.BoxGeometry(o.w,h,o.d),new THREE.MeshStandardMaterial({color:isW?0xe2e8f0:K.c,transparent:true,opacity:o.k==="box"||o.k==="out"?.7:o.k==="spot"?.3:isW?.22:.45,depthWrite:false,roughness:.8}));
   m.position.set(o.x,y0+h/2,o.z);m.rotation.y=-o.r*Math.PI/180;m.renderOrder=-1;m.userData.bld=i+1;T.grp.add(m);
-  try{if(THREE.EdgesGeometry){const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:K.c}));e.position.copy(m.position);e.rotation.y=m.rotation.y;e.userData.bld=i+1;T.grp.add(e)}}catch(err){}
+  try{if(THREE.EdgesGeometry){const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:isW?0x334155:K.c}));e.position.copy(m.position);e.rotation.y=m.rotation.y;e.userData.bld=i+1;T.grp.add(e)}}catch(err){}
   T.bldM.push({i,k:o.k,c:new THREE.Vector3(o.x,y0+h/2,o.z),hw:o.w/2,hd:o.d/2,hh:h/2,r:o.r,y0,h});
   const t=K.i+" "+K.n+" "+(o.k==="out"?(OUTM[o.m]?OUTM[o.m].n:"")+" "+fmt(o.w)+"×"+fmt(o.d):o.k==="spot"?fmt(o.w)+"×"+fmt(o.d):o.k==="beam"?fmt(o.d)+"×"+fmt(o.h)+" 梁下"+fmt(o.y):o.k==="box"?fmt(o.w)+"×"+fmt(o.d)+"×"+fmt(o.h)+" 下面"+fmt(o.y):o.k==="wall"?"厚"+fmt(o.d)+" 長"+fmt(o.w):fmt(o.w)+"×"+fmt(o.d));
   const s=label(t,ext*0.03,"#f1f5f9f2","#334155","bld");s.position.set(o.x,y0+h+40,o.z);s.userData.cat="bld";pxl(s,17);T.grp.add(s)});
  try{indDims(ext)}catch(e){console.warn("indDims",e)}
+ try{pipeHits(ext)}catch(e){console.warn("hits",e)}
 }
+/* 配管が壁・柱・梁・障害物・機器に当たっていないか調べて、当たっていたら ⚠️ を出す（穴の所は通ってOK） */
+let HIT_SIG="";
+function pipeHits(ext){T.hits=[];if(!T.segs||!T.segs.length||!T.bldM||!T.bldM.length)return;
+ const solid=T.bldM.filter(m=>["wall","col","beam","box","out","ind"].includes(m.k)),holes=T.bldM.filter(m=>m.k==="hole"||m.k==="door");
+ const inBox=(m,p,mg)=>{const th=m.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=p.x-m.c.x,dz=p.z-m.c.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;
+  return Math.abs(lx)<m.hw+mg&&Math.abs(lz)<m.hd+mg&&Math.abs(p.y-m.c.y)<m.hh+mg};
+ const inHole=p=>holes.some(hm=>{const o=st.bld[hm.i];if(!o)return false;if(hm.k==="door")return inBox(hm,p,0);const th=hm.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=p.x-hm.c.x,dz=p.z-hm.c.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;
+  return Math.abs(lz)<hm.hd+60&&Math.hypot(lx,p.y-hm.c.y)<o.w/2+30});
+ const tot=T.segs.reduce((a,s2)=>a+s2.a.distanceTo(s2.b),0);let run=0;const hit=new Map();
+ T.segs.forEach(sg=>{const L=sg.a.distanceTo(sg.b),n=Math.max(1,Math.ceil(L/40));
+  for(let k=0;k<=n;k++){const t=k/n,d=run+L*t;if(d<200||tot-d<200)continue;const p=sg.a.clone().lerp?sg.a.clone().multiplyScalar(1-t).add(sg.b.clone().multiplyScalar(t)):sg.a;
+   for(const m of solid){if(hit.has(m.i))continue;if(inBox(m,p,-5)&&!inHole(p)){hit.set(m.i,{p:p.clone(),row:sg.row,g:sg.g});}}}
+  run+=L});
+ hit.forEach((h,i)=>{const o=st.bld[i];if(!o)return;T.hits.push({i,k:o.k,row:h.row,g:h.g});
+  const s5=label("⚠️ ここで"+(BLDK[o.k]?BLDK[o.k].n:"")+"に当たります",ext*0.032,"#fee2e2f2","#b91c1c");s5.position.copy(h.p);s5.userData.cat="hit";pxl(s5,18,{t:"up"},0);T.grp.add(s5);
+  const b=new THREE.Mesh(new THREE.SphereGeometry(Math.max(40,ext*0.008),16,12),new THREE.MeshBasicMaterial({color:0xef4444,transparent:true,opacity:.85,depthTest:false}));b.position.copy(h.p);b.renderOrder=9;T.grp.add(b);
+  T.grp.children.forEach(c=>{if(c.userData&&c.userData.bld===i+1&&c.material&&c.material.color&&c.material.color.setHex){c.material=c.material.clone();c.material.color.setHex(0xef4444);if(c.material.opacity!==undefined&&c.material.transparent)c.material.opacity=Math.max(c.material.opacity,.45)}})});
+ const sig=T.hits.map(h=>h.i+":"+h.row).join(",");
+ if(sig&&sig!==HIT_SIG){const names=[...new Set(T.hits.map(h=>BLDK[h.k]?BLDK[h.k].n:""))].join("・");setTimeout(()=>toast("⚠️ 配管が "+names+" に当たっています（赤い所）"),300)}
+ HIT_SIG=sig}
 /* 室内機（天井に付く）：機種ならその模型、機種なしなら箱。天井面の真ん中が (x,z) */
 function indMesh(o,CYd){const V=THREE.Vector3,th=-o.r*Math.PI/180;
  if(!o.m){const h=o.h,g=new THREE.Group(),m=new THREE.Mesh(new THREE.BoxGeometry(o.w,h,o.d),new THREE.MeshStandardMaterial({color:0x60a5fa,roughness:.6}));
@@ -4129,9 +4200,9 @@ function shareUrl(){
  return base+"#p="+data;
 }
 async function shareNow(){
- const url=shareUrl();
+ const url=await shareLinkZ();
  if(navigator.share){
-  try{await navigator.share({title:"冷媒配管の曲げメモver1.00",text:(st.info.site?st.info.site+" ":"")+"曲げデータを送ります📐",url});return}
+  try{await navigator.share({title:"冷媒配管の曲げメモ",text:"🕒 "+nowStr()+" に送信\n"+shareSummary()+"\n▼タップでアプリに開く",url});return}
   catch(e){if(e&&e.name==="AbortError")return}
  }
  try{await navigator.clipboard.writeText(url);toast("リンクをコピーしました。LINEなどに貼り付けてください")}
@@ -4153,10 +4224,11 @@ $("#closeShare").onclick=closeShare;
 $("#shareOv").addEventListener("click",e=>{if(e.target.id==="shareOv")closeShare()});
 $("#shApp").onclick=()=>sendOrCopy({title:"冷媒配管の曲げメモ",text:"冷媒配管の曲げメモ📐 ",url:APP_URL},"URLをコピーしました");
 $("#shCopy").onclick=async()=>{
- const t=exportText();
+ const t=await exportTextZ();
  try{await navigator.clipboard.writeText(t);toast("コピーしました。LINEなどに貼り付けてください")}
  catch(e){closeShare();$("#impTxt").value=t;$("#impOv").classList.add("on");$("#impTxt").select();toast("長押しでコピーしてください")}
 };
+$("#shSend").onclick=()=>shareNow();
 $("#shPaste").onclick=()=>{closeShare();$("#impTxt").value="";$("#impOv").classList.add("on")};
 $("#shMore").onclick=()=>{closeShare();$("#cloudBtn").click()};
 /* 寸法計算 */
@@ -4218,6 +4290,36 @@ $("#goalApply").onclick=()=>{
 };
 function enc(o){return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
 function dec(s){s=s.replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";return JSON.parse(decodeURIComponent(escape(atob(s))))}
+/* 送るデータ：JSONを圧縮（deflate）して短い文字にする。古い #PBM: も読める */
+const b64u=u=>{let s2="";for(let i=0;i<u.length;i+=8192)s2+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s2).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")};
+const ub64=s2=>{s2=s2.replace(/-/g,"+").replace(/_/g,"/");while(s2.length%4)s2+="=";const b=atob(s2),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u};
+async function encZ(o){const raw=new TextEncoder().encode(JSON.stringify(o));
+ if(typeof CompressionStream==="undefined")return "j"+b64u(raw);
+ const cs=new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate-raw"));return "z"+b64u(new Uint8Array(await new Response(cs).arrayBuffer()))}
+async function decZ(s2){const t=s2[0],u=ub64(s2.slice(1));let bytes=u;
+ if(t==="z"){const ds=new Blob([u]).stream().pipeThrough(new DecompressionStream("deflate-raw"));bytes=new Uint8Array(await new Response(ds).arrayBuffer())}
+ return JSON.parse(new TextDecoder().decode(bytes))}
+const shareData=()=>{const d={s:st.s,ps:st.ps,rows:st.rows,bl:st.bl,gnd:st.gnd,sup:st.sup,info:st.info,goal:st.goal,units:st.units};if(st.bld&&st.bld.length)d.bld=st.bld;return d};
+async function shareLinkZ(){return APP_URL+"#z="+await encZ(shareData())}
+function shareSummary(){
+ const i=st.info,kind=i.kind==="液"?"液管":i.kind==="ガス"?"ガス管":"";
+ const head=[i.site,i.line,kind,brOn()?"分岐あり":SIZES[st.s][0]].filter(Boolean).join(" / ");
+ const ar={0:"⬆️",90:"➡️",180:"⬇️",270:"⬅️"};let n=0;const MAX=30;
+ const legText=g=>{const c=calc(g),rows=legRows(g);
+  const ls=rows.map((r,k)=>`${nm(k)} ${fmt(r.l)}mm ${r.a?r.a+"°"+(ar[effT(k,rows)]||dirShort(effT(k,rows))):"直管"} シュー${fmt(c.out[k].shoe)}`).filter(()=>++n<=MAX);
+  return (brOn()?`■${legName(g)} ${SIZES[legSize(g)][0]}\n`:"")+ls.join("\n")};
+ const tot=legIds().reduce((a,g)=>a+legRows(g).length,0);
+ return `📐曲げメモ ${head}\n${legIds().map(legText).filter(Boolean).join("\n")}${tot>MAX?"\n…ほか"+(tot-MAX)+"本":""}${bldSummary()}`}
+function bldSummary(){const B=st.bld||[];if(!B.length)return "";
+ const pos=o=>"（原点から 横"+fmt(o.x)+"・縦"+fmt(o.z)+"）",MAXK=8;
+ const fm={wall:o=>"長さ"+fmt(o.w)+" 厚"+fmt(o.d)+(o.full?" 天井まで":" 高さ"+fmt(o.h)),col:o=>fmt(o.w)+"×"+fmt(o.d),beam:o=>"長さ"+fmt(o.w)+" 幅"+fmt(o.d)+"×せい"+fmt(o.h)+" 梁下"+fmt(o.y),
+  box:o=>fmt(o.w)+"×"+fmt(o.d)+"×高さ"+fmt(o.h)+" 下面"+fmt(o.y),ind:o=>(o.m&&CAS2M[o.m]?CAS2M[o.m].n:fmt(o.w)+"×"+fmt(o.d)),hole:o=>"φ"+fmt(o.w)+" 中心の高さ"+fmt(o.y),
+  out:o=>(OUTM[o.m]?OUTM[o.m].n:"")+" "+fmt(o.w)+"×"+fmt(o.d),spot:o=>fmt(o.w)+"×"+fmt(o.d),door:o=>(o.m==="swing"?"開き戸":"引き戸")+" 幅"+fmt(o.w)+"×高さ"+fmt(o.h)};
+ const out=[];["ind","wall","door","col","beam","box","hole","out","spot"].forEach(k=>{const L=B.filter(o=>o.k===k);if(!L.length)return;const K=BLDK[k];
+  out.push(K.i+" "+K.n+" "+L.length+"個");L.slice(0,MAXK).forEach(o=>out.push("　・"+fm[k](o)+pos(o)));if(L.length>MAXK)out.push("　…ほか"+(L.length-MAXK)+"個")});
+ return "\n"+out.join("\n")}
+const nowStr=()=>{const d=new Date(),p=n=>("0"+n).slice(-2);return d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()+"（"+"日月火水木金土"[d.getDay()]+"） "+d.getHours()+":"+p(d.getMinutes())};
+async function exportTextZ(){return "🕒 "+nowStr()+" にコピー\n"+shareSummary()+(T&&T.hits&&T.hits.length?"\n⚠️ 配管が当たっている所："+T.hits.map(h=>(BLDK[h.k]?BLDK[h.k].n:"")).join("・"):"")+"\n――――――――\n📥 アプリの「貼り付けて読込」に、この文章を丸ごと貼り付けると同じ図が開きます（下のリンクをタップしても開きます）\n"+await shareLinkZ()}
 function exportText(){
  const i=st.info;
  const kind=i.kind==="液"?"液管":i.kind==="ガス"?"ガス管":"";
@@ -4238,6 +4340,7 @@ function applyData(d){
  st={s:d.s,rows:d.rows.slice(0,60).map(r=>({l:Math.max(0,+r.l||0),a:ANG.includes(+r.a)?+r.a:0,t:normT(r.t),o:!!r.o})),info:normInfo(d.info),goal:normGoal(d.goal),units:normUnits(d.units),ps:SIZES[d.ps]?d.ps:null,bl:normBL(d.bl),sup:d.sup?normSup(d.sup):st.sup,gnd:d.gnd?normGnd(d.gnd):st.gnd,bld:normBld(d.bld),scan:st.scan};
  leg="m";sel=0;save();$("#sz").value=st.s;render();if(T)fitT();return true;
 }
+async function importTextZ(txt){const m=txt.match(/[#&]z=([jz][A-Za-z0-9_\-]+)/);if(m){try{return applyData(await decZ(m[1]))}catch(e){return false}}return importText(txt)}
 function importText(txt){
  let d=null;
  {const b=txt.indexOf("#BLD:");if(b>=0){try{let j=JSON.parse(txt.slice(b+5).trim());if(!Array.isArray(j))j=j.bld;const a=normBld(j);if(a.length){st.bld=a;st.bldHide=false;save();render();if(T){build3D();fitT(true)}return true}}catch(e){}return false}}
@@ -4249,18 +4352,37 @@ function importText(txt){
  return applyData(d);
 }
 $("#copyTxt").onclick=async()=>{
- const t=exportText();
+ const t=shareSummary()+"\n"+await shareLinkZ();
  try{await navigator.clipboard.writeText(t);toast("コピーしました。LINEなどに貼り付けてください")}
  catch(e){closeCloud();$("#impTxt").value=t;$("#impOv").classList.add("on");$("#impTxt").select();toast("長押しでコピーしてください")}
 };
 $("#pasteTxt").onclick=()=>{closeCloud();$("#impTxt").value="";$("#impOv").classList.add("on")};
 $("#closeImp").onclick=()=>$("#impOv").classList.remove("on");
 $("#impOv").addEventListener("click",e=>{if(e.target.id==="impOv")$("#impOv").classList.remove("on")});
-$("#doImp").onclick=()=>{
- if(importText($("#impTxt").value)){$("#impOv").classList.remove("on");toast("読み込みました")}
+$("#doImp").onclick=async()=>{
+ if(await importTextZ($("#impTxt").value)){$("#impOv").classList.remove("on");toast("読み込みました")}
  else toast("読み込めませんでした。テキストを確認してください");
 };
 $("#shareLink").onclick=shareNow;
+const IS_APP=(()=>{try{return window.navigator.standalone===true||matchMedia("(display-mode: standalone)").matches}catch(e){return false}})();
+function sheetMsg(html,btns){const ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center";
+ ov.innerHTML=`<div style="background:#fff;color:#0f172a;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 16px);font-size:14.5px;line-height:1.6">${html}<div class="smb" style="display:flex;flex-direction:column;gap:8px;margin-top:12px"></div></div>`;
+ const B=ov.querySelector(".smb");btns.forEach(([t,f,bg,fg])=>{const b=document.createElement("button");b.textContent=t;b.style.cssText=`min-height:48px;border-radius:12px;font-weight:800;font-size:15px;border:0;background:${bg||"#e2e8f0"};color:${fg||"#0f172a"}`;b.onclick=()=>{ov.remove();f&&f()};B.appendChild(b)});
+ document.body.appendChild(ov);return ov}
+(async function(){const m=location.hash.match(/^#z=([jz][A-Za-z0-9_\-]+)/);if(!m)return;const code=m[1];
+ try{const d=await decZ(code);if(applyData(d)){history.replaceState(null,"",location.pathname);toast("送られたプランを開きました");
+  if(!IS_APP)setTimeout(()=>sheetMsg(`<b style="font-size:17px">📲 ホーム画面のアプリで開くには</b><p style="margin-top:6px">iPhoneは、リンクをタップすると必ずSafariで開きます（ホーム画面のアプリには直接届きません）。</p><p><b>① 下の「アプリ用にコピー」</b>を押す<br><b>② ホーム画面の「曲げメモ」</b>を開く<br><b>③ 上に出る「📋 コピーしたプランを開く」</b>を押す</p>`,
+   [["📋 アプリ用にコピー",async()=>{try{await navigator.clipboard.writeText(APP_URL+"#z="+code);toast("コピーしました。ホーム画面のアプリを開いてください")}catch(e){toast("コピーできませんでした")}},"#16a34a","#fff"],["このままSafariで見る"]]),600)}}
+ catch(e){toast("リンクのデータを読めませんでした")}})();
+/* ホーム画面のアプリ：開いた時・戻ってきた時に「コピーしたプランを開く」を出す（iPhoneはタップしないとコピーを読めない） */
+let PASTE_T=0;
+function pasteBanner(){if(!IS_APP||document.hidden)return;if(Date.now()-PASTE_T<4000)return;PASTE_T=Date.now();
+ let b=$("#pasteBan");if(!b){b=document.createElement("button");b.id="pasteBan";b.style.cssText="position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:9998;min-height:50px;border-radius:14px;border:0;background:#16a34a;color:#fff;font-weight:800;font-size:15px;box-shadow:0 6px 20px rgba(0,0,0,.3);transition:opacity .3s";document.body.appendChild(b)}
+ b.textContent="📋 LINEなどでコピーしたプランを開く";b.style.opacity="1";b.style.display="block";clearTimeout(b._t);b._t=setTimeout(()=>{b.style.opacity="0";setTimeout(()=>b.style.display="none",300)},7000);
+ b.onclick=async()=>{b.style.display="none";let t="";try{t=await navigator.clipboard.readText()}catch(e){toast("コピーを読めませんでした（「ペースト」を押してください）");return}
+  if(!/[#&]z=[jz]|#PBM:|#p=/.test(t)){toast("コピーされているのは、プランのリンクではありません");return}
+  sheetMsg(`<b style="font-size:17px">📥 コピーしたプランを開きますか？</b><p style="margin-top:6px">今の内容は、送られてきたプランに置きかわります。</p>`,[["開く",async()=>{if(await importTextZ(t))toast("開きました");else toast("読み込めませんでした")},"#16a34a","#fff"],["やめる"]])}}
+if(IS_APP){setTimeout(pasteBanner,800);document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(pasteBanner,300)})}
 (function loadFromHash(){
  const m=location.hash.match(/^#p=(.+)$/);
  if(!m)return;

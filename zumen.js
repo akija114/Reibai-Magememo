@@ -1,4 +1,4 @@
-/* 冷媒配管の曲げ共有：zumen.js（src/build.py で作成） */
+/* 冷媒配管の曲げ共有：zumen.js（図面アプリ） */
 /* ===== 図面（PDF・写真）を読み込んで、なぞって配管にする／CADのPDFは線に吸い付き・壁と天井高を自動で拾う ===== */
 let PLAN=null;   // {img:canvas, W,H, segs:[[x1,y1,x2,y2]], texts:[{s,x,y}], mmpp, den, route:[[x,y]], walls:[], CH, H, map, show}
 $("#planBtn").innerHTML=`<img alt="" src="${NICO.plan}" style="width:100%;height:100%;display:block;pointer-events:none">`;
@@ -318,27 +318,56 @@ function wzCancel(){const s=W.step;
  if(s==="cal"){wzGo("scale");return}
  $("#planOv").style.display="none"}
 /* 室内機 → 穴（順に・壁に直角に通す）→ 室外機 の配管を90°曲げで作る */
-function wzMakePipe(){const ind=st.bld[W.pi],out=st.bld[W.po];if(!ind||!out){toast("室内機と室外機を選んでください");return}
- const holes=(W.ph||[]).map(i=>st.bld[i]).filter(Boolean),ids={out,holes};
+function wzMakePipe(again){const ind=st.bld[W.pi],out=st.bld[W.po];if(!ind||!out){toast("室内機と室外機を選んでください");return}
+ /* 向きを変えて作り直せるように、作る前の状態を取っておく */
+ if(!again)W.snap=JSON.stringify({bld:st.bld,bldXf:st.bldXf||null,units:st.units,rows:st.rows,gnd:st.gnd,nopipe:!!st.nopipe});
  if(!indToPipe(W.pi,true)){return}
  /* indToPipeで位置が配管口基準に変わったので、同じ物を探し直す（並び順は室内機が抜けた分だけずれる） */
  const shift=i=>i>W.pi?i-1:i,O=st.bld[shift(W.po)],H=(W.ph||[]).map(i=>st.bld[shift(i)]).filter(Boolean);
- const V=THREE.Vector3,GY=T&&T.GYr!=null?T.GYr:-(st.gnd.ch||2400),S=300;
- const P=[new V(0,0,0),new V(S,0,0)],cur=()=>P[P.length-1],go=v=>{const c=cur(),n=c.clone().add(v);if(v.length()<1)return;
-  if(P.length>=2){const d0=c.clone().sub(P[P.length-2]).normalize(),d1=v.clone().normalize();if(d0.dot(d1)>0.999){c.copy(n);return}}P.push(n)};
- const toY=y=>go(new V(0,y-cur().y,0)),along=(dir,target)=>{const d=target.clone().sub(cur()).dot(dir);go(dir.clone().multiplyScalar(d))};
+ const V=THREE.Vector3,GY=T&&T.GYr!=null?T.GYr:-(st.gnd.ch||2400),S=300,MIN=250;
+ /* 配管口（原点）から +x に出る。天井の中（配管口の高さ）を横に走り、壁の手前で上下して穴を通す */
+ const P=[new V(0,0,0),new V(S,0,0)],cur=()=>P[P.length-1],dirNow=()=>cur().clone().sub(P[P.length-2]).normalize();
+ const go=v=>{if(v.length()<1)return;const c=cur(),n=c.clone().add(v);
+  if(P.length>=2){const d0=dirNow(),d1=v.clone().normalize();if(d0.dot(d1)>0.999){c.copy(n);return}}P.push(n)};
+ const toY=y=>go(new V(0,y-cur().y,0));
+ /* 横移動：直角の2本（どちらを先にするかは、今の向きと逆戻りしない方） */
+ const hmove=(tgt,ax)=>{const d=new V(tgt.x-cur().x,0,tgt.z-cur().z);if(d.length()<1)return;
+  const u=ax.clone().setY(0).normalize(),w=new V(-u.z,0,u.x),A=u.clone().multiplyScalar(d.dot(u)),B=w.clone().multiplyScalar(d.dot(w));
+  const dn=P.length>=2?dirNow():new V(0,0,0),bad=v=>v.length()>1&&v.clone().normalize().dot(dn)<-0.999,good=v=>v.length()>1&&v.clone().normalize().dot(dn)>0.999;
+  let first=A,second=B;if(bad(A)||(good(B)&&!good(A)))[first,second]=[B,A];
+  if(bad(first)&&second.length()<1){const j=w.clone().multiplyScalar(300);go(j);go(first);go(j.clone().negate());return}
+  go(first);go(second)};
+ /* 横移動して、最後は向き fd で目標に入る（逆向きになる時はコの字でまわる） */
+ const hmoveInto=(tgt,fd)=>{const u=fd.clone().setY(0).normalize(),d=new V(tgt.x-cur().x,0,tgt.z-cur().z),du=d.dot(u);
+  if(du>=100){const L=Math.min(MIN,du);hmove(tgt.clone().addScaledVector(u,-L),u);go(u.clone().multiplyScalar(L))}
+  else{const Q=tgt.clone().addScaledVector(u,-MIN);Q.y=cur().y;go(u.clone().multiplyScalar(Q.clone().sub(cur()).dot(u)));const w=new V(-u.z,0,u.x);go(w.clone().multiplyScalar(Q.clone().sub(cur()).dot(w)));go(u.clone().multiplyScalar(MIN))}};
+ let outN=null;
  H.forEach(h=>{const th=h.r*Math.PI/180,t=new V(Math.cos(th),0,Math.sin(th)),n=new V(-Math.sin(th),0,Math.cos(th)),C=new V(h.x,GY+h.y,h.z);
-  const sg=C.clone().sub(cur()).dot(n)>=0?1:-1,off=(h.d||150)/2+250,A=C.clone().addScaledVector(n,-sg*off),B=C.clone().addScaledVector(n,sg*off);
-  toY(A.y);along(t,A);along(n.clone().multiplyScalar(sg),A);go(B.clone().sub(cur()))});
+  const sg=C.clone().sub(cur()).dot(n)>=0?1:-1,nO=n.clone().multiplyScalar(sg),off=(h.d||150)/2+250,A=C.clone().addScaledVector(nO,-off),B=C.clone().addScaledVector(nO,off);
+  const Ah=A.clone();Ah.y=cur().y;hmove(Ah,t);   // 今の高さのまま、穴の手前の真上（真下）まで
+  toY(A.y);go(B.clone().sub(cur()));outN=nO});  // 穴の高さまで上下して、壁に直角に通す
  if(O){const th=O.r*Math.PI/180,lx=new V(Math.cos(th),0,Math.sin(th)),lz=new V(-Math.sin(th),0,Math.cos(th)),op=outPort(O.m||"p40"),
    T0=new V(O.x,GY+(O.y||0),O.z).addScaledVector(lx,op[0]).addScaledVector(lz,op[2]).add(new V(0,op[1],0)),Ap=T0.clone().addScaledVector(lx,250);
-  const last=P.length>=2?cur().clone().sub(P[P.length-2]).normalize():new V(1,0,0),perp=Math.abs(last.x)>Math.abs(last.z)?new V(0,0,1):new V(1,0,0),par=perp.x?new V(0,0,1):new V(1,0,0);
-  along(par,Ap);along(perp,Ap);toY(Ap.y);go(T0.clone().sub(cur()))}
+  if(outN){toY(T0.y);hmoveInto(T0,lx.clone().negate())}   // 穴から出たら、壁ぞいに室外機の高さまで下りて、横から入る
+  else{const Ah=Ap.clone();Ah.y=cur().y;hmove(Ah,lx);toY(Ap.y)}   // 穴なし：天井の中を室外機の真上まで行って下りる
+  go(T0.clone().sub(cur()))}
  const D0=new V(1,0,0),F=frameFor(D0),Pf=P.map(p=>new V(p.dot(F.ex),p.dot(F.ey),p.dot(F.ez)));
  const rows=polyToRows(Pf).filter(r=>r.l>0);if(!rows.length){toast("ルートを作れませんでした");return}
  st.rows=normRows(rows,[{l:1000,a:0,t:0,o:false}]);sel=0;st.units.e="";save();render();if(T){build3D();fitT(true)}
- W.psub="done";wzRender();
- setTimeout(()=>{$("#planOv").style.display="none";toast("配管ルートを作りました（曲げ"+rows.filter(r=>r.a).length+"か所・合計"+fmt(rows.reduce((a,r)=>a+r.l,0))+"mm）。⚠️が出たら当たっています")},300)}
+ W.psub="done";wzRender();wzOriBar(true);
+ setTimeout(()=>{const po=$("#planOv");if(po)po.style.display="none";toast("配管ルートを作りました（曲げ"+rows.filter(r=>r.a).length+"か所・合計"+fmt(rows.reduce((a,r)=>a+r.l,0))+"mm）。室内機の向きは下のボタンで変えられます")},300)}
+/* 作ったあと：室内機の向き（配管の出る側）を90°ずつ変えて作り直す */
+function wzOriBar(on){let b=$("#wzOri");
+ if(!on){if(b)b.remove();return}
+ if(!b){b=document.createElement("div");b.id="wzOri";b.style.cssText="position:absolute;left:50%;transform:translateX(-50%);bottom:10px;z-index:6;display:flex;gap:6px;align-items:center;background:#0f172ae6;color:#fff;border-radius:16px;padding:6px 8px;font-weight:800;font-size:13px;white-space:nowrap;box-shadow:0 4px 14px #0003";
+  b.innerHTML='<span style="padding:0 4px">❄️ 室内機の向き</span><button data-v="90" style="height:40px;border-radius:12px;background:#2563eb;color:#fff;font-weight:800;padding:0 12px">↻ 90°回す</button><button data-v="ok" style="height:40px;border-radius:12px;background:#16a34a;color:#fff;font-weight:800;padding:0 12px">✅ OK</button>';
+  $("#stage").appendChild(b);
+  b.onclick=e=>{const x=e.target.closest("button");if(!x)return;if(x.dataset.v==="ok"){W.snap=null;wzOriBar(false);return}wzRotateInd(90)}}}
+function wzRotateInd(deg){if(!W.snap){wzOriBar(false);return}
+ const o=JSON.parse(W.snap);st.bld=o.bld;st.bldXf=o.bldXf;st.units=o.units;st.rows=o.rows;st.gnd=o.gnd;st.nopipe=o.nopipe;
+ const ind=st.bld[W.pi];if(!ind){wzOriBar(false);return}ind.r=normT(ind.r+deg);
+ W.snap=JSON.stringify({...o,bld:st.bld});
+ if(T)build3D();wzMakePipe(true)}
 function wzCalDone(){if(!W.on||W.step!=="cal")return;wzSave();wzGo(PLAN.org?"menu":"org")}
 function wz3D(){const P=PLAN;if(P&&P.CH){st.gnd.ch=P.CH;if(st.nopipe){st.gnd.on=true;st.gnd.c=true;st.gnd.h=P.CH}}st.bldHide=false;wzSave();save();$("#planOv").style.display="none";
  try{render()}catch(e){}if(T){build3D();fitT(true)}toast("3Dで表示しました。図面に戻るときは、もう一度図面を開いてください")}

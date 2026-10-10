@@ -1,4 +1,4 @@
-/* 冷媒配管の曲げ共有：genchou.js（src/build.py で作成） */
+/* 冷媒配管の曲げ共有：genchou.js（現調・AR） */
 /* ===== Android（Chrome）のWebXR：床をタップして機器を置き、曲げ位置をタップして配管を引く ===== */
 let XR_AR=false;try{if(navigator.xr&&navigator.xr.isSessionSupported)navigator.xr.isSessionSupported("immersive-ar").then(v=>{XR_AR=!!v}).catch(()=>{})}catch(e){}
 function startXR(){

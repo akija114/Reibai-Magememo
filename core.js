@@ -2703,7 +2703,7 @@ function pasteBanner(){if(!IS_APP||document.hidden)return;if(Date.now()-PASTE_T<
  b.onclick=async()=>{b.style.display="none";let t="";try{t=await navigator.clipboard.readText()}catch(e){toast("コピーを読めませんでした（「ペースト」を押してください）");return}
   if(!/[#&]z=[jz]|#PBM:|#p=/.test(t)){toast("コピーされているのは、プランのリンクではありません");return}
   sheetMsg(`<b style="font-size:17px">📥 コピーしたプランを開きますか？</b><p style="margin-top:6px">今の内容は、送られてきたプランに置きかわります。</p>`,[["開く",async()=>{if(await importTextZ(t))toast("開きました");else toast("読み込めませんでした")},"#16a34a","#fff"],["やめる"]])}}
-if(IS_APP){setTimeout(pasteBanner,800);document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(pasteBanner,300)})}
+/* 開くたびに出ると見にくいので、自動では出さない（読み込みは 📤 の「読み込む」から） */
 (function loadFromHash(){
  const m=location.hash.match(/^#p=(.+)$/);
  if(!m)return;

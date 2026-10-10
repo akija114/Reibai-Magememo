@@ -1,7 +1,7 @@
 {
-  "name": "冷媒配管 曲げメモ",
-  "short_name": "曲げメモ",
-  "description": "冷媒配管の3D曲げメモ／ギアベンダー計算",
+  "name": "冷媒配管 曲げ共有",
+  "short_name": "曲げ共有",
+  "description": "冷媒配管の曲げ寸法を計算・3Dで確認・仲間と共有（ギアベンダー計算）",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -2954,6 +2954,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
   const mdlSel=()=>`<label style="display:block;font-size:13px;margin:4px 0">機種：<select id="wzIm" style="height:40px;border-radius:10px;font-size:14px;font-weight:700;max-width:100%"><option value="">（機種なし・四角の大きさの箱）</option>${CAS2_MAKERS.map(([mm,mn])=>`<optgroup label="${mn}">`+CAS2_ORDER.filter(x=>CAS2M[x].mk===mm).map(x=>`<option value="${x}"${x===W.im?" selected":""}>${CAS2M[x].n}（${CAS2M[x].kind}）</option>`).join("")+"</optgroup>").join("")}</select></label>`;
   if(k==="ind"){
    if(W.sub==="pick")h=`<p><b>図面の上の、室内機の四角を1つタップ</b>してください。同じ大きさの四角をまとめて探します。</p><p style="font-size:12.5px;color:#475569">2本指で拡大すると選びやすいです。</p><button id="wzOne" style="background:none;border:0;color:#2563eb;font-weight:800;font-size:13px;padding:4px 0">四角がない図面なら → タップした所に1台ずつ置く</button>`+done;
+   else if(W.sub==="notfound")h=`<p style="color:#b91c1c;font-weight:800">タップした所に、室内機くらいの大きさの四角が見つかりませんでした。</p><p style="font-size:13px">（図面の室内機が四角の線で描かれていないと見つかりません）</p>${mdlSel()}<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${wzBtn("wzTapPlace","❄️ タップした所に1台置く","#2563eb","#fff")}${wzBtn("wzRepick","別の所をタップし直す")}</div>`;
    else if(W.sub==="confirm"){const g=W.cand||[],r=W.pick;const w=r?Math.round((r.x1-r.x0)*P.mmpp/10)*10:0,d=r?Math.round((r.y1-r.y0)*P.mmpp/10)*10:0;
     h=`<p>${fmt(w)}×${fmt(d)} の四角が <b style="font-size:17px;color:#dc2626">${g.length}個</b> 見つかりました（図面で<b style="color:#dc2626">赤く</b>光っている所）。</p>${mdlSel()}
      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${wzBtn("wzAll","❄️ "+g.length+"台ぜんぶ置く","#2563eb","#fff","flex:1 1 100%")}${g.length>1?wzBtn("wzOnly","この1台だけ","","","flex:1"):""}${wzBtn("wzRepick","違う・選び直す","","","flex:1")}</div>`}
@@ -2997,7 +2998,8 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
  on("wzRedo",()=>{if(P){P.org=null}wzGo("scale")});
  on("wzClassic",()=>{W.on=false;try{localStorage.setItem("pbmPlanClassic","1")}catch(e){}wzApplyUI();PV.md("move");toast("細かい道具の画面です。下の「🧭 かんたん画面」で戻れます")});
  on("wzOne",()=>{W.sub="one";BT.tool="indone";BT.pts=[];wzRender()});on("wzPickMode",()=>{W.sub="pick";BT.tool="indpick";wzRender()});
- on("wzAll",()=>wzPlaceCand(W.cand||[]));on("wzOnly",()=>wzPlaceCand([W.pick]));on("wzRepick",()=>{W.sub="pick";W.cand=null;W.pick=null;BT.tool="indpick";wzRender();planDraw()});
+ on("wzAll",()=>wzPlaceCand(W.cand||[]));
+ on("wzTapPlace",()=>{const p=W.tap;if(!p)return;const q=btW(p),o=bldNew("ind",{x:q[0],z:q[1]});o.m=W.im||"";o.h=Math.max(10,BT.ih||300);btAdd([normBld([o])[0]]);W.sub="pick";W.tap=null;BT.tool="indpick";wzRender();planDraw();toast("室内機を置きました")});on("wzOnly",()=>wzPlaceCand([W.pick]));on("wzRepick",()=>{W.sub="pick";W.cand=null;W.pick=null;BT.tool="indpick";wzRender();planDraw()});
  {const e=$("#wzIm");if(e)e.onchange=()=>{W.im=e.value;wzRender()}}
  {const e=$("#wzOm");if(e)e.onchange=()=>{BT.om=e.value}}
  on("wzORot",()=>{BT.or=((BT.or||0)+90)%360;wzRender()});
@@ -3008,12 +3010,13 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
 }
 /* 室内機：タップした所の四角 → 同じ大きさの四角をまとめる */
 function wzPick(p){const P=PLAN;if(!P.rects){try{planAnalyze()}catch(e){}}const R=P.rects||[];
- const inn=R.filter(r=>p[0]>=r.x0-2&&p[0]<=r.x1+2&&p[1]>=r.y0-2&&p[1]<=r.y1+2&&Math.max(r.x1-r.x0,r.y1-r.y0)*P.mmpp>=200);
+ const okSz=r=>{const a=(r.x1-r.x0)*P.mmpp,b=(r.y1-r.y0)*P.mmpp;return Math.max(a,b)>=250&&Math.max(a,b)<=2000&&Math.min(a,b)>=150};   // 室内機くらいの大きさの四角だけ（部屋の枠などは使わない）
+ const inn=R.filter(r=>p[0]>=r.x0-2&&p[0]<=r.x1+2&&p[1]>=r.y0-2&&p[1]<=r.y1+2&&okSz(r));
  let r=inn.sort((a,b)=>(a.x1-a.x0)*(a.y1-a.y0)-(b.x1-b.x0)*(b.y1-b.y0))[0];
- if(!r){const tol=40/PV.z;let bd=1e9;R.forEach(q=>{const dx=Math.max(q.x0-p[0],0,p[0]-q.x1),dy=Math.max(q.y0-p[1],0,p[1]-q.y1),d=Math.hypot(dx,dy);if(d<tol&&d<bd&&Math.max(q.x1-q.x0,q.y1-q.y0)*P.mmpp>=200){bd=d;r=q}})}
- if(!r){toast("ここには四角が見つかりませんでした。四角の線の内側をタップしてください（四角がない図面なら「1台ずつ置く」）");planDraw();return}
+ if(!r){const tol=40/PV.z;let bd=1e9;R.forEach(q=>{const dx=Math.max(q.x0-p[0],0,p[0]-q.x1),dy=Math.max(q.y0-p[1],0,p[1]-q.y1),d=Math.hypot(dx,dy);if(d<tol&&d<bd&&okSz(q)){bd=d;r=q}})}
+ if(!r){W.tap=p.slice();W.sub="notfound";wzRender();planDraw();return}
  /* 室内機の記号は、外の大きい四角（パネル）より、内側にある本体の四角を選ぶことがあるので、いちばん外側の四角を優先 */
- const outer=inn.filter(q=>q!==r&&(q.x1-q.x0)*P.mmpp<2200&&(q.y1-q.y0)*P.mmpp<2200).sort((a,b)=>(b.x1-b.x0)*(b.y1-b.y0)-(a.x1-a.x0)*(a.y1-a.y0))[0];
+ const outer=inn.filter(q=>q!==r&&okSz(q)).sort((a,b)=>(b.x1-b.x0)*(b.y1-b.y0)-(a.x1-a.x0)*(a.y1-a.y0))[0];
  if(outer&&(outer.x1-outer.x0)<(r.x1-r.x0)*1.6)r=outer;
  const w0=(r.x1-r.x0),h0=(r.y1-r.y0),tl=Math.max(2,30/P.mmpp),same=q=>q.col===r.col&&((Math.abs((q.x1-q.x0)-w0)<tl&&Math.abs((q.y1-q.y0)-h0)<tl)||(Math.abs((q.x1-q.x0)-h0)<tl&&Math.abs((q.y1-q.y0)-w0)<tl));
  const g=[],tol2=300/P.mmpp;R.filter(same).forEach(q=>{const cx=(q.x0+q.x1)/2,cy=(q.y0+q.y1)/2;if(!g.some(z=>Math.hypot((z.x0+z.x1)/2-cx,(z.y0+z.y1)/2-cy)<tol2))g.push(q)});
@@ -3370,7 +3373,7 @@ function planDraw(){
   P.grids.forEach(g=>{x.strokeStyle="rgba(147,51,234,.55)";x.lineWidth=1.5;x.setLineDash([8,5]);x.beginPath();
    if(g.ax==="X"){const a=sp([g.v,0]),b=sp([g.v,P.H0]);x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1])}else{const a=sp([0,g.v]),b=sp([P.W,g.v]);x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1])}x.stroke();x.setLineDash([])})}
  if(P.cols)P.cols.forEach(c=>{const q=sp([c.cx,c.cy]);x.strokeStyle="#64748b";x.lineWidth=1.5;x.beginPath();x.moveTo(q[0]-6,q[1]);x.lineTo(q[0]+6,q[1]);x.moveTo(q[0],q[1]-6);x.lineTo(q[0],q[1]+6);x.stroke()});
- if(P.units)P.units.forEach((u,i)=>{const q=sp([u.cx,u.cy]);x.strokeStyle="#dc2626";x.lineWidth=2;x.beginPath();x.arc(q[0],q[1],9,0,7);x.moveTo(q[0]-14,q[1]);x.lineTo(q[0]+14,q[1]);x.moveTo(q[0],q[1]-14);x.lineTo(q[0],q[1]+14);x.stroke();
+ if(P.units&&!W.on)P.units.forEach((u,i)=>{const q=sp([u.cx,u.cy]);x.strokeStyle="#dc2626";x.lineWidth=2;x.beginPath();x.arc(q[0],q[1],9,0,7);x.moveTo(q[0]-14,q[1]);x.lineTo(q[0]+14,q[1]);x.moveTo(q[0],q[1]-14);x.lineTo(q[0],q[1]+14);x.stroke();
   x.fillStyle="#dc2626";x.font="bold 12px sans-serif";x.textAlign="left";x.fillText(String(i+1),q[0]+10,q[1]-10)});
  if(P.route.length){x.strokeStyle="#ea580c";x.lineWidth=5;x.lineJoin="round";x.beginPath();P.route.forEach((p,i)=>{const q=sp(p);i?x.lineTo(...q):x.moveTo(...q)});x.stroke();
   P.route.forEach((p,i)=>{const q=sp(p);x.fillStyle=i?"#ea580c":"#16a34a";x.beginPath();x.arc(q[0],q[1],i?6:8,0,7);x.fill()});

@@ -1442,33 +1442,43 @@ function planReadDrain(){const P=PLAN,mm=P.mmpp,px=v=>v/mm;if(!T||!T.UN)return n
    ・とも巻き：ドレンの上に冷媒を載せて一緒に巻く（間 0）
    ・全ねじの上（横掴みバンド）：ドレンを吊った全ねじに横掴みバンドで、ドレンの上に間を空けて通す（初期 50mm）
    並んで走る区間＝図面の冷媒がドレンから40cm以内の所。分かれた所から先は図面どおり室外機へ */
-function rjJoin(B,gap){if(!T||!T.UN)return null;const u=T.UN.find(x=>x.t==="s"&&x.dr)||T.UN.find(x=>x.dr),D=st.drain?DRN():null;if(!u||!D||!D.rows.length)return null;
- const V=THREE.Vector3,PA=drPath(u.dr.p.clone(),new V(u.dr.d.x,0,u.dr.d.z)),DP=PA.pts;if(DP.length<2)return null;
- const xz=p=>[p.x,p.z],near=q=>{let b=null,acc=0;for(let i=1;i<DP.length;i++){const a=xz(DP[i-1]),c=xz(DP[i]),L=v2l(v2s(c,a)),r=v2pd(q,a,c);if(!b||r.d<b.d-1)b={d:r.d,s:acc+r.tc*L,i};acc+=L}return b};
+function rjJoin(B,gap,from){if(!T||!T.UN)return null;const u=T.UN.find(x=>x.t==="s"&&x.dr)||T.UN.find(x=>x.dr),D=st.drain?DRN():null;if(!u||!D||!D.rows.length)return null;
+ const V=THREE.Vector3,DP=drPath(u.dr.p.clone(),new V(u.dr.d.x,0,u.dr.d.z)).pts;if(DP.length<2)return null;
+ /* ドレンの点ごとの位置（横の長さ s） */
+ const S=[0];for(let i=1;i<DP.length;i++)S.push(S[i-1]+Math.hypot(DP[i].x-DP[i-1].x,DP[i].z-DP[i-1].z));
+ const xz=p=>[p.x,p.z],near=q=>{let b=null;for(let i=1;i<DP.length;i++){const a=xz(DP[i-1]),c=xz(DP[i]),L=S[i]-S[i-1],r=v2pd(q,a,c);if(!b||r.d<b.d-1)b={d:r.d,s:S[i-1]+r.tc*L}}return b};
  /* 図面の冷媒（B[2]〜）がドレンに沿う所 */
  let k0=-1,m=-1;for(let k=2;k<B.length;k++){const r=near(xz(B[k]));if(r.d<=400){if(k0<0)k0=k;m=k}else if(k0>=0)break}
- if(k0<0||m<0)return null;
- const sA=near(xz(B[k0])).s,sM=near(xz(B[m])).s;if(sM-sA<800)return null;
- /* ドレンの上の高さ：沿う区間でいちばん高い所＋ドレンの半径＋間＋冷媒（保温込み）の半径。ドレンが10cm以上下がる所で沿うのをやめる */
- let acc=0,ymax=-1e9,sEnd=sM;const pts=[];
- for(let i=1;i<DP.length;i++){const a=DP[i-1],c=DP[i],L=v2l(v2s(xz(c),xz(a)));
-  if(acc+L>=sA&&acc<=sEnd){if(L<1&&a.y-c.y>100&&acc>sA){sEnd=acc;break}ymax=Math.max(ymax,a.y,c.y);if(L>=1){const t0=Math.max(0,(sA-acc)/L),t1=Math.min(1,(sEnd-acc)/L);[t0,t1].forEach(t=>pts.push([a.x+(c.x-a.x)*t,a.z+(c.z-a.z)*t]))}}
-  acc+=L}
- if(sEnd-sA<800||!pts.length)return null;
- const rD=(DR_MAT[D.mat].od[D.sz]||32)/2,rR=(SIZES[st.s]?SIZES[st.s][1]/2:8)+10,Yr=ymax+rD+gap+rR;
+ if(k0<0)return null;const sA=near(xz(B[k0])).s,sM=near(xz(B[m])).s;if(sM-sA<800)return null;
+ /* 沿わせ始める所：ドレンの角を選んだ時はそこ。自動＝ヤグラ（立ち上げ）を降りた所。降りる所が無ければ並び始める所 */
+ let sJ=sA,iJ=-1;
+ if(typeof from==="number"&&DP[from+1]){iJ=from+1;sJ=S[iJ]}
+ else{for(let i=1;i<DP.length;i++){if(S[i]-S[i-1]<1&&DP[i-1].y-DP[i].y>50&&S[i]>=sA-400&&S[i]<sM){iJ=i;sJ=S[i];break}}}
+ if(from==="auto"&&sM-sJ<800){sJ=sA;iJ=-1}   // 降りた後に並ぶ所がほとんど無ければ、並び始める所から
+ if(sJ<sA-400)sJ=sA;if(sM-sJ<300)return null;
+ const rD=(DR_MAT[D.mat].od[D.sz]||32)/2,rR=(SIZES[st.s]?SIZES[st.s][1]/2:8)+10,off=rD+gap+rR;
+ /* ドレンの s の所の点（同じ s に縦管があれば、下の方＝降りた後） */
+ const at=s=>{let p=null;for(let i=1;i<DP.length;i++){if(s>=S[i-1]-0.5&&s<=S[i]+0.5){const L=S[i]-S[i-1],t=L<1?1:Math.max(0,Math.min(1,(s-S[i-1])/L));p=DP[i-1].clone().lerp(DP[i],t)}}return p};
+ const J0=iJ>=0?DP[iJ].clone():at(sJ);if(!J0)return null;
  const PP=[new V(0,0,0)],cur=()=>PP[PP.length-1],go=v=>{if(v.length()<1)return;const c=cur(),n=c.clone().add(v);if(PP.length>=2){const d0=c.clone().sub(PP[PP.length-2]).normalize();if(d0.dot(v.clone().normalize())>0.999){c.copy(n);return}}PP.push(n)};
  const toXZ=(x,z)=>{const d=new V(x-cur().x,0,z-cur().z);if(d.length()<1)return;const ax=Math.abs(d.x)>=Math.abs(d.z);go(ax?new V(d.x,0,0):new V(0,0,d.z));go(ax?new V(0,0,d.z):new V(d.x,0,0))};
- go(new V(0,Yr,0));toXZ(pts[0][0],pts[0][1]);
- for(let i=1;i<pts.length;i++){const p=pts[i],c=cur(),d=new V(p[0]-c.x,0,p[1]-c.z);if(d.length()>=1)go(d)}
- /* 分かれる所：図面の冷媒の高さへ上げ下げしてから、残りは図面どおり */
+ /* ① 沿わせ始める所までは、図面の冷媒のまま */
+ let kj=1;for(let k=2;k<=m;k++){if(near(xz(B[k])).s<sJ-100)kj=k;else break}   // 合流点の手前まで（通り過ぎて戻らない）
+ for(let k=1;k<=kj;k++)go(B[k].clone().sub(cur()));
+ /* ② 合流：その高さのまま真上まで行き、ドレンの上（＋間）へ上げ下げ */
+ toXZ(J0.x,J0.z);go(new V(0,J0.y+off-cur().y,0));
+ /* ③ ドレンに沿う（勾配・縦管もドレンと一緒） */
+ for(let i=1;i<DP.length;i++){if(S[i]<=sJ+0.5||(iJ>=0&&i<=iJ))continue;if(S[i-1]>=sM)break;
+  const t=S[i]>sM&&S[i]-S[i-1]>=1?(sM-S[i-1])/(S[i]-S[i-1]):1,p=DP[i-1].clone().lerp(DP[i],t);if(iJ>=0&&i<=iJ)continue;go(new V(p.x,p.y+off,p.z).sub(cur()));if(t<1)break}
+ /* ④ 分かれる所：図面の冷媒の高さへ上げ下げしてから、残りは図面どおり */
  const rest=B.slice(m);if(rest.length){go(new V(0,rest[0].y-cur().y,0));toXZ(rest[0].x,rest[0].z);for(let i=1;i<rest.length;i++)go(rest[i].clone().sub(cur()))}
- return{PP,len:Math.round(sEnd-sA),Yr}}
+ return{PP,len:Math.round(sM-sJ),sJ:Math.round(sJ),iJ}}
 function rjApply(){const R=st.rj;if(!R||!R.base||R.base.length<2)return null;const V=THREE.Vector3,B=R.base.map(a=>new V(a[0],a[1],a[2]));
- let PP=B,J=null;if(R.mode!=="sep"){J=rjJoin(B,R.mode==="tomo"?0:R.gap);if(J)PP=J.PP}R.len=J?J.len:0;
+ let PP=B,J=null;if(R.mode!=="sep"){J=rjJoin(B,R.mode==="tomo"?0:R.gap,R.from==null?"auto":R.from);if(J)PP=J.PP}R.len=J?J.len:0;
  const rows=polyToRows(PP).filter(r=>r.l>0);if(!rows.length)return null;st.rows=normRows(rows,[{l:1000,a:0,t:0,o:false}]);sel=0;save();render();if(T){build3D();T.dirty=true}return J}
 /* 自動読み込みの後：図面で沿っていれば「全ねじの上・50mm」、沿っていなければ別ルート */
-function rjInit(PP){const keep=st.rj&&st.rj.gap!=null?st.rj.gap:50;st.rj={mode:"sep",gap:keep,base:PP.map(p=>[Math.round(p.x),Math.round(p.y),Math.round(p.z)]),len:0};
- let J=null;try{J=rjJoin(PP,keep)}catch(e){console.warn(e)}if(J){st.rj.mode="rod";rjApply()}return st.rj}
+function rjInit(PP){const keep=st.rj&&st.rj.gap!=null?st.rj.gap:50;st.rj={mode:"sep",gap:keep,from:"auto",base:PP.map(p=>[Math.round(p.x),Math.round(p.y),Math.round(p.z)]),len:0};
+ let J=null;try{J=rjJoin(PP,keep,"auto")}catch(e){console.warn(e)}if(J){st.rj.mode="rod";rjApply()}return st.rj}
 /* ===== 🧱 壁のお手本：壁の中（2本の線の間）をタップ → その厚さ・色の壁を、画面に見えている範囲から全部取り込む ===== */
 function planWallLearn(p,rg,quiet){const P=PLAN,mm=P.mmpp;
  const neu=c=>{const[r,g,b]=rgbOf(c);return Math.max(r,g,b)-Math.min(r,g,b)<24};   // 壁はグレーか黒の線（色付きの線は設備なので見ない）

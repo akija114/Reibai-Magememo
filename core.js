@@ -678,7 +678,7 @@ function makeUnit(type,opt){
   bx(Lb,HB,Wb,0,TOP-HB/2,0,0x9ca3af);                                                      // 本体（天井裏）
   if(!md.bi)rb(md.pa,md.pt,md.pb,20,0,-md.pt/2,0,WH);                                                  // パネル
   const py=-md.pt-2,sl=(lx,lz,x,z,rx,rz)=>{bx(lx,5,lz,x,py,z,DK);const f=bx(lx*.97,6,lz*.97+8,x,py-5,z,0xf8fafc);if(rx)f.rotation.x=rx;if(rz)f.rotation.z=rz};
-  if(md.kind==="4方向"){const q=md.pa/2-80,ln=md.pa*.6;sl(ln,60,0,q,0,q,0.5);sl(ln,60,0,-q,0,-0.5);sl(60,ln,q,0,0,0,-0.5);sl(60,ln,-q,0,0,0,0.5);
+  if(md.kind==="4方向"){const q=md.pa/2-80,ln=md.pa*.6;sl(ln,60,0,q,0.5);sl(ln,60,0,-q,-0.5);sl(60,ln,q,0,0,-0.5);sl(60,ln,-q,0,0,0.5);   // 4辺の吹出口：ルーバーは外側へ斜め下
    bx(md.pa*.5,4,md.pb*.5,0,py+1,0,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.48,2,5,0,py-2,i*md.pb*.045,MD)}
   else if(md.kind==="1方向"){const q=md.pb/2-80;sl(md.pa*.8,62,0,-q,-0.5);
    bx(md.pa*.82,4,md.pb*.5,0,py+1,md.pb*.12,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.8,2,5,0,py-2,md.pb*.12+i*md.pb*.045,MD)}

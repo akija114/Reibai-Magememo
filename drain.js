@@ -60,7 +60,7 @@ function drCalc(){const D=DRN(),M=DR_MAT[D.mat],R={hz:0,vt:0,up:0,drop:0,fit:new
 const drBand=(D,sz)=>D.mat==="AC"?`AC${sz}用（保温付き・外径約${DR_MAT.AC.od[sz]}mm）吊りバンド`:`VP${sz}用 吊りバンド`;
 
 /* 3D：冷媒と同じ空間に描く（core.js の build3D から呼ばれる） */
-function addDrain3D(UN,bb){const D=st.drain?DRN():null;if(!D||!D.show||!D.rows.length||!T)return;
+function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.show||!D.rows.length||!T)return;
  const V=THREE.Vector3,u=(UN||[]).find(x=>x.t==="s"&&x.dr)||(UN||[]).find(x=>x.dr),S=u?u.dr.p.clone():new V(0,0,0);
  const d0=u?new V(u.dr.d.x,0,u.dr.d.z):new V(1,0,0);if(d0.lengthSq()<1e-6)d0.set(1,0,0);
  const PA=drPath(S,d0);let sz=D.sz;const pts=[{p:PA.pts[0],sz}];
@@ -70,6 +70,7 @@ function addDrain3D(UN,bb){const D=st.drain?DRN():null;if(!D||!D.show||!D.rows.l
  const mat=new THREE.MeshStandardMaterial({color:DR_MAT[D.mat].col,roughness:.6}),jm=new THREE.MeshStandardMaterial({color:D.mat==="AC"?0x0ea5e9:0x6b7280,roughness:.5}),Y=new V(0,1,0);
  const rad=s2=>{const od=DR_MAT[D.mat].od[s2]||32;return Math.min(od/2*3,Math.max(od/2,ext*0.006))};
  for(let i=0;i<pts.length-1;i++){const a=pts[i].p,b=pts[i+1].p,L=a.distanceTo(b);if(L<1)continue;const r=rad(pts[i+1].sz);
+  (T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:(DR_MAT[D.mat].od[pts[i+1].sz]||32)/2,dr:1});
   const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,16),mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(m);
   const j=new THREE.Mesh(new THREE.SphereGeometry(r*1.3,14,10),jm);j.position.copy(b);g.add(j);
   try{const s=label("💧"+(i+1)+" "+fmt(pts[i+1].l)+(pts[i+1].vert?"":"（-"+fmt(pts[i+1].l/D.slope)+"）"),ext*0.028,"#e0f2fef2","#0c4a6e");s.position.copy(a).add(b).multiplyScalar(.5);s.userData.cat="drain";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
@@ -120,7 +121,7 @@ body.drmode #drPanel{display:block}
   tg.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));document.body.classList.toggle("drmode",m==="dr");
   if(m==="dr"){const D=DRN();if(!D.rows.length){D.rows=[{l:1000,a:0,t:0,tee:false,sz:0}];D.show=true;save();drRedraw()}drRender()}
   try{setTimeout(sizeT,30)}catch(err){}};
- let rt=0;window.drRedraw=()=>{clearTimeout(rt);rt=setTimeout(()=>{if(T){build3D();T.dirty=true}},120)};
+ let rt=0;window.drRedraw=()=>{clearTimeout(rt);rt=setTimeout(()=>{if(T){build3D();T.dirty=true;drSum()}},120)};
  pn.addEventListener("input",e=>{const el=e.target,i=+el.dataset.i,k=el.dataset.k,D=DRN();
   if(k==="l"&&D.rows[i]){D.rows[i].l=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum();drRedraw()}
   else if(k==="t"&&D.rows[i]){let v=+el.value;const m=Math.round(v/45)*45;if(Math.abs(v-m)<=6)v=m;el.value=v;D.rows[i].t=normT(v);const gv=el.closest(".gauge").querySelector(".gval");if(gv)gv.textContent=dirName(v);save(true);drRedraw()}
@@ -169,13 +170,15 @@ function drSumHtml(){const D=DRN(),R=drCalc(),M=DR_MAT[D.mat];
  const L=drUpLimit(),RS=drRise();
  const upTxt=RS.up>0?(L?(RS.top>L.lim?`<div class="drnote">⚠️ <b>ドレンアップの上限を超えています</b>：${L.ref}から <b>${fmt(RS.top)}</b>mm（ドレン口${fmt(RS.y0)}＋立ち上げ${fmt(RS.up)}）。上限は <b>${fmt(L.lim)}</b>mm（${L.src}）です。</div>`:`<div class="drnote" style="background:#ecfdf5;color:#065f46">✅ ドレンアップ：${L.ref}から ${fmt(RS.top)}mm（上限 ${fmt(L.lim)}mm 以内・${L.src}）</div>`):`<div class="drnote">ℹ️ 立ち上げ ${fmt(RS.up)}mm。この機種のドレンアップ上限が分からないので、下の「ドレンアップ上限」に入れるとチェックします。</div>`):"";
  const warn=upTxt;
+ const cw=T&&T.ceilWarn,dmin=(T&&T.drSegs||[]).length&&ceilY()!=null?(()=>{let m=null;T.drSegs.forEach(d=>{const L=d.a.distanceTo(d.b);if(L<50||Math.abs(d.b.y-d.a.y)>L*0.3)return;const c=Math.round(Math.min(d.a.y,d.b.y)-d.r-ceilY());if(c<-40)return;if(m===null||c<m)m=c});return m})():null;
+ const ceilTxt=dmin===null?"":dmin<CEIL_R?`<div class="drnote" style="background:#fee2e2;color:#991b1b">⛔ <b>高さ注意</b>：ドレンの下側が天井の仕上げから <b>${dmin}mm</b>。30mm未満はシングルバー・ダブルバーに当たります。70mm以上上げてください。</div>`:dmin<CEIL_Y?`<div class="drnote" style="background:#fef9c3;color:#854d0e">⚠️ <b>親バー注意</b>：ドレンの下側が天井の仕上げから <b>${dmin}mm</b>。70mm未満は、親バーの向きによっては当たります。</div>`:`<div class="drnote" style="background:#ecfdf5;color:#065f46">✅ 天井の仕上げから ${dmin}mm（70mm以上）</div>`;
  return `<h4>📏 計算</h4><table class="drsum" style="width:100%;border-collapse:collapse">
  <tr><td>材質</td><td><b>${M.n}</b>　${M.s}${D.sz}${R.szEnd!==D.sz?" → "+M.s+R.szEnd:""}（外径 約${M.od[D.sz]}${R.szEnd!==D.sz?"→"+M.od[R.szEnd]:""}mm）</td></tr>
  <tr><td>直線の合計</td><td><b>${fmt(R.tot)}</b> mm（横引き ${fmt(R.hz)}・立て ${fmt(R.vt)}）</td></tr>
  <tr><td>必要な落差</td><td><b>${fmt(R.drop)}</b> mm（横引き ${fmt(R.hz)} × 1/${D.slope}）</td></tr>
  <tr><td>継手</td><td>${fit}</td></tr>
  <tr><td>吊り金具</td><td><b>${R.sup}</b> 個（${drBand(D,D.sz)}${R.szEnd!==D.sz?"／太い所は "+drBand(D,R.szEnd):""}）<br><small>横引き ${(D.span/1000).toFixed(1)}m おき＋継手の近く（150mm以内）に1か所ずつ</small>${R.vsup?`<br>立てバンド ${R.vsup} 個`:""}</td></tr>
- </table>${trw}${warn}<div style="font-size:12px;color:var(--sub);margin-top:6px">数は目安です。継手の品番・外径はメーカーで確認してください。ソケットは定尺4mを超える所の数です。</div>`}
+ </table>${ceilTxt}${trw}${warn}<div style="font-size:12px;color:var(--sub);margin-top:6px">数は目安です。継手の品番・外径はメーカーで確認してください。ソケットは定尺4mを超える所の数です。</div>`}
 function drSum(){const b=$("#drSumBox");if(b)b.innerHTML=drSumHtml()}
 /* 📋 まとめ：冷媒とドレンを1つの画面で */
 function drSumOpen(){const sh=$("#drSumSh");if(!sh)return;
@@ -192,5 +195,26 @@ function drSumOpen(){const sh=$("#drSumSh");if(!sh)return;
  $("#drSumX").onclick=()=>$("#drSumOv").classList.remove("on");
  $("#drSV1").onclick=()=>{setAllHid(!HID.size);drSumOpen()};
  $("#drSV2").onclick=()=>{D.show=!D.show;save();drRedraw&&drRedraw();drSumOpen()}}
+/* ===== 天井（仕上げ面）との離れのチェック：軽天の下地に当たらないか =====
+   配管の下側が仕上げ面から 70mm未満＝黄色（親バーの向きによっては当たる）、30mm未満＝赤（シングル・ダブルバーに当たる） */
+const CEIL_Y=70,CEIL_R=30;
+function ceilY(){if(T&&T.cy!=null)return T.cy;const u=T&&T.UN&&T.UN.find(x=>x.c2);return u?u.c2.cy:null}
+function ceilCheck3D(){if(!T||!T.grp||(typeof GUIDE!=="undefined"&&GUIDE))return;const CY=ceilY();T.ceilWarn={red:[],yel:[],min:null};if(CY==null)return;
+ const V=THREE.Vector3,list=[];
+ (T.segs||[]).forEach(sg=>{let od=12.7;try{od=SIZES[legSize(sg.g)][1]}catch(e){}list.push({a:sg.a,b:sg.b,r:od/2+10,k:"冷媒",g:sg.g,row:sg.row})});   // 冷媒は保温10mmぶん足す
+ (T.drSegs||[]).forEach(d=>list.push({a:d.a,b:d.b,r:d.r,k:"ドレン"}));
+ const ext=T.ext||3000,seen=new Set();
+ list.forEach(o=>{const L=o.a.distanceTo(o.b);if(L<50)return;if(Math.abs(o.b.y-o.a.y)>L*0.3)return;   // 横に走る所だけ
+  const low=Math.min(o.a.y,o.b.y)-o.r,c=Math.round(low-CY);if(c<-40)return;   // 天井より下（露出）は見ない
+  if(T.ceilWarn.min===null||c<T.ceilWarn.min)T.ceilWarn.min=c;
+  if(c>=CEIL_Y)return;const red=c<CEIL_R;(red?T.ceilWarn.red:T.ceilWarn.yel).push({k:o.k,c,row:o.row,g:o.g});
+  const m=o.a.clone().add(o.b).multiplyScalar(.5),key=Math.round(m.x/200)+","+Math.round(m.z/200);if(seen.has(key))return;seen.add(key);
+  const sl=new THREE.Mesh(new THREE.CylinderGeometry(Math.max(o.r*1.8,ext*0.008),Math.max(o.r*1.8,ext*0.008),L,16),new THREE.MeshBasicMaterial({color:red?0xef4444:0xfacc15,transparent:true,opacity:.45,depthWrite:false}));
+  sl.position.copy(m);sl.quaternion.setFromUnitVectors(new V(0,1,0),o.b.clone().sub(o.a).normalize());T.grp.add(sl);
+  try{const t=(red?"⛔ 高さ注意 ":"⚠️ 親バー注意 ")+o.k+"：天井から"+c+"mm",s2=label(t,ext*0.028,red?"#fee2e2f2":"#fef9c3f2",red?"#b91c1c":"#854d0e");s2.position.copy(m);s2.userData.cat="hit";if(typeof pxl==="function")pxl(s2,15,{t:"up"},0);T.grp.add(s2)}catch(e){}});
+ const sig=T.ceilWarn.red.length+"/"+T.ceilWarn.yel.length;
+ if(sig!==ceilCheck3D.sig&&(T.ceilWarn.red.length||T.ceilWarn.yel.length))setTimeout(()=>toast(T.ceilWarn.red.length?"⛔ 天井の仕上げから30mm未満の配管があります（シングル・ダブルバーに当たります）":"⚠️ 天井の仕上げから70mm未満の配管があります（親バーの向きによっては当たります）"),350);
+ ceilCheck3D.sig=sig}
+(function(){const orig=build3D;build3D=function(){const r=orig.apply(this,arguments);try{ceilCheck3D()}catch(e){console.warn("ceil",e)}return r}})();
 /* 読み込み終わったら、ドレンも3Dに出す */
 if(T){try{build3D();T.dirty=true}catch(e){}}

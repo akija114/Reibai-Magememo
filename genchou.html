@@ -251,15 +251,6 @@ input[type=range]{accent-color:var(--acc)}
 .toast.on{opacity:1}
 
 /* 外国語のとき：文字が長くなるので、ボタンを文字に合わせて伸ばす */
-html.lx .ins{width:auto;min-width:44px;padding:0 9px;white-space:nowrap;font-size:13px}
-html.lx .seg button,html.lx .dirbtns button,html.lx .tnav button,html.lx .dirangs button{height:auto;min-height:48px;padding:6px 8px;line-height:1.2;font-size:14px}
-html.lx .sharebtn{height:auto;min-height:44px;padding:8px 14px;line-height:1.25}
-html.lx .legadd{height:auto;min-height:40px;padding:6px 10px;line-height:1.2;font-size:12.5px}
-html.lx .pmenu .pm{height:auto;min-height:42px;padding:8px 12px;line-height:1.25}
-html.lx .pmenu .pr .pm{padding:8px 4px}
-html.lx .ubtn{height:auto;min-height:58px;padding:6px 4px;line-height:1.2;text-align:center}
-html.lx .dock button{height:auto;min-height:54px;padding:6px 8px;line-height:1.2;font-size:15px}
-html.lx .ofsrow .seg{width:170px}
 
 .apps{flex:none;display:flex;gap:4px;margin:0 0 6px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:3px}
 .apps a{flex:1;text-align:center;padding:7px 0;border-radius:9px;font-size:13.5px;font-weight:800;color:var(--sub);text-decoration:none;white-space:nowrap}
@@ -383,9 +374,6 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
     <div class="shead"><h3>🔤 文字の表示</h3><button id="closeLab">✕</button></div>
     <div style="font-size:13px;font-weight:800;margin:2px 0 4px">📏 単位</div>
     <div class="seg" id="unitSw" style="margin-bottom:8px" data-notr><button data-v="mm">mm</button><button data-v="in">inch</button></div>
-    <div style="font-size:13px;font-weight:800;margin:2px 0 4px">🌐 言語</div>
-    <div class="seg" id="langSw" style="margin-bottom:4px" data-notr><button data-v="ja" style="font-size:14px">日本語</button><button data-v="en" style="font-size:14px">English</button><button data-v="es" style="font-size:14px">Español</button><button data-v="de" style="font-size:14px">Deutsch</button></div>
-    <div class="note" style="margin:0 0 10px">切り替えるとページを読み込み直します</div>
     <div id="labList"></div>
     <div style="display:flex;gap:8px;margin:6px 0 4px"><button class="sharebtn" id="labAll" style="flex:1;margin:0">すべて表示</button><button class="sharebtn" id="labNone" style="flex:1;margin:0">すべて非表示</button></div>
     <button class="sharebtn" id="labDef" style="width:100%;margin:6px 0 4px">📏📐 寸法と角度だけ（初期設定）</button>
@@ -535,7 +523,6 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <div class="toast" id="toast"></div>
 
 <script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
-<script>try{if(["en","es","de"].includes(localStorage.getItem("pbm_lang")))document.write('<script src="lang.js"><\/script>')}catch(e){}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="genchou";</script>
 <script src="models.js?v=140"></script>

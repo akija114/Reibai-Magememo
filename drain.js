@@ -160,7 +160,8 @@ body.drmode #drPanel{display:block}
   else if(k==="bl"&&D.rows[i]){D.rows[i].bl=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum();drRedraw()}
   else if(/^sl[hLp]$/.test(k)){D.sl[k.slice(2)]=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum();drLvRender()}
   else if(k==="du"){D.du=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum()}
-  else if(/^tr[HWFRS]$/.test(k)){D.tr[k.slice(2)]=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true)}});
+  else if(/^tr[HWFRS]$/.test(k)){D.tr[k.slice(2)]=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true)}
+  else if(k==="rjg"&&st.rj&&typeof rjApply==="function"){st.rj.gap=Math.max(0,Math.min(300,parseInt(String(el.value).replace(/[^0-9]/g,""))||0));clearTimeout(window._rjT);window._rjT=setTimeout(()=>rjApply(),300)}});
  pn.addEventListener("change",e=>{const el=e.target,i=+el.dataset.i,k=el.dataset.k,D=DRN();
   if(k==="j"&&D.rows[i])D.rows[i].j=el.value;else if(k==="bsz"&&D.rows[i])D.rows[i].bsz=+el.value;else if(k==="bs"&&D.rows[i])D.rows[i].bs=el.value;else if(k==="sz"&&D.rows[i])D.rows[i].sz=+el.value;else if(k==="msz")D.sz=+el.value;else if(k==="co")D.co=el.checked;else if(k==="show")D.show=el.checked;else return;
   save();drRender();drRedraw()});
@@ -174,7 +175,8 @@ body.drmode #drPanel{display:block}
   else if(k==="rk"){drRank(+b.dataset.v);toast(+b.dataset.v>0?"⬆ 全部1ランク上げました（始まり "+DR_MAT[D.mat].s+D.sz+"）":"⬇ 1ランク下げました")}
   else if(k==="lvfix"){const f=drToriiFix();if(!f)return;Object.assign(D.tr,{H:f.H,R:f.R,F:f.F});drTorii();toast("⛩ 立ち上げ "+f.H+"mm の鳥居にしました")}
   else if(k==="trOff"){D.tr.on=false;D.rows.forEach(r=>r.tr=false)}
-  else if(k==="sum"){drSumOpen();return}else return;
+  else if(k==="sum"){drSumOpen();return}
+  else if(k==="rj"&&st.rj&&typeof rjApply==="function"){st.rj.mode=b.dataset.v;const J=rjApply();if(st.rj.mode!=="sep"&&!J)toast("図面では冷媒とドレンが並んで走る区間がないので、別ルートのままです");drRender();return}else return;
   save();drRender();drRedraw()});
 })();
 function drStartName(){const u=T&&T.UN&&(T.UN.find(x=>x.t==="s"&&x.dr)||T.UN.find(x=>x.dr));return u?"室内機のドレン口（"+u.name+"）":"配管の始まり（室内機の模型をONにすると、ドレン口から始まります）"}
@@ -188,6 +190,9 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  <div style="font-size:13px;color:var(--sub)">吊りの間隔（横引き）</div>${seg("span",[[1000,"1.0m"],[1200,"1.2m"],[1500,"1.5m"]],D.span)}
  ${(()=>{const L=drUpLimit();return `<div style="font-size:13px;color:var(--sub);margin:4px 0 8px">ドレンアップ上限：<b style="color:var(--ink)">${L?L.ref+"から "+fmt(L.lim)+"mm（"+L.src+"）":"機種の値なし"}</b><br><label>自分で入れる（0＝機種の値）<input data-k="du" inputmode="numeric" value="${D.du||0}" style="width:90px;height:38px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right;margin-left:6px">mm</label></div>`})()}
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700"><input type="checkbox" data-k="show" ${D.show?"checked":""} style="width:22px;height:22px">3Dにドレンを表示</label></div>
+ ${st.rj&&typeof rjApply==="function"?`<div class="drc"><h4>🔗 冷媒の通し方</h4>${seg("rj",[["sep","別ルート"],["tomo","とも巻き"],["rod","全ねじの上（横掴み）"]],st.rj.mode)}
+ ${st.rj.mode==="rod"?`<label style="font-size:13px;color:var(--sub)">ドレンと冷媒の間 <input data-k="rjg" inputmode="numeric" value="${st.rj.gap}" style="width:80px;height:38px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right">mm</label><div style="font-size:12px;color:var(--sub)">天井裏が狭い時は詰める・広い時は100mmなど</div>`:""}
+ <div class="drnote">${st.rj.mode==="sep"?"冷媒は図面どおり、ドレンとは別のルートです。":st.rj.len?`冷媒をドレンの上に通しています（並んで走る区間 約${fmt(st.rj.len)}mm）。${st.rj.mode==="tomo"?"ドレンの上に載せて一緒に巻きます。":"ドレンの全ねじに横掴みバンドで付けます。"}分かれた所から先は図面どおり。`:"図面では、冷媒とドレンが並んで走る区間がありません（別の穴から出ています）。"}</div></div>`:""}
  <div class="drc"><h4>📐 サイズを図面より上げる</h4><div style="font-size:12.5px;color:var(--sub)">図面はVP30だけど40にしてほしい、という時に。始まり・径変更・合流の枝を全部まとめて変えます。</div>
  <div class="drseg"><button data-k="rk" data-v="1">⬆ 全部1ランク上げる</button><button data-k="rk" data-v="-1">⬇ 1ランク下げる</button></div>${D.up?`<div class="drnote" style="background:#eef2ff;color:#3730a3">図面より <b>${D.up>0?"+":""}${D.up}ランク</b>（今の始まり ${M.s}${D.sz}）</div>`:""}</div>
  <div class="drc"><h4>🕳 スリーブ穴から逆算（オートレベル）</h4><div style="font-size:12.5px;color:var(--sub);margin-bottom:6px">出口（外壁のスリーブ穴など）の高さから、勾配で上流へ上っていって、室内機のドレン口に必要な高さを出します。</div>

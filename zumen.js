@@ -1298,9 +1298,11 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  st.rows=normRows(rows,[{l:1000,a:0,t:0,o:false}]);sel=0;st.units.e="";save();render();if(T){build3D();fitT(true)}
  /* ドレン：図面のオレンジの管から自動で作る（冷媒と同じ3Dに出す） */
  let DRr=null;try{DRr=planReadDrain();if(DRr){save();render();if(T){build3D();fitT(true)}}}catch(e){console.warn("drain read",e)}
+ /* 冷媒の通し方：図面で冷媒とドレンが並んで走っていれば、ドレンの上（全ねじの横掴み・50mm）に通す */
+ let RJ=null;if(DRr){try{RJ=rjInit(Pf)}catch(e){console.warn("rj",e)}}else st.rj=null;
  const po=$("#planOv");if(po)po.style.display="none";
- toast("読み込みました：室内機 "+CAS2M[I.k].n+"（天井 "+fmt(CH)+(BI&&botFL?"・本体下面 FL+"+fmt(botFL):"")+"）"+(O?"・室外機 "+fmt(O.w)+"×"+fmt(O.d):"")+"・配管 "+(szG>=0?SIZES[szG][0].split(" ")[0]+(szL>=0?"／"+SIZES[szL][0].split(" ")[0]:""):"")+(pipeH?" FL+"+pipeH:"")+"（合計"+fmt(rows.reduce((a,r)=>a+r.l,0))+"mm）"+(DRr?"・ドレン "+DRr.sizes.map(z=>z+"A").join("／")+" "+fmt(DRr.len)+"mm（1/"+DRr.slope+(DRr.co?"・掃除口 "+DRr.co:"")+"）":""));
- return{ind:CAS2M[I.k].n,CH,botFL,indY,drain:DRr,pipeH,szG,szL,out:O?[O.w,O.d,O.m]:null,rows:rows.length}}
+ toast("読み込みました：室内機 "+CAS2M[I.k].n+"（天井 "+fmt(CH)+(BI&&botFL?"・本体下面 FL+"+fmt(botFL):"")+"）"+(O?"・室外機 "+fmt(O.w)+"×"+fmt(O.d):"")+"・配管 "+(szG>=0?SIZES[szG][0].split(" ")[0]+(szL>=0?"／"+SIZES[szL][0].split(" ")[0]:""):"")+(pipeH?" FL+"+pipeH:"")+"（合計"+fmt(rows.reduce((a,r)=>a+r.l,0))+"mm）"+(RJ&&RJ.mode!=="sep"?"・冷媒はドレンの上（全ねじ・"+RJ.gap+"mm）":"")+(DRr?"・ドレン "+DRr.sizes.map(z=>z+"A").join("／")+" "+fmt(DRr.len)+"mm（1/"+DRr.slope+(DRr.co?"・掃除口 "+DRr.co:"")+"）":""));
+ return{ind:CAS2M[I.k].n,CH,botFL,indY,drain:DRr,rj:RJ&&{mode:RJ.mode,gap:RJ.gap,len:RJ.len},pipeH,szG,szL,out:O?[O.w,O.d,O.m]:null,rows:rows.length}}
 /* ===== 💧 ドレン配管を図面から読む =====
    ・ドレン＝オレンジの2本線（1本だけのオレンジ線＝延焼ラインなどは拾わない）
    ・「40A」＋「FL+3220」＝その所の管のサイズと高さ（引出線の先。無ければいちばん近い管）
@@ -1435,6 +1437,38 @@ function planReadDrain(){const P=PLAN,mm=P.mmpp,px=v=>v/mm;if(!T||!T.UN)return n
  const rows=drRowsFromPts(pts,d0);if(!rows.length)return null;
  D.rows=rows.slice(0,40);D.sz=sz0;D.slope=slope;D.show=true;D.tr.on=false;D.up=0;
  return{rows:D.rows.length,len:Math.round(D.rows.reduce((a,r)=>a+r.l,0)),co:nco,sizes:[...new Set(segSz.filter(Boolean))],slope,labs:labs.map(l=>[Math.round(l.s),l.FL,l.sz]),ev,endFL,portFL:Math.round(portFL)}}
+/* ===== 🔗 冷媒をドレンに沿わせる（図面で同じ穴から出る時） =====
+   ・別ルート：図面の冷媒のまま
+   ・とも巻き：ドレンの上に冷媒を載せて一緒に巻く（間 0）
+   ・全ねじの上（横掴みバンド）：ドレンを吊った全ねじに横掴みバンドで、ドレンの上に間を空けて通す（初期 50mm）
+   並んで走る区間＝図面の冷媒がドレンから40cm以内の所。分かれた所から先は図面どおり室外機へ */
+function rjJoin(B,gap){if(!T||!T.UN)return null;const u=T.UN.find(x=>x.t==="s"&&x.dr)||T.UN.find(x=>x.dr),D=st.drain?DRN():null;if(!u||!D||!D.rows.length)return null;
+ const V=THREE.Vector3,PA=drPath(u.dr.p.clone(),new V(u.dr.d.x,0,u.dr.d.z)),DP=PA.pts;if(DP.length<2)return null;
+ const xz=p=>[p.x,p.z],near=q=>{let b=null,acc=0;for(let i=1;i<DP.length;i++){const a=xz(DP[i-1]),c=xz(DP[i]),L=v2l(v2s(c,a)),r=v2pd(q,a,c);if(!b||r.d<b.d-1)b={d:r.d,s:acc+r.tc*L,i};acc+=L}return b};
+ /* 図面の冷媒（B[2]〜）がドレンに沿う所 */
+ let k0=-1,m=-1;for(let k=2;k<B.length;k++){const r=near(xz(B[k]));if(r.d<=400){if(k0<0)k0=k;m=k}else if(k0>=0)break}
+ if(k0<0||m<0)return null;
+ const sA=near(xz(B[k0])).s,sM=near(xz(B[m])).s;if(sM-sA<800)return null;
+ /* ドレンの上の高さ：沿う区間でいちばん高い所＋ドレンの半径＋間＋冷媒（保温込み）の半径。ドレンが10cm以上下がる所で沿うのをやめる */
+ let acc=0,ymax=-1e9,sEnd=sM;const pts=[];
+ for(let i=1;i<DP.length;i++){const a=DP[i-1],c=DP[i],L=v2l(v2s(xz(c),xz(a)));
+  if(acc+L>=sA&&acc<=sEnd){if(L<1&&a.y-c.y>100&&acc>sA){sEnd=acc;break}ymax=Math.max(ymax,a.y,c.y);if(L>=1){const t0=Math.max(0,(sA-acc)/L),t1=Math.min(1,(sEnd-acc)/L);[t0,t1].forEach(t=>pts.push([a.x+(c.x-a.x)*t,a.z+(c.z-a.z)*t]))}}
+  acc+=L}
+ if(sEnd-sA<800||!pts.length)return null;
+ const rD=(DR_MAT[D.mat].od[D.sz]||32)/2,rR=(SIZES[st.s]?SIZES[st.s][1]/2:8)+10,Yr=ymax+rD+gap+rR;
+ const PP=[new V(0,0,0)],cur=()=>PP[PP.length-1],go=v=>{if(v.length()<1)return;const c=cur(),n=c.clone().add(v);if(PP.length>=2){const d0=c.clone().sub(PP[PP.length-2]).normalize();if(d0.dot(v.clone().normalize())>0.999){c.copy(n);return}}PP.push(n)};
+ const toXZ=(x,z)=>{const d=new V(x-cur().x,0,z-cur().z);if(d.length()<1)return;const ax=Math.abs(d.x)>=Math.abs(d.z);go(ax?new V(d.x,0,0):new V(0,0,d.z));go(ax?new V(0,0,d.z):new V(d.x,0,0))};
+ go(new V(0,Yr,0));toXZ(pts[0][0],pts[0][1]);
+ for(let i=1;i<pts.length;i++){const p=pts[i],c=cur(),d=new V(p[0]-c.x,0,p[1]-c.z);if(d.length()>=1)go(d)}
+ /* 分かれる所：図面の冷媒の高さへ上げ下げしてから、残りは図面どおり */
+ const rest=B.slice(m);if(rest.length){go(new V(0,rest[0].y-cur().y,0));toXZ(rest[0].x,rest[0].z);for(let i=1;i<rest.length;i++)go(rest[i].clone().sub(cur()))}
+ return{PP,len:Math.round(sEnd-sA),Yr}}
+function rjApply(){const R=st.rj;if(!R||!R.base||R.base.length<2)return null;const V=THREE.Vector3,B=R.base.map(a=>new V(a[0],a[1],a[2]));
+ let PP=B,J=null;if(R.mode!=="sep"){J=rjJoin(B,R.mode==="tomo"?0:R.gap);if(J)PP=J.PP}R.len=J?J.len:0;
+ const rows=polyToRows(PP).filter(r=>r.l>0);if(!rows.length)return null;st.rows=normRows(rows,[{l:1000,a:0,t:0,o:false}]);sel=0;save();render();if(T){build3D();T.dirty=true}return J}
+/* 自動読み込みの後：図面で沿っていれば「全ねじの上・50mm」、沿っていなければ別ルート */
+function rjInit(PP){const keep=st.rj&&st.rj.gap!=null?st.rj.gap:50;st.rj={mode:"sep",gap:keep,base:PP.map(p=>[Math.round(p.x),Math.round(p.y),Math.round(p.z)]),len:0};
+ let J=null;try{J=rjJoin(PP,keep)}catch(e){console.warn(e)}if(J){st.rj.mode="rod";rjApply()}return st.rj}
 /* ===== 🧱 壁のお手本：壁の中（2本の線の間）をタップ → その厚さ・色の壁を、画面に見えている範囲から全部取り込む ===== */
 function planWallLearn(p,rg,quiet){const P=PLAN,mm=P.mmpp;
  const neu=c=>{const[r,g,b]=rgbOf(c);return Math.max(r,g,b)-Math.min(r,g,b)<24};   // 壁はグレーか黒の線（色付きの線は設備なので見ない）

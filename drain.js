@@ -13,7 +13,8 @@ const DR_SIZES=[25,30,40,50];
 const DR_DIR={"前":[1,0,0],"右前":[1,0,1],"右":[0,0,1],"右後":[-1,0,1],"後":[-1,0,0],"左後":[-1,0,-1],"左":[0,0,-1],"左前":[1,0,-1],"上":[0,1,0],"下":[0,-1,0]};
 const DR_ORDER=["前","右前","右","右後","後","左後","左","左前","上","下"];
 function normDrain(d){d=d||{};const tr=d.tr||{};
- return{v:2,du:Math.max(0,Math.round(+d.du||0)),tr:{H:Math.max(0,Math.round(+tr.H||600)),W:Math.max(0,Math.round(+tr.W||600)),F:Math.max(0,Math.round(+tr.F||800)),R:Math.max(0,Math.round(+tr.R||1500)),S:Math.max(0,Math.round(+tr.S||150)),on:!!tr.on},mat:d.mat==="AC"?"AC":"VP",sz:DR_SIZES.includes(+d.sz)?+d.sz:25,slope:[50,100].includes(+d.slope)?+d.slope:100,span:[1000,1200,1500].includes(+d.span)?+d.span:1000,co:!!d.co,show:d.show!==false,
+ const sl=d.sl||{};
+ return{v:2,du:Math.max(0,Math.round(+d.du||0)),up:Math.round(+d.up||0),sl:{h:Math.max(0,Math.round(+sl.h||0)),L:Math.max(0,Math.round(+sl.L||0)),p:Math.max(0,Math.round(+sl.p||0))},tr:{H:Math.max(0,Math.round(+tr.H||600)),W:Math.max(0,Math.round(+tr.W||600)),F:Math.max(0,Math.round(+tr.F||800)),R:Math.max(0,Math.round(+tr.R||1500)),S:Math.max(0,Math.round(+tr.S||150)),on:!!tr.on},mat:d.mat==="AC"?"AC":"VP",sz:DR_SIZES.includes(+d.sz)?+d.sz:25,slope:[50,100].includes(+d.slope)?+d.slope:100,span:[1000,1200,1500].includes(+d.span)?+d.span:1000,co:!!d.co,show:d.show!==false,
   rows:(Array.isArray(d.rows)?d.rows:[]).slice(0,40).map(r=>({l:Math.max(0,Math.round(+r.l||0)),a:[0,45,90].includes(+r.a)?+r.a:0,t:normT(r.t),j:["co","mg"].includes(r.j)?r.j:(r.tee?"mg":""),bsz:DR_SIZES.includes(+r.bsz)?+r.bsz:25,bl:Math.max(0,Math.round(+r.bl||600)),bs:["L","R","L45","R45"].includes(r.bs)?r.bs:"L",sz:DR_SIZES.includes(+r.sz)?+r.sz:0,tr:!!r.tr}))}}
 const DRN=()=>{if(!st.drain||!st.drain._ok){st.drain=normDrain(st.drain);Object.defineProperty(st.drain,"_ok",{value:1})}return st.drain};   // 読み込んだデータは1回だけ整える（_okは保存されない）
 /* 区間の並び（長さ・その先の曲げ角・向き）→ 3Dの点。向きは冷媒と同じ：配管の進む方を見て 上=0・右=90・下=180・左=270 */
@@ -39,6 +40,16 @@ function drUpLimit(){const D=DRN(),U=drUnit(),bi=U&&U.m&&U.m.bi,ref=bi?"本体�
  if(U&&U.m&&U.m.du)return{lim:U.m.du,ref,src:U.m.n};
  if(U&&(U.generic4||(U.m&&U.m.kind==="4方向")))return{lim:850,ref,src:"4方向の目安"};
  return null}
+/* 図面より太くする（例：図面VP30 → VP40）：始まり・径変更・合流の枝を全部1ランクずつ */
+function drRank(n){const D=DRN(),mv=z=>DR_SIZES[Math.max(0,Math.min(DR_SIZES.length-1,DR_SIZES.indexOf(z)+n))];
+ D.sz=mv(D.sz);D.rows.forEach(r=>{if(r.sz)r.sz=mv(r.sz);if(r.bsz)r.bsz=mv(r.bsz)});D.up+=n}
+/* スリーブ穴から逆算（オートレベル）：出口の高さ＋横引き×勾配＝ドレン口に必要な高さ */
+function drPortFL(){const D=DRN(),U=drUnit();if(D.sl.p)return{v:D.sl.p,auto:false};const ch=st.gnd&&st.gnd.ch;if(U&&U.m&&U.m.dr&&ch&&!U.m.bi)return{v:Math.round(ch+U.m.dr.y),auto:true};return null}
+function drLevel(){const D=DRN();if(!D.sl.h)return null;const R=drCalc(),L=D.sl.L||R.hz,drop=L/D.slope,need=Math.round(D.sl.h+drop),P=drPortFL();
+ return{L,auto:!D.sl.L,drop:Math.round(drop),need,port:P?P.v:null,pauto:P?P.auto:false,margin:P?P.v-need:null}}
+/* 勾配が足りない時：鳥居で何mm立ち上げればよいか（頂点から出口まで勾配が取れる高さ） */
+function drToriiFix(){const D=DRN(),Lv=drLevel();if(!Lv||Lv.margin==null||Lv.margin>=0)return null;const T0=D.tr,H=Math.max(100,Math.ceil((-Lv.margin+30)/10)*10),R=Math.max(300,Lv.L-T0.S-T0.W);
+ const F=Math.max(0,Math.round(Lv.port+H-T0.W/D.slope-(D.sl.h+R/D.slope)));return{H,R,F}}
 /* ドレンがいちばん高くなる所：仕上げ面から何mmか（ドレン口の高さ＋立ち上げ） */
 function drRise(){const D=DRN(),U=drUnit(),y0=U&&U.m&&U.m.dr?U.m.dr.y:0;let mx=0;
  try{drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)).pts.forEach(p=>{if(p.y>mx)mx=p.y})}catch(e){}
@@ -100,7 +111,8 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
   const ins=new THREE.MeshStandardMaterial({color:0xf8fafc,transparent:true,opacity:.35,depthWrite:false});
   for(let i=1;i<=3;i++){const p0=PA.pts[i],p1=PA.pts[i+1],L=p0.distanceTo(p1);if(L<1)continue;const c=new THREE.Mesh(new THREE.CylinderGeometry(rad(D.sz)*2,rad(D.sz)*2,L,16),ins);c.position.copy(p0).add(p1).multiplyScalar(.5);c.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());g.add(c)}
   try{const s=label("⛩ 頂点を吊る（"+fmt(D.tr.W)+"の真ん中）",ext*0.028,"#ede9fef2","#5b21b6");s.position.copy(m).add(new V(0,rodL,0));s.userData.cat="drain";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
- try{const R=drCalc(),s=label("💧 ドレン "+DR_MAT[D.mat].s+D.sz+"　落差 "+fmt(R.drop)+"（1/"+D.slope+"）",ext*0.03,"#0c4a6ef2","#fff");s.position.copy(pts[pts.length-1].p);s.userData.cat="drain";if(typeof pxl==="function")pxl(s,16);g.add(s)}catch(e){}}
+ const PF=drPortFL(),endFL=PF?Math.round(PF.v+(pts[pts.length-1].p.y-S.y)):null;
+ try{const R=drCalc(),s=label("💧 ドレン "+DR_MAT[D.mat].s+D.sz+"　落差 "+fmt(R.drop)+"（1/"+D.slope+"）"+(endFL!=null?"　出口 FL+"+fmt(endFL)+(D.sl.h?"（スリーブ FL+"+fmt(D.sl.h)+(endFL>=D.sl.h-5?" ✅":" ⚠️スリーブより低い")+"）":""):""),ext*0.03,"#0c4a6ef2","#fff");s.position.copy(pts[pts.length-1].p);s.userData.cat="drain";if(typeof pxl==="function")pxl(s,16);g.add(s)}catch(e){}}
 
 /* ===== 画面（曲げ共有のみ）：「🔧 冷媒｜💧 ドレン」の切り替え ===== */
 if(typeof APP!=="undefined"&&APP==="bend")(function(){
@@ -146,6 +158,7 @@ body.drmode #drPanel{display:block}
   if(k==="l"&&D.rows[i]){D.rows[i].l=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum();drRedraw()}
   else if(k==="t"&&D.rows[i]){let v=+el.value;const m=Math.round(v/45)*45;if(Math.abs(v-m)<=6)v=m;el.value=v;D.rows[i].t=normT(v);const gv=el.closest(".gauge").querySelector(".gval");if(gv)gv.textContent=dirName(v);save(true);drRedraw()}
   else if(k==="bl"&&D.rows[i]){D.rows[i].bl=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum();drRedraw()}
+  else if(/^sl[hLp]$/.test(k)){D.sl[k.slice(2)]=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum();drLvRender()}
   else if(k==="du"){D.du=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum()}
   else if(/^tr[HWFRS]$/.test(k)){D.tr[k.slice(2)]=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true)}});
  pn.addEventListener("change",e=>{const el=e.target,i=+el.dataset.i,k=el.dataset.k,D=DRN();
@@ -158,6 +171,8 @@ body.drmode #drPanel{display:block}
   else if(k==="ang"){const A=[0,90,45];D.rows[i].a=A[(A.indexOf(D.rows[i].a)+1)%A.length]}
   else if(k==="add"){D.rows.push({l:1000,a:0,t:0,j:"",sz:0});const pv=D.rows[D.rows.length-2];if(pv&&!pv.a)pv.a=90}
   else if(k==="torii"){if(D.rows.length&&!D.rows.every(r=>r.tr)&&!confirm("今の区間を、鳥居の形に置きかえます。よろしいですか？"))return;drTorii();toast("⛩ 鳥居の形にしました。3Dで確認してください")}
+  else if(k==="rk"){drRank(+b.dataset.v);toast(+b.dataset.v>0?"⬆ 全部1ランク上げました（始まり "+DR_MAT[D.mat].s+D.sz+"）":"⬇ 1ランク下げました")}
+  else if(k==="lvfix"){const f=drToriiFix();if(!f)return;Object.assign(D.tr,{H:f.H,R:f.R,F:f.F});drTorii();toast("⛩ 立ち上げ "+f.H+"mm の鳥居にしました")}
   else if(k==="trOff"){D.tr.on=false;D.rows.forEach(r=>r.tr=false)}
   else if(k==="sum"){drSumOpen();return}else return;
   save();drRender();drRedraw()});
@@ -173,6 +188,11 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  <div style="font-size:13px;color:var(--sub)">吊りの間隔（横引き）</div>${seg("span",[[1000,"1.0m"],[1200,"1.2m"],[1500,"1.5m"]],D.span)}
  ${(()=>{const L=drUpLimit();return `<div style="font-size:13px;color:var(--sub);margin:4px 0 8px">ドレンアップ上限：<b style="color:var(--ink)">${L?L.ref+"から "+fmt(L.lim)+"mm（"+L.src+"）":"機種の値なし"}</b><br><label>自分で入れる（0＝機種の値）<input data-k="du" inputmode="numeric" value="${D.du||0}" style="width:90px;height:38px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right;margin-left:6px">mm</label></div>`})()}
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700"><input type="checkbox" data-k="show" ${D.show?"checked":""} style="width:22px;height:22px">3Dにドレンを表示</label></div>
+ <div class="drc"><h4>📐 サイズを図面より上げる</h4><div style="font-size:12.5px;color:var(--sub)">図面はVP30だけど40にしてほしい、という時に。始まり・径変更・合流の枝を全部まとめて変えます。</div>
+ <div class="drseg"><button data-k="rk" data-v="1">⬆ 全部1ランク上げる</button><button data-k="rk" data-v="-1">⬇ 1ランク下げる</button></div>${D.up?`<div class="drnote" style="background:#eef2ff;color:#3730a3">図面より <b>${D.up>0?"+":""}${D.up}ランク</b>（今の始まり ${M.s}${D.sz}）</div>`:""}</div>
+ <div class="drc"><h4>🕳 スリーブ穴から逆算（オートレベル）</h4><div style="font-size:12.5px;color:var(--sub);margin-bottom:6px">出口（外壁のスリーブ穴など）の高さから、勾配で上流へ上っていって、室内機のドレン口に必要な高さを出します。</div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13px">${[["h","スリーブ穴の高さ FL+","0＝使わない"],["L","配管の長さ（横）","0＝区間から自動"],["p","ドレン口の高さ FL+","0＝機種と天井高から自動"]].map(([k,l,ph])=>`<label>${l}<br><input data-k="sl${k}" inputmode="numeric" value="${D.sl[k]}" style="width:100%;height:40px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right"><small>${ph}</small></label>`).join("")}</div>
+ <div id="drLvBox"></div></div>
  <div class="drc"><h4>⛩ 鳥居（ドレンアップ・梁越え）</h4>
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13px">${[["S","口から横へ"],["H","立ち上げ H"],["W","頂点の横 W"],["F","落とし込み"],["R","接続先まで"]].map(([k,l])=>`<label>${l}<br><input data-k="tr${k}" inputmode="numeric" value="${D.tr[k]}" style="width:100%;height:40px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right">mm</label>`).join("")}</div>
  <button class="drbig" data-k="torii" style="background:#7c3aed;color:#fff">⛩ この寸法で鳥居を作る</button>${D.tr.on?`<button class="drbig" data-k="trOff" style="background:var(--bg)">鳥居の扱いをやめる（区間はそのまま）</button>`:""}</div>
@@ -188,10 +208,20 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700;margin-top:10px"><input type="checkbox" data-k="co" ${D.co?"checked":""} style="width:22px;height:22px">最後に掃除口を付ける</label></div>
  <div class="drc" id="drSumBox"></div>
  <button class="drbig" data-k="sum" style="background:#0f766e;color:#fff">📋 冷媒＋ドレン まとめを見る</button>`;
- $("#drPanel").innerHTML=h;drSum()}
+ $("#drPanel").innerHTML=h;drSum();drLvRender()}
+function drLvRender(){const b=$("#drLvBox");if(!b)return;const Lv=drLevel(),D=DRN();if(!Lv){b.innerHTML="";return}
+ let h=`<table class="drsum" style="width:100%;border-collapse:collapse;margin-top:6px"><tr><td>落差</td><td><b>${fmt(Lv.drop)}</b> mm（${fmt(Lv.L)}${Lv.auto?"（区間の横引き）":""} × 1/${D.slope}）</td></tr>
+ <tr><td>必要な高さ</td><td>ドレン口が <b>FL+${fmt(Lv.need)}</b> 以上</td></tr>
+ <tr><td>ドレン口</td><td>${Lv.port!=null?`<b>FL+${fmt(Lv.port)}</b>${Lv.pauto?"（天井高＋機種のドレン口）":""}`:"分からない（ドレン口の高さを入れてください）"}</td></tr></table>`;
+ if(Lv.margin!=null){if(Lv.margin>=0)h+=`<div class="drnote" style="background:#ecfdf5;color:#065f46">✅ 勾配OK：あと <b>${fmt(Lv.margin)}mm</b> 余裕があります</div>`;
+  else{const f=drToriiFix(),L=drUpLimit(),U=drUnit(),y0=U&&U.m&&U.m.dr?U.m.dr.y:0,over=f&&L&&y0+f.H>L.lim;
+   h+=`<div class="drnote" style="background:#fee2e2;color:#991b1b">⚠️ <b>勾配不足です！</b>室内機を <b>${fmt(-Lv.margin)}mm</b> 上げるか、鳥居（ドレンアップ）が必要です。</div>`;
+   if(f)h+=`<button class="drbig" data-k="lvfix" style="background:#7c3aed;color:#fff">⛩ 鳥居で解決（立ち上げ ${fmt(f.H)}mm）</button>${over?`<div class="drnote">⚠️ 立ち上げ ${fmt(f.H)}mm だと、ドレンアップの上限（${L.ref}から${fmt(L.lim)}mm）を超えます。スリーブを下げるか、ルートを短くしてください。</div>`:""}`}}
+ b.innerHTML=h}
 function drSumHtml(){const D=DRN(),R=drCalc(),M=DR_MAT[D.mat];
  let fit=[...R.fit.entries()].map(([k,n])=>`${k} ×${n}`).join("<br>")||"なし";
  const trw=R.tr?`<div class="drnote" style="background:#f5f3ff;color:#4c1d95">⛩ <b>鳥居の注意</b><br>・<b>エア噛み</b>：頂点に空気が溜まると流れなくなります。頂点の横は短く、落とし込み側へ下り勾配を付けてください（機種によってはエア抜きが必要）。<br>・<b>結露</b>：立ち上げ〜頂点〜落とし込みは、専用の断熱カバー（または厚手の保温材）をすき間なく。3Dの白い所が保温の範囲です。<br>・<b>支持</b>：頂点が下がると勾配が狂います。頂点の真ん中を上から吊って、鳥居全体を支えてください（3Dの紫の吊り）。<br>・立ち上げ H ${fmt(D.tr.H)}mm が、室内機のドレンアップの上限以内か確認してください。</div>`:"";
+ const Lv=drLevel(),lvw=Lv&&Lv.margin!=null?(Lv.margin>=0?`<div class="drnote" style="background:#ecfdf5;color:#065f46">🕳 スリーブ FL+${fmt(D.sl.h)} から逆算：ドレン口に必要 FL+${fmt(Lv.need)}／今 FL+${fmt(Lv.port)}（余裕 ${fmt(Lv.margin)}mm）</div>`:`<div class="drnote" style="background:#fee2e2;color:#991b1b">🕳 ⚠️ 勾配不足：スリーブ FL+${fmt(D.sl.h)} まで1/${D.slope}で流すには、ドレン口が FL+${fmt(Lv.need)} 必要（今 FL+${fmt(Lv.port)}、${fmt(-Lv.margin)}mm 足りない）</div>`):"";
  const sys=1+R.nmg,mgw=R.nmg?`<div class="drnote" style="background:#eef2ff;color:#3730a3">🔀 <b>合流（${sys}台ぶん）</b><br>・枝も1/${D.slope}以上の下り勾配で、合流点がいちばん低くなるように（逆勾配にしない）<br>・本管の横か上から入れる（下から入れない）。45°Yで流れに沿わせると流れやすい<br>・チーズから200mmの所で支持（荷重・たわみ防止）${sys>=3&&R.szEnd<30?`<br>・<b>3台以上をまとめる時は、合流の後をVP30以上にするのが目安</b>（「ここから30」で太くできます）`:""}<br>・合流の枝 合計 ${fmt(R.br)}mm</div>`:"";
  const cow=R.nco?`<div class="drnote" style="background:#ffedd5;color:#9a3412">🧹 <b>掃除口 ${R.nco}か所</b>：チーズから流れと逆向き（上流側）へ45°で立ち上げてキャップ。点検でキャップを外す時に負荷がかかるので、チーズから200mmの所で必ず支持。</div>`:"";
  const L=drUpLimit(),RS=drRise();
@@ -200,12 +230,12 @@ function drSumHtml(){const D=DRN(),R=drCalc(),M=DR_MAT[D.mat];
  const cw=T&&T.ceilWarn,dmin=(T&&T.drSegs||[]).length&&ceilY()!=null?(()=>{let m=null;T.drSegs.forEach(d=>{const L=d.a.distanceTo(d.b);if(L<50||Math.abs(d.b.y-d.a.y)>L*0.3)return;const c=Math.round(Math.min(d.a.y,d.b.y)-d.r-ceilY());if(c<-40)return;if(m===null||c<m)m=c});return m})():null;
  const ceilTxt=dmin===null?"":dmin<CEIL_R?`<div class="drnote" style="background:#fee2e2;color:#991b1b">⛔ <b>高さ注意</b>：ドレンの下側が天井の仕上げから <b>${dmin}mm</b>。30mm未満はシングルバー・ダブルバーに当たります。70mm以上上げてください。</div>`:dmin<CEIL_Y?`<div class="drnote" style="background:#fef9c3;color:#854d0e">⚠️ <b>親バー注意</b>：ドレンの下側が天井の仕上げから <b>${dmin}mm</b>。70mm未満は、親バーの向きによっては当たります。</div>`:`<div class="drnote" style="background:#ecfdf5;color:#065f46">✅ 天井の仕上げから ${dmin}mm（70mm以上）</div>`;
  return `<h4>📏 計算</h4><table class="drsum" style="width:100%;border-collapse:collapse">
- <tr><td>材質</td><td><b>${M.n}</b>　${M.s}${D.sz}${R.szEnd!==D.sz?" → "+M.s+R.szEnd:""}（外径 約${M.od[D.sz]}${R.szEnd!==D.sz?"→"+M.od[R.szEnd]:""}mm）</td></tr>
+ <tr><td>材質</td><td>${D.up?`<span style="color:#3730a3;font-weight:800">図面より${D.up>0?"+":""}${D.up}ランク　</span>`:""}<b>${M.n}</b>　${M.s}${D.sz}${R.szEnd!==D.sz?" → "+M.s+R.szEnd:""}（外径 約${M.od[D.sz]}${R.szEnd!==D.sz?"→"+M.od[R.szEnd]:""}mm）</td></tr>
  <tr><td>直線の合計</td><td><b>${fmt(R.tot)}</b> mm（横引き ${fmt(R.hz)}・立て ${fmt(R.vt)}）</td></tr>
  <tr><td>必要な落差</td><td><b>${fmt(R.drop)}</b> mm（横引き ${fmt(R.hz)} × 1/${D.slope}）</td></tr>
  <tr><td>継手</td><td>${fit}</td></tr>
  <tr><td>吊り金具</td><td><b>${R.sup}</b> 個（${drBand(D,D.sz)}${R.szEnd!==D.sz?"／太い所は "+drBand(D,R.szEnd):""}）<br><small>横引き ${(D.span/1000).toFixed(1)}m おき＋継手の近く（150mm以内）に1か所ずつ</small>${R.s200?`<br>＋ <b>チーズから200mmの支持金具 ${R.s200} セット</b>（掃除口・合流の所）`:""}${R.vsup?`<br>立てバンド ${R.vsup} 個`:""}</td></tr>
- </table>${ceilTxt}${mgw}${cow}${trw}${warn}<div style="font-size:12px;color:var(--sub);margin-top:6px">数は目安です。継手の品番・外径はメーカーで確認してください。ソケットは定尺4mを超える所の数です。</div>`}
+ </table>${lvw}${ceilTxt}${mgw}${cow}${trw}${warn}<div style="font-size:12px;color:var(--sub);margin-top:6px">数は目安です。継手の品番・外径はメーカーで確認してください。ソケットは定尺4mを超える所の数です。</div>`}
 function drSum(){const b=$("#drSumBox");if(b)b.innerHTML=drSumHtml()}
 /* 📋 まとめ：冷媒とドレンを1つの画面で */
 function drSumOpen(){const sh=$("#drSumSh");if(!sh)return;

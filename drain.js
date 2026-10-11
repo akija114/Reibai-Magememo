@@ -67,7 +67,7 @@ function drCalc(){const D=DRN(),M=DR_MAT[D.mat],R={hz:0,vt:0,up:0,drop:0,fit:new
   const dy=dirs[i]?dirs[i].y:0;
   if(Math.abs(dy)>0.7){R.vt+=r.l;if(dy>0)R.up+=r.l;R.vsup+=r.l>=1000?Math.ceil(r.l/1500):0}
   else{R.hz+=r.l;R.sup+=Math.max(0,Math.ceil(r.l/D.span)-1)}
-  if(r.a&&i<D.rows.length-1){add(`${r.a===45?M.f.e45:M.f.e90} ${M.s}${sz}`,1);fitN++}});
+  if(r.a&&i<D.rows.length-1){if(!(r.j==="co"&&r.a===90))add(`${r.a===45?M.f.e45:M.f.e90} ${M.s}${sz}`,1);fitN++}});   // 角の掃除口は、チーズが曲がりを兼ねる（エルボは要らない）
  R.sup+=fitN+(D.rows.length?1:0);   // 継手の近く（150mm以内）に1か所ずつ＋始まりに1か所
  if(R.tr){add("フレキシブルドレンホース（本体接続・ジャバラ）",1);add("鳥居の頂点の吊り金具セット（吊りボルト＋ハンガー＋断熱保護カバー）",1)}
  if(D.co)add(M.f.co,1);

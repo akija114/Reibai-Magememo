@@ -1237,9 +1237,16 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
    const idx=v=>SIZES.reduce((bi,z,i)=>Math.abs(z[1]-v)<Math.abs(SIZES[bi][1]-v)?i:bi,0);const sv=nums.map(idx).sort((a,b)=>b-a);szG=sv[0];szL=sv.length>1?sv[sv.length-1]:-1})}
  /* ③ 室外機：配管のもう一方の端にいちばん近い青い四角（室内機以外） */
  const oc=BL.filter(c2=>!inds.some(o=>o.c===c2)&&c2.w>=300&&c2.w<=2000&&c2.h>=200&&c2.h<=2000).map(c2=>{const dx=Math.max(c2.x0-rN[0],0,rN[0]-c2.x1),dy=Math.max(c2.y0-rN[1],0,rN[1]-c2.y1);return{c2,d:Math.hypot(dx,dy)*mm}}).filter(o=>o.d<700).sort((a,b)=>a.d-b.d)[0];
- /* ④ 天井高：室内機にいちばん近い CH= と「FL+3000下端」 */
- const chT=planNearText(/C\.?\s?H\s*=?\s*\d{4}/,ctr[0],ctr[1],1e9),bot=planNearText(/FL\s*\+\s*\d{3,4}\s*下端/,ctr[0],ctr[1],60/mm*1000/60);
- let CH=chT?+normTx(chT.s).match(/(\d{4})/)[1]:(P.CH||st.gnd.ch||2500);if(bot){const v=+normTx(bot.s).match(/(\d{3,4})/)[1];if(v>=1800&&v<=6000)CH=v}
+ /* ④ 天井高と機器の高さ：機器は仕上げ天井に合わせるのが基本
+    ・天井高（仕上げ面）＝室内機にいちばん近い「CH=3000」
+    ・天カセ：「FL+3000下端」＝本体の下面＝パネルの設置面＝仕上げ天井（パネルはその下に付く）。CH=が無い時だけ、これを天井高にする
+    ・ビルトイン：天井裏にしまうので、図面の「下端」どおりの高さに置く（天井高は変えない）
+    ・下端の文字は、その室内機の記号の中にあるものを使う（近くのほかの機器＝ロスナイ等の下端を拾わない） */
+ const RX_BOT=/FL\s*\+\s*(\d{3,4})\s*下端/,inC=t=>{const x=t.x+t.w/2,y=t.y-t.h/2;return x>=I.c.x0-3&&x<=I.c.x1+3&&y>=I.c.y0-3&&y<=I.c.y1+3};
+ const chT=planNearText(/C\.?\s?H\s*=?\s*\d{4}/,ctr[0],ctr[1],1e9),bot=(P.texts||[]).filter(t=>RX_BOT.test(normTx(t.s))).find(inC)||planNearText(RX_BOT,ctr[0],ctr[1],1000/mm);
+ const BI=!!CAS2M[I.k].bi,botFL=bot?+normTx(bot.s).match(RX_BOT)[1]:null;
+ let CH=chT?+normTx(chT.s).match(/(\d{4})/)[1]:(P.CH||st.gnd.ch||2500);if(!chT&&!BI&&botFL>=1800&&botFL<=6000)CH=botFL;
+ const indY=BI&&botFL>=1000&&botFL<=8000?CH-botFL:0;   // 室内機の基準点（天カセ＝パネルの設置面、ビルトイン＝本体の下面）を、天井から何mm下げるか（－は上げる）
  /* 前に作った物（同じ所の室内機・室外機）は置きかえる */
  const W0=btW(ctr),near=(o,q,d)=>Math.hypot(o.x-q[0],o.z-q[1])<d;
  st.bld=st.bld.filter(o=>!((o.k==="ind"&&near(o,W0,800))||(o.k==="out"&&oc&&near(o,btW([oc.c2.cx,oc.c2.cy]),800))));
@@ -1249,7 +1256,7 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
   const sv={aw:W.aw,ac:W.ac,ai:W.ai};W.aw=true;W.ac=false;W.ai=false;const tst=window.toast;window.toast=()=>{};
   try{wzAuto([Math.min(...xs)-pad,Math.min(...ys)-pad],[Math.max(...xs)+pad,Math.max(...ys)+pad])}catch(e){console.warn(e)}window.toast=tst;Object.assign(W,sv)}
  /* 室内機を置く（配管の出口が、図面の配管の始まりの方を向くように4方向から選ぶ） */
- const io=bldNew("ind",{x:W0[0],z:W0[1]});io.m=I.k;st.bld.push(io);st.bld=normBld(st.bld);const ii=st.bld.length-1;
+ const io=bldNew("ind",{x:W0[0],z:W0[1]});io.m=I.k;io.y=indY;st.bld.push(io);st.bld=normBld(st.bld);const ii=st.bld.length-1;
  const RW=route.map(btW);let bestR=0,bestD=1e18;
  {const lg=RW.length>=2?[RW[1][0]-RW[0][0],RW[1][1]-RW[0][1]]:[1,0],ll=Math.hypot(lg[0],lg[1])||1;
   for(const r of[0,90,180,270]){st.bld[ii].r=r;try{build3D()}catch(e){}const m=T&&T.bldM&&T.bldM.find(q=>q.i===ii);if(!m||!m.port)continue;
@@ -1289,9 +1296,145 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  const F=frameFor(new V(1,0,0)),Pf=PP.map(p=>new V(p.dot(F.ex),p.dot(F.ey),p.dot(F.ez)));
  const rows=polyToRows(Pf).filter(r=>r.l>0);if(!rows.length){toast("ルートを作れませんでした");return}
  st.rows=normRows(rows,[{l:1000,a:0,t:0,o:false}]);sel=0;st.units.e="";save();render();if(T){build3D();fitT(true)}
+ /* ドレン：図面のオレンジの管から自動で作る（冷媒と同じ3Dに出す） */
+ let DRr=null;try{DRr=planReadDrain();if(DRr){save();render();if(T){build3D();fitT(true)}}}catch(e){console.warn("drain read",e)}
  const po=$("#planOv");if(po)po.style.display="none";
- toast("読み込みました：室内機 "+CAS2M[I.k].n+"（天井 "+fmt(CH)+"）"+(O?"・室外機 "+fmt(O.w)+"×"+fmt(O.d):"")+"・配管 "+(szG>=0?SIZES[szG][0].split(" ")[0]+(szL>=0?"／"+SIZES[szL][0].split(" ")[0]:""):"")+(pipeH?" FL+"+pipeH:"")+"（合計"+fmt(rows.reduce((a,r)=>a+r.l,0))+"mm）");
- return{ind:CAS2M[I.k].n,CH,pipeH,szG,szL,out:O?[O.w,O.d,O.m]:null,rows:rows.length}}
+ toast("読み込みました：室内機 "+CAS2M[I.k].n+"（天井 "+fmt(CH)+(BI&&botFL?"・本体下面 FL+"+fmt(botFL):"")+"）"+(O?"・室外機 "+fmt(O.w)+"×"+fmt(O.d):"")+"・配管 "+(szG>=0?SIZES[szG][0].split(" ")[0]+(szL>=0?"／"+SIZES[szL][0].split(" ")[0]:""):"")+(pipeH?" FL+"+pipeH:"")+"（合計"+fmt(rows.reduce((a,r)=>a+r.l,0))+"mm）"+(DRr?"・ドレン "+DRr.sizes.map(z=>z+"A").join("／")+" "+fmt(DRr.len)+"mm（1/"+DRr.slope+(DRr.co?"・掃除口 "+DRr.co:"")+"）":""));
+ return{ind:CAS2M[I.k].n,CH,botFL,indY,drain:DRr,pipeH,szG,szL,out:O?[O.w,O.d,O.m]:null,rows:rows.length}}
+/* ===== 💧 ドレン配管を図面から読む =====
+   ・ドレン＝オレンジの2本線（1本だけのオレンジ線＝延焼ラインなどは拾わない）
+   ・「40A」＋「FL+3220」＝その所の管のサイズと高さ（引出線の先。無ければいちばん近い管）
+   ・オレンジの小さい丸＝縦の管（そこで下がる・上がる）。チーズから先が短くて行き止まり＝掃除口
+   ・始まり＝室内機のドレン口にいちばん近い端。高さの差は、勾配（文字から1/100か1/50）と縦管で合わせる */
+const isOrg=c=>{const[r,g,b]=rgbOf(c);return r>200&&g>=80&&g<=175&&b<80};
+const v2s=(a,b)=>[a[0]-b[0],a[1]-b[1]],v2d=(a,b)=>a[0]*b[0]+a[1]*b[1],v2l=a=>Math.hypot(a[0],a[1]);
+const v2pd=(p,a,b)=>{const d=v2s(b,a),l2=v2d(d,d)||1,t=v2d(v2s(p,a),d)/l2,tc=Math.max(0,Math.min(1,t)),q=[a[0]+d[0]*tc,a[1]+d[1]*tc];return{d:v2l(v2s(p,q)),t,tc,q}};
+function planDrainGraph(){const P=PLAN,mm=P.mmpp,px=v=>v/mm,dirOf=c=>{const d=v2s(c.b,c.a),l=v2l(d)||1;return[d[0]/l,d[1]/l]};
+ const O=P.segs.filter(s=>isOrg(s[4])).map(s=>{const a=[s[0],s[1]],b=[s[2],s[3]],l=v2l(v2s(b,a));return l*mm<12?null:{a,b,l,u:[(b[0]-a[0])/l,(b[1]-a[1])/l]}}).filter(Boolean);
+ if(O.length<4)return null;
+ /* ① 平行な2本線（間隔20〜120mm）→ 管の中心線 */
+ let C=[];
+ for(let i=0;i<O.length;i++){const A=O[i],n=[-A.u[1],A.u[0]];
+  for(let j=i+1;j<O.length;j++){const B=O[j];if(Math.abs(A.u[0]*B.u[1]-A.u[1]*B.u[0])>0.03)continue;
+   const d=v2d(v2s(B.a,A.a),n),w=Math.abs(d)*mm;if(w<20||w>120)continue;
+   const t0=v2d(v2s(B.a,A.a),A.u),t1=v2d(v2s(B.b,A.a),A.u),o0=Math.max(0,Math.min(t0,t1)),o1=Math.min(A.l,Math.max(t0,t1));if((o1-o0)*mm<12)continue;
+   C.push({a:[A.a[0]+A.u[0]*o0+n[0]*d/2,A.a[1]+A.u[1]*o0+n[1]*d/2],b:[A.a[0]+A.u[0]*o1+n[0]*d/2,A.a[1]+A.u[1]*o1+n[1]*d/2],w})}}
+ /* ② 一直線に並ぶ中心線をつなぐ（継手のすき間 30cm まで） */
+ const merge=L=>{for(let again=true;again;){again=false;
+   outer:for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++){const A=L[i],B=L[j],u=dirOf(A),ub=dirOf(B);if(Math.abs(u[0]*ub[1]-u[1]*ub[0])>0.05)continue;
+    const n=[-u[1],u[0]];if(Math.max(Math.abs(v2d(v2s(B.a,A.a),n)),Math.abs(v2d(v2s(B.b,A.a),n)))>px(25))continue;
+    const la=v2l(v2s(A.b,A.a)),tb=[v2d(v2s(B.a,A.a),u),v2d(v2s(B.b,A.a),u)],gap=Math.max(Math.min(...tb)-la,-Math.max(...tb),0);if(gap>px(300))continue;
+    const lo=Math.min(0,...tb),hi=Math.max(la,...tb),M=la>=v2l(v2s(B.b,B.a))?A:B;
+    L[i]={a:[A.a[0]+u[0]*lo,A.a[1]+u[1]*lo],b:[A.a[0]+u[0]*hi,A.a[1]+u[1]*hi],w:M.w};L.splice(j,1);again=true;break outer}}
+  return L};
+ C=merge(C);
+ /* 継手の輪郭（太い管の中に入っている短い線）と、短すぎる切れはしを捨てる */
+ C=C.filter(c=>{const L=v2l(v2s(c.b,c.a)),u=dirOf(c),m=[(c.a[0]+c.b[0])/2,(c.a[1]+c.b[1])/2];
+  if(L*mm<Math.max(80,c.w*1.5))return false;
+  return!C.some(e=>{if(e===c)return false;if(Math.abs(v2d(u,dirOf(e)))>0.5||v2l(v2s(e.b,e.a))<=L)return false;const q=v2pd(m,e.a,e.b);return q.t>0&&q.t<1&&q.d<=px(e.w/2+8)})});
+ C=merge(C);if(!C.length)return null;
+ /* ③ 角・チーズ：向きの違う中心線の交わる所（端から15cm以内） */
+ const LN=C.map(c=>({c,u:dirOf(c),L:v2l(v2s(c.b,c.a)),ts:[{t:0,j:false},{t:v2l(v2s(c.b,c.a)),j:false}]}));
+ for(let i=0;i<LN.length;i++)for(let j=i+1;j<LN.length;j++){const A=LN[i],B=LN[j],cr=A.u[0]*B.u[1]-A.u[1]*B.u[0];if(Math.abs(cr)<0.3)continue;
+  const d=v2s(B.c.a,A.c.a),ta=(d[0]*B.u[1]-d[1]*B.u[0])/cr,tb=(d[0]*A.u[1]-d[1]*A.u[0])/cr,tol=px(150);
+  if(ta<-tol||ta>A.L+tol||tb<-tol||tb>B.L+tol)continue;A.ts.push({t:ta,j:true});B.ts.push({t:tb,j:true})}
+ const N=[],E=[],nodeAt=p=>{for(let k=0;k<N.length;k++)if(v2l(v2s(N[k].p,p))<=px(40))return k;N.push({p:p.slice(),circ:false});return N.length-1};
+ LN.forEach(L=>{const ts=L.ts.slice().sort((a,b)=>a.t-b.t),keep=[];
+  ts.forEach(o=>{const last=keep[keep.length-1];if(last&&(o.t-last.t)*mm<80){if(o.j&&!last.j)keep[keep.length-1]=o;return}keep.push(o)});
+  const pt=t=>[L.c.a[0]+L.u[0]*t,L.c.a[1]+L.u[1]*t];
+  for(let k=0;k<keep.length-1;k++){const a=nodeAt(pt(keep[k].t)),b=nodeAt(pt(keep[k+1].t));if(a!==b)E.push({a,b,w:L.c.w})}});
+ /* ④ 小さい丸（縦の管）：オレンジの短い線の点を集めて円を当てはめる */
+ const SP=P.segs.filter(s=>isOrg(s[4])&&Math.hypot(s[2]-s[0],s[3]-s[1])*mm<40).flatMap(s=>[[s[0],s[1]],[s[2],s[3]]]);
+ const used=new Array(SP.length).fill(false),circles=[];
+ for(let i=0;i<SP.length;i++){if(used[i])continue;const cl=[i];used[i]=true;
+  for(let k=0;k<cl.length;k++)for(let j=0;j<SP.length;j++)if(!used[j]&&v2l(v2s(SP[j],SP[cl[k]]))*mm<=25){used[j]=true;cl.push(j)}
+  let pts=cl.map(k=>SP[k]);if(pts.length<8)continue;
+  let c=null;for(let it=0;it<4;it++){c=fitCircle(pts);if(!c)break;const res=pts.map(p=>Math.abs(v2l(v2s(p,c))-c.r));const tol=Math.max(0.3,c.r*0.15);const np=pts.filter((p,k)=>res[k]<=tol);if(np.length===pts.length)break;pts=np;if(pts.length<8){c=null;break}}
+  if(!c||c.r*mm<12||c.r*mm>70)continue;
+  const ang=pts.map(p=>Math.atan2(p[1]-c[1],p[0]-c[0])).sort((a,b)=>a-b);let gap=ang[0]+2*Math.PI-ang[ang.length-1];for(let k=1;k<ang.length;k++)gap=Math.max(gap,ang[k]-ang[k-1]);
+  if(gap>2.1)continue;circles.push({p:[c[0],c[1]],r:c.r})}
+ circles.forEach(ci=>{let bn=-1,bd=1e18;N.forEach((n,k)=>{const d=v2l(v2s(n.p,ci.p));if(d<bd){bd=d;bn=k}});
+  if(bn>=0&&bd<=ci.r+px(60)){N[bn].circ=true;return}
+  let be=-1,bq=null,bed=1e18;E.forEach((e,k)=>{const q=v2pd(ci.p,N[e.a].p,N[e.b].p);if(q.d<bed&&q.tc>0&&q.tc<1){bed=q.d;be=k;bq=q.q}});
+  if(be<0||bed>ci.r+px(40))return;const e=E[be],k=N.length;N.push({p:bq,circ:true});E.splice(be,1,{a:e.a,b:k,w:e.w},{a:k,b:e.b,w:e.w})});
+ E.forEach(e=>e.len=v2l(v2s(N[e.a].p,N[e.b].p))*mm);
+ return{N,E,circles}}
+function fitCircle(pts){let sx=0,sy=0,sxx=0,syy=0,sxy=0,sxz=0,syz=0,sz=0;const n=pts.length;
+ pts.forEach(([x,y])=>{const z=x*x+y*y;sx+=x;sy+=y;sxx+=x*x;syy+=y*y;sxy+=x*y;sxz+=x*z;syz+=y*z;sz+=z});
+ const M=[[sxx,sxy,sx],[sxy,syy,sy],[sx,sy,n]],R=[-sxz,-syz,-sz],det=m=>m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])-m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])+m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+ const D0=det(M);if(Math.abs(D0)<1e-9)return null;const col=(k)=>M.map((row,i)=>row.map((v,j)=>j===k?R[i]:v));
+ const D=det(col(0))/D0,Ee=det(col(1))/D0,F=det(col(2))/D0,cx=-D/2,cy=-Ee/2,r2=cx*cx+cy*cy-F;if(r2<=0)return null;const c=[cx,cy];c.r=Math.sqrt(r2);return c}
+/* 区間の点（3D）→ ドレンの区間（長さ・曲げ角・向き）。drPath と同じ決まりで向きを回す */
+function drRowsFromPts(pts,d0){const V=THREE.Vector3;let d=d0.clone().normalize(),u=Math.abs(d.y)>0.9?new V(-1,0,0):new V(0,1,0);u=u.sub(d.clone().multiplyScalar(u.dot(d))).normalize();let r=d.clone().cross(u).normalize();
+ const mv=[];let base=pts[0].p;for(let i=1;i<pts.length;i++){const v=pts[i].p.clone().sub(base),l=v.length();if(l<20){if(pts[i].co&&mv.length)mv[mv.length-1].co=true;continue}base=pts[i].p;const n=v.normalize(),last=mv[mv.length-1];
+  if(last&&last.n.dot(n)>0.999&&!last.co&&!pts[i].sz){last.l+=l;last.co=pts[i].co;continue}mv.push({n,l,co:!!pts[i].co,sz:pts[i-1].sz||0})}
+ if(!mv.length)return[];
+ if(mv[0].n.dot(d)<0.999)mv.unshift({n:d.clone(),l:0,co:false,sz:0});
+ const rows=mv.map(m=>({l:Math.round(m.l),a:0,t:0,j:m.co?"co":"",bsz:25,bl:600,bs:"L",sz:m.sz,tr:false}));
+ for(let k=0;k<mv.length-1;k++){const n=mv[k+1].n,c=Math.max(-1,Math.min(1,d.dot(n)));if(c>0.999)continue;
+  const a=Math.acos(c)*180/Math.PI<67.5?45:90,b=n.clone().addScaledVector(d,-c);if(b.lengthSq()<1e-9)continue;b.normalize();
+  rows[k].a=a;rows[k].t=normT(Math.atan2(b.dot(r),b.dot(u))*180/Math.PI);
+  const ax=d.clone().cross(b).normalize(),ar=a*Math.PI/180;d.applyAxisAngle(ax,ar).normalize();u.applyAxisAngle(ax,ar).normalize();r=d.clone().cross(u).normalize()}
+ return rows}
+/* 図面からドレンを作る（planReadAll の最後に呼ぶ。冷媒を作った後なので、btW＝3Dの座標） */
+function planReadDrain(){const P=PLAN,mm=P.mmpp,px=v=>v/mm;if(!T||!T.UN)return null;
+ const u=T.UN.find(x=>x.t==="s"&&x.dr)||T.UN.find(x=>x.dr);if(!u)return null;
+ const G=planDrainGraph();if(!G||!G.E.length)return null;const{N,E}=G,V=THREE.Vector3;
+ const S=u.dr.p.clone(),d0=new V(u.dr.d.x,0,u.dr.d.z).normalize(),Sp=btP(S.x,S.z),GY=T.GYr!=null?T.GYr:null;if(GY==null)return null;
+ const adj=N.map(()=>[]);E.forEach((e,k)=>{adj[e.a].push({to:e.b,e:k});adj[e.b].push({to:e.a,e:k})});
+ /* 始まり：ドレン口にいちばん近い端（3m以内） */
+ let s0=-1,sd=1e18;N.forEach((n,k)=>{if(adj[k].length!==1)return;const d=v2l(v2s(n.p,Sp))*mm;if(d<sd){sd=d;s0=k}});
+ if(s0<0||sd>3000)return null;
+ /* 本管：いちばん長く続く方へ。わき道は、短い行き止まり＝掃除口、長い＝ほかからの合流 */
+ const depth=(k,from,seen)=>{let m=0;adj[k].forEach(o=>{if(o.to===from||seen.has(o.to))return;seen.add(o.to);m=Math.max(m,E[o.e].len+depth(o.to,k,seen))});return m};
+ const path=[{k:s0,co:false}],seenM=new Set([s0]);let cur=s0,prev=-1,nco=0;
+ for(let guard=0;guard<500;guard++){const nx=adj[cur].filter(o=>o.to!==prev&&!seenM.has(o.to)).map(o=>({...o,dp:E[o.e].len+depth(o.to,cur,new Set([cur,o.to]))})).sort((a,b)=>b.dp-a.dp);
+  if(!nx.length)break;nx.slice(1).forEach(o=>{if(o.dp>=80&&o.dp<=600){path[path.length-1].co=true;nco++}});
+  prev=cur;cur=nx[0].to;seenM.add(cur);path.push({k:cur,co:false,w:E[nx[0].e].w})}
+ if(path.length<2)return null;
+ /* 本管の長さの位置（s） */
+ let acc=0;path.forEach((o,i)=>{if(i)acc+=v2l(v2s(N[o.k].p,N[path[i-1].k].p))*mm;o.s=acc;o.p=N[o.k].p;o.circ=N[o.k].circ});
+ const proj=q=>{let best=null;for(let i=1;i<path.length;i++){const a=path[i-1].p,b=path[i].p,r=v2pd(q,a,b);if(!best||r.d<best.d)best={d:r.d,s:path[i-1].s+r.tc*v2l(v2s(b,a))*mm,i,q:r.q}}return best};
+ /* 文字：「40A」＋「FL+3220」（同じ行）。引出線の先の管に付ける */
+ const TX=(P.texts||[]).map(t=>({t,s:normTx(t.s).trim()})),SZ=TX.filter(o=>/^\d{2,3}\s*A$/.test(o.s)),FLs=TX.filter(o=>/^FL\s*\+\s*\d{3,4}$/.test(o.s));
+ const blk=P.segs.filter(s=>!isOrg(s[4])&&!isBlue(s[4])&&!isMag(s[4])),usedFL=new Set(),labs=[];
+ FLs.forEach(f=>{const z=SZ.find(o=>Math.abs(o.t.y-f.t.y)<=f.t.h*0.6&&f.t.x-(o.t.x+o.t.w)>=-2&&f.t.x-(o.t.x+o.t.w)<=px(400));
+  const x0=z?z.t.x:f.t.x,y0=f.t.y,FL=+f.s.match(/(\d{3,4})/)[1],sz=z?+z.s.match(/\d+/)[0]:0;
+  let anc=null;blk.forEach(s=>{const e1=[s[0],s[1]],e2=[s[2],s[3]],L=v2l(v2s(e2,e1));if(L*mm<80||L*mm>3000)return;[[e1,e2],[e2,e1]].forEach(([n,fr])=>{if(v2l(v2s(n,[x0,y0+1]))*mm>80)return;const r=proj(fr);if(r&&r.d*mm<=120&&(!anc||r.d<anc.d))anc=r})});
+  if(!anc){const r=proj([x0+((z?f.t.x+f.t.w:f.t.x+f.t.w)-x0)/2,y0-f.t.h/2]);if(r&&r.d*mm<=800)anc=r}
+  if(!anc)return;usedFL.add(f);labs.push({s:anc.s,FL,sz,i:anc.i})});
+ labs.sort((a,b)=>a.s-b.s);
+ /* 勾配：となりの文字どうしの差から（縦管が無い所で 1/30〜1/300 のもの）→ 1/50 か 1/100 */
+ const D=DRN(),sl=[];for(let i=1;i<labs.length;i++){const dh=labs[i-1].FL-labs[i].FL,ds=labs[i].s-labs[i-1].s;if(dh>3&&ds>800){const k=ds/dh;if(k>=30&&k<=300&&!path.some(o=>o.circ&&o.s>labs[i-1].s&&o.s<labs[i].s))sl.push(k)}}
+ const slope=sl.length?(sl.sort((a,b)=>a-b)[sl.length>>1]<75?50:100):D.slope;
+ /* 縦管：高さが勾配で合わない所に、丸（縦の管）があればそこ、無ければ前の文字の所で上げ下げ */
+ const portFL=S.y-GY,ev=[];let hs=0,hFL=portFL;
+ labs.forEach(L=>{const exp=hFL-(L.s-hs)/slope,cand=path.filter(o=>o.circ&&o.s>hs+1&&o.s<=L.s+1);const at=cand.length?cand[cand.length-1].s:hs;
+  const dy=L.FL+(L.s-at)/slope-(hFL-(at-hs)/slope);if(Math.abs(dy)>=30)ev.push({s:at,dy:Math.round(dy)});hs=L.s;hFL=Math.abs(dy)>=30?L.FL:exp});
+ /* 終わり：丸（縦の管）で終わっていて、近く（1.5m）に「ウォーターベスト／排水」と高さ → そこまで下げる */
+ const last=path[path.length-1];let endFL=null;
+ if(last.circ){const c=FLs.filter(f=>!usedFL.has(f)&&v2l(v2s([f.t.x+f.t.w/2,f.t.y-f.t.h/2],last.p))*mm<=1500).map(f=>{const above=TX.find(o=>o!==f&&Math.abs(o.t.x-f.t.x)<=px(150)&&f.t.y-o.t.y>0&&f.t.y-o.t.y<=f.t.h*2.2);return{f,pr:above&&/ベスト|排水|ドレン|VB|ウォーター/.test(above.s)?0:1,d:v2l(v2s([f.t.x,f.t.y],last.p))}}).sort((a,b)=>a.pr-b.pr||a.d-b.d)[0];
+  if(c){endFL=+c.f.s.match(/(\d{3,4})/)[1];const h=hFL-(last.s-hs)/slope,dy=endFL-h;if(dy<=-30)ev.push({s:last.s,dy:Math.round(dy)})}}
+ /* サイズ：文字の付いた区間はその太さ。付いていない区間は、図面の太さが同じ区間に合わせる */
+ const segSz=path.map(()=>0);labs.forEach(L=>{if(L.sz)segSz[L.i]=L.sz});
+ for(let i=1;i<path.length;i++)if(!segSz[i]){let b=null;for(let j=1;j<path.length;j++)if(segSz[j]&&Math.abs((path[j].w||0)-(path[i].w||0))<=10&&(!b||Math.abs(j-i)<Math.abs(b-i)))b=j;segSz[i]=b?segSz[b]:0}
+ for(let i=1;i<path.length;i++)if(!segSz[i])segSz[i]=segSz[i-1];
+ const sz0=DR_SIZES.includes(segSz[1])?segSz[1]:D.sz;
+ /* 3Dの点：ドレン口 → 図面の始まり → 本管（縦管を入れる） */
+ const W=path.map(o=>btW(o.p));
+ {const ax=Math.abs(d0.x)>=Math.abs(d0.z),k=ax?1:0,S2=[S.x,S.z];if(W.length>=2){const fx=Math.abs(W[1][0]-W[0][0])>=Math.abs(W[1][1]-W[0][1]);if(fx===ax&&Math.abs(W[0][k]-S2[k])<300){W[0][k]=S2[k];W[1][k]=S2[k]}}}
+ const pts=[{p:S.clone()}];let y=S.y;const addV=dy=>{if(!dy)return;y+=dy;pts.push({p:new V(pts[pts.length-1].p.x,y,pts[pts.length-1].p.z)})};
+ const evAt=s=>ev.filter(e=>Math.abs(e.s-s)<1).reduce((a,e)=>a+e.dy,0),evMid=[];ev.forEach(e=>{if(!path.some(o=>Math.abs(o.s-e.s)<1))evMid.push(e)});
+ addV(evAt(0));
+ {const a=pts[pts.length-1].p,ax=Math.abs(d0.x)>=Math.abs(d0.z);if(ax){pts.push({p:new V(W[0][0],y,a.z)})}else{pts.push({p:new V(a.x,y,W[0][1])})}pts.push({p:new V(W[0][0],y,W[0][1]),co:path[0].co})}
+ for(let i=1;i<path.length;i++){
+  evMid.filter(e=>e.s>path[i-1].s&&e.s<path[i].s).forEach(e=>{const f=(e.s-path[i-1].s)/Math.max(1,path[i].s-path[i-1].s);pts.push({p:new V(W[i-1][0]+(W[i][0]-W[i-1][0])*f,y,W[i-1][1]+(W[i][1]-W[i-1][1])*f)});addV(e.dy)});
+  pts.push({p:new V(W[i][0],y,W[i][1]),co:path[i].co,sz:i<path.length-1&&segSz[i+1]!==segSz[i]&&DR_SIZES.includes(segSz[i+1])?segSz[i+1]:0});
+  if(i<path.length-1)addV(evAt(path[i].s))}
+ addV(evAt(last.s));
+ const rows=drRowsFromPts(pts,d0);if(!rows.length)return null;
+ D.rows=rows.slice(0,40);D.sz=sz0;D.slope=slope;D.show=true;D.tr.on=false;D.up=0;
+ return{rows:D.rows.length,len:Math.round(D.rows.reduce((a,r)=>a+r.l,0)),co:nco,sizes:[...new Set(segSz.filter(Boolean))],slope,labs:labs.map(l=>[Math.round(l.s),l.FL,l.sz]),ev,endFL,portFL:Math.round(portFL)}}
 /* ===== 🧱 壁のお手本：壁の中（2本の線の間）をタップ → その厚さ・色の壁を、画面に見えている範囲から全部取り込む ===== */
 function planWallLearn(p,rg,quiet){const P=PLAN,mm=P.mmpp;
  const neu=c=>{const[r,g,b]=rgbOf(c);return Math.max(r,g,b)-Math.min(r,g,b)<24};   // 壁はグレーか黒の線（色付きの線は設備なので見ない）

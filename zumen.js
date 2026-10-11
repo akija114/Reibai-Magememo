@@ -94,7 +94,7 @@ function openDraw(){
 /* ===== かんたん図面（順番に進むだけ）：①図面 → ②縮尺 → ③原点 → ④何を追加？ → 各作業（戻る・次へ・キャンセルだけ） ===== */
 const W={on:true,step:"open",sub:"",img:null,s0:0,cand:null,pick:null,im:""};
 try{if(localStorage.getItem("pbmPlanClassic")==="1")W.on=false}catch(e){}
-const WZ_ADD=[["read","🤖","品番と配管から機器・配管を作る","品番・CH・配管の色と高さから、室内機・室外機・配管をまとめて作ります"],["wallpick","🧱","壁をお手本で取り込む","壁の2本線の間をタップ → 同じ厚さの壁を画面の範囲から全部"],["ind","❄️","室内機を追加","図面の室内機の四角をタップ → 同じ大きさをまとめて置けます"],["wall","🧱","壁を追加","部屋をぐるっと／1本ずつ／図面の壁を取り込む"],["beam","🟫","梁を追加","梁の中心線を2点タップ"],["col","🏛","柱を追加","柱の角を対角に2点タップ"],["out","🌀","室外機を追加","室外機の真ん中をタップ（機種を選んで）"],["hole","🕳️","配管を通す穴を追加","壁の上の穴の位置をタップ"],["spot","🟩","室外機の置き場を追加","置く場所の範囲を対角に2点タップ"],["door","🚪","扉を追加","壁の上の扉の真ん中をタップ（引き戸・開き戸）"]];
+const WZ_ADD=[["auto","⚡","全部自動で読む","縮尺・原点・壁・室内機・室外機・配管・穴をまとめて"],["read","🤖","品番と配管から機器・配管を作る","品番・CH・配管の色と高さから、室内機・室外機・配管をまとめて作ります"],["wallpick","🧱","壁をお手本で取り込む","壁の2本線の間をタップ → 同じ厚さの壁を画面の範囲から全部"],["ind","❄️","室内機を追加","図面の室内機の四角をタップ → 同じ大きさをまとめて置けます"],["wall","🧱","壁を追加","部屋をぐるっと／1本ずつ／図面の壁を取り込む"],["beam","🟫","梁を追加","梁の中心線を2点タップ"],["col","🏛","柱を追加","柱の角を対角に2点タップ"],["out","🌀","室外機を追加","室外機の真ん中をタップ（機種を選んで）"],["hole","🕳️","配管を通す穴を追加","壁の上の穴の位置をタップ"],["spot","🟩","室外機の置き場を追加","置く場所の範囲を対角に2点タップ"],["door","🚪","扉を追加","壁の上の扉の真ん中をタップ（引き戸・開き戸）"]];
 function wzShowWalls(){return !W.on||W.step==="t:auto"||(W.step==="t:wall"&&BT.tool==="rng")}
 function calApply(v){const P=PLAN;if(!P||PV.cal.length<2)return false;const d=Math.hypot(PV.cal[1][0]-PV.cal[0][0],PV.cal[1][1]-PV.cal[0][1]);
  if(!(v>0&&d>0)){toast("長さを数字で入れてください");return false}P.mmpp=v/d;P.den=0;P.autoScale=0;try{$("#plDen").value=""}catch(e){}try{planWalls()}catch(e){}PV.cal=[];toast("縮尺を合わせました（この2点＝"+fmt(v)+"mm）");if(W.on)setTimeout(wzCalDone,10);planDraw();return true}
@@ -213,7 +213,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
  on("wzOkScale",()=>{wzSave();wzGo(P.org?"menu":"org")});on("wzCal",()=>wzGo("cal"));
  bl.querySelectorAll("[data-den]").forEach(b=>b.onclick=()=>{const d=+b.dataset.den;if(P&&P.ptpx){P.den=d;P.autoScale=0;P.mmpp=25.4/72/P.ptpx*d;try{$("#plDen").value=d}catch(e){}try{planWalls()}catch(e){}wzRender();planDraw();toast("縮尺を1/"+d+"にしました")}});
  on("wzOldOrg",()=>{const m=wzMem()[wzKey()];if(m&&m.org){P.org=m.org.slice();wzRender();planDraw()}});
- bl.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const k=b.dataset.add;if(k==="read"){planReadAll();return}wzGo("t:"+k)});
+ bl.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const k=b.dataset.add;if(k==="read"){planReadAll();return}if(k==="auto"){planAutoAll();return}wzGo("t:"+k)});
  on("wzAutoGo",()=>wzGo("t:auto"));on("wzPipeGo",()=>wzGo("t:pipe"));
  on("wzClearAll",()=>sheetMsg(`<b style="font-size:17px">🧹 置いた物を全部消しますか？</b><p>壁・柱・室内機・室外機など ${st.bld.length}個を消します。</p>`,[["全部消す",()=>{st.bld=[];st.bldXf=null;st.bldKey="";BT.stack=[];bldChanged();wzRender();planDraw();toast("全部消しました")},"#dc2626","#fff"],["やめる"]]));
  on("wzPipeBox",()=>{const e=$("#wzPipeM");const v=e&&e.value;if(!v){toast("機種を選んでください");return}const o=st.bld[W.pi];if(o){o.m=v;st.bld=normBld(st.bld);bldChanged();W.psub="hole";BT.tool="pipehole";wzRender()}});
@@ -588,6 +588,8 @@ async function planPage(n){
  $("#plPg").textContent=n+"/"+P.pdf.numPages+"ページ";$("#plDen").value=P.den?String(P.den):"";
  try{planAnalyze()}catch(e){console.warn("analyze",e)}planWalls();planFit();PV.md(P.mmpp?"trace":"cal");planDraw();
  toast(P.segs.length>50?"CADの図面です。線に吸い付きます"+(P.den?"（縮尺 1/"+P.den+"）":"。縮尺を選ぶか2点で合わせてください"):"線のデータがない図面です（スキャン）。縮尺を2点で合わせてなぞってください");
+ /* 品番の分かる室内機と赤紫の配管がある図面なら「全部自動」をすすめる */
+ try{if(P.segs.length>50&&P.mmpp&&P.segs.some(s2=>isMag(s2[4]))&&planFindInd())setTimeout(()=>sheetMsg(`<b style="font-size:17px">⚡ この図面は全部自動で読めそうです</b><p style="margin-top:6px">室内機の品番と冷媒配管（赤紫の線）が見つかりました。縮尺 1/${P.den||"?"}・原点・壁・室内機・室外機・配管・穴をまとめて作ります。</p>`,[["⚡ 全部自動で読む",()=>planAutoAll(),"#0369a1","#fff"],["自分で進める"]]),600)}catch(e){console.warn(e)}
 }
 /* 壁：グレー・黒の平行な2本線（間隔90〜300mm・長さ1500mm以上）を壁とみなす */
 function planWalls(){
@@ -1289,7 +1291,7 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  toast("読み込みました：室内機 "+CAS2M[I.k].n+"（天井 "+fmt(CH)+"）"+(O?"・室外機 "+fmt(O.w)+"×"+fmt(O.d):"")+"・配管 "+(szG>=0?SIZES[szG][0].split(" ")[0]+(szL>=0?"／"+SIZES[szL][0].split(" ")[0]:""):"")+(pipeH?" FL+"+pipeH:"")+"（合計"+fmt(rows.reduce((a,r)=>a+r.l,0))+"mm）");
  return{ind:CAS2M[I.k].n,CH,pipeH,szG,szL,out:O?[O.w,O.d,O.m]:null,rows:rows.length}}
 /* ===== 🧱 壁のお手本：壁の中（2本の線の間）をタップ → その厚さ・色の壁を、画面に見えている範囲から全部取り込む ===== */
-function planWallLearn(p){const P=PLAN,mm=P.mmpp;
+function planWallLearn(p,rg,quiet){const P=PLAN,mm=P.mmpp;
  const neu=c=>{const[r,g,b]=rgbOf(c);return Math.max(r,g,b)-Math.min(r,g,b)<24};   // 壁はグレーか黒の線（色付きの線は設備なので見ない）
  const L=P.segs.filter(s=>neu(s[4])).map(s=>{const dx=s[2]-s[0],dy=s[3]-s[1],l=Math.hypot(dx,dy);return{s,l,ux:dx/l,uy:dy/l}}).filter(o=>o.l*mm>=300);
  /* タップした所から、線に直角に左右を見て、いちばん近い平行な2本を探す */
@@ -1298,10 +1300,10 @@ function planWallLearn(p){const P=PLAN,mm=P.mmpp;
   L.forEach(o=>{if(Math.abs(o.ux*uy-o.uy*ux)>0.03)return;const t0=(o.s[0]-p[0])*ux+(o.s[1]-p[1])*uy,t1=(o.s[2]-p[0])*ux+(o.s[3]-p[1])*uy;if(Math.min(t0,t1)>2||Math.max(t0,t1)<-2)return;
    const d=(o.s[0]-p[0])*nx+(o.s[1]-p[1])*ny;if(d<0&&(!neg||d>neg.d))neg={d,o};if(d>0&&(!pos||d<pos.d))pos={d,o}});
   if(neg&&pos){const t=(pos.d-neg.d)*mm;if(t>=50&&t<=600&&(!best||t<best.t))best={t,ang,col:pos.o.s[4],c2:neg.o.s[4]}}}
- if(!best){toast("壁が見つかりませんでした。壁の2本の線の「間」をタップしてください");return}
+ if(!best){if(!quiet)toast("壁が見つかりませんでした。壁の2本の線の「間」をタップしてください");return 0}
  const t0=best.t,cols=new Set([best.col,best.c2]);
  /* 画面に見えている範囲 */
- const wr=$("#plWrap"),Wv=wr?wr.clientWidth:800,Hv=wr?wr.clientHeight:800,vx0=(0-PV.ox)/PV.z,vy0=(0-PV.oy)/PV.z,vx1=(Wv-PV.ox)/PV.z,vy1=(Hv-PV.oy)/PV.z,inV=(x,y)=>x>=vx0&&x<=vx1&&y>=vy0&&y<=vy1;
+ const wr=$("#plWrap"),Wv=wr?wr.clientWidth:800,Hv=wr?wr.clientHeight:800;let vx0=(0-PV.ox)/PV.z,vy0=(0-PV.oy)/PV.z,vx1=(Wv-PV.ox)/PV.z,vy1=(Hv-PV.oy)/PV.z;if(rg)[vx0,vy0,vx1,vy1]=rg;const inV=(x,y)=>x>=vx0&&x<=vx1&&y>=vy0&&y<=vy1;
  const C=L.filter(o=>cols.has(o.s[4])&&o.l*mm>=500&&(Math.abs(o.ux)>0.999||Math.abs(o.uy)>0.999)&&(inV(o.s[0],o.s[1])||inV(o.s[2],o.s[3])));
  const found=[];
  C.forEach((A,i)=>{const hz=Math.abs(A.uy)<0.01,a0=hz?Math.min(A.s[0],A.s[2]):Math.min(A.s[1],A.s[3]),a1=hz?Math.max(A.s[0],A.s[2]):Math.max(A.s[1],A.s[3]),ca=hz?A.s[1]:A.s[0];
@@ -1312,8 +1314,32 @@ function planWallLearn(p){const P=PLAN,mm=P.mmpp;
  const merged=[];found.sort((a,b)=>a.hz-b.hz||a.c-b.c||a.lo-b.lo).forEach(f=>{const m=merged.find(g=>g.hz===f.hz&&Math.abs(g.c-f.c)*mm<t0*0.6&&f.lo<=g.hi+200/mm&&f.hi>=g.lo-200/mm);if(m){m.lo=Math.min(m.lo,f.lo);m.hi=Math.max(m.hi,f.hi)}else merged.push({...f})});
  const add=[];merged.forEach(g=>{const a=g.hz?[g.lo,g.c]:[g.c,g.lo],b=g.hz?[g.hi,g.c]:[g.c,g.hi],A=btW(a),B=btW(b),t=Math.max(50,Math.round(t0/10)*10),o=btWall(A,B,t,0,false);if(!o)return;
   o.x=Math.round((A[0]+B[0])/2);o.z=Math.round((A[1]+B[1])/2);if(st.bld.concat(add).some(q=>q.k==="wall"&&Math.hypot(q.x-o.x,q.z-o.z)<Math.max(150,t*0.7)&&Math.abs(normT(q.r-o.r)%180)<5))return;add.push(o)});
- if(!add.length){toast("この厚さ（"+fmt(t0)+"mm）の新しい壁は見つかりませんでした");return}
- btAdd(normBld(add));wzRender();planDraw();toast("厚さ "+fmt(t0)+"mm の壁を "+add.length+"本 取り込みました（違う物は「消す」で消せます）")}
+ if(!add.length){if(!quiet)toast("この厚さ（"+fmt(t0)+"mm）の新しい壁は見つかりませんでした");return 0}
+ btAdd(normBld(add));if(quiet)return add.length;wzRender();planDraw();toast("厚さ "+fmt(t0)+"mm の壁を "+add.length+"本 取り込みました（違う物は「消す」で消せます）");return add.length}
+
+/* ===== 🤖 全部自動：縮尺 → 原点 → 壁（配管が通る壁の厚さをお手本に）→ 室内機・室外機・配管・穴 → 3D ===== */
+function planFindInd(){const P=PLAN,BL=planClusters(isBlue),norm=s=>normTx(s).toUpperCase().replace(/[\s\-‐ー－]/g,""),models=Object.keys(CAS2M).map(k=>({k,n:norm(CAS2M[k].n)})).filter(m=>m.n.length>=6);
+ for(const t of P.texts||[]){const nt=norm(t.s);if(nt.length<6)continue;const hit=models.find(m=>m.n===nt||(nt.length>=8&&(m.n.startsWith(nt)||nt.startsWith(m.n))));if(!hit)continue;
+  const tx=t.x+t.w/2,ty=t.y-t.h/2,c=BL.filter(c2=>tx>=c2.x0&&tx<=c2.x1&&ty>=c2.y0&&ty<=c2.y1&&c2.w>=450&&c2.w<=1600&&c2.h>=450&&c2.h<=1600).sort((a,b)=>a.w*a.h-b.w*b.h)[0];if(c)return{c,k:hit.k}}
+ return null}
+function planAutoAll(){const P=PLAN;
+ if(!P||!P.segs||P.segs.length<50){toast("線のデータがある図面（CADのPDF）で使えます。写真の図面は、縮尺と原点を手で決めてください");return}
+ if(!P.mmpp){toast("縮尺が分かりませんでした。縮尺を選ぶか「縮尺を2点で」で合わせてから、もう一度押してください");try{wzGo("scale")}catch(e){}return}
+ const I=planFindInd();if(!I){toast("品番の分かる室内機が見つかりませんでした（青い記号の中に品番が必要です）");return}
+ if(!P.org){P.org=[Math.round(I.c.cx),Math.round(I.c.cy)];try{wzSave()}catch(e){}}
+ const mm=P.mmpp,route=planPipeRoute([I.c.cx,I.c.cy]);
+ /* 壁：配管が横切るグレーの線のうち、間隔8〜45cmの2本＝壁。その厚さをお手本に、まわりの壁を取り込む */
+ let nw=0;if(route&&route.length>=2){const xs=[...route.map(p=>p[0]),I.c.x0,I.c.x1],ys=[...route.map(p=>p[1]),I.c.y0,I.c.y1],pad=4500/mm,rg=[Math.min(...xs)-pad,Math.min(...ys)-pad,Math.max(...xs)+pad,Math.max(...ys)+pad];
+  const neu=c=>{const[r,g,b]=rgbOf(c);return Math.max(r,g,b)-Math.min(r,g,b)<24},done=[];
+  for(let i=0;i<route.length-1;i++){const a=route[i],b=route[i+1],hz=Math.abs(b[1]-a[1])<Math.abs(b[0]-a[0]),lo=hz?Math.min(a[0],b[0]):Math.min(a[1],b[1]),hi=hz?Math.max(a[0],b[0]):Math.max(a[1],b[1]),c=hz?a[1]:a[0];
+   const cut=P.segs.filter(s2=>neu(s2[4])).filter(s2=>{const l=Math.hypot(s2[2]-s2[0],s2[3]-s2[1])*mm;if(l<800)return false;
+     if(hz){if(Math.abs(s2[0]-s2[2])>1)return false;const y0=Math.min(s2[1],s2[3]),y1=Math.max(s2[1],s2[3]);return s2[0]>lo&&s2[0]<hi&&c>=y0&&c<=y1}
+     if(Math.abs(s2[1]-s2[3])>1)return false;const x0=Math.min(s2[0],s2[2]),x1=Math.max(s2[0],s2[2]);return s2[1]>lo&&s2[1]<hi&&c>=x0&&c<=x1}).map(s2=>hz?s2[0]:s2[1]).sort((u,v)=>u-v);
+   for(let j=0;j<cut.length-1;j++){const g=(cut[j+1]-cut[j])*mm;if(g<80||g>450)continue;if(done.some(t=>Math.abs(t-g)<25))continue;done.push(g);
+    const m=(cut[j]+cut[j+1])/2,p=hz?[m,c]:[c,m];nw+=planWallLearn(p,rg,true)||0}}}
+ const r=planReadAll();
+ if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本。違う所は図面画面で直せます"),400)}
+ return r}
 
 /* 読み込み終わったら、建物・図面・スキャンを3Dに出し直す */
 if(T){build3D();T.dirty=true}

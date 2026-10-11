@@ -12,27 +12,38 @@ const DR_MAT={
 const DR_SIZES=[25,30,40,50];
 const DR_DIR={"前":[1,0,0],"右前":[1,0,1],"右":[0,0,1],"右後":[-1,0,1],"後":[-1,0,0],"左後":[-1,0,-1],"左":[0,0,-1],"左前":[1,0,-1],"上":[0,1,0],"下":[0,-1,0]};
 const DR_ORDER=["前","右前","右","右後","後","左後","左","左前","上","下"];
-function normDrain(d){d=d||{};
- return{v:1,mat:d.mat==="AC"?"AC":"VP",sz:DR_SIZES.includes(+d.sz)?+d.sz:25,slope:[50,100].includes(+d.slope)?+d.slope:100,span:[1000,1200,1500].includes(+d.span)?+d.span:1000,co:!!d.co,show:d.show!==false,
-  rows:(Array.isArray(d.rows)?d.rows:[]).slice(0,40).map(r=>({d:DR_DIR[r.d]?r.d:"前",l:Math.max(0,Math.round(+r.l||0)),tee:!!r.tee,sz:DR_SIZES.includes(+r.sz)?+r.sz:0}))}}
-const DRN=()=>{if(!st.drain||st.drain.v!==1)st.drain=normDrain(st.drain);return st.drain};
+function normDrain(d){d=d||{};const tr=d.tr||{};
+ return{v:2,tr:{H:Math.max(0,Math.round(+tr.H||600)),W:Math.max(0,Math.round(+tr.W||600)),F:Math.max(0,Math.round(+tr.F||800)),R:Math.max(0,Math.round(+tr.R||1500)),S:Math.max(0,Math.round(+tr.S||150)),on:!!tr.on},mat:d.mat==="AC"?"AC":"VP",sz:DR_SIZES.includes(+d.sz)?+d.sz:25,slope:[50,100].includes(+d.slope)?+d.slope:100,span:[1000,1200,1500].includes(+d.span)?+d.span:1000,co:!!d.co,show:d.show!==false,
+  rows:(Array.isArray(d.rows)?d.rows:[]).slice(0,40).map(r=>({l:Math.max(0,Math.round(+r.l||0)),a:[0,45,90].includes(+r.a)?+r.a:0,t:normT(r.t),tee:!!r.tee,sz:DR_SIZES.includes(+r.sz)?+r.sz:0,tr:!!r.tr}))}}
+const DRN=()=>{if(!st.drain||!st.drain._ok){st.drain=normDrain(st.drain);Object.defineProperty(st.drain,"_ok",{value:1})}return st.drain};   // 読み込んだデータは1回だけ整える（_okは保存されない）
+/* 区間の並び（長さ・その先の曲げ角・向き）→ 3Dの点。向きは冷媒と同じ：配管の進む方を見て 上=0・右=90・下=180・左=270 */
+function drPath(start,dir0){const V=THREE.Vector3,D=DRN();let d=dir0.clone().normalize(),u=Math.abs(d.y)>0.9?new V(-1,0,0):new V(0,1,0);u=u.sub(d.clone().multiplyScalar(u.dot(d))).normalize();let r=d.clone().cross(u).normalize();
+ const pts=[start.clone()],dirs=[];let p=start.clone();
+ D.rows.forEach((row,i)=>{dirs.push(d.clone());p=p.clone().addScaledVector(d,row.l);pts.push(p.clone());
+  if(row.a&&i<D.rows.length-1){const a=row.a*Math.PI/180,t=row.t*Math.PI/180,b=u.clone().multiplyScalar(Math.cos(t)).addScaledVector(r,Math.sin(t)).normalize(),ax=d.clone().cross(b).normalize();
+   d.applyAxisAngle(ax,a).normalize();u.applyAxisAngle(ax,a).normalize();r=d.clone().cross(u).normalize()}});
+ /* 横の区間は勾配のぶん下げる（そこから先も全部下がる） */
+ let drop=0;const out=[pts[0].clone()];for(let i=1;i<pts.length;i++){const dv=dirs[i-1];if(Math.abs(dv.y)<0.5)drop+=D.rows[i-1].l*Math.sqrt(1-dv.y*dv.y)/D.slope;const q=pts[i].clone();q.y-=drop;out.push(q)}
+ return{pts:out,dirs}}
+/* 鳥居（逆U）：口から少し横 → 立ち上げH → 頂点の横W → 落とし込み F → 接続先まで R */
+function drTorii(){const D=DRN(),T0=D.tr,M=[[T0.S,90,0],[T0.H,90,180],[T0.W,90,180],[T0.F,90,0],[T0.R,0,0]];
+ D.rows=M.map(([l,a,t])=>({l,a,t,tee:false,sz:0,tr:true}));D.tr.on=true}
 const drVec=k=>{const a=DR_DIR[k];const l=Math.hypot(...a);return a.map(x=>x/l)};
 const drVert=k=>k==="上"||k==="下";
 
 /* 計算：長さ・落差・継手・吊りバンド */
-function drCalc(){const D=DRN(),M=DR_MAT[D.mat],R={hz:0,vt:0,up:0,drop:0,fit:new Map(),sup:0,vsup:0,segs:[],szEnd:D.sz};
- const add=(k,n)=>{if(n>0)R.fit.set(k,(R.fit.get(k)||0)+n)};let sz=D.sz,prev=null,fitN=0;
- D.rows.forEach((r,i)=>{const v=drVec(r.d),vert=drVert(r.d);
-  if(r.sz&&r.sz!==sz){add(`${M.f.red} ${M.s}${sz}→${M.s}${r.sz}`,1);sz=r.sz}
-  if(prev){const c=Math.max(-1,Math.min(1,prev[0]*v[0]+prev[1]*v[1]+prev[2]*v[2])),a=Math.round(Math.acos(c)*180/Math.PI);
-   if(a>=30&&a<=60){add(`${M.f.e45} ${M.s}${sz}`,1);fitN++}else if(a>60&&a<=120){add(`${M.f.e90} ${M.s}${sz}`,1);fitN++}
-   else if(a>120&&a<170){add(`${M.f.e90} ${M.s}${sz}`,1);add(`${M.f.e45} ${M.s}${sz}`,1);fitN+=2}else if(a>=170){add(`${M.f.e90} ${M.s}${sz}`,2);fitN+=2}}
+function drCalc(){const D=DRN(),M=DR_MAT[D.mat],R={hz:0,vt:0,up:0,drop:0,fit:new Map(),sup:0,vsup:0,szEnd:D.sz,tr:D.tr.on&&D.rows.some(r=>r.tr)};
+ const add=(k,n)=>{if(n>0)R.fit.set(k,(R.fit.get(k)||0)+n)};let sz=D.sz,fitN=0;
+ let dirs=null;try{dirs=drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)).dirs}catch(e){dirs=D.rows.map(()=>({y:0}))}
+ D.rows.forEach((r,i)=>{if(r.sz&&r.sz!==sz){add(`${M.f.red} ${M.s}${sz}→${M.s}${r.sz}`,1);sz=r.sz}
   if(r.tee){add(`${M.f.tee} ${M.s}${sz}`,1);fitN++}
   add(`${M.f.sock} ${M.s}${sz}`,Math.max(0,Math.ceil(r.l/4000)-1));   // 定尺4mを超える所はソケットでつなぐ
-  if(vert){R.vt+=r.l;if(r.d==="上")R.up+=r.l;R.vsup+=r.l>=1000?Math.ceil(r.l/1500):0}
+  const dy=dirs[i]?dirs[i].y:0;
+  if(Math.abs(dy)>0.7){R.vt+=r.l;if(dy>0)R.up+=r.l;R.vsup+=r.l>=1000?Math.ceil(r.l/1500):0}
   else{R.hz+=r.l;R.sup+=Math.max(0,Math.ceil(r.l/D.span)-1)}
-  R.segs.push({...r,sz,drop:vert?0:r.l/D.slope});prev=v});
+  if(r.a&&i<D.rows.length-1){add(`${r.a===45?M.f.e45:M.f.e90} ${M.s}${sz}`,1);fitN++}});
  R.sup+=fitN+(D.rows.length?1:0);   // 継手の近く（150mm以内）に1か所ずつ＋始まりに1か所
+ if(R.tr){add("フレキシブルドレンホース（本体接続・ジャバラ）",1);add("鳥居の頂点の吊り金具セット（吊りボルト＋ハンガー＋断熱保護カバー）",1)}
  if(D.co)add(M.f.co,1);
  R.drop=R.hz/D.slope;R.szEnd=sz;R.tot=R.hz+R.vt;return R}
 const drBand=(D,sz)=>D.mat==="AC"?`AC${sz}用（保温付き・外径約${DR_MAT.AC.od[sz]}mm）吊りバンド`:`VP${sz}用 吊りバンド`;
@@ -40,8 +51,9 @@ const drBand=(D,sz)=>D.mat==="AC"?`AC${sz}用（保温付き・外径約${DR_MAT
 /* 3D：冷媒と同じ空間に描く（core.js の build3D から呼ばれる） */
 function addDrain3D(UN,bb){const D=st.drain?DRN():null;if(!D||!D.show||!D.rows.length||!T)return;
  const V=THREE.Vector3,u=(UN||[]).find(x=>x.t==="s"&&x.dr)||(UN||[]).find(x=>x.dr),S=u?u.dr.p.clone():new V(0,0,0);
- let p=S.clone(),sz=D.sz;const pts=[{p:p.clone(),sz}];
- D.rows.forEach(r=>{if(r.sz)sz=r.sz;const v=new V(...drVec(r.d)),q=p.clone().addScaledVector(v,r.l);if(!drVert(r.d))q.y-=r.l/D.slope;pts.push({p:q.clone(),sz,l:r.l,d:r.d});p=q});
+ const d0=u?new V(u.dr.d.x,0,u.dr.d.z):new V(1,0,0);if(d0.lengthSq()<1e-6)d0.set(1,0,0);
+ const PA=drPath(S,d0);let sz=D.sz;const pts=[{p:PA.pts[0],sz}];
+ D.rows.forEach((r,i)=>{if(r.sz)sz=r.sz;pts.push({p:PA.pts[i+1],sz,l:r.l,vert:Math.abs(PA.dirs[i].y)>0.7})});
  pts.forEach(o=>bb.expandByPoint(o.p));
  const ext=Math.max(...bb.getSize(new V()).toArray(),300),g=new THREE.Group();g.userData.drain=1;T.grp.add(g);
  const mat=new THREE.MeshStandardMaterial({color:DR_MAT[D.mat].col,roughness:.6}),jm=new THREE.MeshStandardMaterial({color:D.mat==="AC"?0x0ea5e9:0x6b7280,roughness:.5}),Y=new V(0,1,0);
@@ -49,8 +61,15 @@ function addDrain3D(UN,bb){const D=st.drain?DRN():null;if(!D||!D.show||!D.rows.l
  for(let i=0;i<pts.length-1;i++){const a=pts[i].p,b=pts[i+1].p,L=a.distanceTo(b);if(L<1)continue;const r=rad(pts[i+1].sz);
   const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,16),mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(m);
   const j=new THREE.Mesh(new THREE.SphereGeometry(r*1.3,14,10),jm);j.position.copy(b);g.add(j);
-  try{const s=label("💧"+(i+1)+" "+fmt(pts[i+1].l)+(drVert(pts[i+1].d)?"":"（-"+fmt(pts[i+1].l/D.slope)+"）"),ext*0.028,"#e0f2fef2","#0c4a6e");s.position.copy(a).add(b).multiplyScalar(.5);s.userData.cat="drain";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
+  try{const s=label("💧"+(i+1)+" "+fmt(pts[i+1].l)+(pts[i+1].vert?"":"（-"+fmt(pts[i+1].l/D.slope)+"）"),ext*0.028,"#e0f2fef2","#0c4a6e");s.position.copy(a).add(b).multiplyScalar(.5);s.userData.cat="drain";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
  {const j=new THREE.Mesh(new THREE.SphereGeometry(rad(D.sz)*1.3,14,10),jm);j.position.copy(S);g.add(j)}
+ /* 鳥居：頂点の横の真ん中を上から吊る（吊りボルト）＋ 保温の範囲を半透明で */
+ if(D.tr.on&&D.rows.length>=3&&D.rows[2].tr){const a=PA.pts[2],b=PA.pts[3],m=a.clone().add(b).multiplyScalar(.5),rodL=Math.max(300,ext*0.06);
+  const rod=new THREE.Mesh(new THREE.CylinderGeometry(rad(D.sz)*0.35,rad(D.sz)*0.35,rodL,8),new THREE.MeshStandardMaterial({color:0x7c3aed}));rod.position.copy(m).add(new V(0,rodL/2,0));g.add(rod);
+  const hg=new THREE.Mesh(new THREE.TorusGeometry(rad(D.sz)*1.6,rad(D.sz)*0.35,8,20),new THREE.MeshStandardMaterial({color:0x7c3aed}));hg.position.copy(m);hg.lookAt(b);g.add(hg);
+  const ins=new THREE.MeshStandardMaterial({color:0xf8fafc,transparent:true,opacity:.35,depthWrite:false});
+  for(let i=1;i<=3;i++){const p0=PA.pts[i],p1=PA.pts[i+1],L=p0.distanceTo(p1);if(L<1)continue;const c=new THREE.Mesh(new THREE.CylinderGeometry(rad(D.sz)*2,rad(D.sz)*2,L,16),ins);c.position.copy(p0).add(p1).multiplyScalar(.5);c.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());g.add(c)}
+  try{const s=label("⛩ 頂点を吊る（"+fmt(D.tr.W)+"の真ん中）",ext*0.028,"#ede9fef2","#5b21b6");s.position.copy(m).add(new V(0,rodL,0));s.userData.cat="drain";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
  try{const R=drCalc(),s=label("💧 ドレン "+DR_MAT[D.mat].s+D.sz+"　落差 "+fmt(R.drop)+"（1/"+D.slope+"）",ext*0.03,"#0c4a6ef2","#fff");s.position.copy(pts[pts.length-1].p);s.userData.cat="drain";if(typeof pxl==="function")pxl(s,16);g.add(s)}catch(e){}}
 
 /* ===== 画面（曲げ共有のみ）：「🔧 冷媒｜💧 ドレン」の切り替え ===== */
@@ -88,17 +107,23 @@ body.drmode #drPanel{display:block}
  tg.onclick=e=>{const b=e.target.closest("button");if(!b)return;const m=b.dataset.m;
   if(m==="sum"){drSumOpen();return}
   tg.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));document.body.classList.toggle("drmode",m==="dr");
-  if(m==="dr"){const D=DRN();if(!D.rows.length){D.rows=[{d:"前",l:1000,tee:false,sz:0}];D.show=true;save();drRedraw()}drRender()}
+  if(m==="dr"){const D=DRN();if(!D.rows.length){D.rows=[{l:1000,a:0,t:0,tee:false,sz:0}];D.show=true;save();drRedraw()}drRender()}
   try{setTimeout(sizeT,30)}catch(err){}};
  let rt=0;window.drRedraw=()=>{clearTimeout(rt);rt=setTimeout(()=>{if(T){build3D();T.dirty=true}},120)};
- pn.addEventListener("input",e=>{const el=e.target,i=+el.dataset.i,k=el.dataset.k,D=DRN();if(k==="l"&&D.rows[i]){D.rows[i].l=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum();drRedraw()}});
+ pn.addEventListener("input",e=>{const el=e.target,i=+el.dataset.i,k=el.dataset.k,D=DRN();
+  if(k==="l"&&D.rows[i]){D.rows[i].l=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum();drRedraw()}
+  else if(k==="t"&&D.rows[i]){let v=+el.value;const m=Math.round(v/45)*45;if(Math.abs(v-m)<=6)v=m;el.value=v;D.rows[i].t=normT(v);const gv=el.closest(".gauge").querySelector(".gval");if(gv)gv.textContent=dirName(v);save(true);drRedraw()}
+  else if(/^tr[HWFRS]$/.test(k)){D.tr[k.slice(2)]=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true)}});
  pn.addEventListener("change",e=>{const el=e.target,i=+el.dataset.i,k=el.dataset.k,D=DRN();
-  if(k==="d"&&D.rows[i])D.rows[i].d=el.value;else if(k==="sz"&&D.rows[i])D.rows[i].sz=+el.value;else if(k==="msz")D.sz=+el.value;else if(k==="co")D.co=el.checked;else if(k==="show")D.show=el.checked;else return;
+  if(k==="sz"&&D.rows[i])D.rows[i].sz=+el.value;else if(k==="msz")D.sz=+el.value;else if(k==="co")D.co=el.checked;else if(k==="show")D.show=el.checked;else return;
   save();drRender();drRedraw()});
  pn.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const D=DRN(),i=+b.dataset.i,k=b.dataset.k;if(!k)return;
   if(k==="mat")D.mat=b.dataset.v;else if(k==="slope")D.slope=+b.dataset.v;else if(k==="span")D.span=+b.dataset.v;
-  else if(k==="tee")D.rows[i].tee=!D.rows[i].tee;else if(k==="del"){D.rows.splice(i,1)}
-  else if(k==="add"){const last=D.rows[D.rows.length-1];D.rows.push({d:last?last.d:"前",l:1000,tee:false,sz:0})}
+  else if(k==="tee")D.rows[i].tee=!D.rows[i].tee;else if(k==="del"){D.rows.splice(i,1);if(!D.rows.some(r=>r.tr))D.tr.on=false}
+  else if(k==="ang"){const A=[0,90,45];D.rows[i].a=A[(A.indexOf(D.rows[i].a)+1)%A.length]}
+  else if(k==="add"){D.rows.push({l:1000,a:0,t:0,tee:false,sz:0});const pv=D.rows[D.rows.length-2];if(pv&&!pv.a)pv.a=90}
+  else if(k==="torii"){if(D.rows.length&&!D.rows.every(r=>r.tr)&&!confirm("今の区間を、鳥居の形に置きかえます。よろしいですか？"))return;drTorii();toast("⛩ 鳥居の形にしました。3Dで確認してください")}
+  else if(k==="trOff"){D.tr.on=false;D.rows.forEach(r=>r.tr=false)}
   else if(k==="sum"){drSumOpen();return}else return;
   save();drRender();drRedraw()});
 })();
@@ -112,9 +137,14 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  <div style="font-size:13px;color:var(--sub);margin-top:8px">下り勾配</div>${seg("slope",[[100,"1/100"],[50,"1/50"]],D.slope)}
  <div style="font-size:13px;color:var(--sub)">吊りの間隔（横引き）</div>${seg("span",[[1000,"1.0m"],[1200,"1.2m"],[1500,"1.5m"]],D.span)}
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700"><input type="checkbox" data-k="show" ${D.show?"checked":""} style="width:22px;height:22px">3Dにドレンを表示</label></div>
- <div class="drc"><h4>区間（ドレン口から順に）</h4><div style="font-size:12.5px;color:var(--sub);margin-bottom:4px">始まり：${drStartName()}<br>向きは3Dの矢印（前・右・上）が基準です。横の区間は勾配のぶん自動で下げて描きます。</div>`;
- D.rows.forEach((r,i)=>{h+=`<div class="drrow"><b>${i+1}</b><select data-k="d" data-i="${i}">${DR_ORDER.map(k=>`<option${k===r.d?" selected":""}>${k}</option>`).join("")}</select><input data-k="l" data-i="${i}" inputmode="numeric" value="${r.l}" aria-label="長さmm"><span style="font-size:13px">mm</span>
-  <button data-k="tee" data-i="${i}" class="${r.tee?"on":""}">チーズ</button><select data-k="sz" data-i="${i}" aria-label="径を変える"><option value="0">径そのまま</option>${DR_SIZES.map(z=>`<option value="${z}"${r.sz===z?" selected":""}>ここから${M.s}${z}</option>`).join("")}</select><button data-k="del" data-i="${i}" aria-label="消す">🗑</button></div>`});
+ <div class="drc"><h4>⛩ 鳥居（ドレンアップ・梁越え）</h4>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13px">${[["S","口から横へ"],["H","立ち上げ H"],["W","頂点の横 W"],["F","落とし込み"],["R","接続先まで"]].map(([k,l])=>`<label>${l}<br><input data-k="tr${k}" inputmode="numeric" value="${D.tr[k]}" style="width:100%;height:40px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right">mm</label>`).join("")}</div>
+ <button class="drbig" data-k="torii" style="background:#7c3aed;color:#fff">⛩ この寸法で鳥居を作る</button>${D.tr.on?`<button class="drbig" data-k="trOff" style="background:var(--bg)">鳥居の扱いをやめる（区間はそのまま）</button>`:""}</div>
+ <div class="drc"><h4>区間（ドレン口から順に）</h4><div style="font-size:12.5px;color:var(--sub);margin-bottom:4px">始まり：${drStartName()}<br>曲げの向きは冷媒と同じで、配管の進む方を見て「上・右・下・左」をゲージで選びます。横の区間は勾配のぶん自動で下げて描きます。</div>`;
+ D.rows.forEach((r,i)=>{const last=i===D.rows.length-1;h+=`<div class="drrow"><b>${i+1}</b><input data-k="l" data-i="${i}" inputmode="numeric" value="${r.l}" aria-label="長さmm"><span style="font-size:13px">mm</span>
+  ${last?"":`<button data-k="ang" data-i="${i}" style="${r.a?"background:"+(r.a===90?"#dc2626":"#7c3aed")+";color:#fff;border-color:transparent":""}">${r.a?r.a+"°で曲げ":"直管"}</button>`}
+  <button data-k="tee" data-i="${i}" class="${r.tee?"on":""}">チーズ</button><select data-k="sz" data-i="${i}" aria-label="径を変える"><option value="0">径そのまま</option>${DR_SIZES.map(z=>`<option value="${z}"${r.sz===z?" selected":""}>ここから${M.s}${z}</option>`).join("")}</select><button data-k="del" data-i="${i}" aria-label="消す">🗑</button>
+  ${r.a&&!last?`<div style="flex:1 1 100%">${gaugeHTML(r.t).replace('<input type="range"',`<input type="range" data-k="t" data-i="${i}"`)}</div>`:""}</div>`});
  h+=`<button class="drbig" data-k="add" style="background:var(--acc);color:#fff">➕ 区間を追加</button>
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700;margin-top:10px"><input type="checkbox" data-k="co" ${D.co?"checked":""} style="width:22px;height:22px">最後に掃除口を付ける</label></div>
  <div class="drc" id="drSumBox"></div>
@@ -122,14 +152,15 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  $("#drPanel").innerHTML=h;drSum()}
 function drSumHtml(){const D=DRN(),R=drCalc(),M=DR_MAT[D.mat];
  let fit=[...R.fit.entries()].map(([k,n])=>`${k} ×${n}`).join("<br>")||"なし";
- const warn=R.up>500?`<div class="drnote">⚠️ 立ち上げが合計 ${fmt(R.up)}mm です。ドレンアップの上限（機種ごと。多くは天井面から500〜850mm）を確認してください。</div>`:"";
+ const trw=R.tr?`<div class="drnote" style="background:#f5f3ff;color:#4c1d95">⛩ <b>鳥居の注意</b><br>・<b>エア噛み</b>：頂点に空気が溜まると流れなくなります。頂点の横は短く、落とし込み側へ下り勾配を付けてください（機種によってはエア抜きが必要）。<br>・<b>結露</b>：立ち上げ〜頂点〜落とし込みは、専用の断熱カバー（または厚手の保温材）をすき間なく。3Dの白い所が保温の範囲です。<br>・<b>支持</b>：頂点が下がると勾配が狂います。頂点の真ん中を上から吊って、鳥居全体を支えてください（3Dの紫の吊り）。<br>・立ち上げ H ${fmt(D.tr.H)}mm が、室内機のドレンアップの上限以内か確認してください。</div>`:"";
+ const warn=R.up>500&&!R.tr?`<div class="drnote">⚠️ 立ち上げが合計 ${fmt(R.up)}mm です。ドレンアップの上限（機種ごと。多くは天井面から500〜850mm）を確認してください。</div>`:"";
  return `<h4>📏 計算</h4><table class="drsum" style="width:100%;border-collapse:collapse">
  <tr><td>材質</td><td><b>${M.n}</b>　${M.s}${D.sz}${R.szEnd!==D.sz?" → "+M.s+R.szEnd:""}（外径 約${M.od[D.sz]}${R.szEnd!==D.sz?"→"+M.od[R.szEnd]:""}mm）</td></tr>
  <tr><td>直線の合計</td><td><b>${fmt(R.tot)}</b> mm（横引き ${fmt(R.hz)}・立て ${fmt(R.vt)}）</td></tr>
  <tr><td>必要な落差</td><td><b>${fmt(R.drop)}</b> mm（横引き ${fmt(R.hz)} × 1/${D.slope}）</td></tr>
  <tr><td>継手</td><td>${fit}</td></tr>
  <tr><td>吊り金具</td><td><b>${R.sup}</b> 個（${drBand(D,D.sz)}${R.szEnd!==D.sz?"／太い所は "+drBand(D,R.szEnd):""}）<br><small>横引き ${(D.span/1000).toFixed(1)}m おき＋継手の近く（150mm以内）に1か所ずつ</small>${R.vsup?`<br>立てバンド ${R.vsup} 個`:""}</td></tr>
- </table>${warn}<div style="font-size:12px;color:var(--sub);margin-top:6px">数は目安です。継手の品番・外径はメーカーで確認してください。ソケットは定尺4mを超える所の数です。</div>`}
+ </table>${trw}${warn}<div style="font-size:12px;color:var(--sub);margin-top:6px">数は目安です。継手の品番・外径はメーカーで確認してください。ソケットは定尺4mを超える所の数です。</div>`}
 function drSum(){const b=$("#drSumBox");if(b)b.innerHTML=drSumHtml()}
 /* 📋 まとめ：冷媒とドレンを1つの画面で */
 function drSumOpen(){const sh=$("#drSumSh");if(!sh)return;

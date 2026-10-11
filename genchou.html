@@ -538,15 +538,20 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <script>try{if(["en","es","de"].includes(localStorage.getItem("pbm_lang")))document.write('<script src="lang.js"><\/script>')}catch(e){}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="genchou";</script>
-<script src="models.js?v=129"></script>
-<script src="core.js?v=129"></script>
-<script src="genchou.js?v=129"></script>
+<script src="models.js?v=130"></script>
+<script src="core.js?v=130"></script>
+<script src="genchou.js?v=130"></script>
 <script>
 (function(){
  const e=$("#genEnd");e.textContent="◀ 曲げ共有";
  const b=document.createElement("button");b.id="genAR";b.textContent="🧊 実物大";e.after(b);
  b.onclick=()=>{openAR.anchor=b;openAR()};
- const go=()=>{if(T&&!GEN.on)genOpen()};
+ /* 最初に「どう使うか」を選ぶ。勝手にカメラ・録画は始めない */
+ const st0=document.createElement("div");st0.id="genStart";
+ st0.innerHTML=`<h2>📹 現調</h2><button class="main" data-v="cam">📷 カメラで見る<small>カメラの上に3Dを重ねます。写真・動画は、ボタンを押した時だけ撮ります</small></button><button data-v="3d">🧊 機械と配管だけ見る<small>カメラなし・録画なし。電池と熱にやさしい</small></button><button data-v="back">◀ 曲げ共有に戻る</button>`;
+ $("#stage").appendChild(st0);
+ st0.onclick=ev=>{const x=ev.target.closest("button");if(!x)return;const v=x.dataset.v;if(v==="back"){location.href="index.html";return}st0.classList.remove("on");if(v==="cam")genCamOn()};
+ const go=()=>{if(T&&!GEN.on){genOpen({cam:false});st0.classList.add("on")}};
  if(document.readyState==="complete")setTimeout(go,50);else addEventListener("load",()=>setTimeout(go,50));
 })();
 </script>

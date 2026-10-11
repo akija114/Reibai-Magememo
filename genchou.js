@@ -82,14 +82,14 @@ const GEN={on:false,stream:null,mic:null,gyro:false,rec:null,chunks:[],cvs:null,
 (function(){
  const css=document.createElement("style");
  css.textContent=`
-.stage.genmode{background:#000}
+.stage.genmode.gencam{background:#000}
 .stage.genmode .hud,.stage.genmode .tools,.stage.genmode .suppill,.stage.genmode .toolsTab,.stage.genmode .infoTab,.stage.genmode .uitog,.stage.genmode .stinfo,.stage.genmode .hint,.stage.genmode #photoBg{display:none!important}
 #genVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;display:none;pointer-events:none;background:#000}
-.stage.genmode #genVid{display:block}
+.stage.genmode.gencam #genVid{display:block}
 #genTop,#genBot{position:absolute;left:0;right:0;z-index:4;display:none;font-family:-apple-system,"Hiragino Sans",sans-serif}
 .stage.genmode #genTop,.stage.genmode #genBot{display:flex}
-#genTop{top:calc(env(safe-area-inset-top,0px) + 8px);padding:0 10px;gap:6px;align-items:center}
-#genTop button{flex:none;height:40px;border-radius:20px;padding:0 12px;background:#0f172acc;color:#fff;font-size:14px;font-weight:700;white-space:nowrap}
+#genTop{top:calc(env(safe-area-inset-top,0px) + 8px);padding:0 10px;gap:6px;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}#genTop::-webkit-scrollbar{display:none}
+#genTop button{flex:none;height:40px;border-radius:20px;padding:0 11px;background:#0f172acc;color:#fff;font-size:14px;font-weight:700;white-space:nowrap}
 #genTop button.on{background:#0369a1}
 #genRecDot{position:absolute;right:10px;top:48px;background:#dc2626;color:#fff;border-radius:14px;padding:5px 10px;font-size:13px;font-weight:800;display:none}
 #genRecDot.on{display:block;animation:genBl 1s infinite}
@@ -103,14 +103,21 @@ const GEN={on:false,stream:null,mic:null,gyro:false,rec:null,chunks:[],cvs:null,
 #genPrev,#genNext{width:52px;font-size:20px}
 #genMinus,#genPlus{flex:1;font-size:22px;min-height:62px;touch-action:none;user-select:none;-webkit-user-select:none}
 #genMinus{background:#475569}#genPlus{background:#0369a1}
-#genRec{width:76px;background:#dc2626;font-size:15px}
+#genRec{width:62px;background:#dc2626;font-size:14px}#genPhoto{width:58px;background:#0f766e;font-size:14px}
+#genSleep{position:absolute;inset:0;z-index:5;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#0f172ae6;color:#fff;text-align:center;padding:24px;font-weight:800}
+#genSleep.on{display:flex}#genSleep b{font-size:20px}#genSleep span{font-size:14px;opacity:.85;font-weight:600;line-height:1.6}
+#genStart{position:absolute;inset:0;z-index:6;display:none;flex-direction:column;justify-content:center;gap:12px;padding:24px 18px calc(env(safe-area-inset-bottom,0px) + 24px);background:#0f172af2;color:#fff}
+#genStart.on{display:flex}#genStart h2{margin:0 0 6px;font-size:22px;text-align:center}
+#genStart button{min-height:76px;border-radius:16px;background:#ffffff1f;color:#fff;text-align:left;padding:10px 16px;font-size:17px;font-weight:800;line-height:1.35}
+#genStart button small{display:block;font-size:12.5px;font-weight:600;opacity:.85}
+#genStart button.main{background:#0369a1}
 #genRec.on{background:#fff;color:#dc2626}
-#genStepB{width:64px;font-size:13px}
+#genStepB{width:54px;font-size:12.5px}
 #genTot{color:#fff;font-size:13px;text-align:center;opacity:.92}
 #genTot .ov{color:#fca5a5;font-weight:800}
 #genOut{position:fixed;inset:0;z-index:80;background:#000d;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px calc(16px + env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px))}
 #genOut.on{display:flex}
-#genOut video{max-width:100%;max-height:60vh;border-radius:12px;background:#000}
+#genOut video,#genOut img{max-width:100%;max-height:60vh;border-radius:12px;background:#000}
 #genOut .b{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 #genOut button,#genOut a{height:48px;border-radius:14px;padding:0 18px;font-weight:800;font-size:15px;background:#0369a1;color:#fff;text-decoration:none;display:flex;align-items:center}
 #genOut .sub{background:#475569}
@@ -121,20 +128,22 @@ body.gen .toast{bottom:calc(env(safe-area-inset-bottom,0px) + 200px)}
  const v=document.createElement("video");v.id="genVid";v.muted=true;v.setAttribute("muted","");v.setAttribute("playsinline","");v.setAttribute("autoplay","");
  stg.insertBefore(v,$("#cv"));
  const top=document.createElement("div");top.id="genTop";top.setAttribute("data-notr","");
- top.innerHTML=`<button id="genEnd">✕ 終了</button><button id="genGyro">📱 見回す</button><button id="genMic" aria-label="マイク（声も録る）">🎤</button><div id="genRecDot">● REC 0:00</div>`;
+ top.innerHTML=`<button id="genEnd">✕ 終了</button><button id="genCam">📷 カメラ</button><button id="genGyro">📱 見回す</button><button id="genMic" aria-label="マイク（声も録る）">🎤</button><div id="genRecDot">● REC 0:00</div>`;
  stg.appendChild(top);
  const bot=document.createElement("div");bot.id="genBot";
  bot.innerHTML=`<div class="genR"><button id="genPrev" aria-label="前の直管">◀</button><div id="genSeg"></div><button id="genNext" aria-label="次の直管">▶</button></div>
-<div class="genR"><button id="genMinus">− 10cm</button><button id="genPlus">＋ 10cm</button><button id="genStepB">単位<br>10cm</button><button id="genRec">⏺<br>録画</button></div>
+<div class="genR"><button id="genMinus">− 10cm</button><button id="genPlus">＋ 10cm</button><button id="genStepB">単位<br>10cm</button><button id="genPhoto">📷<br>写真</button><button id="genRec">⏺<br>動画</button></div>
 <div id="genTot"></div>`;
  stg.appendChild(bot);
+ const sl=document.createElement("div");sl.id="genSleep";sl.innerHTML=`<b>💤 電池を守るため、カメラを止めました</b><span>しばらく触っていない時・ほかのアプリに切り替えた時は、自動で止まります。<br>タップで再開します。</span>`;stg.appendChild(sl);
+ sl.onclick=()=>{sl.classList.remove("on");genCamOn()};
  const out=document.createElement("div");out.id="genOut";
- out.innerHTML=`<video id="genOutV" controls playsinline></video><p id="genOutMsg"></p><div class="b"><button id="genShare">📤 共有（LINEなど）</button><a id="genSave" download>💾 保存</a><button class="sub" id="genOutClose">閉じる</button></div>`;
+ out.innerHTML=`<video id="genOutV" controls playsinline></video><img id="genOutI" alt="撮った写真"><p id="genOutMsg"></p><div class="b"><button id="genShare">📤 共有（LINEなど）</button><a id="genSave" download>💾 保存</a><button class="sub" id="genOutClose">閉じる</button></div>`;
  document.body.appendChild(out);
  const tb=document.createElement("button");tb.className="hb";tb.id="genBtn";tb.setAttribute("aria-label","現調モード（カメラで確認・録画）");
  tb.innerHTML=`<span style="font-size:22px;line-height:1">📹</span>`;
  const ar=$("#arBtn");ar.parentNode.insertBefore(tb,ar.nextSibling);
- tb.onclick=genOpen;
+ tb.onclick=()=>genOpen({cam:true});
 })();
 
 function genSegText(){
@@ -176,34 +185,58 @@ $("#genNext").onclick=()=>{
 $("#genEnd").onclick=genClose;
 $("#genMic").onclick=()=>{if(GEN.rec){toast("録画中はマイクを切り替えられません");return}GEN.micOn=!GEN.micOn;$("#genMic").textContent=GEN.micOn?"🎤 ON":"🎤";toast(GEN.micOn?"声も一緒に録画します":"音なしで録画します");$("#genMic").classList.toggle("on",GEN.micOn)};
 $("#genRec").onclick=()=>{GEN.rec?genRecStop():genRecStart()};
+$("#genPhoto").onclick=genPhoto;
+$("#genCam").onclick=()=>{GEN.stream?genCamOff(true):genCamOn()};
 $("#genGyro").onclick=genGyroToggle;
 $("#genOutClose").onclick=()=>{$("#genOut").classList.remove("on");const vv=$("#genOutV");vv.pause()};
 
-async function genOpen(){
- if(!T)return;
- GEN.on=true;GEN.wasFull=!!T.full;
+/* 開くだけではカメラも録画も始めない。カメラは「📷 カメラ」、撮るのは「📷 写真」「⏺ 動画」を押した時だけ */
+async function genOpen(opt){
+ if(!T)return;opt=opt||{};
+ GEN.on=true;GEN.wasFull=!!T.full;GEN.lastT=Date.now();
  if(!T.full)setFull(true);
  $("#stage").classList.add("genmode");document.body.classList.add("gen");
- GEN.fov0=T.cam.fov;T.cam.fov=60;T.cam.updateProjectionMatrix();T.dirty=true;
- genUI();
- const v=$("#genVid");
+ GEN.fov0=T.cam.fov;T.cam.fov=60;T.cam.updateProjectionMatrix();
+ /* 電池・熱対策：3Dの細かさを少し落とす（見た目はほぼ同じ） */
+ try{T.rd.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));sizeT()}catch(e){}
+ T.dirty=true;genUI();
+ clearInterval(GEN.idle);GEN.idle=setInterval(genIdleCheck,15000);
+ if(opt.cam)await genCamOn();else genCamUI();
+}
+async function genCamOn(){
+ const v=$("#genVid");$("#genSleep").classList.remove("on");GEN.lastT=Date.now();
+ if(GEN.stream){genCamUI();return}
  try{
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error("no gum");
-  GEN.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false});
+  /* 1280×720・30コマまで（フルHDより電池と熱がかなり楽） */
+  GEN.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}},audio:false});
   if(!GEN.on){GEN.stream.getTracks().forEach(t=>t.stop());GEN.stream=null;return}
   v.srcObject=GEN.stream;await v.play().catch(()=>{});
-  toast("＋／−で選んだ直管が伸び縮みします。📱見回すでスマホの向きに合わせて回ります");
+  toast("カメラを出しました。撮る時は「📷 写真」か「⏺ 動画」を押してください");
  }catch(e){
-  console.warn(e);
-  toast("カメラが使えませんでした（設定→Safari→カメラ を「許可」に）。3Dだけで操作・録画はできます");
+  console.warn(e);GEN.stream=null;
+  toast("カメラが使えませんでした（設定→Safari→カメラ を「許可」に）。3Dだけで見られます");
  }
-}
+ genCamUI()}
+function genCamOff(byUser){
+ if(GEN.rec)genRecStop();
+ if(GEN.stream){GEN.stream.getTracks().forEach(t=>t.stop());GEN.stream=null}
+ const v=$("#genVid");try{v.pause()}catch(e){}v.srcObject=null;
+ if(GEN.gyro)genGyroOff();
+ genCamUI();if(byUser)toast("カメラを止めました（機械と配管だけ表示）")}
+function genCamUI(){const on=!!GEN.stream,b=$("#genCam");if(b){b.classList.toggle("on",on);b.textContent=on?"📷 カメラON":"📷 カメラ"}$("#stage").classList.toggle("gencam",on)}
+/* しばらく触っていない（3分）・アプリを切り替えた → カメラを止める */
+function genSleep(){if(!GEN.on||!GEN.stream)return;genCamOff();$("#genSleep").classList.add("on")}
+function genIdleCheck(){if(!GEN.on)return;if(!GEN.rec&&GEN.stream&&Date.now()-GEN.lastT>180000)genSleep()}
+document.addEventListener("pointerdown",()=>{GEN.lastT=Date.now()},true);
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&GEN.on){if(GEN.rec)genRecStop();genSleep()}});
 function genClose(){
  if(GEN.rec)genRecStop();
  GEN.on=false;
  if(GEN.gyro)genGyroOff();
- if(GEN.stream){GEN.stream.getTracks().forEach(t=>t.stop());GEN.stream=null}
- const v=$("#genVid");v.pause();v.srcObject=null;
+ if(GEN.stream){GEN.stream.getTracks().forEach(t=>t.stop());GEN.stream=null}clearInterval(GEN.idle);
+ const v=$("#genVid");v.pause();v.srcObject=null;$("#genSleep").classList.remove("on");
+ try{T.rd.setPixelRatio(Math.min(window.devicePixelRatio||1,2));sizeT()}catch(e){}
  $("#stage").classList.remove("genmode");document.body.classList.remove("gen");
  T.cam.fov=GEN.fov0;T.cam.updateProjectionMatrix();T.custom=null;
  if(APP==="genchou"){location.href="index.html";return}
@@ -221,6 +254,7 @@ function genGyroQ(ev){
 }
 function genGyroEv(ev){
  if(ev.alpha==null&&ev.beta==null)return;
+ {const n=performance.now();if(n-(GY.t||0)<33)return;GY.t=n}   // 1秒に30回まで（電池対策）
  const V=THREE.Vector3,q=genGyroQ(ev),fd=new V(0,0,-1).applyQuaternion(q);
  if(GY.yaw===null){
   const fc=new V(0,0,-1).applyQuaternion(T.cam.quaternion);
@@ -262,18 +296,16 @@ function genRecMime(){
 async function genRecStart(){
  const mime=genRecMime();
  if(mime===null){toast("このブラウザは録画に対応していません。iPhoneの「画面収録」を使ってください");return}
- const cv=$("#cv"),w=cv.width&~1,h=cv.height&~1;
- if(!GEN.cvs)GEN.cvs=document.createElement("canvas");
- GEN.cvs.width=w;GEN.cvs.height=h;GEN.ctx=GEN.cvs.getContext("2d");
+ genCvs();
  let stream;
- try{stream=GEN.cvs.captureStream(30)}catch(e){toast("録画を始められませんでした");return}
+ try{stream=GEN.cvs.captureStream(24)}catch(e){toast("録画を始められませんでした");return}
  if(GEN.micOn){
   try{GEN.mic=await navigator.mediaDevices.getUserMedia({audio:true,video:false});GEN.mic.getAudioTracks().forEach(t=>stream.addTrack(t))}
   catch(e){toast("マイクが使えないので、音なしで録画します")}
  }
  genRecDraw();
  let rec;
- try{rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:5e6}:{})}catch(e){try{rec=new MediaRecorder(stream)}catch(e2){toast("録画を始められませんでした");return}}
+ try{rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:2.5e6}:{})}catch(e){try{rec=new MediaRecorder(stream)}catch(e2){toast("録画を始められませんでした");return}}
  GEN.chunks=[];GEN.rec=rec;GEN.t0=Date.now();
  rec.ondataavailable=e=>{if(e.data&&e.data.size)GEN.chunks.push(e.data)};
  rec.onstop=()=>{
@@ -282,22 +314,27 @@ async function genRecStart(){
   if(GEN.mic){GEN.mic.getTracks().forEach(t=>t.stop());GEN.mic=null}
   genShowOut(blob,type);
  };
- window.__genRec=genRecDraw;rec.start(1000);
- $("#genRec").classList.add("on");$("#genRec").innerHTML="⏹<br>停止";$("#genRecDot").classList.add("on");
+ window.__genRec=genFrame;rec.start(1000);
+ $("#genRec").classList.add("on");$("#genRec").innerHTML="⏹<br>停止";GEN.lastT=Date.now();$("#genRecDot").classList.add("on");
  GEN.tick=setInterval(()=>{const s=Math.floor((Date.now()-GEN.t0)/1000);$("#genRecDot").textContent=`● REC ${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;T.dirty=true},250);
  T.dirty=true;
 }
 function genRecStop(){
- const rec=GEN.rec;if(!rec)return;GEN.rec=null;window.__genRec=null;
+ const rec=GEN.rec;if(!rec)return;GEN.rec=null;if(!GEN.shot)window.__genRec=null;
  clearInterval(GEN.tick);
  try{rec.stop()}catch(e){}
- $("#genRec").classList.remove("on");$("#genRec").innerHTML="⏺<br>録画";$("#genRecDot").classList.remove("on");$("#genRecDot").textContent="● REC 0:00";
+ $("#genRec").classList.remove("on");$("#genRec").innerHTML="⏺<br>動画";$("#genRecDot").classList.remove("on");$("#genRecDot").textContent="● REC 0:00";
 }
+function genCvs(){const cv=$("#cv"),w=cv.width&~1,h=cv.height&~1;if(!GEN.cvs)GEN.cvs=document.createElement("canvas");if(GEN.cvs.width!==w||GEN.cvs.height!==h){GEN.cvs.width=w;GEN.cvs.height=h}GEN.ctx=GEN.cvs.getContext("2d")}
+/* 3Dを描いた直後に1回だけ呼ばれる：動画の1コマを描く・写真ならその絵を保存 */
+function genFrame(){genRecDraw();if(GEN.shot){GEN.shot=false;const c=GEN.cvs;c.toBlob(b=>{if(b)genShowOut(b,"image/jpeg");else toast("写真を撮れませんでした")},"image/jpeg",0.9);if(!GEN.rec)window.__genRec=null}}
+function genPhoto(){genCvs();GEN.shot=true;window.__genRec=genFrame;T.dirty=true;try{navigator.vibrate&&navigator.vibrate(20)}catch(e){}}
 /* loop() の描画直後に呼ぶ（WebGLの絵が消える前に写す） */
 function genRecDraw(){
  const x=GEN.ctx,cv=$("#cv"),W=GEN.cvs.width,H=GEN.cvs.height,v=$("#genVid");
- x.fillStyle="#000";x.fillRect(0,0,W,H);
- if(v.videoWidth&&v.readyState>=2){
+ const camOn=!!(GEN.stream&&v.videoWidth&&v.readyState>=2);
+ x.fillStyle=camOn?"#000":"#e0f2fe";x.fillRect(0,0,W,H);   // カメラなしの時は、いつもの3Dの背景色
+ if(camOn){
   const s=Math.max(W/v.videoWidth,H/v.videoHeight),dw=v.videoWidth*s,dh=v.videoHeight*s;
   x.drawImage(v,(W-dw)/2,(H-dh)/2,dw,dh);
  }
@@ -318,16 +355,16 @@ function genRecDraw(){
  x.font=`700 ${14*k}px -apple-system,"Hiragino Sans",sans-serif`;x.textAlign="right";x.fillStyle=ov?"#fca5a5":"#fff";x.fillText(t2,W-pad*2,by+42*k);x.textAlign="left";
 }
 function genShowOut(blob,type){
- const ext=type.indexOf("mp4")>=0?"mp4":"webm",d=new Date(),p=n=>String(n).padStart(2,"0");
+ const img=type.indexOf("image")===0,ext=img?"jpg":type.indexOf("mp4")>=0?"mp4":"webm",d=new Date(),p=n=>String(n).padStart(2,"0");
  const name=`現調_${(st.info.site||"").replace(/[\\/:*?"<>|\s]/g,"")||"配管"}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.${ext}`;
  const url=URL.createObjectURL(blob);
  if(GEN.outUrl)URL.revokeObjectURL(GEN.outUrl);GEN.outUrl=url;
- const vv=$("#genOutV");vv.src=url;
+ const vv=$("#genOutV"),im=$("#genOutI");vv.style.display=img?"none":"";im.style.display=img?"":"none";if(img){vv.removeAttribute("src");im.src=url}else vv.src=url;
  const a=$("#genSave");a.href=url;a.download=name;
  const file=new File([blob],name,{type});
  const canShare=!!(navigator.canShare&&navigator.canShare({files:[file]}));
  $("#genShare").style.display=canShare?"":"none";
- $("#genOutMsg").textContent=canShare?"「共有」→ LINE や「ビデオを保存」で写真アプリに入れられます":"「保存」で動画を開いて、共有ボタンから保存・送信してください";
+ $("#genOutMsg").textContent=canShare?"「共有」→ LINE や「"+(img?"画像":"ビデオ")+"を保存」で写真アプリに入れられます":"「保存」で開いて、共有ボタンから保存・送信してください";
  $("#genShare").onclick=async()=>{try{await navigator.share({files:[file],title:name})}catch(e){if(e&&e.name!=="AbortError")toast("共有できませんでした。「保存」を使ってください")}};
  $("#genOut").classList.add("on");
 }

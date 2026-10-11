@@ -1214,6 +1214,22 @@ function planPipeRoute(start){const P=PLAN,mm=P.mmpp;
   cur=n}
  return pts}
 function planNearText(re,x,y,maxPx,skip){let best=null,bd=1e18;(PLAN.texts||[]).forEach(t=>{const s=normTx(t.s);if(!re.test(s)||(skip&&skip.test(s)))return;const cx=t.x+t.w/2,cy=t.y-t.h/2,d=Math.hypot(cx-x,cy-y);if(d<bd&&d<=maxPx){bd=d;best=t}});return best}
+/* 冷媒の高さの文字と縦管の印：route（図面の点）の各点の位置 s（mm）、近くの「FL+○○」、ピンクの丸い端（半円）のある点 */
+function planRefHeights(route,pipeH){const P=PLAN,mm=P.mmpp,px=v=>v/mm,S=[0];for(let i=1;i<route.length;i++)S.push(S[i-1]+v2l(v2s(route[i],route[i-1]))*mm);
+ const proj=q=>{let b=null;for(let i=1;i<route.length;i++){const r=v2pd(q,route[i-1],route[i]);if(!b||r.d<b.d)b={d:r.d,s:S[i-1]+r.tc*(S[i]-S[i-1])}}return b};
+ const labs=[];(P.texts||[]).forEach(t=>{const st2=normTx(t.s).trim();const m=st2.match(/^FL\s*\+\s*(\d{3,4})$/);if(!m)return;const r=proj([t.x+t.w/2,t.y-t.h/2]);if(r&&r.d*mm<=600)labs.push({s:r.s,FL:+m[1]})});
+ labs.sort((a,b)=>a.s-b.s);
+ /* 丸い端：マゼンタの短い線の点を集めて円を当てはめ、半分以上まわっていて半径1〜7cm */
+ const SP=P.segs.filter(s=>isMag(s[4])&&Math.hypot(s[2]-s[0],s[3]-s[1])*mm<40).flatMap(s=>[[s[0],s[1]],[s[2],s[3]]]),used=new Array(SP.length).fill(false),caps=[];
+ for(let i=0;i<SP.length;i++){if(used[i])continue;const cl=[i];used[i]=true;for(let k=0;k<cl.length;k++)for(let j=0;j<SP.length;j++)if(!used[j]&&v2l(v2s(SP[j],SP[cl[k]]))*mm<=25){used[j]=true;cl.push(j)}
+  let pts=cl.map(k=>SP[k]),c=null;if(pts.length<6)continue;
+  for(let it=0;it<5;it++){c=fitCircle(pts);if(!c)break;const tol=Math.max(0.4,c.r*0.15),np=pts.filter(p=>Math.abs(v2l(v2s(p,c))-c.r)<=tol);if(np.length===pts.length)break;
+   if(np.length<6){const res=pts.map(p=>Math.abs(v2l(v2s(p,c))-c.r)),mx=Math.max(...res);pts=pts.filter((p,k)=>res[k]<mx);if(pts.length<6){c=null;break}}else pts=np}   // 外れた点（となりの曲げの円弧）を除きながら当てはめ直す
+  if(!c||c.r*mm<10||c.r*mm>70)continue;
+  const ang=pts.map(p=>Math.atan2(p[1]-c[1],p[0]-c[0])).sort((a,b)=>a-b);let gap=ang[0]+2*Math.PI-ang[ang.length-1];for(let k=1;k<ang.length;k++)gap=Math.max(gap,ang[k]-ang[k-1]);
+  if(gap>4.1)continue;   // 4分の1の円（曲げの角、すき間約270°）は除く。半円（管の丸い端、少し欠けても可）と丸
+  let bj=-1,bd=1e18;route.forEach((q,j)=>{const d=v2l(v2s(q,c));if(d<bd){bd=d;bj=j}});if(bj>=0&&bd*mm<=300&&!caps.includes(bj))caps.push(bj)}
+ caps.sort((a,b)=>a-b);return{s:S,labs,caps}}
 function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線のデータがある図面（CADのPDF）で使えます");return}
  if(!P.mmpp||!P.org){toast("先に縮尺と原点を決めてください");return}
  const mm=P.mmpp,BL=planClusters(isBlue),norm=s=>normTx(s).toUpperCase().replace(/[\s\-‐ー－]/g,"");
@@ -1287,12 +1303,22 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  const toXZ=(x,z)=>{const d=new V(x-cur().x,0,z-cur().z);if(d.length()<1)return;const ax=Math.abs(d.x)>=Math.abs(d.z);go(ax?new V(d.x,0,0):new V(0,0,d.z));go(ax?new V(0,0,d.z):new V(d.x,0,0))};
  /* 図面の配管の始まりを、配管口の線に合わせる（ズレが30cm未満なら真っすぐにする。図面の配管は機器の記号の横に描かれるので少しズレる） */
  if(RL.length>=2){const ax=Math.abs(RL[1][0]-RL[0][0])>=Math.abs(RL[1][1]-RL[0][1]),k=ax?1:0;if(Math.abs(RL[0][k])<300){RL[0][k]=0;RL[1][k]=0}}
- go(new V(0,Math.abs(Yp)<100?0:Yp,0));   // 配管口から配管の高さへ（10cm未満の差は、曲げられないので同じ高さで通す）
+ /* 室外機の配管口（横から入る） */
+ let T0=null,Ap=null;if(O){const th=O.r*Math.PI/180,lx=new V(Math.cos(th),0,Math.sin(th)),lz=new V(-Math.sin(th),0,Math.cos(th)),op=outPort(O.m||"p40");
+  T0=new V(O.x,GY+(O.y||0),O.z).addScaledVector(lx,op[0]).addScaledVector(lz,op[2]).add(new V(0,op[1],0));Ap=T0.clone().addScaledVector(lx,250)}
+ /* 区間ごとの高さ：図面の「FL+○○」が2つ以上あれば区間ごとに。変わる所＝ピンクの丸い端（縦管の印）、無ければ2つの文字の中間の角
+    室外機側の丸い端（緑の丸の所）＝そこで室外機の配管口の高さへ上げ下げして、そのまま横から入る */
+ const RH=planRefHeights(route,pipeH),Yl=fl=>Math.max(GY+fl,CYc!=null?CYc+70+RR:-1e9),hA=route.map(()=>RH.labs.length?Yl(RH.labs[0].FL):Yp);
+ RH.labs.forEach((L,k)=>{if(!k)return;const A=RH.labs[k-1];if(Math.abs(A.FL-L.FL)<50)return;
+  const c=RH.caps.find(j=>RH.s[j]>A.s&&RH.s[j]<=L.s+1)??RH.s.findIndex(v=>v>=(A.s+L.s)/2);if(c<0)return;for(let i=c;i<hA.length;i++)hA[i]=Yl(L.FL)});
+ const capO=T0?RH.caps.filter(j=>j>=1&&RH.s[j]>500).pop():undefined;if(capO!=null)for(let i=capO;i<hA.length;i++)hA[i]=T0.y;
+ if(Math.abs(hA[0])<100){const h0=hA[0];for(let i=0;i<hA.length;i++)if(hA[i]===h0)hA[i]=0}
+ go(new V(0,hA[0],0));   // 配管口から配管の高さへ（10cm未満の差は、曲げられないので同じ高さで通す）
  {const ax=RL.length>=2&&Math.abs(RL[1][0]-RL[0][0])>=Math.abs(RL[1][1]-RL[0][1]);if(ax)go(new V(0,0,RL[0][1]));else go(new V(RL[0][0],0,0));go(new V(RL[0][0]-cur().x,0,RL[0][1]-cur().z))}
- for(let i=1;i<RL.length;i++)go(new V(RL[i][0]-cur().x,0,RL[i][1]-cur().z));
- if(O){const th=O.r*Math.PI/180,lx=new V(Math.cos(th),0,Math.sin(th)),lz=new V(-Math.sin(th),0,Math.cos(th)),op=outPort(O.m||"p40"),
-   T0=new V(O.x,GY+(O.y||0),O.z).addScaledVector(lx,op[0]).addScaledVector(lz,op[2]).add(new V(0,op[1],0)),Ap=T0.clone().addScaledVector(lx,250);
-  toXZ(Ap.x,Ap.z);go(new V(0,T0.y-cur().y,0));go(T0.clone().sub(cur()))}
+ for(let i=1;i<RL.length;i++){go(new V(RL[i][0]-cur().x,0,RL[i][1]-cur().z));if(Math.abs(hA[i]-cur().y)>=1)go(new V(0,hA[i]-cur().y,0))}
+ if(T0){const out=Ap.clone().sub(T0).normalize(),d=T0.clone().sub(cur()),a=d.dot(out);
+  if(Math.abs(d.y)<1&&a<=-50){const al=out.clone().multiplyScalar(a);go(d.clone().sub(al));go(al)}   // もう口の高さ：横のずれを合わせてから、まっすぐ口へ（行き過ぎて戻らない）
+  else{const toAp=Ap.clone().sub(cur());toAp.y=0;const al=out.clone().multiplyScalar(toAp.dot(out));go(al);go(toAp.clone().sub(al));go(new V(0,T0.y-cur().y,0));go(T0.clone().sub(cur()))}}   // 口の向きに出る→横を合わせる→（上げ下げ）→口へ
  const F=frameFor(new V(1,0,0)),Pf=PP.map(p=>new V(p.dot(F.ex),p.dot(F.ey),p.dot(F.ez)));
  const rows=polyToRows(Pf).filter(r=>r.l>0);if(!rows.length){toast("ルートを作れませんでした");return}
  st.rows=normRows(rows,[{l:1000,a:0,t:0,o:false}]);sel=0;st.units.e="";save();render();if(T){build3D();fitT(true)}

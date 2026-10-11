@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja" data-app="kiki">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>機器 - 冷媒配管の曲げ共有</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="曲げ共有 v1.00">
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--gas:#2563eb;--liq:#dc2626;--dr:#16a34a;--bolt:#7c3aed;--body:#94a3b8;--panel:#e2e8f0}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--gas:#60a5fa;--liq:#f87171;--dr:#4ade80;--bolt:#a78bfa;--body:#64748b;--panel:#1e2b3a}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--gas:#60a5fa;--liq:#f87171;--dr:#4ade80;--bolt:#a78bfa;--body:#64748b;--panel:#1e2b3a}
+*,*:before,*:after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 24px)}
+.apps{display:flex;gap:4px;margin:0 0 10px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:3px}
+.apps a{flex:1;text-align:center;padding:7px 0;border-radius:9px;font-size:13px;font-weight:800;color:var(--sub);text-decoration:none;white-space:nowrap}
+.apps a.on{background:var(--acc);color:#fff}
+select{width:100%;height:48px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:16px;font-weight:700;padding:0 10px}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-top:10px}
+h2{font-size:15px;margin:0 0 8px}
+.nm{font-size:19px;font-weight:800}.sub{color:var(--sub);font-size:13px;margin-top:2px}
+svg{width:100%;height:auto;display:block}
+.tb{width:100%;border-collapse:collapse;font-size:15px}
+.tb td{padding:8px 4px;border-top:1px solid var(--line);vertical-align:top}
+.tb td:first-child{font-weight:800;white-space:nowrap;width:1%}
+.tb b{font-size:20px;font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:12px;height:12px;border-radius:6px;margin-right:4px;vertical-align:-1px}
+.note{font-size:12.5px;color:var(--sub);line-height:1.55;margin-top:8px}
+.seg{display:flex;gap:6px;margin-top:8px}.seg button{flex:1;height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:13.5px}
+.seg button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+a.doc{color:var(--acc);font-weight:700}
+</style>
+</head>
+<body>
+<nav class="apps"><a href="index.html">🔧 曲げ共有</a><a href="zumen.html">📐 図面</a><a href="genchou.html">📹 現調</a><a href="kiki.html" class="on">🔩 機器</a></nav>
+<select id="m" aria-label="機種"></select>
+<div id="out"></div>
+<script src="models.js?v=129"></script>
+<script>
+/* 🔩 機器：仕込み用の寸法だけを見るページ（3Dなし・軽い）
+   配管口・ドレンの位置は「全ねじ（吊りボルト）の芯」から測る。開口寸法は現場で変わるので、全ねじ基準なら誰でも使える */
+const $=s=>document.querySelector(s),f=n=>Math.round(n).toLocaleString("ja-JP");
+const sel=$("#m");
+CAS2_MAKERS.forEach(([mk,mn])=>{const g=document.createElement("optgroup");g.label=mn;
+ CAS2_ORDER.filter(k=>CAS2M[k]&&CAS2M[k].mk===mk).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=CAS2M[k].n+"（"+CAS2M[k].kind+"）";g.appendChild(o)});sel.appendChild(g)});
+let cur=new URLSearchParams(location.search).get("m");
+if(!CAS2M[cur]){try{cur=localStorage.getItem("pbm_kiki")}catch(e){}}
+if(!CAS2M[cur]){try{const j=JSON.parse(localStorage.getItem("pbm1"));cur=j&&j.units&&j.units.ms}catch(e){}}
+if(!CAS2M[cur])cur=CAS2_ORDER[0];
+sel.value=cur;sel.onchange=()=>{cur=sel.value;try{localStorage.setItem("pbm_kiki",cur)}catch(e){}draw()};
+let face="L";   // 配管の出る面を正面に見て（左右の言い方）
+
+/* 配管口・ドレンの位置を、いちばん近い全ねじの芯から */
+function fromBolt(m,p){
+ const xP=m.L/2-(m.pin||0),dx=xP-m.ba/2;               // 配管が出る面の方向（手前）
+ const side=p.z>=0?"左":"右",dz=Math.abs(p.z)-m.bb/2;   // 左右（配管の出る面を正面に見て。z＋が左）
+ return{dx,dz,side}}
+const io=(v,o,i)=>v>=0?o+" "+f(v):i+" "+f(-v);
+
+function draw(){const m=CAS2M[cur],bi=!!m.bi,fin=bi?"本体の下面":"天井の仕上げ面";
+ const P=[["gas","ガス",m.g?"φ"+m.g:"","--gas"],["liq","液",m.l?"φ"+m.l:"","--liq"],["dr","ドレン",m.dn?"":"","--dr"]].filter(a=>m[a[0]]);
+ /* ---- 上から見た図（配管の出る面が手前＝下）。svgの横＝左右（左が−z… 正面に見て左＝図の左）、縦＝配管の方向（下が手前） ---- */
+ const span=Math.max(m.pa||m.L,m.ba,m.L)+260,spanY=Math.max(m.pb||m.W,m.bb,m.W)+260,S=340/Math.max(span,spanY),W=360,H=Math.round(spanY*S)+44;
+ const cx=W/2,cy=(H-22)/2,X=z=>cx-z*S,Y=x=>cy+x*S;   // 正面に見て左（z＋）→ 図の左
+ const rect=(a,b,cls,st)=>`<rect x="${cx-b/2*S}" y="${cy-a/2*S}" width="${b*S}" height="${a*S}" ${st}/>`;
+ let sv=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="上から見た図">`;
+ if(!bi&&m.pa)sv+=rect(m.pa,m.pb,"",`fill="var(--panel)" stroke="var(--line)" stroke-dasharray="4 3"`);
+ sv+=rect(m.L,m.W,"",`fill="none" stroke="var(--body)" stroke-width="2"`);
+ if(!bi&&m.oa)sv+=rect(m.oa,m.ob,"",`fill="none" stroke="var(--sub)" stroke-width="1" stroke-dasharray="1 3"`);
+ /* 全ねじ */
+ [-1,1].forEach(a=>[-1,1].forEach(b=>{sv+=`<circle cx="${X(b*m.bb/2)}" cy="${Y(a*m.ba/2)}" r="6" fill="var(--bolt)"/>`}));
+ sv+=`<line x1="${X(m.bb/2)}" y1="${Y(-m.ba/2)-18}" x2="${X(-m.bb/2)}" y2="${Y(-m.ba/2)-18}" stroke="var(--bolt)" stroke-width="1.5"/><text x="${cx}" y="${Y(-m.ba/2)-23}" text-anchor="middle" font-size="13" font-weight="800" fill="var(--bolt)">${f(m.bb)}</text>`;
+ sv+=`<line x1="${X(m.bb/2)-18}" y1="${Y(-m.ba/2)}" x2="${X(m.bb/2)-18}" y2="${Y(m.ba/2)}" stroke="var(--bolt)" stroke-width="1.5"/><text x="${X(m.bb/2)-23}" y="${cy}" text-anchor="middle" font-size="13" font-weight="800" fill="var(--bolt)" transform="rotate(-90 ${X(m.bb/2)-23} ${cy})">${f(m.ba)}</text>`;
+ /* 配管口 */
+ const xP=m.L/2-(m.pin||0);
+ P.forEach(([k,n,,c],i)=>{const p=m[k],px=X(p.z),py=Y(xP);sv+=`<circle cx="${px}" cy="${py}" r="7" fill="var(${c})" stroke="#fff" stroke-width="1.5"/><text x="${px}" y="${py+24+(i%2)*13}" text-anchor="middle" font-size="12" font-weight="800" fill="var(${c})">${n}</text>`});
+ sv+=`<text x="${cx}" y="${H-8}" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--sub)">▲ 配管の出る面（手前）</text></svg>`;
+ /* ---- 横から見た図（配管の出る面を正面に見て）。縦＝高さ（仕上げ面＝0）---- */
+ const top=m.top||m.H,yMax=Math.max(top,m.nk||0)+90,yMin=bi?-40:-(m.pt||0)-60,SH=Math.min(S,170/(yMax-yMin)),H2=Math.round((yMax-yMin)*SH)+30,Z=y=>15+(yMax-y)*SH;
+ let s2=`<svg viewBox="0 0 ${W} ${H2}" role="img" aria-label="横から見た図">`;
+ s2+=`<line x1="4" y1="${Z(0)}" x2="${W-4}" y2="${Z(0)}" stroke="var(--sub)" stroke-width="2"/><text x="6" y="${Z(0)-4}" font-size="11.5" font-weight="700" fill="var(--sub)">${bi?"本体下面":"天井仕上げ 0"}</text>`;
+ if(!bi&&m.pt)s2+=`<rect x="${cx-(m.pb||m.W)/2*S}" y="${Z(0)}" width="${(m.pb||m.W)*S}" height="${Math.max(3,m.pt*SH)}" fill="var(--panel)" stroke="var(--line)"/>`;
+ s2+=`<rect x="${cx-m.W/2*S}" y="${Z(top)}" width="${m.W*S}" height="${(top-(bi?0:top-m.H))*SH}" fill="none" stroke="var(--body)" stroke-width="2"/>`;
+ [-1,1].forEach(b=>{const x=X(b*m.bb/2);s2+=`<line x1="${x}" y1="${Z(yMax)}" x2="${x}" y2="${Z(m.nk)}" stroke="var(--bolt)" stroke-width="3"/><rect x="${x-9}" y="${Z(m.nk)-4}" width="18" height="8" fill="var(--bolt)"/>`});
+ s2+=`<text x="${X(-m.bb/2)+12}" y="${Z(m.nk)+4}" font-size="12" font-weight="800" fill="var(--bolt)">ネコ ${f(m.nk)}</text>`;
+ P.forEach(([k,n,,c])=>{const p=m[k];s2+=`<circle cx="${X(p.z)}" cy="${Z(p.y)}" r="6" fill="var(${c})" stroke="#fff" stroke-width="1.5"/><text x="${X(p.z)}" y="${Z(p.y)-9}" text-anchor="middle" font-size="11.5" font-weight="800" fill="var(${c})">${f(p.y)}</text>`});
+ s2+=`</svg>`;
+ /* ---- 数字の表（仕込みで使う所） ---- */
+ const row=(lab,html)=>`<tr><td>${lab}</td><td>${html}</td></tr>`;
+ let tb=row(`<span class="dot" style="background:var(--bolt)"></span>吊りピッチ`,`<b>${f(m.ba)}</b> × <b>${f(m.bb)}</b><div class="note" style="margin:2px 0 0">${f(m.ba)}＝配管の出る方向／${f(m.bb)}＝その横</div>`);
+ tb+=row("ネコの高さ",`${fin}から <b>${f(m.nk)}</b>`);
+ P.forEach(([k,n,d,c])=>{const p=m[k],r=fromBolt(m,p);
+  tb+=row(`<span class="dot" style="background:var(${c})"></span>${n}${d?`<br><small>${d}</small>`:""}`,
+   `手前の全ねじ芯から <b>${io(r.dx,"外へ","内へ")}</b><br>${r.side}の全ねじ芯から <b>${io(r.dz,"外へ","内へ")}</b><br>${fin}から 上へ <b>${f(p.y)}</b>`)});
+ tb+=row("天井内",`${fin}から本体の天面まで <b>${f(top)}</b>`);
+ if(!bi)tb+=row("開口",`<b>${m.oTxt||f(m.oa)+" × "+f(m.ob)}</b>${m.oTxt?`（図面 ${f(m.oa)}×${f(m.ob)}）`:""}<br>パネル ${f(m.pa)} × ${f(m.pb)}`);
+ tb+=row("本体",`${f(m.L)} × ${f(m.W)} × 高さ ${f(m.H)}`);
+ $("#out").innerHTML=`<div class="card"><div class="nm">${m.n}</div><div class="sub">${(CAS2_MAKERS.find(x=>x[0]===m.mk)||["",""])[1]}　${m.kind}${m.sub?"・"+m.sub:""}</div></div>
+<div class="card"><h2>📏 仕込み寸法（全ねじの芯から）</h2><table class="tb">${tb}</table>
+<div class="note">「手前」＝配管の出る面の側、「左・右」＝配管の出る面を正面に見た時。「外へ」は全ねじより外側、「内へ」は機械の真ん中側です。${m.dn?"<br>"+m.dn:""}</div></div>
+<div class="card"><h2>上から見た図</h2>${sv}<div class="note">紫＝全ねじ／青＝ガス／赤＝液／緑＝ドレン。点線＝パネル・天井開口。</div></div>
+<div class="card"><h2>横から見た図（配管の出る面を正面に）</h2>${s2}<div class="note">数字は${fin}からの高さ（mm）。</div></div>
+<div class="note" style="margin:10px 4px">寸法はメーカーの据付説明書・外形図からの値です。仕込み前に、念のため最新の図面で確認してください。${m.doc?`<br><a class="doc" href="${m.doc}" target="_blank" rel="noopener">📄 据付説明書を開く</a>`:""}</div>`}
+draw();
+</script>
+</body>
+</html>

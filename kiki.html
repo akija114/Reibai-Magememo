@@ -39,7 +39,7 @@ a.doc{color:var(--acc);font-weight:700}
 <nav class="apps"><a href="index.html">🔧 曲げ共有</a><a href="zumen.html">📐 図面</a><a href="genchou.html">📹 現調</a><a href="kiki.html" class="on">🔩 機器</a></nav>
 <select id="m" aria-label="機種"></select>
 <div id="out"></div>
-<script src="models.js?v=135"></script>
+<script src="models.js?v=136"></script>
 <script>
 /* 🔩 機器：仕込み用の寸法だけを見るページ（3Dなし・軽い）
    配管口・ドレンの位置は「全ねじ（吊りボルト）の芯」から測る。開口寸法は現場で変わるので、全ねじ基準なら誰でも使える */
@@ -96,6 +96,7 @@ function draw(){const m=CAS2M[cur],bi=!!m.bi,fin=bi?"本体の下面":"天井の
  P.forEach(([k,n,d,c])=>{const p=m[k],r=fromBolt(m,p);
   tb+=row(`<span class="dot" style="background:var(${c})"></span>${n}${d?`<br><small>${d}</small>`:""}`,
    `手前の全ねじ芯から <b>${io(r.dx,"外へ","内へ")}</b><br>${r.side}の全ねじ芯から <b>${io(r.dz,"外へ","内へ")}</b><br>${fin}から 上へ <b>${f(p.y)}</b>`)});
+ tb+=row("ドレンアップ",m.du?`${fin}から <b>${f(m.du)}</b> まで`:(m.kind==="4方向"?`目安 ${fin}から <b>850</b> まで（機種の資料で確認）`:"資料で確認"));
  tb+=row("天井内",`${fin}から本体の天面まで <b>${f(top)}</b>`);
  if(!bi)tb+=row("開口",`<b>${m.oTxt||f(m.oa)+" × "+f(m.ob)}</b>${m.oTxt?`（図面 ${f(m.oa)}×${f(m.ob)}）`:""}<br>パネル ${f(m.pa)} × ${f(m.pb)}`);
  tb+=row("本体",`${f(m.L)} × ${f(m.W)} × 高さ ${f(m.H)}`);

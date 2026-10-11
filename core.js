@@ -1769,7 +1769,7 @@ ${APP==="zumen"?`  <div class="pt pt2" style="margin-top:10px;font-size:13px">ðŸ
   const now=Date.now();
   if(last&&now-last.t<380&&Math.hypot(e.clientX-last.x,e.clientY-last.y)<36){
    last=null;if(GUIDE)return;const sg=pickLeg(e.clientX,e.clientY);if(sg)openPMenu(sg,e.clientX,e.clientY);else{const bi=APP==="zumen"?pickBld(e.clientX,e.clientY):-1;if(bi>=0)openBld(bi);else openEmptyMenu(e.clientX,e.clientY)}
-  }else{last={x:e.clientX,y:e.clientY,t:now};if(GUIDE)return;const sg=pickLeg(e.clientX,e.clientY);if(sg)selectFromTap(sg)}
+  }else{last={x:e.clientX,y:e.clientY,t:now};if(GUIDE)return;const sg=pickLeg(e.clientX,e.clientY),dp=typeof drPick==="function"?drPick(e.clientX,e.clientY):null;if(dp&&(!sg||dp.d<10))drSelect(dp.i);else if(sg){if(typeof drSelect==="function")drSelect(-1,true);selectFromTap(sg)}}
  };
  cv.addEventListener("pointerup",up);
  cv.addEventListener("pointercancel",()=>{n=0;d0=null});

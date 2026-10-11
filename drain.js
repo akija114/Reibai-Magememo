@@ -67,11 +67,11 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
  D.rows.forEach((r,i)=>{if(r.sz)sz=r.sz;pts.push({p:PA.pts[i+1],sz,l:r.l,vert:Math.abs(PA.dirs[i].y)>0.7})});
  pts.forEach(o=>bb.expandByPoint(o.p));
  const ext=Math.max(...bb.getSize(new V()).toArray(),300),g=new THREE.Group();g.userData.drain=1;T.grp.add(g);
- const mat=new THREE.MeshStandardMaterial({color:DR_MAT[D.mat].col,roughness:.6}),jm=new THREE.MeshStandardMaterial({color:D.mat==="AC"?0x0ea5e9:0x6b7280,roughness:.5}),Y=new V(0,1,0);
+ const mat=new THREE.MeshStandardMaterial({color:DR_MAT[D.mat].col,roughness:.6}),jm=new THREE.MeshStandardMaterial({color:D.mat==="AC"?0x0ea5e9:0x6b7280,roughness:.5}),Y=new V(0,1,0),selMat=new THREE.MeshStandardMaterial({color:0xfacc15,roughness:.5,emissive:0x3a2a00});
  const rad=s2=>{const od=DR_MAT[D.mat].od[s2]||32;return Math.min(od/2*3,Math.max(od/2,ext*0.006))};
  for(let i=0;i<pts.length-1;i++){const a=pts[i].p,b=pts[i+1].p,L=a.distanceTo(b);if(L<1)continue;const r=rad(pts[i+1].sz);
-  (T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:(DR_MAT[D.mat].od[pts[i+1].sz]||32)/2,dr:1});
-  const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,16),mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(m);
+  (T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:(DR_MAT[D.mat].od[pts[i+1].sz]||32)/2,dr:1,i});
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,16),i===DR_SEL?selMat:mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(m);
   const j=new THREE.Mesh(new THREE.SphereGeometry(r*1.3,14,10),jm);j.position.copy(b);g.add(j);
   try{const s=label("💧"+(i+1)+" "+fmt(pts[i+1].l)+(pts[i+1].vert?"":"（-"+fmt(pts[i+1].l/D.slope)+"）"),ext*0.028,"#e0f2fef2","#0c4a6e");s.position.copy(a).add(b).multiplyScalar(.5);s.userData.cat="drain";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
  {const j=new THREE.Mesh(new THREE.SphereGeometry(rad(D.sz)*1.3,14,10),jm);j.position.copy(S);g.add(j)}
@@ -100,8 +100,10 @@ body.drmode #drPanel{display:block}
 .drnote{font-size:12.5px;line-height:1.55;background:#fff7ed;color:#9a3412;border-radius:10px;padding:8px 10px;margin:4px 0 8px}
 .drrow{display:flex;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap}
 .drrow b{width:24px;text-align:center;color:var(--acc)}
-.drrow select,.drrow input,.drc select{height:42px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);font-size:15px;font-weight:700;padding:0 6px;color:var(--ink)}
-.drrow input{width:96px;text-align:right}
+.drrow.sel{background:#fef9c3;border-radius:12px;box-shadow:0 0 0 2px #facc15 inset;padding-left:6px;padding-right:6px}
+.drdrop{font-size:12.5px;color:#0369a1;font-weight:800;white-space:nowrap}
+.drrow select,.drrow input:not([type=range]),.drc select{height:42px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);font-size:15px;font-weight:700;padding:0 6px;color:var(--ink)}
+.drrow input:not([type=range]){width:96px;text-align:right}
 .drrow button{height:40px;border-radius:10px;border:1.5px solid var(--line);padding:0 8px;font-weight:800;font-size:13px;background:var(--card)}
 .drrow button.on{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
 .drsum td{padding:5px 2px;border-top:1px solid var(--line);font-size:14px;vertical-align:top}.drsum td:first-child{color:var(--sub);white-space:nowrap;width:1%;padding-right:8px}
@@ -130,6 +132,7 @@ body.drmode #drPanel{display:block}
  pn.addEventListener("change",e=>{const el=e.target,i=+el.dataset.i,k=el.dataset.k,D=DRN();
   if(k==="sz"&&D.rows[i])D.rows[i].sz=+el.value;else if(k==="msz")D.sz=+el.value;else if(k==="co")D.co=el.checked;else if(k==="show")D.show=el.checked;else return;
   save();drRender();drRedraw()});
+ pn.addEventListener("pointerdown",e=>{const r=e.target.closest(".drrow");if(r&&+r.dataset.r!==DR_SEL){DR_SEL=+r.dataset.r;document.querySelectorAll(".drrow.sel").forEach(x=>x.classList.remove("sel"));r.classList.add("sel");drRedraw()}});
  pn.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const D=DRN(),i=+b.dataset.i,k=b.dataset.k;if(!k)return;
   if(k==="mat")D.mat=b.dataset.v;else if(k==="slope")D.slope=+b.dataset.v;else if(k==="span")D.span=+b.dataset.v;
   else if(k==="tee")D.rows[i].tee=!D.rows[i].tee;else if(k==="del"){D.rows.splice(i,1);if(!D.rows.some(r=>r.tr))D.tr.on=false}
@@ -147,7 +150,7 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  <div style="font-size:13px;color:var(--sub)">材質</div>${seg("mat",[["VP","VP管"],["AC","ACドレン（保温付き）"]],D.mat)}
  <div class="drnote">💡 <b>サイズ感の注意</b>：ACドレンは保温層があるので、外径が同じ呼び径のVP管より1ランク大きくなります（例：AC25 は外径 約${DR_MAT.AC.od[25]}mm で、VP30〜35 くらいの太さ）。吊りバンドはAC用（保温付き外径用）を使ってください。VP用だと保温が潰れます。外径は目安なので、メーカーの値で確認してください。</div>
  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label style="font-size:13px;color:var(--sub)">始まりのサイズ <select data-k="msz">${DR_SIZES.map(z=>`<option value="${z}"${z===D.sz?" selected":""}>${M.s}${z}（外径 約${M.od[z]}）</option>`).join("")}</select></label></div>
- <div style="font-size:13px;color:var(--sub);margin-top:8px">下り勾配</div>${seg("slope",[[100,"1/100"],[50,"1/50"]],D.slope)}
+ <div style="font-size:13px;color:var(--sub);margin-top:8px">下り勾配</div>${seg("slope",[[100,"1/100（1mで10mm下げ）"],[50,"1/50（1mで20mm下げ）"]],D.slope)}
  <div style="font-size:13px;color:var(--sub)">吊りの間隔（横引き）</div>${seg("span",[[1000,"1.0m"],[1200,"1.2m"],[1500,"1.5m"]],D.span)}
  ${(()=>{const L=drUpLimit();return `<div style="font-size:13px;color:var(--sub);margin:4px 0 8px">ドレンアップ上限：<b style="color:var(--ink)">${L?L.ref+"から "+fmt(L.lim)+"mm（"+L.src+"）":"機種の値なし"}</b><br><label>自分で入れる（0＝機種の値）<input data-k="du" inputmode="numeric" value="${D.du||0}" style="width:90px;height:38px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right;margin-left:6px">mm</label></div>`})()}
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700"><input type="checkbox" data-k="show" ${D.show?"checked":""} style="width:22px;height:22px">3Dにドレンを表示</label></div>
@@ -155,7 +158,9 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13px">${[["S","口から横へ"],["H","立ち上げ H"],["W","頂点の横 W"],["F","落とし込み"],["R","接続先まで"]].map(([k,l])=>`<label>${l}<br><input data-k="tr${k}" inputmode="numeric" value="${D.tr[k]}" style="width:100%;height:40px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right">mm</label>`).join("")}</div>
  <button class="drbig" data-k="torii" style="background:#7c3aed;color:#fff">⛩ この寸法で鳥居を作る</button>${D.tr.on?`<button class="drbig" data-k="trOff" style="background:var(--bg)">鳥居の扱いをやめる（区間はそのまま）</button>`:""}</div>
  <div class="drc"><h4>区間（ドレン口から順に）</h4><div style="font-size:12.5px;color:var(--sub);margin-bottom:4px">始まり：${drStartName()}<br>曲げの向きは冷媒と同じで、配管の進む方を見て「上・右・下・左」をゲージで選びます。横の区間は勾配のぶん自動で下げて描きます。</div>`;
- D.rows.forEach((r,i)=>{const last=i===D.rows.length-1;h+=`<div class="drrow"><b>${i+1}</b><input data-k="l" data-i="${i}" inputmode="numeric" value="${r.l}" aria-label="長さmm"><span style="font-size:13px">mm</span>
+ let DP=null;try{DP=drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)).dirs}catch(e){}let cum=0;
+ D.rows.forEach((r,i)=>{const last=i===D.rows.length-1,hz=!DP||!DP[i]||Math.abs(DP[i].y)<0.5,dr=hz?r.l/D.slope:0;cum+=dr;
+  h+=`<div class="drrow${i===DR_SEL?" sel":""}" data-r="${i}"><b>${i+1}</b><input data-k="l" data-i="${i}" inputmode="numeric" value="${r.l}" aria-label="長さmm"><span style="font-size:13px">mm</span><span class="drdrop">${hz?`↘ −${fmt(dr)}（計 −${fmt(cum)}）`:(DP&&DP[i]&&DP[i].y>0?"⬆ 立ち上げ":"⬇ 立て")}</span>
   ${last?"":`<button data-k="ang" data-i="${i}" style="${r.a?"background:"+(r.a===90?"#dc2626":"#7c3aed")+";color:#fff;border-color:transparent":""}">${r.a?r.a+"°で曲げ":"直管"}</button>`}
   <button data-k="tee" data-i="${i}" class="${r.tee?"on":""}">チーズ</button><select data-k="sz" data-i="${i}" aria-label="径を変える"><option value="0">径そのまま</option>${DR_SIZES.map(z=>`<option value="${z}"${r.sz===z?" selected":""}>ここから${M.s}${z}</option>`).join("")}</select><button data-k="del" data-i="${i}" aria-label="消す">🗑</button>
   ${r.a&&!last?`<div style="flex:1 1 100%">${gaugeHTML(r.t).replace('<input type="range"',`<input type="range" data-k="t" data-i="${i}"`)}</div>`:""}</div>`});
@@ -195,6 +200,17 @@ function drSumOpen(){const sh=$("#drSumSh");if(!sh)return;
  $("#drSumX").onclick=()=>$("#drSumOv").classList.remove("on");
  $("#drSV1").onclick=()=>{setAllHid(!HID.size);drSumOpen()};
  $("#drSV2").onclick=()=>{D.show=!D.show;save();drRedraw&&drRedraw();drSumOpen()}}
+/* ===== 3Dのドレンをタップ → その区間を選ぶ（冷媒と同じく黄色にして、下の欄をその区間に） ===== */
+let DR_SEL=-1;
+function drPick(cx,cy){if(!T||!T.drSegs||!T.drSegs.length||!T.w)return null;const cv=$("#cv"),r=cv.getBoundingClientRect(),px=cx-r.left,py=cy-r.top;T.cam.updateMatrixWorld();
+ const sc=p=>{const v=p.clone().project(T.cam);return v.z>1?null:[(v.x*.5+.5)*T.w,(-v.y*.5+.5)*T.h]};let best=null,bd=1e9;
+ T.drSegs.forEach(sg=>{const a=sc(sg.a),b=sc(sg.b);if(!a||!b)return;const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;let t=L2<1e-6?0:((px-a[0])*dx+(py-a[1])*dy)/L2;t=Math.max(0,Math.min(1,t));const d=Math.hypot(px-(a[0]+dx*t),py-(a[1]+dy*t));if(d<bd){bd=d;best=sg}});
+ return best&&bd<=26?{i:best.i,d:bd}:null}
+function drSelect(i,quiet){if(i===DR_SEL&&quiet)return;DR_SEL=i;if(i<0){if(T){build3D();T.dirty=true}return}
+ if(typeof APP!=="undefined"&&APP==="bend"&&!document.body.classList.contains("drmode")){const b=document.querySelector('#mtog [data-m="dr"]');if(b)b.click()}
+ if(T){build3D();T.dirty=true}
+ if($("#drPanel")){drRender();const row=document.querySelector(`.drrow[data-r="${i}"]`);if(row){row.scrollIntoView({block:"center",behavior:"smooth"})}}
+ if(!quiet)toast("💧 ドレン "+(i+1)+" を選びました")}
 /* ===== 天井（仕上げ面）との離れのチェック：軽天の下地に当たらないか =====
    配管の下側が仕上げ面から 70mm未満＝黄色（親バーの向きによっては当たる）、30mm未満＝赤（シングル・ダブルバーに当たる） */
 const CEIL_Y=70,CEIL_R=30;

@@ -329,8 +329,10 @@ function wzMakePipe(again){const ind=st.bld[W.pi],out=st.bld[W.po];if(!ind||!out
  /* indToPipeで位置が配管口基準に変わったので、同じ物を探し直す（並び順は室内機が抜けた分だけずれる） */
  const shift=i=>i>W.pi?i-1:i,O=st.bld[shift(W.po)],H=(W.ph||[]).map(i=>st.bld[shift(i)]).filter(Boolean);
  const V=THREE.Vector3,GY=T&&T.GYr!=null?T.GYr:-(st.gnd.ch||2400),S=300,MIN=250;
+ /* 天井の中を走る高さ：配管（保温込み）の下側が天井の仕上げから70mm以上（軽天の親バーに当たらない） */
+ const RR=(SIZES[st.s]?SIZES[st.s][1]/2:8)+10,CYc=typeof ceilY==="function"?ceilY():null,YRUN=CYc!=null?Math.max(0,CYc+70+RR):0;
  /* 配管口（原点）から +x に出る。天井の中（配管口の高さ）を横に走り、壁の手前で上下して穴を通す */
- const P=[new V(0,0,0),new V(S,0,0)],cur=()=>P[P.length-1],dirNow=()=>cur().clone().sub(P[P.length-2]).normalize();
+ const P=[new V(0,0,0),new V(S,0,0)];if(YRUN>1)P.push(new V(S,YRUN,0));const cur=()=>P[P.length-1],dirNow=()=>cur().clone().sub(P[P.length-2]).normalize();
  const go=v=>{if(v.length()<1)return;const c=cur(),n=c.clone().add(v);
   if(P.length>=2){const d0=dirNow(),d1=v.clone().normalize();if(d0.dot(d1)>0.999){c.copy(n);return}}P.push(n)};
  const toY=y=>go(new V(0,y-cur().y,0));
@@ -1273,7 +1275,7 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  const RL=RW.map(loc),outIdx=oi>=0?oi:-1,outObj=outIdx>=0?st.bld[outIdx]:null;
  if(!indToPipe(pi,true))return;
  const O=outObj?st.bld.find(o=>o.k==="out"&&o.m===outObj.m&&o.w===outObj.w&&o.d===outObj.d):null;
- const V=THREE.Vector3,GY=T&&T.GYr!=null?T.GYr:-CH,Yp=GY+H;
+ const V=THREE.Vector3,GY=T&&T.GYr!=null?T.GYr:-CH,CYc=typeof ceilY==="function"?ceilY():null,RR=(szG>=0?SIZES[szG][1]/2:8)+10,Yp=Math.max(GY+H,CYc!=null?CYc+70+RR:-1e9);   // 天井の仕上げから70mm以上
  const PP=[new V(0,0,0)],cur=()=>PP[PP.length-1],go=v=>{if(v.length()<1)return;const c=cur(),n=c.clone().add(v);if(PP.length>=2){const d0=c.clone().sub(PP[PP.length-2]).normalize();if(d0.dot(v.clone().normalize())>0.999){c.copy(n);return}}PP.push(n)};
  const toXZ=(x,z)=>{const d=new V(x-cur().x,0,z-cur().z);if(d.length()<1)return;const ax=Math.abs(d.x)>=Math.abs(d.z);go(ax?new V(d.x,0,0):new V(0,0,d.z));go(ax?new V(0,0,d.z):new V(d.x,0,0))};
  /* 図面の配管の始まりを、配管口の線に合わせる（ズレが30cm未満なら真っすぐにする。図面の配管は機器の記号の横に描かれるので少しズレる） */

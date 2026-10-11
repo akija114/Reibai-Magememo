@@ -119,7 +119,9 @@ function wzSync(){if(!W.on)return;const P=PLAN;if(!P||!P.img||W.img===P.img)retu
  if(st.bld&&st.bld.length&&st.bldKey!==wzKey())setTimeout(()=>sheetMsg(`<b style="font-size:17px">🧹 前に置いた物が残っています</b><p>室内機・壁など <b>${st.bld.length}個</b> が残っています。この図面用に、消してから始めますか？</p>`,
   [["消してから始める",()=>{st.bld=[];st.bldXf=null;st.bldKey=wzKey();BT.stack=[];bldChanged();wzRender();planDraw();toast("前の物を消しました")},"#dc2626","#fff"],["残して続ける",()=>{st.bldKey=wzKey();save()}]]),400);
  const m=wzMem()[wzKey()];
- if(m&&m.mmpp){P.mmpp=m.mmpp;P.den=m.den||0;P.autoScale=0;try{$("#plDen").value=m.den||""}catch(e){}try{planWalls()}catch(e){}if(m.org)P.org=m.org.slice();if(m.CH&&!P.CH)P.CH=m.CH;
+ /* 図面に「1/60」などが書いてあって、前回の縮尺と違う時は、図面の表記を使う（前回の値が古い・間違いのことがある） */
+ if(m&&m.mmpp&&P.denTxt&&P.den&&m.den!==P.den){if(m.org&&!P.org)P.org=m.org.slice();toast("図面の表記の縮尺（1/"+P.den+"）を使います");setTimeout(()=>wzGo(P.org?"menu":"org"),0)}
+ else if(m&&m.mmpp){P.mmpp=m.mmpp;P.den=m.den||0;P.autoScale=0;try{$("#plDen").value=m.den||""}catch(e){}try{planWalls()}catch(e){}if(m.org)P.org=m.org.slice();if(m.CH&&!P.CH)P.CH=m.CH;
   toast("前回の縮尺"+(m.den?"（1/"+m.den+"）":"")+(m.org?"と原点":"")+"を使います");setTimeout(()=>wzGo(m.org?"menu":"org"),0)}
  else setTimeout(()=>wzGo("scale"),0)}
 function wzGo(step,sub){if(!step.startsWith("t:"))W.fold=false;W.step=step;W.sub=sub||"";W.cand=null;W.pick=null;
@@ -1219,7 +1221,7 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  /* ① 室内機：品番の文字 → それを囲む青いかたまり */
  const inds=[];
  (P.texts||[]).forEach(t=>{const nt=norm(t.s);if(nt.length<6)return;const hit=models.find(m=>m.n===nt||(nt.length>=8&&(m.n.startsWith(nt)||nt.startsWith(m.n))));if(!hit)return;
-  const tx=t.x+t.w/2,ty=t.y-t.h/2,c=BL.filter(c2=>tx>=c2.x0&&tx<=c2.x1&&ty>=c2.y0&&ty<=c2.y1&&c2.w>=450&&c2.w<=1600&&c2.h>=450&&c2.h<=1600).sort((a,b)=>a.w*a.h-b.w*b.h)[0];
+  const tx=t.x+t.w/2,ty=t.y-t.h/2,c=BL.filter(c2=>tx>=c2.x0&&tx<=c2.x1&&ty>=c2.y0&&ty<=c2.y1&&Math.max(c2.w,c2.h)>=CAS2M[hit.k].L*0.6&&Math.max(c2.w,c2.h)<=CAS2M[hit.k].L*1.8).sort((a,b)=>a.w*a.h-b.w*b.h)[0];
   if(c&&!inds.some(o=>o.c===c))inds.push({c,k:hit.k,t})});
  if(!inds.length){toast("品番の分かる室内機が見つかりませんでした（青い記号の中に品番が必要です）");return}
  const I=inds[0],ctr=[I.c.cx,I.c.cy];
@@ -1320,12 +1322,19 @@ function planWallLearn(p,rg,quiet){const P=PLAN,mm=P.mmpp;
 /* ===== 🤖 全部自動：縮尺 → 原点 → 壁（配管が通る壁の厚さをお手本に）→ 室内機・室外機・配管・穴 → 3D ===== */
 function planFindInd(){const P=PLAN,BL=planClusters(isBlue),norm=s=>normTx(s).toUpperCase().replace(/[\s\-‐ー－]/g,""),models=Object.keys(CAS2M).map(k=>({k,n:norm(CAS2M[k].n)})).filter(m=>m.n.length>=6);
  for(const t of P.texts||[]){const nt=norm(t.s);if(nt.length<6)continue;const hit=models.find(m=>m.n===nt||(nt.length>=8&&(m.n.startsWith(nt)||nt.startsWith(m.n))));if(!hit)continue;
-  const tx=t.x+t.w/2,ty=t.y-t.h/2,c=BL.filter(c2=>tx>=c2.x0&&tx<=c2.x1&&ty>=c2.y0&&ty<=c2.y1&&c2.w>=450&&c2.w<=1600&&c2.h>=450&&c2.h<=1600).sort((a,b)=>a.w*a.h-b.w*b.h)[0];if(c)return{c,k:hit.k}}
+  const tx=t.x+t.w/2,ty=t.y-t.h/2,L=CAS2M[hit.k].L,c=BL.filter(c2=>tx>=c2.x0&&tx<=c2.x1&&ty>=c2.y0&&ty<=c2.y1&&Math.max(c2.w,c2.h)>=L*0.3&&Math.max(c2.w,c2.h)<=L*3.5).sort((a,b)=>a.w*a.h-b.w*b.h)[0];if(c)return{c,k:hit.k}}
  return null}
+/* 縮尺の確かめ：室内機の記号の大きさが、その機種の本体（パネル）とだいたい同じになるはず。大きく違えば、合う縮尺に直す */
+function planScaleByUnit(I){const P=PLAN,m=CAS2M[I.k],meas=Math.max(I.c.w,I.c.h),ref=[m.L,m.W,m.pa||0,m.pb||0].filter(Boolean),ok=v=>ref.some(r=>v>=r*0.8&&v<=r*1.25);
+ if(ok(meas))return false;const D=[20,25,30,40,50,60,75,80,100,120,150,200,250,300];if(!P.den)return false;
+ const cand=D.map(d=>({d,v:meas*d/P.den})).filter(o=>ok(o.v)).map(o=>({...o,e:Math.min(...ref.map(r=>Math.abs(Math.log(o.v/r))))})).sort((a,b)=>a.e-b.e)[0];   // 機種の寸法にいちばん近くなる縮尺if(!cand)return false;
+ const k=cand.d/P.den;P.mmpp*=k;P.den=cand.d;try{$("#plDen").value=String(cand.d)}catch(e){}try{planWalls()}catch(e){}try{wzSave()}catch(e){}
+ toast("室内機の大きさから、縮尺を 1/"+cand.d+" に直しました");return true}
 function planAutoAll(){const P=PLAN;
  if(!P||!P.segs||P.segs.length<50){toast("線のデータがある図面（CADのPDF）で使えます。写真の図面は、縮尺と原点を手で決めてください");return}
  if(!P.mmpp){toast("縮尺が分かりませんでした。縮尺を選ぶか「縮尺を2点で」で合わせてから、もう一度押してください");try{wzGo("scale")}catch(e){}return}
- const I=planFindInd();if(!I){toast("品番の分かる室内機が見つかりませんでした（青い記号の中に品番が必要です）");return}
+ let I=planFindInd();if(!I){toast("品番の分かる室内機が見つかりませんでした（青い記号の中に品番が必要です）");return}
+ if(planScaleByUnit(I))I=planFindInd()||I;
  if(!P.org){P.org=[Math.round(I.c.cx),Math.round(I.c.cy)];try{wzSave()}catch(e){}}
  const mm=P.mmpp,route=planPipeRoute([I.c.cx,I.c.cy]);
  /* 壁：配管が横切るグレーの線のうち、間隔8〜45cmの2本＝壁。その厚さをお手本に、まわりの壁を取り込む */

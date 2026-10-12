@@ -83,22 +83,25 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
  pts.forEach(o=>bb.expandByPoint(o.p));
  const ext=Math.max(...bb.getSize(new V()).toArray(),300),g=new THREE.Group();g.userData.drain=1;T.grp.add(g);
  const mat=new THREE.MeshStandardMaterial({color:DR_MAT[D.mat].col,roughness:.6}),jm=new THREE.MeshStandardMaterial({color:D.mat==="AC"?0x0ea5e9:0x6b7280,roughness:.5}),Y=new V(0,1,0),selMat=new THREE.MeshStandardMaterial({color:0xfacc15,roughness:.5,emissive:0x3a2a00});
- const rad=s2=>{const od=DR_MAT[D.mat].od[s2]||32;return Math.min(od/2*3,Math.max(od/2,ext*0.006))};
+ const rad=s2=>(DR_MAT[D.mat].od[s2]||32)/2;   // 実際の外径どおり（VP25＝32、VP40＝48、ACは保温込み）。サイズごとに太さが変わる
  for(let i=0;i<pts.length-1;i++){const a=pts[i].p,b=pts[i+1].p,L=a.distanceTo(b);if(L<1)continue;const r=rad(pts[i+1].sz);
   (T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:(DR_MAT[D.mat].od[pts[i+1].sz]||32)/2,dr:1,i});
   const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,16),i===DR_SEL?selMat:mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(m);
-  const j=new THREE.Mesh(new THREE.SphereGeometry(r*1.3,14,10),jm);j.position.copy(b);g.add(j);
+  const j=new THREE.Mesh(new THREE.SphereGeometry(r*1.18,14,10),jm);j.position.copy(b);g.add(j);
   try{const s=label("💧"+(i+1)+" "+fmt(pts[i+1].l)+(pts[i+1].vert?"":"（-"+fmt(pts[i+1].l/D.slope)+"）"),ext*0.028,"#e0f2fef2","#0c4a6e");s.position.copy(a).add(b).multiplyScalar(.5);s.userData.cat="drain";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
- {const j=new THREE.Mesh(new THREE.SphereGeometry(rad(D.sz)*1.3,14,10),jm);j.position.copy(S);g.add(j)}
+ {const j=new THREE.Mesh(new THREE.SphereGeometry(rad(D.sz)*1.18,14,10),jm);j.position.copy(S);g.add(j)}
  /* 掃除口・合流（チーズ）と、チーズから200mmの支持 */
  {const pm=new THREE.MeshStandardMaterial({color:0x7c3aed}),cap=new THREE.MeshStandardMaterial({color:0xf97316}),up=new V(0,1,0),cyl=(a,b,r,m)=>{const L=a.distanceTo(b);if(L<1)return;const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,14),m);c.position.copy(a).add(b).multiplyScalar(.5);c.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(c)};
   let szc=D.sz;D.rows.forEach((r,i)=>{if(r.sz)szc=r.sz;if(!r.j)return;const P=PA.pts[i+1],d=PA.dirs[i].clone(),dh=new V(d.x,0,d.z);if(dh.lengthSq()<1e-6)return;dh.normalize();
    const nd=(PA.dirs[i+1]||PA.dirs[i]).clone(),ndh=new V(nd.x,0,nd.z).normalize(),R0=rad(szc),side=dh.clone().cross(up).normalize();
    /* チーズから200mm（流れの先）に支持 */
    const S2=P.clone().addScaledVector(ndh,200);S2.y-=200/D.slope;const rodL=Math.max(250,ext*0.05);
-   cyl(S2,S2.clone().add(new V(0,rodL,0)),R0*0.3,pm);const ring=new THREE.Mesh(new THREE.TorusGeometry(R0*1.5,R0*0.3,8,18),pm);ring.position.copy(S2);ring.lookAt(S2.clone().add(ndh));g.add(ring);
-   const T2=new THREE.Mesh(new THREE.BoxGeometry(R0*2.8,R0*2.8,R0*2.8),jm);T2.position.copy(P);g.add(T2);   // チーズ
-   if(r.j==="co"){const cd=dh.clone().negate().add(up).normalize(),E=P.clone().addScaledVector(cd,Math.max(180,ext*0.03));cyl(P,E,R0,mat);   // 流れと逆向き（上流側）へ45°
+   cyl(S2,S2.clone().add(new V(0,rodL,0)),5,pm);   // 全ねじ（W3/8 くらいの太さ）const ring=new THREE.Mesh(new THREE.TorusGeometry(R0*1.5,R0*0.3,8,18),pm);ring.position.copy(S2);ring.lookAt(S2.clone().add(ndh));g.add(ring);
+   const T2=new THREE.Mesh(new THREE.BoxGeometry(R0*2.3,R0*2.3,R0*2.3),jm);T2.position.copy(P);g.add(T2);   // チーズ
+   if(r.j==="co"){/* 掃除口：チーズから、曲がった後の管（下流）をまっすぐ逆向きに短く出して、45°で斜め上へ立ち上げ、キャップ
+       （曲がる方向・勾配と逆側。角でも直線でも、下流の管の延長線上の上流側） */
+    const back=ndh.clone().negate(),M=P.clone().addScaledVector(back,Math.max(60,R0*2.5)),cd=back.clone().add(up).normalize(),E=M.clone().addScaledVector(cd,Math.max(120,R0*5));
+    cyl(P,M,R0,mat);const el=new THREE.Mesh(new THREE.SphereGeometry(R0*1.15,12,8),jm);el.position.copy(M);g.add(el);cyl(M,E,R0,mat);   // チーズ→短管→45°エルボ→立ち上げ
     const c=new THREE.Mesh(new THREE.CylinderGeometry(R0*1.35,R0*1.35,R0*0.8,16),cap);c.position.copy(E);c.quaternion.setFromUnitVectors(Y,cd);g.add(c);
     try{const s2=label("🧹 掃除口（逆向き45°）・200mmで支持",ext*0.026,"#ffedd5f2","#9a3412");s2.position.copy(E);s2.userData.cat="drain";if(typeof pxl==="function")pxl(s2,14);g.add(s2)}catch(e){}}
    else{const sg=(r.bs==="R"||r.bs==="R45")?1:-1,y45=r.bs==="L45"||r.bs==="R45",bd=side.clone().multiplyScalar(sg);if(y45)bd.addScaledVector(dh,-1).normalize();   // 45°Yは上流側から斜めに入る

@@ -121,6 +121,8 @@ function supPos(l,vert){
  return p.sort((a,b)=>a-b);
 }
 const supCount=g=>{const x=supHV(g);return x.h+x.v};
+/* 支持の間隔：曲げ（端）→支持→支持→…→曲げ。等間隔の所は実際の割り付け寸法（例 3,682 → 200・821・821…） */
+const supGaps=(l,vert)=>{const p=supPos(l,vert);if(!p.length)return[];const e=[0,...p,l],g=[];for(let k=0;k<e.length-1;k++)g.push(Math.round(e[k+1]-e[k]));return g};
 /* 各行の直管の向き（3Dと同じ計算を軽く）→ 縦管か横管か */
 function legDirs(){
  const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],crs=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
@@ -395,7 +397,7 @@ function upd(){
   el.classList.toggle("over",o.over);el.classList.toggle("sel",i===sel);
   el.querySelector(".inf").innerHTML=
    `<span class="${o.shoe<0?"neg":""}">${RI("shoe")}シュー<b>${fmt(o.shoe)}</b></span><span>${RI("cum")}累計<b>${fmt(o.cum)}</b></span>`+
-   (r.a?`<span>${RI("pull")}引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>${RI("ofs")}差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+(st.sup.on&&supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length?`<span><img alt="" src="${$("#supBtn img").src}" style="width:1.3em;height:1.3em;vertical-align:-0.32em;margin-right:2px">${DS[i]&&isVert(DS[i])?"縦":"横"}<b>${supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length}</b></span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:"");
+   (r.a?`<span>${RI("pull")}引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>${RI("ofs")}差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+(st.sup.on&&supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length?`<span><img alt="" src="${$("#supBtn img").src}" style="width:1.3em;height:1.3em;vertical-align:-0.32em;margin-right:2px">${DS[i]&&isVert(DS[i])?"縦":"横"}<b>${supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length}</b></span><span style="flex-basis:100%">↔間隔 <b>${supGaps(r.l,!!(DS[i]&&isVert(DS[i]))).map(fmt).join(" ・ ")}</b></span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:"");
  });
  const over=c.tot>c.lim;
  $("#tot").className="tot"+(over?" over":"");
@@ -912,6 +914,9 @@ const LG=[];
     const ring=new THREE.Mesh(new THREE.TorusGeometry(rd*1.55,rd*0.32,10,24),new THREE.MeshStandardMaterial({color:Math.abs(dir.y)>0.8?0x7c3aed:0xe11d48,metalness:.2,roughness:.45}));
     ring.position.copy(p0).addScaledVector(dir,x);ring.quaternion.setFromUnitVectors(new V(0,0,1),dir);T.grp.add(ring);
    });
+   /* 支持の間隔を3Dにも（表示の設定「支持の間隔」でオンオフ） */
+   {const P=[0,...supPos(dm.l,Math.abs(dir.y)>0.8),dm.l];if(P.length>2)for(let k=0;k<P.length-1;k++){const v=P[k+1]-P[k];if(v<1)continue;
+     const s=label("↔"+fmt(Math.round(v)),ext*0.03,"#ffe4e6f2","#9f1239");s.position.copy(p0).addScaledVector(dir,(P[k]+P[k+1])/2);s.userData.cat="sgap";pxl(s,17,{t:"perp",a:dm.a,b:dm.b,dn:true},rd);T.grp.add(s)}}
   });
   L.angL.forEach(g=>{
    const on=cs&&g.i===sel;
@@ -1279,9 +1284,9 @@ $("#viewBtn").onclick=()=>{
  const v=VIEWS[T.vi];fitT(true);T.th=v[1];T.ph=v[2];T.dirty=true;toast("🔄 "+v[0]);
 };
 /* 文字のオンオフ */
-const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["ubolt","@udim|吊りピッチ（紫の矢印）"],["uopen","@udim|天井開口（オレンジの矢印）"],["upanel","@udim|パネル（青の矢印）"],["upipe","@udim|ガス・液・ドレンの位置"],["udim","@udim|その他の機器の寸法"],["neko","@neko|ネコ（吊り金具）の高さ"],["bld","🧱 建物・障害物の名前と大きさ"],["drl","💧 ドレンの寸法（💧①350・掃除口など）"],["drh","💧 ドレンの高さ（支 FL+・出口 FL）"],["drs","💧 ドレンの支持の間隔（↔1,000）"],["kabe","📏 配管の位置（壁から何mm）"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
+const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["ubolt","@udim|吊りピッチ（紫の矢印）"],["uopen","@udim|天井開口（オレンジの矢印）"],["upanel","@udim|パネル（青の矢印）"],["upipe","@udim|ガス・液・ドレンの位置"],["udim","@udim|その他の機器の寸法"],["neko","@neko|ネコ（吊り金具）の高さ"],["bld","🧱 建物・障害物の名前と大きさ"],["drl","💧 ドレンの寸法（💧①350・掃除口など）"],["drh","💧 ドレンの高さ（支 FL+・出口 FL）"],["sgap","🔩 冷媒の支持の間隔（↔1,000）"],["drs","💧 ドレンの支持の間隔（↔1,000）"],["kabe","📏 配管の位置（壁から何mm）"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
 let LABC={};
-const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=["dim","ang","udim","neko","ubolt","uopen","upipe","bld","drl","drh","drs","kabe"].includes(k));return o};
+const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=["dim","ang","udim","neko","ubolt","uopen","upipe","bld","drl","drh","drs","sgap","kabe"].includes(k));return o};
 try{const v=localStorage.getItem("pbm_labc");LABC=Object.assign(LABDEF(),v?(JSON.parse(v)||{}):{})}catch(e){LABC=LABDEF()}
 const labShow=o=>LABC[o.userData.cat||"other"]!==false;
 function applyLabels(){

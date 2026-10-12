@@ -58,22 +58,22 @@ function drRise(){const D=DRN(),U=drUnit(),y0=U&&U.m&&U.m.dr?U.m.dr.y:0;let mx=0
    ・ドレンアップ（最初の立ち上げ）の上に1か所：金物が特殊なことがあるので別に数える
    ・横の区間（曲げ・チーズで区切る）ごと：500以下なら真ん中に1か所。長ければ両端（曲げ）から200の所、その間は吊り間隔（1000など）以下になるよう等間隔
    ・高さ＝吊りバンドが掛かる管の下端（FL） */
-function drSupports(PA){const D=DRN(),pts=PA.pts,dirs=PA.dirs,out=[];if(!D.rows.length)return out;const H=i=>dirs[i]&&Math.abs(dirs[i].y)<0.5,Vt=i=>dirs[i]&&Math.abs(dirs[i].y)>0.7;
+function drSupports(PA){const D=DRN(),pts=PA.pts,dirs=PA.dirs,out=[],runs=[];out.runs=runs;if(!D.rows.length)return out;const H=i=>dirs[i]&&Math.abs(dirs[i].y)<0.5,Vt=i=>dirs[i]&&Math.abs(dirs[i].y)>0.7;
  /* ドレンアップのトップ：立ち上げの後の横（トップ）の真ん中に1か所だけ（専用金物）。トップの横が1000を超える時は立ち上げの上に付けて、横は普通のルール */
  let upRow=-1,topRow=-1;for(let i=0;i<D.rows.length;i++){if(!dirs[i])break;if(dirs[i].y>0.7&&D.rows[i].l>=30){upRow=i;
-   const t=i+1;if(H(t)&&D.rows[t].l>0&&D.rows[t].l<=1000){topRow=t;out.push({p:pts[t].clone().lerp(pts[t+1],0.5),k:"up",i:t})}else out.push({p:pts[i+1].clone(),k:"up",i});break}if(H(i)&&D.rows[i].l>300)break}
+   const t=i+1;if(H(t)&&D.rows[t].l>0&&D.rows[t].l<=1000){topRow=t;out.push({p:pts[t].clone().lerp(pts[t+1],0.5),k:"up",i:t});runs.push({k:"up",a:t,b:t,L:D.rows[t].l,ss:[D.rows[t].l/2],at:s2=>pts[t].clone().lerp(pts[t+1],D.rows[t].l?s2/D.rows[t].l:0)})}else out.push({p:pts[i+1].clone(),k:"up",i});break}if(H(i)&&D.rows[i].l>300)break}
  let sz=D.sz;const szAt=[];D.rows.forEach((r,i)=>{if(r.sz)sz=r.sz;szAt[i]=sz});
  const hoseRow=i=>drHoseRow(i);
  for(let i=0;i<D.rows.length;){if(!H(i)||hoseRow(i)||i===topRow){i++;continue}let j=i;while(j+1<D.rows.length&&H(j+1)&&!D.rows[j].a&&!D.rows[j].j)j++;
   const L=D.rows.slice(i,j+1).reduce((a,r)=>a+r.l,0);
   const at=s2=>{let acc=0;for(let k=i;k<=j;k++){const l=D.rows[k].l;if(s2<=acc+l||k===j){const t=l?Math.max(0,Math.min(1,(s2-acc)/l)):0;return{p:pts[k].clone().lerp(pts[k+1],t),i:k}}acc+=l}return{p:pts[j+1].clone(),i:j}};
   if(L>=50){let ss;if(L<=500)ss=[L/2];else{const S=L-400,n=Math.max(1,Math.ceil(S/D.span-1e-9));ss=[200];for(let q=1;q<n;q++)ss.push(200+S*q/n);ss.push(L-200)}
-   ss.forEach(s2=>{const a=at(s2);out.push({p:a.p,k:"h",i:a.i,sz:szAt[a.i]})})}
+   ss.forEach(s2=>{const a=at(s2);out.push({p:a.p,k:"h",i:a.i,sz:szAt[a.i]})});runs.push({k:"h",a:i,b:j,L,ss,at:s2=>at(s2).p})}
   i=j+1}
  /* 縦配管（別に数える）：曲げから300の所、その間は1500以下で等間隔。600以下は真ん中に1か所。ドレンアップの立ち上げは上の支持があるので除く */
  for(let i=0;i<D.rows.length;i++){if(!Vt(i)||i===upRow||hoseRow(i))continue;const L=D.rows[i].l;if(L<150)continue;
   let ss;if(L<=600)ss=[L/2];else{const S=L-600,n=Math.max(1,Math.ceil(S/1500-1e-9));ss=[300];for(let q=1;q<n;q++)ss.push(300+S*q/n);ss.push(L-300)}
-  ss.forEach(s2=>out.push({p:pts[i].clone().lerp(pts[i+1],s2/L),k:"v",i,sz:szAt[i]}))}
+  ss.forEach(s2=>out.push({p:pts[i].clone().lerp(pts[i+1],s2/L),k:"v",i,sz:szAt[i]}));runs.push({k:"v",a:i,b:i,L,ss,at:s2=>pts[i].clone().lerp(pts[i+1],s2/L)})}
  return out}
 /* ヤグラの区間をドレンホースにする時：その区間（yg の付いた区間）は、エルボ・ソケットの代わりにホース1本 */
 const drHose=()=>{const D=DRN();return D.ys==="hose"&&D.rows.some(r=>r.yg)};
@@ -155,6 +155,9 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
   SP.forEach(o=>{const r0=rad(o.sz||D.sz),m=o.k==="up"?pu:o.k==="v"?pv:pm2;if(o.k!=="v"){const rod=new THREE.Mesh(new THREE.CylinderGeometry(5,5,rodL,8),m);rod.position.copy(o.p).add(new V(0,rodL/2+r0,0));g.add(rod)}   // 縦配管は立てバンド（壁・柱に固定）なので全ねじは描かない
    const ring=new THREE.Mesh(new THREE.TorusGeometry(r0+4,3.5,8,20),m);const dd=(PA.dirs[o.i]||new V(1,0,0)).clone();ring.position.copy(o.p);ring.lookAt(o.p.clone().add(dd));g.add(ring);
    if(GYs!=null){const fl=Math.round(o.p.y-GYs-(o.k==="v"?0:r0));try{const s=label((o.k==="up"?"支(ドレンアップ上) ":o.k==="v"?"支(縦) ":"支 ")+"FL+"+fmt(fl),ext*0.022,o.k==="up"?"#fce7f3f2":"#ede9fef2",o.k==="up"?"#9d174d":"#5b21b6");s.position.copy(o.p).add(new V(0,-r0-40,0));s.userData.cat="drh";if(typeof pxl==="function")pxl(s,12);g.add(s)}catch(e){}}})}catch(e){console.warn("supports",e)}
+ /* 支持の間隔：曲がり（端）→支持→支持→…→曲がり の長さを、間の真ん中に出す */
+ try{const SP=drSupports(PA);(SP.runs||[]).forEach(R=>{const e=[0,...R.ss,R.L];for(let k=0;k<e.length-1;k++){const v=e[k+1]-e[k];if(v<1)continue;const p=R.at((e[k]+e[k+1])/2);
+   const s=label("↔"+fmt(Math.round(v)),ext*0.02,"#fff7edf2","#9a3412");s.position.copy(p).add(new V(0,rad(D.sz)+(R.k==="v"?0:60),0));if(R.k==="v")s.position.add(new V(60,0,0));s.userData.cat="drs";if(typeof pxl==="function")pxl(s,12);g.add(s)}})}catch(e){console.warn("gaps",e)}
  /* 掃除口・合流（チーズ）と、チーズから200mmの支持 */
  {const pm=new THREE.MeshStandardMaterial({color:0x7c3aed}),cap=new THREE.MeshStandardMaterial({color:0xf97316}),up=new V(0,1,0),cyl=(a,b,r,m)=>{const L=a.distanceTo(b);if(L<1)return;const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,14),m);c.position.copy(a).add(b).multiplyScalar(.5);c.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(c)};
   let szc=D.sz;D.rows.forEach((r,i)=>{if(r.sz)szc=r.sz;if(!r.j)return;const P=PA.pts[i+1],d=PA.dirs[i].clone(),dh=new V(d.x,0,d.z);if(dh.lengthSq()<1e-6)return;dh.normalize();
@@ -233,7 +236,7 @@ body.drmode #drPanel{display:block}
   if(k==="j"&&D.rows[i])D.rows[i].j=el.value;else if(k==="bsz"&&D.rows[i])D.rows[i].bsz=+el.value;else if(k==="bs"&&D.rows[i])D.rows[i].bs=el.value;else if(k==="sz"&&D.rows[i])D.rows[i].sz=+el.value;else if(k==="msz")D.sz=+el.value;else if(k==="rjf"&&st.rj&&typeof rjApply==="function"){st.rj.from=el.value==="auto"?"auto":+el.value;const J=rjApply();if(!J&&st.rj.mode!=="sep")toast("そこからは沿わせられません（図面で並んで走る区間の外です）");drRender();return}else if(k==="co")D.co=el.checked;else if(k==="show")D.show=el.checked;else return;
   save();drRender();drRedraw()});
  pn.addEventListener("pointerdown",e=>{const r=e.target.closest(".drrow");if(r&&+r.dataset.r!==DR_SEL){DR_SEL=+r.dataset.r;document.querySelectorAll(".drrow.sel").forEach(x=>x.classList.remove("sel"));r.classList.add("sel");drRedraw()}});
- pn.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const D=DRN(),i=+b.dataset.i,k=b.dataset.k;if(!k)return;
+ pn.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.k==="undo"||b.dataset.k==="redo"){const u=b.dataset.k==="undo";if(!hist||(u?hi<=0:hi>=hist.length-1)){toast(u?"これより前には戻れません":"進める変更がありません");return}histGo(b.dataset.k==="undo"?-1:1);DR_SEL=-1;drRender();drRedraw();return}const D=DRN(),i=+b.dataset.i,k=b.dataset.k;if(!k)return;
   if(k==="mat")D.mat=b.dataset.v;else if(k==="ys")D.ys=b.dataset.v==="hose"?"hose":"pipe";else if(k==="slope")D.slope=+b.dataset.v;else if(k==="span")D.span=+b.dataset.v;else if(k==="dsz")D.sz=+b.dataset.v;
   else if(k==="del"){D.rows.splice(i,1);if(!D.rows.some(r=>r.tr))D.tr.on=false}
   else if(k==="ang"){const A=[0,90,45];D.rows[i].a=A[(A.indexOf(D.rows[i].a)+1)%A.length]}
@@ -251,7 +254,8 @@ body.drmode #drPanel{display:block}
 function drStartName(){const u=T&&T.UN&&(T.UN.find(x=>x.t==="s"&&x.dr)||T.UN.find(x=>x.dr));return u?"室内機のドレン口（"+u.name+"）":"配管の始まり（室内機の模型をONにすると、ドレン口から始まります）"}
 function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[D.mat];
  const seg=(k,list,cur)=>`<div class="drseg">${list.map(([v,l])=>`<button data-k="${k}" data-v="${v}" class="${String(cur)===String(v)?"on":""}">${l}</button>`).join("")}</div>`;
- let h=`<div class="drc"><h4>💧 ドレン配管の設定</h4>
+ let h=`<div style="position:sticky;top:0;z-index:5;display:flex;gap:6px;margin-bottom:8px;background:var(--bg);padding:4px 0"><button class="drbig" data-k="undo" style="flex:1;margin:0;background:var(--card);color:var(--ink);border:1.5px solid var(--line)">↩️ 戻る</button><button class="drbig" data-k="redo" style="flex:1;margin:0;background:var(--card);color:var(--ink);border:1.5px solid var(--line)">↪️ 進む</button></div>
+ <div class="drc"><h4>💧 ドレン配管の設定</h4>
  <div style="font-size:13px;color:var(--sub)">材質</div>${seg("mat",[["VP","VP管"],["AC","ACドレン（保温付き）"]],D.mat)}
  <div class="drnote">💡 <b>サイズ感の注意</b>：ACドレンは保温層があるので、外径が同じ呼び径のVP管より1ランク大きくなります（例：AC25 は外径 約${DR_MAT.AC.od[25]}mm で、VP30〜35 くらいの太さ）。吊りバンドはAC用（保温付き外径用）を使ってください。VP用だと保温が潰れます。外径は目安なので、メーカーの値で確認してください。</div>
  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label style="font-size:13px;color:var(--sub)">始まりのサイズ <select data-k="msz">${DR_SIZES.map(z=>`<option value="${z}"${z===D.sz?" selected":""}>${M.s}${z}（外径 約${M.od[z]}）</option>`).join("")}</select></label></div>
@@ -285,6 +289,7 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
   ${r.a&&!last?`<div style="flex:1 1 100%">${gaugeHTML(r.t).replace('<input type="range"',`<input type="range" data-k="t" data-i="${i}"`)}</div>`:""}</div>`});
  h+=`<button class="drbig" data-k="add" style="background:var(--acc);color:#fff">➕ 区間を追加</button>
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700;margin-top:10px"><input type="checkbox" data-k="co" ${D.co?"checked":""} style="width:22px;height:22px">最後に掃除口を付ける</label></div>
+ <div class="drc" id="drGapBox"></div>
  <div class="drc" id="drSumBox"></div>
  <button class="drbig" data-k="sum" style="background:#0f766e;color:#fff">📋 冷媒＋ドレン まとめを見る</button>`;
  $("#drPanel").innerHTML=h;drSum();drLvRender()}
@@ -315,7 +320,14 @@ function drSumHtml(){const D=DRN(),R=drCalc(),M=DR_MAT[D.mat];
  <tr><td>継手</td><td>${fit}</td></tr>
  <tr><td>吊り金具</td><td><b>${R.sup}</b> 個（${drBand(D,D.sz)}${R.szEnd!==D.sz?"／太い所は "+drBand(D,R.szEnd):""}）<br><small>曲げ・チーズから200の所／その間は ${fmt(D.span)} 以下で等間隔／500以下の区間は真ん中に1か所（高さは3Dに「支 FL+」で表示）</small>${R.upSup?`<br>＋ <b>ドレンアップの上の支持 ${R.upSup} か所</b>（金物が特殊なことがあるので別に用意）`:""}${R.vsup?`<br>＋ <b>縦配管の支持 ${R.vsup} か所</b>（立てバンド。曲げから300・間は1500以下で等間隔）`:""}</td></tr>
  </table>${lvw}${ceilTxt}${mgw}${cow}${trw}${warn}<div style="font-size:12px;color:var(--sub);margin-top:6px">数は目安です。継手の品番・外径はメーカーで確認してください。ソケットは定尺4mを超える所の数です。</div>`}
-function drSum(){const b=$("#drSumBox");if(b)b.innerHTML=drSumHtml()}
+function drSum(){const b=$("#drSumBox");if(b)b.innerHTML=drSumHtml();drGap()}
+/* 支持の間隔の一覧（横は曲がり・チーズで区切った区間ごと。端の数字は曲がり・チーズからの距離） */
+function drGap(){const b=$("#drGapBox");if(!b)return;let SP=[];try{SP=drSupports(drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)))}catch(e){}
+ const R=(SP.runs||[]).filter(r=>r.ss.length).sort((x,y)=>x.a-y.a);if(!R.length){b.innerHTML=`<h4>📏 支持の間隔</h4><div style="font-size:13px;color:var(--sub)">支持がまだありません。</div>`;return}
+ const nmR=r=>r.a===r.b?nm(r.a):nm(r.a)+"〜"+nm(r.b),kd={h:"横",v:"縦",up:"ドレンアップのトップ"};
+ b.innerHTML=`<h4>📏 支持の間隔</h4><div style="font-size:12.5px;color:var(--sub);margin-bottom:6px">左から流れの順。<b>端の数字</b>は曲がり・チーズ（区間の端）から最初の支持まで、<b>間の数字</b>は支持と支持の間です。3Dにもオレンジの「↔」で出ます。</div>`+
+  R.map(r=>{const e=[0,...r.ss,r.L],g=[];for(let k=0;k<e.length-1;k++)g.push(Math.round(e[k+1]-e[k]));
+   return`<div style="border-top:1px solid var(--line);padding:6px 0;font-size:14px"><b>💧${nmR(r)}</b> ${kd[r.k]}（${fmt(Math.round(r.L))}mm・支持${r.ss.length}か所）<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;font-weight:800">${g.map((v,k)=>`<span style="padding:2px 7px;border-radius:8px;background:${k===0||k===g.length-1?"#f1f5f9":"#ffedd5"};color:${k===0||k===g.length-1?"#475569":"#9a3412"}">${fmt(v)}</span>`).join('<span style="color:#7c3aed">●</span>')}</div></div>`}).join("")}
 /* 📋 まとめ：冷媒とドレンを1つの画面で */
 function drSumOpen(){const sh=$("#drSumSh");if(!sh)return;
  let h=`<div style="display:flex;align-items:center;justify-content:space-between"><h3 style="margin:0">📋 冷媒＋ドレン まとめ</h3><button id="drSumX" style="width:40px;height:40px;border-radius:20px;font-size:18px;background:var(--bg)">✕</button></div>`;

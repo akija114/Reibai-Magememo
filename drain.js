@@ -59,10 +59,12 @@ function drRise(){const D=DRN(),U=drUnit(),y0=U&&U.m&&U.m.dr?U.m.dr.y:0;let mx=0
    ・横の区間（曲げ・チーズで区切る）ごと：500以下なら真ん中に1か所。長ければ両端（曲げ）から200の所、その間は吊り間隔（1000など）以下になるよう等間隔
    ・高さ＝吊りバンドが掛かる管の下端（FL） */
 function drSupports(PA){const D=DRN(),pts=PA.pts,dirs=PA.dirs,out=[];if(!D.rows.length)return out;const H=i=>dirs[i]&&Math.abs(dirs[i].y)<0.5,Vt=i=>dirs[i]&&Math.abs(dirs[i].y)>0.7;
- let upRow=-1;for(let i=0;i<D.rows.length;i++){if(!dirs[i])break;if(dirs[i].y>0.7&&D.rows[i].l>=30){out.push({p:pts[i+1].clone(),k:"up",i});upRow=i;break}if(H(i)&&D.rows[i].l>300)break}
+ /* ドレンアップのトップ：立ち上げの後の横（トップ）の真ん中に1か所だけ（専用金物）。トップの横が1000を超える時は立ち上げの上に付けて、横は普通のルール */
+ let upRow=-1,topRow=-1;for(let i=0;i<D.rows.length;i++){if(!dirs[i])break;if(dirs[i].y>0.7&&D.rows[i].l>=30){upRow=i;
+   const t=i+1;if(H(t)&&D.rows[t].l>0&&D.rows[t].l<=1000){topRow=t;out.push({p:pts[t].clone().lerp(pts[t+1],0.5),k:"up",i:t})}else out.push({p:pts[i+1].clone(),k:"up",i});break}if(H(i)&&D.rows[i].l>300)break}
  let sz=D.sz;const szAt=[];D.rows.forEach((r,i)=>{if(r.sz)sz=r.sz;szAt[i]=sz});
  const hoseRow=i=>D.ys==="hose"&&D.rows[i]&&D.rows[i].yg;
- for(let i=0;i<D.rows.length;){if(!H(i)||hoseRow(i)){i++;continue}let j=i;while(j+1<D.rows.length&&H(j+1)&&!D.rows[j].a&&!D.rows[j].j)j++;
+ for(let i=0;i<D.rows.length;){if(!H(i)||hoseRow(i)||i===topRow){i++;continue}let j=i;while(j+1<D.rows.length&&H(j+1)&&!D.rows[j].a&&!D.rows[j].j)j++;
   const L=D.rows.slice(i,j+1).reduce((a,r)=>a+r.l,0);
   const at=s2=>{let acc=0;for(let k=i;k<=j;k++){const l=D.rows[k].l;if(s2<=acc+l||k===j){const t=l?Math.max(0,Math.min(1,(s2-acc)/l)):0;return{p:pts[k].clone().lerp(pts[k+1],t),i:k}}acc+=l}return{p:pts[j+1].clone(),i:j}};
   if(L>=50){let ss;if(L<=500)ss=[L/2];else{const S=L-400,n=Math.max(1,Math.ceil(S/D.span-1e-9));ss=[200];for(let q=1;q<n;q++)ss.push(200+S*q/n);ss.push(L-200)}
@@ -115,20 +117,20 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
    const cp=[hp[0]];for(let k=1;k<hp.length-1;k++){const a=hp[k-1],b=hp[k],c=hp[k+1],r1=Math.min(80,a.distanceTo(b)/2),r2=Math.min(80,b.distanceTo(c)/2);cp.push(b.clone().add(a.clone().sub(b).setLength(r1)),b.clone(),b.clone().add(c.clone().sub(b).setLength(r2)))}cp.push(hp[hp.length-1]);for(let k=cp.length-1;k>0;k--)if(cp[k].distanceTo(cp[k-1])<1)cp.splice(k,1);
    const cv=new THREE.CatmullRomCurve3(cp,false,"centripetal"),hr=rad(D.sz)*1.05,tube=new THREE.Mesh(new THREE.TubeGeometry(cv,Math.max(40,cp.length*10),hr,14,false),new THREE.MeshStandardMaterial({color:0x9aa8b8,roughness:.8}));g.add(tube);
    for(let t=0.04;t<0.98;t+=0.06){const rg=new THREE.Mesh(new THREE.TorusGeometry(hr,hr*0.14,6,16),new THREE.MeshStandardMaterial({color:0x475569}));rg.position.copy(cv.getPointAt(t));rg.lookAt(cv.getPointAt(t).add(cv.getTangentAt(t)));g.add(rg)}   // ジャバラ
-   try{const s=label("〰 ドレンホース（ヤグラの代わり）約"+fmt(Math.ceil((drHoseLen()+200)/100)*100),ext*0.026,"#f1f5f9f2","#334155");s.position.copy(cv.getPointAt(0.5)).add(new V(0,hr*3,0));s.userData.cat="drain";if(typeof pxl==="function")pxl(s,14);g.add(s)}catch(e){}
+   try{const s=label("〰 ドレンホース（ヤグラの代わり）約"+fmt(Math.ceil((drHoseLen()+200)/100)*100),ext*0.026,"#f1f5f9f2","#334155");s.position.copy(cv.getPointAt(0.5)).add(new V(0,hr*3,0));s.userData.cat="drl";if(typeof pxl==="function")pxl(s,14);g.add(s)}catch(e){}
    T.drHoseLast=last}catch(e){console.warn("hose",e)}}
  for(let i=0;i<pts.length-1;i++){const a=pts[i].p,b=pts[i+1].p,L=a.distanceTo(b);if(L<1)continue;const r=rad(pts[i+1].sz);
   if(HOSE&&D.rows[i]&&D.rows[i].yg){(T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:r,dr:1,i});continue}   // ホースの区間は上で描いた
   (T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:(DR_MAT[D.mat].od[pts[i+1].sz]||32)/2,dr:1,i});
   const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,16),i===DR_SEL?selMat:mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(m);
   const j=new THREE.Mesh(new THREE.SphereGeometry(r*1.18,14,10),jm);j.position.copy(b);g.add(j);
-  try{const s=label("💧"+nm(i)+fmt(pts[i+1].l)+(pts[i+1].vert?"":"（-"+fmt(pts[i+1].l/D.slope)+"）"),ext*0.028,"#e0f2fef2","#0c4a6e");s.position.copy(a).add(b).multiplyScalar(.5);s.userData.cat="drain";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
+  try{const s=label("💧"+nm(i)+fmt(pts[i+1].l)+(pts[i+1].vert?"":"（-"+fmt(pts[i+1].l/D.slope)+"）"),ext*0.028,"#e0f2fef2","#0c4a6e");s.position.copy(a).add(b).multiplyScalar(.5);s.userData.cat="drl";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
  {const j=new THREE.Mesh(new THREE.SphereGeometry(rad(D.sz)*1.18,14,10),jm);j.position.copy(S);g.add(j)}
  /* 支持：全ねじ＋吊りバンド。高さ＝管の下端（FL）。ドレンアップの上は専用金物（色を変える） */
  try{const SP=drSupports(PA),pm2=new THREE.MeshStandardMaterial({color:0x7c3aed}),pu=new THREE.MeshStandardMaterial({color:0xdb2777}),pv=new THREE.MeshStandardMaterial({color:0x0d9488}),GYs=T.GYr!=null?T.GYr:null,rodL=Math.max(250,ext*0.05);
   SP.forEach(o=>{const r0=rad(o.sz||D.sz),m=o.k==="up"?pu:o.k==="v"?pv:pm2;if(o.k!=="v"){const rod=new THREE.Mesh(new THREE.CylinderGeometry(5,5,rodL,8),m);rod.position.copy(o.p).add(new V(0,rodL/2+r0,0));g.add(rod)}   // 縦配管は立てバンド（壁・柱に固定）なので全ねじは描かない
    const ring=new THREE.Mesh(new THREE.TorusGeometry(r0+4,3.5,8,20),m);const dd=(PA.dirs[o.i]||new V(1,0,0)).clone();ring.position.copy(o.p);ring.lookAt(o.p.clone().add(dd));g.add(ring);
-   if(GYs!=null){const fl=Math.round(o.p.y-GYs-(o.k==="v"?0:r0));try{const s=label((o.k==="up"?"支(ドレンアップ上) ":o.k==="v"?"支(縦) ":"支 ")+"FL+"+fmt(fl),ext*0.022,o.k==="up"?"#fce7f3f2":"#ede9fef2",o.k==="up"?"#9d174d":"#5b21b6");s.position.copy(o.p).add(new V(0,-r0-40,0));s.userData.cat="drain";if(typeof pxl==="function")pxl(s,12);g.add(s)}catch(e){}}})}catch(e){console.warn("supports",e)}
+   if(GYs!=null){const fl=Math.round(o.p.y-GYs-(o.k==="v"?0:r0));try{const s=label((o.k==="up"?"支(ドレンアップ上) ":o.k==="v"?"支(縦) ":"支 ")+"FL+"+fmt(fl),ext*0.022,o.k==="up"?"#fce7f3f2":"#ede9fef2",o.k==="up"?"#9d174d":"#5b21b6");s.position.copy(o.p).add(new V(0,-r0-40,0));s.userData.cat="drh";if(typeof pxl==="function")pxl(s,12);g.add(s)}catch(e){}}})}catch(e){console.warn("supports",e)}
  /* 掃除口・合流（チーズ）と、チーズから200mmの支持 */
  {const pm=new THREE.MeshStandardMaterial({color:0x7c3aed}),cap=new THREE.MeshStandardMaterial({color:0xf97316}),up=new V(0,1,0),cyl=(a,b,r,m)=>{const L=a.distanceTo(b);if(L<1)return;const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,14),m);c.position.copy(a).add(b).multiplyScalar(.5);c.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(c)};
   let szc=D.sz;D.rows.forEach((r,i)=>{if(r.sz)szc=r.sz;if(!r.j)return;const P=PA.pts[i+1],d=PA.dirs[i].clone(),dh=new V(d.x,0,d.z);if(dh.lengthSq()<1e-6)return;dh.normalize();
@@ -141,19 +143,19 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
     const back=ndh.clone().negate(),M=P.clone().addScaledVector(back,Math.max(60,R0*2.5)),cd=back.clone().add(up).normalize(),E=M.clone().addScaledVector(cd,Math.max(120,R0*5));
     cyl(P,M,R0,mat);const el=new THREE.Mesh(new THREE.SphereGeometry(R0*1.15,12,8),jm);el.position.copy(M);g.add(el);cyl(M,E,R0,mat);   // チーズ→短管→45°エルボ→立ち上げ
     const c=new THREE.Mesh(new THREE.CylinderGeometry(R0*1.35,R0*1.35,R0*0.8,16),cap);c.position.copy(E);c.quaternion.setFromUnitVectors(Y,cd);g.add(c);
-    try{const s2=label("🧹 掃除口（逆向き45°）・200mmで支持",ext*0.026,"#ffedd5f2","#9a3412");s2.position.copy(E);s2.userData.cat="drain";if(typeof pxl==="function")pxl(s2,14);g.add(s2)}catch(e){}}
+    try{const s2=label("🧹 掃除口（逆向き45°）・200mmで支持",ext*0.026,"#ffedd5f2","#9a3412");s2.position.copy(E);s2.userData.cat="drl";if(typeof pxl==="function")pxl(s2,14);g.add(s2)}catch(e){}}
    else{const sg=(r.bs==="R"||r.bs==="R45")?1:-1,y45=r.bs==="L45"||r.bs==="R45",bd=side.clone().multiplyScalar(sg);if(y45)bd.addScaledVector(dh,-1).normalize();   // 45°Yは上流側から斜めに入る
     const E=P.clone().addScaledVector(bd,r.bl);E.y+=r.bl/D.slope;cyl(P,E,rad(Math.min(r.bsz,szc)),mat);   // 枝も下り勾配（合流点がいちばん低い）
-    const n=D.rows.slice(0,i+1).filter(x=>x.j==="mg").length+1;try{const s2=label("🔀 合流（系統"+n+"）"+DR_MAT[D.mat].s+Math.min(r.bsz,szc),ext*0.026,"#e0e7fff2","#3730a3");s2.position.copy(E);s2.userData.cat="drain";if(typeof pxl==="function")pxl(s2,14);g.add(s2)}catch(e){}}})}
+    const n=D.rows.slice(0,i+1).filter(x=>x.j==="mg").length+1;try{const s2=label("🔀 合流（系統"+n+"）"+DR_MAT[D.mat].s+Math.min(r.bsz,szc),ext*0.026,"#e0e7fff2","#3730a3");s2.position.copy(E);s2.userData.cat="drl";if(typeof pxl==="function")pxl(s2,14);g.add(s2)}catch(e){}}})}
  /* 鳥居：頂点の横の真ん中を上から吊る（吊りボルト）＋ 保温の範囲を半透明で */
  if(D.tr.on&&D.rows.length>=3&&D.rows[2].tr){const a=PA.pts[2],b=PA.pts[3],m=a.clone().add(b).multiplyScalar(.5),rodL=Math.max(300,ext*0.06);
   const rod=new THREE.Mesh(new THREE.CylinderGeometry(rad(D.sz)*0.35,rad(D.sz)*0.35,rodL,8),new THREE.MeshStandardMaterial({color:0x7c3aed}));rod.position.copy(m).add(new V(0,rodL/2,0));g.add(rod);
   const hg=new THREE.Mesh(new THREE.TorusGeometry(rad(D.sz)*1.6,rad(D.sz)*0.35,8,20),new THREE.MeshStandardMaterial({color:0x7c3aed}));hg.position.copy(m);hg.lookAt(b);g.add(hg);
   const ins=new THREE.MeshStandardMaterial({color:0xf8fafc,transparent:true,opacity:.35,depthWrite:false});
   for(let i=1;i<=3;i++){const p0=PA.pts[i],p1=PA.pts[i+1],L=p0.distanceTo(p1);if(L<1)continue;const c=new THREE.Mesh(new THREE.CylinderGeometry(rad(D.sz)*2,rad(D.sz)*2,L,16),ins);c.position.copy(p0).add(p1).multiplyScalar(.5);c.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());g.add(c)}
-  try{const s=label("⛩ 頂点を吊る（"+fmt(D.tr.W)+"の真ん中）",ext*0.028,"#ede9fef2","#5b21b6");s.position.copy(m).add(new V(0,rodL,0));s.userData.cat="drain";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
+  try{const s=label("⛩ 頂点を吊る（"+fmt(D.tr.W)+"の真ん中）",ext*0.028,"#ede9fef2","#5b21b6");s.position.copy(m).add(new V(0,rodL,0));s.userData.cat="drl";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
  const PF=drPortFL(),endFL=PF?Math.round(PF.v+(pts[pts.length-1].p.y-S.y)):null;
- try{const R=drCalc(),s=label("💧 ドレン "+DR_MAT[D.mat].s+D.sz+"　落差 "+fmt(R.drop)+"（1/"+D.slope+"）"+(endFL!=null?"　出口 FL+"+fmt(endFL)+(D.sl.h?"（スリーブ FL+"+fmt(D.sl.h)+(endFL>=D.sl.h-5?" ✅":" ⚠️スリーブより低い")+"）":""):""),ext*0.03,"#0c4a6ef2","#fff");s.position.copy(pts[pts.length-1].p);s.userData.cat="drain";if(typeof pxl==="function")pxl(s,16);g.add(s)}catch(e){}}
+ try{const R=drCalc(),s=label("💧 ドレン "+DR_MAT[D.mat].s+D.sz+"　落差 "+fmt(R.drop)+"（1/"+D.slope+"）"+(endFL!=null?"　出口 FL+"+fmt(endFL)+(D.sl.h?"（スリーブ FL+"+fmt(D.sl.h)+(endFL>=D.sl.h-5?" ✅":" ⚠️スリーブより低い")+"）":""):""),ext*0.03,"#0c4a6ef2","#fff");s.position.copy(pts[pts.length-1].p);s.userData.cat="drh";if(typeof pxl==="function")pxl(s,16);g.add(s)}catch(e){}}
 
 /* ===== 画面（曲げ共有のみ）：「🔧 冷媒｜💧 ドレン」の切り替え ===== */
 if(typeof APP!=="undefined"&&APP==="bend")(function(){

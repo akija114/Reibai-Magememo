@@ -1284,11 +1284,7 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
   const base=(c2.w>=c2.h?0:90)-f.r,end=RW[RW.length-1];let br=normT(base),bd2=1e18;
   for(const r of[normT(base),normT(base+180)]){const th=r*Math.PI/180,lx=[Math.cos(th),Math.sin(th)],lz=[-Math.sin(th),Math.cos(th)],op=outPort(mk);const px=q[0]+lx[0]*op[0]+lz[0]*op[2],pz=q[1]+lx[1]*op[0]+lz[1]*op[2];const d=Math.hypot(px-end[0],pz-end[1]);if(d<bd2){bd2=d;br=r}}
   st.bld.push({k:"out",x:Math.round(q[0]),z:Math.round(q[1]),w:Math.round(lw/10)*10,d:Math.round(ld/10)*10,h:OUTM[mk].h,y:0,r:br,m:mk});st.bld=normBld(st.bld);oi=st.bld.length-1}
- /* 配管が壁を通る所に穴を開ける */
  const H=pipeH||(CH+200);
- for(let i=0;i<RW.length-1;i++){const a=RW[i],b=RW[i+1];st.bld.filter(o=>o.k==="wall").forEach(w=>{const th=w.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),loc=p=>[(p[0]-w.x)*co+(p[1]-w.z)*si,-(p[0]-w.x)*si+(p[1]-w.z)*co],A=loc(a),B=loc(b);
-  if(A[1]*B[1]>=0)return;const u=A[1]/(A[1]-B[1]),lx=A[0]+(B[0]-A[0])*u;if(Math.abs(lx)>w.w/2)return;const X=a[0]+(b[0]-a[0])*u,Z=a[1]+(b[1]-a[1])*u;
-  if(st.bld.some(o=>o.k==="hole"&&Math.hypot(o.x-X,o.z-Z)<200))return;st.bld.push({k:"hole",x:Math.round(X),z:Math.round(Z),r:w.r,w:75,d:w.d,h:75,y:H,full:false})})}
  st.bld=normBld(st.bld);bldChanged();
  if(szG>=0){st.s=szG;st.ps=szL>=0&&szL!==szG?szL:null;try{$("#sz").value=st.s}catch(e){}}
  /* 3Dの配管：配管口 → （天井の中）図面の配管の始まり → 配管の高さ → 図面どおり → 室外機の真上で下りて、配管口に横から入る */
@@ -1319,6 +1315,14 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  if(T0){const out=Ap.clone().sub(T0).normalize(),d=T0.clone().sub(cur()),a=d.dot(out);
   if(Math.abs(d.y)<1&&a<=-50){const al=out.clone().multiplyScalar(a);go(d.clone().sub(al));go(al)}   // もう口の高さ：横のずれを合わせてから、まっすぐ口へ（行き過ぎて戻らない）
   else{const toAp=Ap.clone().sub(cur());toAp.y=0;const al=out.clone().multiplyScalar(toAp.dot(out));go(al);go(toAp.clone().sub(al));go(new V(0,T0.y-cur().y,0));go(T0.clone().sub(cur()))}}   // 口の向きに出る→横を合わせる→（上げ下げ）→口へ
+ /* スリーブ（穴）：出来上がった3Dの冷媒が壁を通る所に、その高さで開ける（図面の線は配管口に合わせて少しずらすので、図面の線の位置だと合わない） */
+ {st.bld=st.bld.filter(o=>!(o.k==="hole"&&o.auto));const walls=st.bld.filter(o=>o.k==="wall");
+  for(let i=1;i<PP.length;i++){const A=PP[i-1],B=PP[i];if(Math.abs(B.y-A.y)>1)continue;
+   walls.forEach(w=>{const th=w.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),loc=p=>[(p.x-w.x)*co+(p.z-w.z)*si,-(p.x-w.x)*si+(p.z-w.z)*co],La=loc(A),Lb=loc(B);
+    if(La[1]*Lb[1]>=0)return;const u=La[1]/(La[1]-Lb[1]),lx=La[0]+(Lb[0]-La[0])*u;if(Math.abs(lx)>w.w/2)return;const X=A.x+(B.x-A.x)*u,Z=A.z+(B.z-A.z)*u;
+    if(st.bld.some(o=>o.k==="hole"&&Math.hypot(o.x-X,o.z-Z)<200&&Math.abs(o.y-(A.y-GY))<200))return;
+    st.bld.push({k:"hole",x:Math.round(X),z:Math.round(Z),r:w.r,w:75,d:w.d,h:75,y:Math.round(A.y-GY),full:false,auto:1})})}
+  st.bld=normBld(st.bld);bldChanged()}
  const F=frameFor(new V(1,0,0)),Pf=PP.map(p=>new V(p.dot(F.ex),p.dot(F.ey),p.dot(F.ez)));
  const rows=polyToRows(Pf).filter(r=>r.l>0);if(!rows.length){toast("ルートを作れませんでした");return}
  st.rows=normRows(rows,[{l:1000,a:0,t:0,o:false}]);sel=0;st.units.e="";save();render();if(T){build3D();fitT(true)}

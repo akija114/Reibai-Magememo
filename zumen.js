@@ -1323,7 +1323,7 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  const rows=polyToRows(Pf).filter(r=>r.l>0);if(!rows.length){toast("ルートを作れませんでした");return}
  st.rows=normRows(rows,[{l:1000,a:0,t:0,o:false}]);sel=0;st.units.e="";save();render();if(T){build3D();fitT(true)}
  /* ドレン：図面のオレンジの管から自動で作る（冷媒と同じ3Dに出す） */
- let DRr=null;try{DRr=planReadDrain();if(DRr){save();render();if(T){build3D();fitT(true)}}}catch(e){console.warn("drain read",e)}
+ let DRr=null;try{DRr=planReadDrain(pipeH||null);if(DRr){save();render();if(T){build3D();fitT(true)}}}catch(e){console.warn("drain read",e)}
  /* 冷媒の通し方：図面で冷媒とドレンが並んで走っていれば、ドレンの上（全ねじの横掴み・50mm）に通す */
  let RJ=null;if(DRr){try{RJ=rjInit(Pf)}catch(e){console.warn("rj",e)}}else st.rj=null;
  const po=$("#planOv");if(po)po.style.display="none";
@@ -1405,7 +1405,7 @@ function drRowsFromPts(pts,d0){const V=THREE.Vector3;let d=d0.clone().normalize(
   const ax=d.clone().cross(b).normalize(),ar=a*Math.PI/180;d.applyAxisAngle(ax,ar).normalize();u.applyAxisAngle(ax,ar).normalize();r=d.clone().cross(u).normalize()}
  return rows}
 /* 図面からドレンを作る（planReadAll の最後に呼ぶ。冷媒を作った後なので、btW＝3Dの座標） */
-function planReadDrain(){const P=PLAN,mm=P.mmpp,px=v=>v/mm;if(!T||!T.UN)return null;
+function planReadDrain(refFL){const P=PLAN,mm=P.mmpp,px=v=>v/mm;if(!T||!T.UN)return null;
  const u=T.UN.find(x=>x.t==="s"&&x.dr)||T.UN.find(x=>x.dr);if(!u)return null;
  const G=planDrainGraph();if(!G||!G.E.length)return null;const{N,E}=G,V=THREE.Vector3;
  const S=u.dr.p.clone(),d0=new V(u.dr.d.x,0,u.dr.d.z).normalize(),Sp=btP(S.x,S.z),GY=T.GYr!=null?T.GYr:null;if(GY==null)return null;
@@ -1436,8 +1436,14 @@ function planReadDrain(){const P=PLAN,mm=P.mmpp,px=v=>v/mm;if(!T||!T.UN)return n
  const D=DRN(),sl=[];for(let i=1;i<labs.length;i++){const dh=labs[i-1].FL-labs[i].FL,ds=labs[i].s-labs[i-1].s;if(dh>3&&ds>800){const k=ds/dh;if(k>=30&&k<=300&&!path.some(o=>o.circ&&o.s>labs[i-1].s&&o.s<labs[i].s))sl.push(k)}}
  const slope=sl.length?(sl.sort((a,b)=>a-b)[sl.length>>1]<75?50:100):D.slope;
  /* 縦管：高さが勾配で合わない所に、丸（縦の管）があればそこ、無ければ前の文字の所で上げ下げ */
- const portFL=S.y-GY,ev=[];let hs=0,hFL=portFL;
- labs.forEach(L=>{const exp=hFL-(L.s-hs)/slope,cand=path.filter(o=>o.circ&&o.s>hs+1&&o.s<=L.s+1);const at=cand.length?cand[cand.length-1].s:hs;
+ const portFL=S.y-GY,ev=[];let hs=0,hFL=portFL,top=null;
+ /* ヤグラ（ドレンアップのトップ）：ドレン口から、メインの管・機械側の配管（冷媒）のどちらよりも高い所まで上げる（＋100mm）。
+    トップから勾配で出て、メインに入るチーズの手前で下げて、メインの高さでチーズに入る */
+ const YG=100,L1=labs[0];let rest=labs;
+ if(L1){const tee=path.find(o=>o.s>1&&o.co&&o.s<=L1.s+300),sJ=tee?tee.s:L1.s,mainJ=L1.FL+(L1.s-sJ)/slope;
+  if(sJ>=150){const TOP=Math.round(Math.max(mainJ+sJ/slope,portFL,refFL||0)+YG),sD=Math.max(sJ*0.6,sJ-150),dyUp=TOP-portFL,dyDn=(mainJ+(sJ-sD)/slope)-(TOP-sD/slope);
+   if(dyUp>=30){ev.push({s:0,dy:Math.round(dyUp)});if(dyDn<=-30)ev.push({s:sD,dy:Math.round(dyDn)});top={FL:TOP,sD:Math.round(sD),sJ:Math.round(sJ)};hs=sJ;hFL=mainJ;rest=labs.slice(1)}}}
+ rest.forEach(L=>{const exp=hFL-(L.s-hs)/slope,cand=path.filter(o=>o.circ&&o.s>hs+1&&o.s<=L.s+1);const at=cand.length?cand[cand.length-1].s:hs;
   const dy=L.FL+(L.s-at)/slope-(hFL-(at-hs)/slope);if(Math.abs(dy)>=30)ev.push({s:at,dy:Math.round(dy)});hs=L.s;hFL=Math.abs(dy)>=30?L.FL:exp});
  /* 終わり：丸（縦の管）で終わっていて、近く（1.5m）に「ウォーターベスト／排水」と高さ → そこまで下げる */
  const last=path[path.length-1];let endFL=null;
@@ -1462,7 +1468,7 @@ function planReadDrain(){const P=PLAN,mm=P.mmpp,px=v=>v/mm;if(!T||!T.UN)return n
  addV(evAt(last.s));
  const rows=drRowsFromPts(pts,d0);if(!rows.length)return null;
  D.rows=rows.slice(0,40);D.sz=sz0;D.slope=slope;D.show=true;D.tr.on=false;D.up=0;
- return{rows:D.rows.length,len:Math.round(D.rows.reduce((a,r)=>a+r.l,0)),co:nco,sizes:[...new Set(segSz.filter(Boolean))],slope,labs:labs.map(l=>[Math.round(l.s),l.FL,l.sz]),ev,endFL,portFL:Math.round(portFL)}}
+ return{rows:D.rows.length,len:Math.round(D.rows.reduce((a,r)=>a+r.l,0)),co:nco,sizes:[...new Set(segSz.filter(Boolean))],slope,labs:labs.map(l=>[Math.round(l.s),l.FL,l.sz]),ev,endFL,portFL:Math.round(portFL),top}}
 /* ===== 🔗 冷媒をドレンに沿わせる（図面で同じ穴から出る時） =====
    ・別ルート：図面の冷媒のまま
    ・とも巻き：ドレンの上に冷媒を載せて一緒に巻く（間 0）

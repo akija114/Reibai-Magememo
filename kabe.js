@@ -38,9 +38,11 @@ function kbAt(m,t){const P=PLAN,mm=P.mmpp,L=kbLines(),sides={a:[],b:[]};
  const r={m,t,a:fin(sides.a),b:fin(sides.b)};
  const G=(P.grids||[]).filter(g=>g.ok&&g.ax===(m.h?"Y":"X"));if(G.length){const g=G.reduce((b2,g2)=>!b2||Math.abs(g2.v-m.c)<Math.abs(b2.v-m.c)?g2:b2,null);r.g={n:g.n,d:(m.c-g.v)*mm}}
  return r}
+/* 表示する線：選んでいる線（S.i）＋「📌 これも残す」で残した線（S.ex） */
+const kbShow=S=>[S.i,...(S.ex||[]).filter(k=>k!==S.i&&k<S.L.length)];
 const kbSide=(m,s)=>m.h?(s==="a"?"上":"下"):(s==="a"?"左":"右");
 const kbDir=m=>m.h?"横":"縦";
-function kbTxt(r,no){const m=r.m,f=s=>{const S=r[s];if(!S.L.length)return`${kbSide(m,s)}：線なし`;const o=S.L[S.i];return`${kbSide(m,s)}の${o.wall?"壁":"線"}から ${fmt(Math.round(o.d))}`};
+function kbTxt(r,no){const m=r.m,f=s=>{const S=r[s];if(!S.L.length)return`${kbSide(m,s)}：線なし`;return kbShow(S).map(ix=>{const o=S.L[ix];return`${kbSide(m,s)}の${o.wall?"壁":"線"}から ${fmt(Math.round(o.d))}`}).join("／")};
  return`${no} ${m.kind}（${kbDir(m)}の管）　${f("a")}／${f("b")}`+(r.g?`／${r.g.n}から${m.h?(r.g.d>=0?"下へ":"上へ"):(r.g.d>=0?"右へ":"左へ")} ${fmt(Math.round(Math.abs(r.g.d)))}`:"")}
 /* タップ：いちばん近い配管の上で測る */
 function kbTap(p){const P=PLAN;if(!P||!P.mmpp){toast("先に縮尺を合わせてください");return}
@@ -64,13 +66,17 @@ function kbFocus(){const f=KB.foc;if(!f)return;const r=(f.w==="all"?KB.all:KB.re
  const cx=(p0[0]+p1[0])/2,cy=(p0[1]+p1[1])/2;PV.ox=W2/2-cx*PV.z;PV.oy=H2*0.6-cy*PV.z}
 function kbMini(){const f=KB.foc;if(!f)return"";const R=((f.w==="all"?KB.all:KB.res)||[])[f.i];if(!R)return"";const S=R[f.s],o=S.L[S.i],no=f.w==="all"?(CIRC[f.i]||f.i+1):"T"+(f.i+1);
  return`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="flex:1 1 140px;font-size:13.5px"><b style="color:#7c3aed">${no}</b> ${R.m.kind}・${kbSide(R.m,f.s)}の${o.wall?"壁":"線"}から <b style="font-size:17px">${fmt(Math.round(o.d))}</b> <span style="color:#64748b">（${S.i+1}/${S.L.length}）</span></span>
-  <button id="kbPrevB" style="height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">◀ 前の線</button><button id="kbNextB" style="height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">次の線 ▶</button><button id="kbOkB" style="height:40px;padding:0 12px;border-radius:10px;background:#16a34a;color:#fff;font-weight:800">✓ これにする</button></div>`}
+  <button id="kbPrevB" style="height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">◀ 前の線</button><button id="kbNextB" style="height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">次の線 ▶</button><button id="kbPinB" style="height:40px;padding:0 12px;border-radius:10px;background:#dcfce7;color:#15803d;border:1.5px solid #86efac;font-weight:800">${(S.ex||[]).includes(S.i)?"📌 残すのをやめる":"📌 これも残す"}</button><button id="kbOkB" style="height:40px;padding:0 12px;border-radius:10px;background:#16a34a;color:#fff;font-weight:800">✓ これにする</button></div>
+  <div style="font-size:12px;color:#475569;margin-top:4px">「📌 これも残す」で、この線を残したまま次の線へ進めます（緑の線）。図面と3Dに全部出ます。</div>`}
+function kbPin(){const f=KB.foc;if(!f)return;const R=((f.w==="all"?KB.all:KB.res)||[])[f.i];if(!R)return;const S=R[f.s];S.ex=S.ex||[];const k=S.ex.indexOf(S.i);
+ if(k>=0){S.ex.splice(k,1);kbSync();wzRender();planDraw();return}S.ex.push(S.i);if(S.L.length>1)kbNext(f.w,f.i,f.s,1);else{kbSync();wzRender();planDraw()}toast("📌 残しました。続けて次の線も選べます")}
+function kbUnpin(w,i,s,k){const R=((w==="all"?KB.all:KB.res)||[])[i];if(!R)return;const S=R[s];S.ex=(S.ex||[]).filter(x=>x!==k);kbSync();wzRender();planDraw()}
 
 function kbClear(){KB.res=[];KB.all=null;kbSync();wzRender();planDraw()}
 function kbCopy(){const L=[...KB.res.map((r,i)=>kbTxt(r,"T"+(i+1))),...(KB.all||[]).map((r,i)=>kbTxt(r,CIRC[i]||String(i+1)))];if(!L.length){toast("まだ測っていません");return}
  const t="配管の位置（壁から・配管の芯まで）\n"+L.join("\n");try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}}
 function kbHTML(){if(KB.key!==kbK()){KB.res=[];KB.all=null;KB.key=kbK()}const P=PLAN,row=(r,i,w,no)=>{const m=r.m,sd=s=>{const S=r[s];if(!S.L.length)return`<span style="color:#94a3b8">${kbSide(m,s)}：線なし</span>`;const o=S.L[S.i];
-   return`<span style="white-space:nowrap">${kbSide(m,s)}の${o.wall?`<b>壁</b>`:"線"}から <b style="font-size:16px">${fmt(Math.round(o.d))}</b></span>${S.L.length>1?` <button onclick="kbNext('${w}',${i},'${s}')" style="height:30px;padding:0 8px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800;font-size:12px">▶ 別の線 ${S.i+1}/${S.L.length}</button>`:""}`};
+   return`<span style="white-space:nowrap">${kbSide(m,s)}の${o.wall?`<b>壁</b>`:"線"}から <b style="font-size:16px">${fmt(Math.round(o.d))}</b></span>${S.L.length>1?` <button onclick="kbNext('${w}',${i},'${s}')" style="height:30px;padding:0 8px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800;font-size:12px">▶ 別の線 ${S.i+1}/${S.L.length}</button>`:""}${(S.ex||[]).filter(k=>k!==S.i).map(k=>{const q=S.L[k];return`<br><span style="white-space:nowrap;color:#15803d">📌 ${kbSide(m,s)}の${q.wall?"壁":"線"}から <b style="font-size:16px">${fmt(Math.round(q.d))}</b></span> <button onclick="kbUnpin('${w}',${i},'${s}',${k})" style="height:28px;padding:0 8px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800;font-size:12px">✕</button>`}).join("")}`};
   return`<div style="border-top:1px solid #e2e8f0;padding:6px 0;font-size:13.5px"><b style="color:${w==="all"?"#7c3aed":"#0f766e"}">${no}</b> ${m.kind}（${kbDir(m)}の管）<br>${sd("a")}<br>${sd("b")}${r.g?`<br><span style="color:#7c3aed">${r.g.n}から${m.h?(r.g.d>=0?"下へ":"上へ"):(r.g.d>=0?"右へ":"左へ")} ${fmt(Math.round(Math.abs(r.g.d)))}</span>`:""}</div>`};
  let h=`<p style="font-size:13.5px">配管（ピンク・オレンジ）を<b>タップ</b>すると、その所で両側の壁から<b>配管の芯</b>までの寸法を出します。「別の線」で仕上げ・LGS・躯体の線を切り替えられます。</p>
  <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">${wzBtn("kbAllB",KB.all?"📋 一覧を消す":"📋 配管を全部まとめて出す","#7c3aed","#fff","flex:1 1 100%")}${wzBtn("kbCopyB","📋 コピー","#0891b2","#fff","flex:1")}${wzBtn("kbClrB","🧹 全部消す","","","flex:1")}</div>`;
@@ -78,31 +84,31 @@ function kbHTML(){if(KB.key!==kbK()){KB.res=[];KB.all=null;KB.key=kbK()}const P=
  if(!KB.res.length&&!KB.all)h+=`<p style="font-size:12.5px;color:#64748b">「壁」＝その線の向こうに平行な線があって、壁の厚さ（40〜350mm）になっている所。図面の線から計算した目安なので、大事な所は図面の寸法でも確認してください。上下左右は図面の向きです。</p>`;
  return h}
 function kbBind(){const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};on("kbAllB",kbAll);on("kbCopyB",kbCopy);on("kbClrB",kbClear);const F=KB.foc;
- on("kbPrevB",()=>F&&kbNext(F.w,F.i,F.s,-1));on("kbNextB",()=>F&&kbNext(F.w,F.i,F.s,1));on("kbOkB",()=>{KB.foc=null;W.fold=false;wzRender();planDraw()})}
+ on("kbPrevB",()=>F&&kbNext(F.w,F.i,F.s,-1));on("kbNextB",()=>F&&kbNext(F.w,F.i,F.s,1));on("kbPinB",kbPin);on("kbOkB",()=>{KB.foc=null;W.fold=false;wzRender();planDraw()})}
 function kbDraw(x,sp){if(!W.on||W.step!=="t:kabe"||!PLAN)return;
  {const f=KB.foc,R=f&&((f.w==="all"?KB.all:KB.res)||[])[f.i];if(R){const m=R.m,S=R[f.s];
   S.L.forEach((o,k)=>{const a=sp(m.h?[o.lo!=null?o.lo:R.t-200,o.c]:[o.c,o.lo!=null?o.lo:R.t-200]),b=sp(m.h?[o.hi!=null?o.hi:R.t+200,o.c]:[o.c,o.hi!=null?o.hi:R.t+200]);
-   x.save();if(k===S.i){x.strokeStyle="rgba(250,204,21,.85)";x.lineWidth=9}else{x.strokeStyle="rgba(100,116,139,.55)";x.lineWidth=2;x.setLineDash([6,5])}x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();x.restore()})}}
+   x.save();if(k===S.i){x.strokeStyle="rgba(250,204,21,.85)";x.lineWidth=9}else if((S.ex||[]).includes(k)){x.strokeStyle="rgba(22,163,74,.75)";x.lineWidth=7}else{x.strokeStyle="rgba(100,116,139,.55)";x.lineWidth=2;x.setLineDash([6,5])}x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();x.restore()})}}
  const one=(r,lab,col)=>{const m=r.m,p0=m.h?[r.t,m.c]:[m.c,r.t],q0=sp(p0);
-  ["a","b"].forEach(s=>{const S=r[s];if(!S.L.length)return;const o=S.L[S.i],q1=sp(m.h?[r.t,o.c]:[o.c,r.t]);
+  ["a","b"].forEach(s=>{const S=r[s];if(!S.L.length)return;kbShow(S).forEach(ix=>{const o=S.L[ix],q1=sp(m.h?[r.t,o.c]:[o.c,r.t]);
    x.strokeStyle=col;x.lineWidth=2;x.beginPath();x.moveTo(q0[0],q0[1]);x.lineTo(q1[0],q1[1]);x.stroke();
    const tk=6;x.beginPath();if(m.h){x.moveTo(q1[0]-tk,q1[1]);x.lineTo(q1[0]+tk,q1[1])}else{x.moveTo(q1[0],q1[1]-tk);x.lineTo(q1[0],q1[1]+tk)}x.lineWidth=3;x.stroke();
    const t=fmt(Math.round(o.d)),mx=(q0[0]+q1[0])/2,my=(q0[1]+q1[1])/2;x.font="bold 13px sans-serif";const w=x.measureText(t).width+8;
-   x.fillStyle="rgba(255,255,255,.92)";x.fillRect(mx-w/2,my-9,w,18);x.strokeStyle=col;x.lineWidth=1.5;x.strokeRect(mx-w/2,my-9,w,18);x.fillStyle=col;x.textAlign="center";x.textBaseline="middle";x.fillText(t,mx,my+1)});
+   x.fillStyle="rgba(255,255,255,.92)";x.fillRect(mx-w/2,my-9,w,18);x.strokeStyle=col;x.lineWidth=1.5;x.strokeRect(mx-w/2,my-9,w,18);x.fillStyle=col;x.textAlign="center";x.textBaseline="middle";x.fillText(t,mx,my+1)})});
   x.fillStyle=col;x.beginPath();x.arc(q0[0],q0[1],10,0,7);x.fill();x.fillStyle="#fff";x.font="bold 11px sans-serif";x.textAlign="center";x.textBaseline="middle";x.fillText(lab,q0[0],q0[1]+0.5);x.textBaseline="alphabetic"};
  (KB.all||[]).forEach((r,i)=>one(r,CIRC[i]||String(i+1),"#7c3aed"));KB.res.forEach((r,i)=>one(r,"T"+(i+1),"#0f766e"))}
 
 /* 3Dに出す：測った寸法を st.kabe に保存（原点からのmm・図面の向き）。3D（曲げ共有・図面どちらでも）は core.js の addKabe3D が描く */
 function kbSync(){const P=PLAN;if(!P||!P.org||!P.mmpp)return;const mm=P.mmpp,toM=q=>[Math.round((q[0]-P.org[0])*mm),Math.round((q[1]-P.org[1])*mm)],L=[];
- const one=(r,no)=>{const m=r.m;["a","b"].forEach(sd=>{const S=r[sd];if(!S.L.length)return;const o=S.L[S.i],p0=m.h?[r.t,m.c]:[m.c,r.t],p1=m.h?[r.t,o.c]:[o.c,r.t];
-  L.push({k:m.kind,a:toM(p0),b:toM(p1),v:Math.round(o.d),w:o.wall?1:0,n:no})})};
+ const one=(r,no)=>{const m=r.m;["a","b"].forEach(sd=>{const S=r[sd];if(!S.L.length)return;kbShow(S).forEach(ix=>{const o=S.L[ix],p0=m.h?[r.t,m.c]:[m.c,r.t],p1=m.h?[r.t,o.c]:[o.c,r.t];
+  L.push({k:m.kind,a:toM(p0),b:toM(p1),v:Math.round(o.d),w:o.wall?1:0,n:no})})})};
  KB.res.forEach((r,i)=>one(r,"T"+(i+1)));(KB.all||[]).forEach((r,i)=>one(r,CIRC[i]||String(i+1)));
  const nw=kbWalls();st.kabe=L;if(nw){st.bldHide=false;bldChanged();toast("🧱 測った壁を3Dに "+nw+"枚 置きました（壁が無い所だけ）")}save();if(T){build3D();T.dirty=true}}
 /* 測った線が3Dの壁に無い時は、その線を面にした壁を置く（3Dで「何も無い所から寸法」にならないように）。厚さは向こう側の平行な線まで、無ければ100mm。すでに壁がある所には置かない */
 function kbWalls(){const P=PLAN;if(!P||!P.org||!P.mmpp||typeof btW!=="function")return 0;const mm=P.mmpp;let n=0;
- [...KB.res,...(KB.all||[])].forEach(r=>{const m=r.m;["a","b"].forEach(sd=>{const S=r[sd];if(!S.L.length)return;const o=S.L[S.i];if(o.lo==null)return;
+ [...KB.res,...(KB.all||[])].forEach(r=>{const m=r.m;["a","b"].forEach(sd=>{const S=r[sd];if(!S.L.length)return;kbShow(S).forEach(ix=>{const o=S.L[ix];if(o.lo==null)return;
   const t=Math.max(50,Math.min(400,o.wall||100)),sg=Math.sign(o.c-m.c)||1,cc=o.c+sg*(t/mm)/2,a=m.h?[o.lo,cc]:[cc,o.lo],b=m.h?[o.hi,cc]:[cc,o.hi],q=btW(m.h?[r.t,cc]:[cc,r.t]);
   const hit=bldHit(q);if(hit>=0&&st.bld[hit]&&st.bld[hit].k==="wall")return;
   const A=btWx(a),B=btWx(b),L=Math.hypot(B[0]-A[0],B[1]-A[1]);if(L<300)return;const w=bldNew("wall");
-  Object.assign(w,{x:Math.round((A[0]+B[0])/2),z:Math.round((A[1]+B[1])/2),w:Math.round(L),d:Math.round(t),r:normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI))});st.bld.push(w);n++})});
+  Object.assign(w,{x:Math.round((A[0]+B[0])/2),z:Math.round((A[1]+B[1])/2),w:Math.round(L),d:Math.round(t),r:normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI))});st.bld.push(w);n++})})});
  if(n)st.bld=normBld(st.bld);return n}

@@ -51,8 +51,8 @@ function openDraw(){
    <div id="plSteps" style="display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 8px 6px;flex:none"></div>
    <div id="plInfo" style="padding:0 10px 4px;font-size:12px;line-height:1.4;color:#cbd5e1;max-height:2.9em;overflow:hidden;flex:none"></div>
    <div id="plPanel" style="display:none;max-height:30vh;overflow-y:auto;flex:none;background:#f8fafc;color:#0f172a;padding:10px;font-size:13.5px"></div>
-   <div id="plWrap" style="flex:1;min-height:40vh;position:relative;overflow:hidden;touch-action:none;background:#e2e8f0"><canvas id="plCv" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>
-   <div id="wzBal" style="position:absolute;top:8px;left:8px;right:8px;max-height:52%;display:none;z-index:3"></div>
+   <div id="plWrap" style="flex:1;min-height:40vh;position:relative;overflow:hidden;background:#e2e8f0"><canvas id="plCv" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>
+   <div id="wzBal" style="position:absolute;top:8px;left:8px;right:8px;max-height:calc(100% - 16px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;border-radius:16px;display:none;z-index:3"></div>
    <div id="plFloat" style="position:absolute;top:8px;right:8px;display:none;gap:6px;z-index:2"><button id="plFUndo" style="height:40px;padding:0 12px;border-radius:12px;font-weight:800;font-size:13px;background:#fff;color:#0f172a;box-shadow:0 2px 8px rgba(0,0,0,.25)">↩ 1つ戻す</button><button id="plFCancel" style="height:40px;padding:0 12px;border-radius:12px;font-weight:800;font-size:13px;background:#dc2626;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25)">✖ やめる</button></div></div>
    <div id="wzBar" style="display:none;gap:8px;padding:8px 8px calc(env(safe-area-inset-bottom,0px) + 8px);background:#0f172a;flex:none">
     <button id="wzBack" style="flex:1;white-space:nowrap;height:52px;border-radius:14px;font-weight:800;font-size:16px;background:#fff;color:#0f172a">◀ 戻る</button>
@@ -208,7 +208,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
   else if(k==="spot")h=`<p>室外機を置く<b>場所の範囲</b>を、対角に2点タップ（バルコニーや架台など）。</p>`+done;
   else if(k==="door")h=`<div style="display:flex;gap:4px;margin-bottom:6px">${[["slide","引き戸"],["swing","開き戸"]].map(([t,l])=>`<button data-dt2="${t}" style="flex:1;height:40px;border-radius:10px;font-weight:800;font-size:14px;border:1.5px solid #cbd5e1;background:${BT.dt===t?"#fbbf24":"#fff"}">${l}</button>`).join("")}</div>`+
    (cnt("wall")?`<p>壁の上の、<b>扉の真ん中</b>をタップ。壁に吸い付きます。</p>`:`<p style="color:#b91c1c"><b>先に壁が必要です。</b>「キャンセル」→「壁を追加」で壁を置いてから来てください。</p>`)+wzInp("dw","扉の幅")+wzInp("dh","扉の高さ")+done}
- bl.innerHTML=`<div style="background:#fff;color:#0f172a;border-radius:16px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-size:14px;line-height:1.5;max-height:100%;overflow:auto;position:relative">
+ bl.innerHTML=`<div style="background:#fff;color:#0f172a;border-radius:16px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-size:14px;line-height:1.5;position:relative;touch-action:pan-y">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><b style="font-size:16px;flex:1">${title}</b><button id="wzFold" style="height:30px;padding:0 9px;border-radius:9px;background:#e2e8f0;font-weight:800;font-size:12px">${W.fold?"▼ 開く":"▲ 小さく"}</button></div>
   <div style="display:${W.fold?"none":"block"}">${h}</div></div><div style="width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:12px solid #fff;margin-left:28px"></div>`;
  const B=$("#wzBack"),N=$("#wzNext");if(B){B.disabled=!bk;B.style.opacity=bk?1:.4}if(N){N.disabled=!nx;N.style.opacity=nx?1:.4;N.textContent=nxT}

@@ -31,7 +31,7 @@ function kbLines(){const P=PLAN,mm=P.mmpp;if(P._kbL&&P._kbL.k===kbK())return P._
  P._kbL={k:kbK(),v:out};return out}
 /* 配管 m の、位置 t（配管に沿った座標）での両側の線の候補 */
 function kbAt(m,t){const P=PLAN,mm=P.mmpp,L=kbLines(),sides={a:[],b:[]};
- L.forEach(l=>{if(l.h!==m.h||t<l.lo-1||t>l.hi+1)return;const d=l.c-m.c,dm=Math.abs(d)*mm;if(dm<20||dm>12000)return;(d<0?sides.a:sides.b).push({c:l.c,d:dm})});
+ L.forEach(l=>{if(l.h!==m.h||t<l.lo-1||t>l.hi+1)return;const d=l.c-m.c,dm=Math.abs(d)*mm;if(dm<20||dm>12000)return;(d<0?sides.a:sides.b).push({c:l.c,d:dm,lo:l.lo,hi:l.hi})});
  const fin=a=>{a.sort((x,y)=>x.d-y.d);const u=[];a.forEach(o=>{if(!u.length||o.d-u[u.length-1].d>=3)u.push(o)});
   u.forEach((o,i)=>{const n=u.find((q,j)=>j>i&&q.d-o.d>=40&&q.d-o.d<=350);o.wall=n?Math.round((n.d-o.d)/5)*5:0});
   const pick=Math.max(0,u.findIndex(o=>o.wall));return{L:u.slice(0,8),i:Math.min(pick,7)}};
@@ -83,4 +83,12 @@ function kbSync(){const P=PLAN;if(!P||!P.org||!P.mmpp)return;const mm=P.mmpp,toM
  const one=(r,no)=>{const m=r.m;["a","b"].forEach(sd=>{const S=r[sd];if(!S.L.length)return;const o=S.L[S.i],p0=m.h?[r.t,m.c]:[m.c,r.t],p1=m.h?[r.t,o.c]:[o.c,r.t];
   L.push({k:m.kind,a:toM(p0),b:toM(p1),v:Math.round(o.d),w:o.wall?1:0,n:no})})};
  KB.res.forEach((r,i)=>one(r,"T"+(i+1)));(KB.all||[]).forEach((r,i)=>one(r,CIRC[i]||String(i+1)));
- st.kabe=L;save();if(T){build3D();T.dirty=true}}
+ const nw=kbWalls();st.kabe=L;if(nw){st.bldHide=false;bldChanged();toast("🧱 測った壁を3Dに "+nw+"枚 置きました（壁が無い所だけ）")}save();if(T){build3D();T.dirty=true}}
+/* 測った線が3Dの壁に無い時は、その線を面にした壁を置く（3Dで「何も無い所から寸法」にならないように）。厚さは向こう側の平行な線まで、無ければ100mm。すでに壁がある所には置かない */
+function kbWalls(){const P=PLAN;if(!P||!P.org||!P.mmpp||typeof btW!=="function")return 0;const mm=P.mmpp;let n=0;
+ [...KB.res,...(KB.all||[])].forEach(r=>{const m=r.m;["a","b"].forEach(sd=>{const S=r[sd];if(!S.L.length)return;const o=S.L[S.i];if(o.lo==null)return;
+  const t=Math.max(50,Math.min(400,o.wall||100)),sg=Math.sign(o.c-m.c)||1,cc=o.c+sg*(t/mm)/2,a=m.h?[o.lo,cc]:[cc,o.lo],b=m.h?[o.hi,cc]:[cc,o.hi],q=btW(m.h?[r.t,cc]:[cc,r.t]);
+  const hit=bldHit(q);if(hit>=0&&st.bld[hit]&&st.bld[hit].k==="wall")return;
+  const A=btWx(a),B=btWx(b),L=Math.hypot(B[0]-A[0],B[1]-A[1]);if(L<300)return;const w=bldNew("wall");
+  Object.assign(w,{x:Math.round((A[0]+B[0])/2),z:Math.round((A[1]+B[1])/2),w:Math.round(L),d:Math.round(t),r:normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI))});st.bld.push(w);n++})});
+ if(n)st.bld=normBld(st.bld);return n}

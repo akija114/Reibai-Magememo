@@ -96,7 +96,7 @@ function drCalc(){const D=DRN(),M=DR_MAT[D.mat],R={hz:0,vt:0,up:0,drop:0,fit:new
    if(!(r.j==="co"&&r.a===90))add(`${r.a===45?M.f.e45:M.f.e90} ${M.s}${sz}`,1);fitN++}});   // 角の掃除口は、チーズが曲がりを兼ねる（エルボは要らない）
  {let SP=[];try{SP=drSupports(drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)))}catch(e){}R.sup=SP.filter(o=>o.k==="h").length;R.upSup=SP.filter(o=>o.k==="up").length;R.vsup=SP.filter(o=>o.k==="v").length}   // 支持のルールは drSupports
  if(drHose()){add(`フレキシブルドレンホース ${D.sz}用（ヤグラの代わり・約${fmt(Math.ceil((drHoseLen()+200)/100)*100)}mm）`,1);add(`ホース接続ソケット ${M.s}${D.sz}`,1);R.hose=drHoseLen()}
- if(R.tr){add("フレキシブルドレンホース（本体接続・ジャバラ）",1);add("鳥居の頂点の吊り金具セット（吊りボルト＋ハンガー＋断熱保護カバー）",1)}
+ if(R.tr&&!drHose()){add("フレキシブルドレンホース（本体接続・ジャバラ）",1);add("鳥居の頂点の吊り金具セット（吊りボルト＋ハンガー＋断熱保護カバー）",1)}
  if(D.co)add(M.f.co,1);
  R.drop=R.hz/D.slope;R.szEnd=sz;R.tot=R.hz+R.vt;return R}
 const drBand=(D,sz)=>D.mat==="AC"?`AC${sz}用（保温付き・外径約${DR_MAT.AC.od[sz]}mm）吊りバンド`:`VP${sz}用 吊りバンド`;
@@ -148,7 +148,7 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
     const E=P.clone().addScaledVector(bd,r.bl);E.y+=r.bl/D.slope;cyl(P,E,rad(Math.min(r.bsz,szc)),mat);   // 枝も下り勾配（合流点がいちばん低い）
     const n=D.rows.slice(0,i+1).filter(x=>x.j==="mg").length+1;try{const s2=label("🔀 合流（系統"+n+"）"+DR_MAT[D.mat].s+Math.min(r.bsz,szc),ext*0.026,"#e0e7fff2","#3730a3");s2.position.copy(E);s2.userData.cat="drl";if(typeof pxl==="function")pxl(s2,14);g.add(s2)}catch(e){}}})}
  /* 鳥居：頂点の横の真ん中を上から吊る（吊りボルト）＋ 保温の範囲を半透明で */
- if(D.tr.on&&D.rows.length>=3&&D.rows[2].tr){const a=PA.pts[2],b=PA.pts[3],m=a.clone().add(b).multiplyScalar(.5),rodL=Math.max(300,ext*0.06);
+ if(D.tr.on&&D.rows.length>=3&&D.rows[2].tr&&!drHose()){const a=PA.pts[2],b=PA.pts[3],m=a.clone().add(b).multiplyScalar(.5),rodL=Math.max(300,ext*0.06);
   const rod=new THREE.Mesh(new THREE.CylinderGeometry(rad(D.sz)*0.35,rad(D.sz)*0.35,rodL,8),new THREE.MeshStandardMaterial({color:0x7c3aed}));rod.position.copy(m).add(new V(0,rodL/2,0));g.add(rod);
   const hg=new THREE.Mesh(new THREE.TorusGeometry(rad(D.sz)*1.6,rad(D.sz)*0.35,8,20),new THREE.MeshStandardMaterial({color:0x7c3aed}));hg.position.copy(m);hg.lookAt(b);g.add(hg);
   const ins=new THREE.MeshStandardMaterial({color:0xf8fafc,transparent:true,opacity:.35,depthWrite:false});
@@ -217,6 +217,8 @@ body.drmode #drPanel{display:block}
   else if(k==="torii"){if(D.rows.length&&!D.rows.every(r=>r.tr)&&!confirm("今の区間を、鳥居の形に置きかえます。よろしいですか？"))return;drTorii();toast("⛩ 鳥居の形にしました。3Dで確認してください")}
   else if(k==="rk"){drRank(+b.dataset.v);toast(+b.dataset.v>0?"⬆ 全部1ランク上げました（始まり "+DR_MAT[D.mat].s+D.sz+"）":"⬇ 1ランク下げました")}
   else if(k==="lvfix"){const f=drToriiFix();if(!f)return;Object.assign(D.tr,{H:f.H,R:f.R,F:f.F});drTorii();toast("⛩ 立ち上げ "+f.H+"mm の鳥居にしました")}
+  else if(k==="trHose"){if(drHose()){D.ys="pipe";toast("🧱 VP管・エルボに戻しました")}
+   else{if(!D.rows.some(r=>r.tr))drTorii();const tr=D.rows.map((r,i)=>r.tr?i:-1).filter(i=>i>=0);D.rows.forEach(r=>r.yg=false);tr.slice(0,4).forEach(i=>D.rows[i].yg=true);D.ys="hose";toast("〰 ドレンホースにしました（トップの真ん中で支持）")}}
   else if(k==="trOff"){D.tr.on=false;D.rows.forEach(r=>r.tr=false)}
   else if(k==="sum"){drSumOpen();return}
   else if(k==="rj"&&st.rj&&typeof rjApply==="function"){st.rj.mode=b.dataset.v;const J=rjApply();if(st.rj.mode!=="sep"&&!J)toast("図面では冷媒とドレンが並んで走る区間がないので、別ルートのままです");drRender();return}else return;
@@ -245,7 +247,8 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  <div id="drLvBox"></div></div>
  <div class="drc"><h4>⛩ 鳥居（ドレンアップ・梁越え）</h4>
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;font-size:13px">${[["S","口から横へ"],["H","立ち上げ H"],["W","頂点の横 W"],["F","落とし込み"],["R","接続先まで"]].map(([k,l])=>`<label>${l}<br><input data-k="tr${k}" inputmode="numeric" value="${D.tr[k]}" style="width:100%;height:40px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right">mm</label>`).join("")}</div>
- <button class="drbig" data-k="torii" style="background:#7c3aed;color:#fff">⛩ この寸法で鳥居を作る</button>${D.tr.on?`<button class="drbig" data-k="trOff" style="background:var(--bg)">鳥居の扱いをやめる（区間はそのまま）</button>`:""}</div>
+ <button class="drbig" data-k="torii" style="background:#7c3aed;color:#fff">⛩ この寸法で鳥居を作る</button>
+ <button class="drbig" data-k="trHose" style="background:${drHose()?"var(--bg)":"#0f766e"};color:${drHose()?"var(--ink)":"#fff"}">${drHose()?"🧱 VP管・エルボに戻す":"〰 ドレンホースに切り替える（トップで支持）"}</button>${D.tr.on?`<button class="drbig" data-k="trOff" style="background:var(--bg)">鳥居の扱いをやめる（区間はそのまま）</button>`:""}</div>
  <div class="drc"><h4>区間（ドレン口から順に）</h4><div style="font-size:12.5px;color:var(--sub);margin-bottom:4px">始まり：${drStartName()}<br>曲げの向きは冷媒と同じで、配管の進む方を見て「上・右・下・左」をゲージで選びます。横の区間は勾配のぶん自動で下げて描きます。</div>`;
  let DP=null;try{DP=drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)).dirs}catch(e){}let cum=0;
  D.rows.forEach((r,i)=>{const last=i===D.rows.length-1,hz=!DP||!DP[i]||Math.abs(DP[i].y)<0.5,dr=hz?r.l/D.slope:0;cum+=dr;

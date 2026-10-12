@@ -94,7 +94,7 @@ function openDraw(){
 /* ===== かんたん図面（順番に進むだけ）：①図面 → ②縮尺 → ③原点 → ④何を追加？ → 各作業（戻る・次へ・キャンセルだけ） ===== */
 const W={on:true,step:"open",sub:"",img:null,s0:0,cand:null,pick:null,im:""};
 try{if(localStorage.getItem("pbmPlanClassic")==="1")W.on=false}catch(e){}
-const WZ_ADD=[["auto","⚡","全部自動で読む","縮尺・原点・壁・室内機・室外機・配管・穴をまとめて"],["read","🤖","品番と配管から機器・配管を作る","品番・CH・配管の色と高さから、室内機・室外機・配管をまとめて作ります"],["wallpick","🧱","壁をお手本で取り込む","壁の2本線の間をタップ → 同じ厚さの壁を画面の範囲から全部"],["ind","❄️","室内機を追加","図面の室内機の四角をタップ → 同じ大きさをまとめて置けます"],["wall","🧱","壁を追加","部屋をぐるっと／1本ずつ／図面の壁を取り込む"],["beam","🟫","梁を追加","梁の中心線を2点タップ"],["col","🏛","柱を追加","柱の角を対角に2点タップ"],["out","🌀","室外機を追加","室外機の真ん中をタップ（機種を選んで）"],["hole","🕳️","配管を通す穴を追加","壁の上の穴の位置をタップ"],["spot","🟩","室外機の置き場を追加","置く場所の範囲を対角に2点タップ"],["door","🚪","扉を追加","壁の上の扉の真ん中をタップ（引き戸・開き戸）"]];
+const WZ_ADD=[["auto","⚡","全部自動で読む","縮尺・原点・壁・室内機・室外機・配管・穴をまとめて"],["read","🤖","品番と配管から機器・配管を作る","品番・CH・配管の色と高さから、室内機・室外機・配管をまとめて作ります"],["kabe","📏","配管の位置（壁から何mm）","配管をタップ → 両側の壁から配管の芯まで。全部まとめて一覧も"],["wallpick","🧱","壁をお手本で取り込む","壁の2本線の間をタップ → 同じ厚さの壁を画面の範囲から全部"],["ind","❄️","室内機を追加","図面の室内機の四角をタップ → 同じ大きさをまとめて置けます"],["wall","🧱","壁を追加","部屋をぐるっと／1本ずつ／図面の壁を取り込む"],["beam","🟫","梁を追加","梁の中心線を2点タップ"],["col","🏛","柱を追加","柱の角を対角に2点タップ"],["out","🌀","室外機を追加","室外機の真ん中をタップ（機種を選んで）"],["hole","🕳️","配管を通す穴を追加","壁の上の穴の位置をタップ"],["spot","🟩","室外機の置き場を追加","置く場所の範囲を対角に2点タップ"],["door","🚪","扉を追加","壁の上の扉の真ん中をタップ（引き戸・開き戸）"]];
 function wzShowWalls(){return !W.on||W.step==="t:auto"||(W.step==="t:wall"&&BT.tool==="rng")}
 function calApply(v){const P=PLAN;if(!P||PV.cal.length<2)return false;const d=Math.hypot(PV.cal[1][0]-PV.cal[0][0],PV.cal[1][1]-PV.cal[0][1]);
  if(!(v>0&&d>0)){toast("長さを数字で入れてください");return false}P.mmpp=v/d;P.den=0;P.autoScale=0;try{$("#plDen").value=""}catch(e){}try{planWalls()}catch(e){}PV.cal=[];toast("縮尺を合わせました（この2点＝"+fmt(v)+"mm）");if(W.on)setTimeout(wzCalDone,10);planDraw();return true}
@@ -128,7 +128,7 @@ function wzGo(step,sub){if(!step.startsWith("t:"))W.fold=false;W.step=step;W.sub
  if(step==="org")wzMode("bld","org");
  else if(step==="cal")wzMode("cal");
  else if(step.startsWith("t:")){W.s0=BT.stack.length;const k=step.slice(2);
-  const tl={wallpick:"wallpick",ind:"indpick",wall:"room",beam:"beam",col:"col",out:"out",hole:"hole",spot:"spot",door:"door",auto:"none",del:"del",pipe:"pipeind"}[k];if(k==="pipe"){W.psub="ind";W.pi=-1;W.ph=[];W.po=-1}W.sel=[];W.delStack=[];W.autoRes=null;wzMode("bld",tl);if(k==="ind")W.sub="pick"}
+  const tl={kabe:"kabe",wallpick:"wallpick",ind:"indpick",wall:"room",beam:"beam",col:"col",out:"out",hole:"hole",spot:"spot",door:"door",auto:"none",del:"del",pipe:"pipeind"}[k];if(k==="pipe"){W.psub="ind";W.pi=-1;W.ph=[];W.po=-1}W.sel=[];W.delStack=[];W.autoRes=null;wzMode("bld",tl);if(k==="ind")W.sub="pick"}
  else wzMode("move");
  wzRender();planDraw()}
 function wzInp(k,l,u){return`<label style="display:inline-flex;align-items:center;gap:4px;font-size:13px;margin:3px 8px 3px 0">${l}<input data-wz="${k}" inputmode="numeric" value="${uVal(BT[k])}" style="width:70px;height:36px;border-radius:9px;border:1.5px solid #cbd5e1;padding:0 6px;font-size:15px">${u||"mm"}</label>`}
@@ -165,6 +165,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
    (BT.tool==="autorng"?`<p style="color:#7c3aed;font-weight:800;margin-top:6px">範囲の対角を2点タップしてください（${BT.pts.length}/2）</p>`:"")+
    `<p style="font-size:12.5px;color:#64748b;margin-top:6px">室内機は、大きさが登録してある機種と合うものだけ自動で置きます。見つからない時は「室内機を追加」で四角を1つタップしてください。</p>`+
    (R?`<div style="background:#ecfdf5;border-radius:10px;padding:8px;margin-top:6px">読み込んだ数：壁 ${R.nw}・柱 ${R.nc}・室内機 ${R.ni}（「◀ 戻る」で取り消し）</div>`:"")}
+ else if(s==="t:kabe"){title="📏 配管の位置（壁から何mm）";nxT="✅ 終わり ▶";h=kbHTML()}
  else if(s==="t:wallpick"){title="🧱 壁をお手本で取り込む";nxT="✅ 終わり ▶";
   h=`<p style="font-size:13.5px;line-height:1.55">① 取り込みたい範囲が画面に入るように、図面を動かす（拡大・縮小）<br>② 壁の<b>2本の線の間</b>を1か所タップ<br>→ その壁と<b>同じ厚さ</b>の壁を、画面に見えている範囲から全部取り込みます。</p><p style="font-size:12px;color:#64748b;margin-top:4px">厚さの違う壁（間仕切りなど）は、その壁の間をもう一度タップ。違う物を拾ったら「🗑 間違いを消す」で消せます。</p>`}
  else if(s==="t:pipe"){title="🔧 配管を自動で引く";nxT="✅ 終わり ▶";const ind=st.bld[W.pi],cntH=(W.ph||[]).length;
@@ -208,7 +209,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><b style="font-size:16px;flex:1">${title}</b><button id="wzFold" style="height:30px;padding:0 9px;border-radius:9px;background:#e2e8f0;font-weight:800;font-size:12px">${W.fold?"▼ 開く":"▲ 小さく"}</button></div>
   <div style="display:${W.fold?"none":"block"}">${h}</div></div><div style="width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:12px solid #fff;margin-left:28px"></div>`;
  const B=$("#wzBack"),N=$("#wzNext");if(B){B.disabled=!bk;B.style.opacity=bk?1:.4}if(N){N.disabled=!nx;N.style.opacity=nx?1:.4;N.textContent=nxT}
- const on=(id,f)=>{const e=$("#"+id);if(e)e.onclick=f};
+ const on=(id,f)=>{const e=$("#"+id);if(e)e.onclick=f};if(s==="t:kabe")kbBind();
  on("wzFold",()=>{W.fold=!W.fold;wzRender()});
  on("wzOpen",()=>$("#plFile").click());
  on("wzCalOk",()=>{const v=uParse(($("#wzCalV")||{}).value||"");calApply(v)});
@@ -293,7 +294,7 @@ function wzAuto(a,b){const P=PLAN;if(!P||!P.mmpp||!P.org){toast("先に縮尺と
   const q=btW([cx,cy]);if(has("ind",q[0],q[1],400))return;const o=bldNew("ind",{x:q[0],z:q[1]}),m=CAS2M[g.hit.k],mx=m.bi?m.L>=m.W:m.pa>=m.pb;o.m=g.hit.k;o.r=Math.abs(g.w-g.h)<40||mx===(g.w>=g.h)?0:90;L.push(normBld([o])[0]);ni++})})}
  if(!L.length){toast("新しく読み込めるものはありませんでした");return}
  btAdd(normBld(L));W.autoRes={nw,nc,ni};wzRender();planDraw();toast("読み込みました：壁"+nw+"・柱"+nc+"・室内機"+ni)}
-function wzDraw(x,sp){if(!W.on)return;
+function wzDraw(x,sp){if(!W.on)return;try{kbDraw(x,sp)}catch(e){console.warn("kabe",e)}
  if(W.step==="t:pipe"&&PLAN&&PLAN.org){const mark=(i,col,t)=>{const o=st.bld[i];if(!o)return;const q=sp(btP(o.x,o.z));x.fillStyle=col;x.beginPath();x.arc(q[0],q[1],13,0,7);x.fill();x.fillStyle="#fff";x.font="bold 13px sans-serif";x.textAlign="center";x.fillText(t,q[0],q[1]+4.5)};
   if(W.pi>=0)mark(W.pi,"#0f766e","①");(W.ph||[]).forEach((i,k)=>mark(i,"#f59e0b",String(k+1)));if(W.po>=0)mark(W.po,"#dc2626","③")}
  if(W.sel&&W.sel.length&&PLAN&&PLAN.org)W.sel.forEach(i=>{const o=st.bld[i];if(!o)return;const f=bldFoot(o,i),co=Math.cos(f.th),si=Math.sin(f.th);const pts=[[-f.hw,-f.hd],[f.hw,-f.hd],[f.hw,f.hd],[-f.hw,f.hd]].map(([a,b])=>sp(btP(f.cx+a*co-b*si,f.cz+a*si+b*co)));
@@ -302,6 +303,7 @@ function wzDraw(x,sp){if(!W.on)return;
  if(!W.cand)return;
  W.cand.forEach(r=>{const a=sp([r.x0,r.y0]),b=sp([r.x1,r.y1]);x.fillStyle="rgba(239,68,68,.35)";x.fillRect(a[0],a[1],b[0]-a[0],b[1]-a[1]);x.strokeStyle="#dc2626";x.lineWidth=r===W.pick?4:2.5;x.strokeRect(a[0]-3,a[1]-3,b[0]-a[0]+6,b[1]-a[1]+6)})}
 function wzBack(){const s=W.step;
+ if(s==="t:kabe"){if(KB.res.length){KB.res.pop();wzRender();planDraw()}else wzGo("menu");return}
  if(s==="t:pipe"){if(W.psub==="out"){W.psub="hole";BT.tool="pipehole";wzRender();planDraw();return}if(W.psub==="hole"&&W.ph.length){W.ph.pop();wzRender();planDraw();return}if(W.psub==="hole"||W.psub==="model"){W.psub="ind";W.pi=-1;BT.tool="pipeind";wzRender();planDraw();return}wzGo("menu");return}
  if(s==="scale")wzGo("open");else if(s==="cal"){if(PV.cal.length){PV.cal.pop();wzRender();planDraw()}else wzGo("scale")}
  else if(s==="org")wzGo("scale");else if(s==="menu")wzGo("org");
@@ -484,6 +486,7 @@ function planBldUndo(){if(BT.pts.length){BT.pts.pop();planDraw();return}
  const n=BT.stack.pop();if(!n){toast("取り消せるものがありません");return}st.bld.splice(st.bld.length-n,n);bldChanged();planBldPanel();planDraw();toast("取り消しました")}
 function planBldPlace(p){const P=PLAN;if(!P.mmpp){toast("先に縮尺を合わせてください");planDraw();return}
  const tool=BT.tool;
+ if(tool==="kabe"){kbTap(p);return}
  if(tool==="org"){P.org=p.slice();toast("原点を決めました（ここが 0,0）");planBldPanel();planDraw();return}
  if(!P.org){toast("先に「🎯 原点」を決めてください");planDraw();return}
  if(tool==="room"){if(BT.pts.length>=3&&Math.hypot(p[0]-BT.pts[0][0],p[1]-BT.pts[0][1])*PV.z<24){planBldRoom();return}BT.pts.push(p);if(W.on)wzRender();planDraw();return}

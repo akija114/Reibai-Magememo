@@ -1232,6 +1232,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
 function updSupUI(){
 const S=st.sup,p=$("#supPill");if(!p)return;
  if(!S.on){p.innerHTML=ICO($("#supBtn img").src,"1.5em")+"支持 OFF ⚙️";p.style.color="#64748b"}
+ else if(document.body.classList.contains("drmode")&&typeof drSupports==="function"&&st.drain){let S2=[];try{S2=drSupports(drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)))}catch(e){}const h=S2.filter(o=>o.k==="h"||o.k==="up").length,v=S2.filter(o=>o.k==="v").length;p.style.color="#9a3412";p.innerHTML=ICO($("#supBtn img").src,"1.5em")+"💧ドレン支持 計"+(h+v)+"箇所（横"+h+"・縦"+v+"） ⚙️"}
  else{p.style.color="";p.innerHTML=ICO($("#supBtn img").src,"1.5em")+"支持 "+supShort()+" ⚙️"}
  $("#supBtn").style.opacity=S.on?1:.55;
 }
@@ -1997,7 +1998,7 @@ function renderSupSheet(){
  supCnt();showSupTab();
 }
 $("#supBtn").onclick=()=>{st.sup.on=!st.sup.on;save();upd();toast(st.sup.on?"🔩 支持を表示":"🔩 支持を隠す")};
-$("#supPill").onclick=()=>{renderSupSheet();$("#supOv").classList.add("on")};
+$("#supPill").onclick=()=>{if(document.body.classList.contains("drmode")&&typeof drSpOpen==="function"){drSpOpen();return}renderSupSheet();$("#supOv").classList.add("on")};
 $("#closeSup").onclick=()=>$("#supOv").classList.remove("on");
 $("#supOv").addEventListener("click",e=>{if(e.target.id==="supOv")$("#supOv").classList.remove("on")});
 $("#supOn").onclick=e=>{const b=e.target.closest("button");if(!b)return;st.sup.on=b.dataset.v==="1";supChanged();renderSupSheet()};

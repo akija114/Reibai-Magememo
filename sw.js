@@ -1,5 +1,5 @@
 /* オフライン用：一度開けば、電波がなくても開ける。更新したら VER の数字を上げる */
-const VER="pbm-v163",CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./zumen.html","./genchou.html","./kiki.html","./models.js?v=163","./core.js?v=163","./drain.js?v=163","./zumen.js?v=163","./genchou.js?v=163","./shashin.js?v=163","./kabe.js?v=163"];
+const VER="pbm-v164",CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./zumen.html","./genchou.html","./kiki.html","./models.js?v=164","./core.js?v=164","./drain.js?v=164","./zumen.js?v=164","./genchou.js?v=164","./shashin.js?v=164","./kabe.js?v=164"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(VER).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==VER).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{

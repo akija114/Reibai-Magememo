@@ -10,11 +10,14 @@ const DR_MAT={
  AC:{n:"ACドレン（保温付き）",s:"AC",col:0x7dd3fc,od:{25:40,30:46,40:56,50:68},
   f:{e90:"AC用 90°エルボ",e45:"AC用 45°エルボ",tee:"AC用 チーズ",rtee:"AC用 異径チーズ",sock:"AC用 ソケット",red:"AC用 異径ソケット",co:"掃除口（CO）"}}};
 const DR_SIZES=[25,30,40,50];
+/* ドレンの支持のルール（変えられる）。横の「支持の間隔の上限」は D.span */
+const DRSPD={h0:50,h1:500,off:200,v0:150,v1:600,voff:300,vgap:1500,top:1000};
+function drNormSp(x){x=x||{};const o={};Object.keys(DRSPD).forEach(k=>{const v=Math.round(+x[k]);o[k]=isFinite(v)&&v>=0&&v<=20000?v:DRSPD[k]});o.vgap=Math.max(100,o.vgap);return o}
 const DR_DIR={"前":[1,0,0],"右前":[1,0,1],"右":[0,0,1],"右後":[-1,0,1],"後":[-1,0,0],"左後":[-1,0,-1],"左":[0,0,-1],"左前":[1,0,-1],"上":[0,1,0],"下":[0,-1,0]};
 const DR_ORDER=["前","右前","右","右後","後","左後","左","左前","上","下"];
 function normDrain(d){d=d||{};const tr=d.tr||{};
  const sl=d.sl||{};
- return{v:2,du:Math.max(0,Math.round(+d.du||0)),up:Math.round(+d.up||0),sl:{h:Math.max(0,Math.round(+sl.h||0)),L:Math.max(0,Math.round(+sl.L||0)),p:Math.max(0,Math.round(+sl.p||0))},tr:{H:Math.max(0,Math.round(+tr.H||600)),W:Math.max(0,Math.round(+tr.W||600)),F:Math.max(0,Math.round(+tr.F||800)),R:Math.max(0,Math.round(+tr.R||1500)),S:Math.max(0,Math.round(+tr.S||150)),on:!!tr.on},mat:d.mat==="AC"?"AC":"VP",sz:DR_SIZES.includes(+d.sz)?+d.sz:25,slope:[50,100].includes(+d.slope)?+d.slope:100,span:[1000,1200,1500].includes(+d.span)?+d.span:1000,co:!!d.co,show:d.show!==false,ys:d.ys==="hose"?"hose":"pipe",
+ return{v:2,du:Math.max(0,Math.round(+d.du||0)),up:Math.round(+d.up||0),sl:{h:Math.max(0,Math.round(+sl.h||0)),L:Math.max(0,Math.round(+sl.L||0)),p:Math.max(0,Math.round(+sl.p||0))},tr:{H:Math.max(0,Math.round(+tr.H||600)),W:Math.max(0,Math.round(+tr.W||600)),F:Math.max(0,Math.round(+tr.F||800)),R:Math.max(0,Math.round(+tr.R||1500)),S:Math.max(0,Math.round(+tr.S||150)),on:!!tr.on},mat:d.mat==="AC"?"AC":"VP",sz:DR_SIZES.includes(+d.sz)?+d.sz:25,slope:[50,100].includes(+d.slope)?+d.slope:100,span:(+d.span>=200&&+d.span<=5000)?Math.round(+d.span):1000,sp:drNormSp(d.sp),co:!!d.co,show:d.show!==false,ys:d.ys==="hose"?"hose":"pipe",
   rows:(Array.isArray(d.rows)?d.rows:[]).slice(0,40).map(r=>({l:Math.max(0,Math.round(+r.l||0)),a:[0,45,90].includes(+r.a)?+r.a:0,t:normT(r.t),j:["co","mg"].includes(r.j)?r.j:(r.tee?"mg":""),bsz:DR_SIZES.includes(+r.bsz)?+r.bsz:25,bl:Math.max(0,Math.round(+r.bl||600)),bs:["L","R","L45","R45"].includes(r.bs)?r.bs:"L",sz:DR_SIZES.includes(+r.sz)?+r.sz:0,tr:!!r.tr,yg:!!r.yg}))}}
 const DRN=()=>{if(!st.drain||!st.drain._ok){st.drain=normDrain(st.drain);Object.defineProperty(st.drain,"_ok",{value:1})}return st.drain};   // 読み込んだデータは1回だけ整える（_okは保存されない）
 /* 区間の並び（長さ・その先の曲げ角・向き）→ 3Dの点。向きは冷媒と同じ：配管の進む方を見て 上=0・右=90・下=180・左=270 */
@@ -61,18 +64,18 @@ function drRise(){const D=DRN(),U=drUnit(),y0=U&&U.m&&U.m.dr?U.m.dr.y:0;let mx=0
 function drSupports(PA){const D=DRN(),pts=PA.pts,dirs=PA.dirs,out=[],runs=[];out.runs=runs;if(!D.rows.length)return out;const H=i=>dirs[i]&&Math.abs(dirs[i].y)<0.5,Vt=i=>dirs[i]&&Math.abs(dirs[i].y)>0.7;
  /* ドレンアップのトップ：立ち上げの後の横（トップ）の真ん中に1か所だけ（専用金物）。トップの横が1000を超える時は立ち上げの上に付けて、横は普通のルール */
  let upRow=-1,topRow=-1;for(let i=0;i<D.rows.length;i++){if(!dirs[i])break;if(dirs[i].y>0.7&&D.rows[i].l>=30){upRow=i;
-   const t=i+1;if(H(t)&&D.rows[t].l>0&&D.rows[t].l<=1000){topRow=t;out.push({p:pts[t].clone().lerp(pts[t+1],0.5),k:"up",i:t});runs.push({k:"up",a:t,b:t,L:D.rows[t].l,ss:[D.rows[t].l/2],at:s2=>pts[t].clone().lerp(pts[t+1],D.rows[t].l?s2/D.rows[t].l:0)})}else out.push({p:pts[i+1].clone(),k:"up",i});break}if(H(i)&&D.rows[i].l>300)break}
+   const t=i+1;if(H(t)&&D.rows[t].l>0&&D.rows[t].l<=D.sp.top){topRow=t;out.push({p:pts[t].clone().lerp(pts[t+1],0.5),k:"up",i:t});runs.push({k:"up",a:t,b:t,L:D.rows[t].l,ss:[D.rows[t].l/2],at:s2=>pts[t].clone().lerp(pts[t+1],D.rows[t].l?s2/D.rows[t].l:0)})}else out.push({p:pts[i+1].clone(),k:"up",i});break}if(H(i)&&D.rows[i].l>300)break}
  let sz=D.sz;const szAt=[];D.rows.forEach((r,i)=>{if(r.sz)sz=r.sz;szAt[i]=sz});
  const hoseRow=i=>drHoseRow(i);
  for(let i=0;i<D.rows.length;){if(!H(i)||hoseRow(i)||i===topRow){i++;continue}let j=i;while(j+1<D.rows.length&&H(j+1)&&!D.rows[j].a&&!D.rows[j].j)j++;
   const L=D.rows.slice(i,j+1).reduce((a,r)=>a+r.l,0);
   const at=s2=>{let acc=0;for(let k=i;k<=j;k++){const l=D.rows[k].l;if(s2<=acc+l||k===j){const t=l?Math.max(0,Math.min(1,(s2-acc)/l)):0;return{p:pts[k].clone().lerp(pts[k+1],t),i:k}}acc+=l}return{p:pts[j+1].clone(),i:j}};
-  if(L>=50){let ss;if(L<=500)ss=[L/2];else{const S=L-400,n=Math.max(1,Math.ceil(S/D.span-1e-9));ss=[200];for(let q=1;q<n;q++)ss.push(200+S*q/n);ss.push(L-200)}
+  const Q=D.sp;if(L>=Q.h0){let ss;if(L<=Q.h1||L<=2*Q.off)ss=[L/2];else{const S=L-2*Q.off,n=Math.max(1,Math.ceil(S/Math.max(100,D.span)-1e-9));ss=[Q.off];for(let q=1;q<n;q++)ss.push(Q.off+S*q/n);ss.push(L-Q.off)}
    ss.forEach(s2=>{const a=at(s2);out.push({p:a.p,k:"h",i:a.i,sz:szAt[a.i]})});runs.push({k:"h",a:i,b:j,L,ss,at:s2=>at(s2).p})}
   i=j+1}
  /* 縦配管（別に数える）：曲げから300の所、その間は1500以下で等間隔。600以下は真ん中に1か所。ドレンアップの立ち上げは上の支持があるので除く */
- for(let i=0;i<D.rows.length;i++){if(!Vt(i)||i===upRow||hoseRow(i))continue;const L=D.rows[i].l;if(L<150)continue;
-  let ss;if(L<=600)ss=[L/2];else{const S=L-600,n=Math.max(1,Math.ceil(S/1500-1e-9));ss=[300];for(let q=1;q<n;q++)ss.push(300+S*q/n);ss.push(L-300)}
+ for(let i=0;i<D.rows.length;i++){if(!Vt(i)||i===upRow||hoseRow(i))continue;const L=D.rows[i].l,Q=D.sp;if(L<Q.v0)continue;
+  let ss;if(L<=Q.v1||L<=2*Q.voff)ss=[L/2];else{const S=L-2*Q.voff,n=Math.max(1,Math.ceil(S/Q.vgap-1e-9));ss=[Q.voff];for(let q=1;q<n;q++)ss.push(Q.voff+S*q/n);ss.push(L-Q.voff)}
   ss.forEach(s2=>out.push({p:pts[i].clone().lerp(pts[i+1],s2/L),k:"v",i,sz:szAt[i]}));runs.push({k:"v",a:i,b:i,L,ss,at:s2=>pts[i].clone().lerp(pts[i+1],s2/L)})}
  return out}
 /* ヤグラの区間をドレンホースにする時：その区間（yg の付いた区間）は、エルボ・ソケットの代わりにホース1本 */
@@ -222,8 +225,8 @@ body.drmode #drPanel{display:block}
   if(m==="sum"){drSumOpen();return}
   tg.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));document.body.classList.toggle("drmode",m==="dr");
   if(m==="dr"){const D=DRN();if(!D.rows.length){D.rows=[{l:1000,a:0,t:0,j:"",sz:0}];D.show=true;save();drRedraw()}drRender()}
-  try{setTimeout(sizeT,30)}catch(err){}};
- let rt=0;window.drRedraw=()=>{clearTimeout(rt);rt=setTimeout(()=>{if(T){build3D();T.dirty=true;drSum()}},120)};
+  try{updSupUI()}catch(err){}try{setTimeout(sizeT,30)}catch(err){}};
+ let rt=0;window.drRedraw=()=>{clearTimeout(rt);rt=setTimeout(()=>{if(T){build3D();T.dirty=true;drSum()}try{updSupUI()}catch(e){}},120)};
  pn.addEventListener("input",e=>{const el=e.target,i=+el.dataset.i,k=el.dataset.k,D=DRN();
   if(k==="l"&&D.rows[i]){D.rows[i].l=Math.max(0,parseInt(String(el.value).replace(/[^0-9]/g,""))||0);save(true);drSum();drRedraw()}
   else if(k==="t"&&D.rows[i]){let v=+el.value;const m=Math.round(v/45)*45;if(Math.abs(v-m)<=6)v=m;el.value=v;D.rows[i].t=normT(v);const gv=el.closest(".gauge").querySelector(".gval");if(gv)gv.textContent=dirName(v);save(true);drRedraw()}
@@ -248,6 +251,7 @@ body.drmode #drPanel{display:block}
    else{const n=drMarkHose();if(!n)return;D.ys="hose";toast("〰 ドレンホースにしました（寸法はそのまま・トップの真ん中で支持）")}}
   else if(k==="trOff"){D.tr.on=false;D.rows.forEach(r=>r.tr=false)}
   else if(k==="sum"){drSumOpen();return}
+  else if(k==="spset"){drSpOpen();return}
   else if(k==="rj"&&st.rj&&typeof rjApply==="function"){st.rj.mode=b.dataset.v;const J=rjApply();if(st.rj.mode!=="sep"&&!J)toast("図面では冷媒とドレンが並んで走る区間がないので、別ルートのままです");drRender();return}else return;
   save();drRender();drRedraw()});
 })();
@@ -260,7 +264,7 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  <div class="drnote">💡 <b>サイズ感の注意</b>：ACドレンは保温層があるので、外径が同じ呼び径のVP管より1ランク大きくなります（例：AC25 は外径 約${DR_MAT.AC.od[25]}mm で、VP30〜35 くらいの太さ）。吊りバンドはAC用（保温付き外径用）を使ってください。VP用だと保温が潰れます。外径は目安なので、メーカーの値で確認してください。</div>
  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><label style="font-size:13px;color:var(--sub)">始まりのサイズ <select data-k="msz">${DR_SIZES.map(z=>`<option value="${z}"${z===D.sz?" selected":""}>${M.s}${z}（外径 約${M.od[z]}）</option>`).join("")}</select></label></div>
  <div style="font-size:13px;color:var(--sub);margin-top:8px">下り勾配</div>${seg("slope",[[100,"1/100（1mで10mm下げ）"],[50,"1/50（1mで20mm下げ）"]],D.slope)}
- <div style="font-size:13px;color:var(--sub)">吊りの間隔（横引き）</div>${seg("span",[[1000,"1.0m"],[1200,"1.2m"],[1500,"1.5m"]],D.span)}
+ <div style="font-size:13px;color:var(--sub)">吊りの間隔（横引き）</div>${seg("span",[[1000,"1.0m"],[1200,"1.2m"],[1500,"1.5m"]],D.span)}<button class="drbig" data-k="spset" style="background:var(--bg);color:var(--ink);border:1.5px solid var(--line)">⚙️ ドレンの支持のルールを変える${[1000,1200,1500].includes(D.span)?"":"（今の間隔 "+fmt(D.span)+"）"}</button>
  ${(()=>{const L=drUpLimit();return `<div style="font-size:13px;color:var(--sub);margin:4px 0 8px">ドレンアップ上限：<b style="color:var(--ink)">${L?L.ref+"から "+fmt(L.lim)+"mm（"+L.src+"）":"機種の値なし"}</b><br><label>自分で入れる（0＝機種の値）<input data-k="du" inputmode="numeric" value="${D.du||0}" style="width:90px;height:38px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right;margin-left:6px">mm</label></div>`})()}
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700"><input type="checkbox" data-k="show" ${D.show?"checked":""} style="width:22px;height:22px">3Dにドレンを表示</label></div>
  ${st.rj&&typeof rjApply==="function"?`<div class="drc"><h4>🔗 冷媒の通し方</h4>${seg("rj",[["sep","別ルート"],["tomo","とも巻き"],["rod","全ねじの上（横掴み）"]],st.rj.mode)}
@@ -377,3 +381,20 @@ function ceilCheck3D(){if(!T||!T.grp||(typeof GUIDE!=="undefined"&&GUIDE))return
 (function(){const orig=build3D;build3D=function(){const r=orig.apply(this,arguments);try{ceilCheck3D()}catch(e){console.warn("ceil",e)}return r}})();
 /* 読み込み終わったら、ドレンも3Dに出す */
 if(T){try{build3D();T.dirty=true}catch(e){}}
+
+/* ===== ドレンの支持のルール（支持の設定を、ドレンを選んでいる時はこちらで開く） ===== */
+const DRSPF=[["横の管（横引き）",[["h0","この長さより短い区間は、支持なし"],["h1","この長さ以下は、真ん中に1か所"],["off","両端の支持の位置（曲がり・チーズから）"],["span","支持の間隔の上限（これ以上あけない。超える分は等間隔で追加）"]]],
+ ["立て管（縦）",[["v0","この長さより短い区間は、支持なし"],["v1","この長さ以下は、真ん中に1か所"],["voff","両端の支持の位置（曲がりから）"],["vgap","支持の間隔の上限"]]],
+ ["ドレンアップのトップ",[["top","トップの横がこの長さ以下なら、真ん中に1か所（専用金物）"]]]];
+function drSpOpen(){let ov=document.getElementById("drSpOv");if(!ov){ov=document.createElement("div");ov.id="drSpOv";ov.className="ov";ov.innerHTML='<div class="sheet" style="overflow-y:auto"><div class="shead"><h3>💧 ドレンの支持のルール</h3><button id="drSpX">✕</button></div><div id="drSpBody"></div></div>';document.body.appendChild(ov);
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.classList.remove("on")});ov.querySelector("#drSpX").onclick=()=>ov.classList.remove("on")}
+ drSpRender();ov.classList.add("on")}
+function drSpRender(){const D=DRN(),b=document.getElementById("drSpBody");if(!b)return;const val=k=>k==="span"?D.span:D.sp[k];
+ let SP=[];try{SP=drSupports(drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)))}catch(e){}const n=k=>SP.filter(o=>o.k===k).length;
+ b.innerHTML=`<div class="note">ドレンの区間（曲がり・チーズで区切った長さ）ごとに、支持の数と位置を決めます。冷媒の支持のルールとは別です。数字は変えられます（mm）。</div>`+
+  DRSPF.map(([t,F])=>`<div class="ctitle" style="margin-top:8px">${t}</div><div class="supgrid">${F.map(([k,l])=>`<div class="field"><label>${l}（mm）</label><input data-sp="${k}" inputmode="numeric" pattern="[0-9]*" value="${val(k)}"></div>`).join("")}</div>`).join("")+
+  `<div class="note" id="drSpCnt">今の支持：横 ${n("h")}・縦 ${n("v")}・ドレンアップのトップ ${n("up")}</div><button class="sharebtn" id="drSpReset" style="width:100%;background:var(--bg);color:var(--warn)">↩️ 初期値に戻す</button>`;
+ b.querySelectorAll("[data-sp]").forEach(inp=>{inp.onfocus=()=>inp.select();inp.oninput=()=>{const v=parseInt(String(inp.value).replace(/[^0-9]/g,""));if(!isFinite(v))return;const k=inp.dataset.sp;
+   if(k==="span"){if(v<200)return;D.span=Math.min(5000,v)}else D.sp[k]=Math.min(20000,v);if(k==="vgap"&&D.sp.vgap<100)D.sp.vgap=100;save(true);drRedraw();
+   clearTimeout(window._drSpT);window._drSpT=setTimeout(()=>{let S2=[];try{S2=drSupports(drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)))}catch(e){}const c=document.getElementById("drSpCnt");if(c)c.textContent="今の支持：横 "+S2.filter(o=>o.k==="h").length+"・縦 "+S2.filter(o=>o.k==="v").length+"・ドレンアップのトップ "+S2.filter(o=>o.k==="up").length;try{drRender()}catch(e){}},400)}});
+ b.querySelector("#drSpReset").onclick=()=>{D.sp={...DRSPD};D.span=1000;save();drRedraw();drRender();drSpRender()}}

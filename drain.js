@@ -63,7 +63,7 @@ function drSupports(PA){const D=DRN(),pts=PA.pts,dirs=PA.dirs,out=[];if(!D.rows.
  let upRow=-1,topRow=-1;for(let i=0;i<D.rows.length;i++){if(!dirs[i])break;if(dirs[i].y>0.7&&D.rows[i].l>=30){upRow=i;
    const t=i+1;if(H(t)&&D.rows[t].l>0&&D.rows[t].l<=1000){topRow=t;out.push({p:pts[t].clone().lerp(pts[t+1],0.5),k:"up",i:t})}else out.push({p:pts[i+1].clone(),k:"up",i});break}if(H(i)&&D.rows[i].l>300)break}
  let sz=D.sz;const szAt=[];D.rows.forEach((r,i)=>{if(r.sz)sz=r.sz;szAt[i]=sz});
- const hoseRow=i=>D.ys==="hose"&&D.rows[i]&&D.rows[i].yg;
+ const hoseRow=i=>drHoseRow(i);
  for(let i=0;i<D.rows.length;){if(!H(i)||hoseRow(i)||i===topRow){i++;continue}let j=i;while(j+1<D.rows.length&&H(j+1)&&!D.rows[j].a&&!D.rows[j].j)j++;
   const L=D.rows.slice(i,j+1).reduce((a,r)=>a+r.l,0);
   const at=s2=>{let acc=0;for(let k=i;k<=j;k++){const l=D.rows[k].l;if(s2<=acc+l||k===j){const t=l?Math.max(0,Math.min(1,(s2-acc)/l)):0;return{p:pts[k].clone().lerp(pts[k+1],t),i:k}}acc+=l}return{p:pts[j+1].clone(),i:j}};
@@ -87,7 +87,11 @@ function drMarkHose(){const D=DRN();if(D.rows.some(r=>r.yg))return 1;
  let up=-1,dn=-1;for(let i=0;i<D.rows.length;i++){const y=dirs[i]?dirs[i].y:0;if(up<0&&y>0.7)up=i;else if(up>=0&&y<-0.7){dn=i;break}}
  if(up<0||dn<0){toast("立ち上げ→下げの所が無いので、ホースにできません（鳥居かヤグラを作ってから押してください）");return 0}
  for(let i=0;i<=dn;i++)D.rows[i].yg=true;return 1}
-const drHoseLen=()=>DRN().rows.filter(r=>r.yg).reduce((a,r)=>a+r.l,0);
+/* ホースが始まる区間：印の付いた区間のうち、最初の立ち上げから（本体からの横はVP管＋エルボで立ち上げてからホース。実物と同じ） */
+function drHoseFrom(){const D=DRN();let dirs=[];try{dirs=drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)).dirs}catch(e){}
+ for(let i=0;i<D.rows.length;i++){if(!D.rows[i].yg)continue;if(dirs[i]&&dirs[i].y>0.7)return i;if(!dirs[i])return i}return D.rows.findIndex(r=>r.yg)}
+const drHoseRow=i=>{const D=DRN();return D.ys==="hose"&&!!D.rows[i]&&D.rows[i].yg&&i>=drHoseFrom()};
+const drHoseLen=()=>{const f=drHoseFrom();return DRN().rows.reduce((a,r,i)=>a+(r.yg&&i>=f?r.l:0),0)};
 function drCalc(){const D=DRN(),M=DR_MAT[D.mat],R={hz:0,vt:0,up:0,drop:0,fit:new Map(),sup:0,vsup:0,s200:0,nco:0,nmg:0,br:0,szEnd:D.sz,tr:D.tr.on&&D.rows.some(r=>r.tr)};
  const add=(k,n)=>{if(n>0)R.fit.set(k,(R.fit.get(k)||0)+n)};let sz=D.sz,fitN=0;
  let dirs=null;try{dirs=drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)).dirs}catch(e){dirs=D.rows.map(()=>({y:0}))}
@@ -97,7 +101,7 @@ function drCalc(){const D=DRN(),M=DR_MAT[D.mat],R={hz:0,vt:0,up:0,drop:0,fit:new
   /* 合流：ほかの室内機のドレンをチーズで割り込ませる（枝が細ければ異径チーズ）＋チーズから200mmの支持 */
   if(r.j==="mg"){const b=Math.min(r.bsz||sz,sz),y45=r.bs==="L45"||r.bs==="R45",yn=D.mat==="VP"?"DV-Y（45°Y）":"AC用 45°Y";
    add(y45?`${yn} ${M.s}${sz}${b<sz?"×"+b:""}`:(b<sz?`${M.f.rtee} ${M.s}${sz}×${b}`:`${M.f.tee} ${M.s}${sz}`),1);R.s200++;R.nmg++;R.br+=r.bl}
-  const HS=r.yg&&drHose();   // ドレンホースの区間：管・エルボ・ソケットは数えない
+  const HS=drHose()&&drHoseRow(i);   // ドレンホースの区間：管・エルボ・ソケットは数えない
   if(!HS)add(`${M.f.sock} ${M.s}${sz}`,Math.max(0,Math.ceil(r.l/4000)-1));   // 定尺4mを超える所はソケットでつなぐ
   const dy=dirs[i]?dirs[i].y:0;
   if(Math.abs(dy)>0.7){R.vt+=r.l;if(dy>0)R.up+=r.l}
@@ -122,9 +126,14 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
  const mat=new THREE.MeshStandardMaterial({color:DR_MAT[D.mat].col,roughness:.6}),jm=new THREE.MeshStandardMaterial({color:D.mat==="AC"?0x0ea5e9:0x6b7280,roughness:.5}),Y=new V(0,1,0),selMat=new THREE.MeshStandardMaterial({color:0xfacc15,roughness:.5,emissive:0x3a2a00});
  const rad=s2=>(DR_MAT[D.mat].od[s2]||32)/2;   // 実際の外径どおり（VP25＝32、VP40＝48、ACは保温込み）。サイズごとに太さが変わる
  const HOSE=drHose();
- if(HOSE){try{const hp=[pts[0].p.clone()];let last=-1;D.rows.forEach((r,i)=>{if(r.yg){const q=pts[i+1].p;if(q.distanceTo(hp[hp.length-1])>=1)hp.push(q.clone());last=i}});   // 長さ0の区間（同じ点）は除く（曲線が壊れる）
-   /* 角を丸めた点の列（ホースはなめらかに曲がる） */
-   const cp=[hp[0]];for(let k=1;k<hp.length-1;k++){const a=hp[k-1],b=hp[k],c=hp[k+1],r1=Math.min(300,a.distanceTo(b)/2),r2=Math.min(300,b.distanceTo(c)/2);cp.push(b.clone().add(a.clone().sub(b).setLength(r1)),b.clone(),b.clone().add(c.clone().sub(b).setLength(r2)))}cp.push(hp[hp.length-1]);for(let k=cp.length-1;k>0;k--)if(cp[k].distanceTo(cp[k-1])<1)cp.splice(k,1);
+ if(HOSE){try{const HF=drHoseFrom(),hp=[pts[HF].p.clone()];let last=-1;D.rows.forEach((r,i)=>{if(r.yg&&i>=HF){const q=pts[i+1].p;if(q.distanceTo(hp[hp.length-1])>=1)hp.push(q.clone());last=i}});   // 長さ0の区間（同じ点）は除く（曲線が壊れる）
+   /* 形：立ち上げ→頂点→下げを、大きなR（アーチ）1本でつなぐ。両端は真上・真下を向く（継手に真っすぐ入る）。頂点の高さは区間どおり */
+   const S0=hp[0],E0=hp[hp.length-1],top=Math.max(...hp.map(q=>q.y)),span=Math.hypot(E0.x-S0.x,E0.z-S0.z);let cp;
+   if(span>=50&&top>Math.max(S0.y,E0.y)+30){cp=[];const N=64,pw=3;for(let k=0;k<=N;k++){const u=k/N,h=Math.pow(Math.max(0,1-Math.pow(Math.abs(2*u-1),pw)),1/pw),yb=S0.y+(E0.y-S0.y)*u;
+     cp.push(new V(S0.x+(E0.x-S0.x)*u,yb*(1-h)+top*h,S0.z+(E0.z-S0.z)*u))}}
+   else{/* アーチにならない形（横だけ等）は角を丸めてつなぐ */
+    cp=[hp[0]];for(let k=1;k<hp.length-1;k++){const a=hp[k-1],b=hp[k],c=hp[k+1],r1=Math.min(300,a.distanceTo(b)/2),r2=Math.min(300,b.distanceTo(c)/2);cp.push(b.clone().add(a.clone().sub(b).setLength(r1)),b.clone(),b.clone().add(c.clone().sub(b).setLength(r2)))}cp.push(hp[hp.length-1])}
+   for(let k=cp.length-1;k>0;k--)if(cp[k].distanceTo(cp[k-1])<1)cp.splice(k,1);
    /* 見た目は実物のフレキシブルドレンホース：ベージュのジャバラ、両端は透明の継手（ソケット）。支持はトップの1か所（支持の印）だけ */
    const cv=new THREE.CatmullRomCurve3(cp,false,"centripetal"),hr=rad(D.sz)*1.12,HL=cv.getLength();
    g.add(new THREE.Mesh(new THREE.TubeGeometry(cv,Math.max(80,cp.length*16),hr*0.93,16,false),new THREE.MeshStandardMaterial({color:0xe9dcc0,roughness:.85})));
@@ -135,7 +144,7 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
    try{const s=label("〰 ドレンホース（ヤグラの代わり）約"+fmt(Math.ceil((drHoseLen()+200)/100)*100),ext*0.026,"#f1f5f9f2","#334155");s.position.copy(cv.getPointAt(0.5)).add(new V(0,hr*3,0));s.userData.cat="drl";if(typeof pxl==="function")pxl(s,14);g.add(s)}catch(e){}
    T.drHoseLast=last}catch(e){console.warn("hose",e)}}
  for(let i=0;i<pts.length-1;i++){const a=pts[i].p,b=pts[i+1].p,L=a.distanceTo(b);if(L<1)continue;const r=rad(pts[i+1].sz);
-  if(HOSE&&D.rows[i]&&D.rows[i].yg){(T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:r,dr:1,i});continue}   // ホースの区間は上で描いた
+  if(HOSE&&drHoseRow(i)){(T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:r,dr:1,i});continue}   // ホースの区間は上で描いた
   (T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:(DR_MAT[D.mat].od[pts[i+1].sz]||32)/2,dr:1,i});
   const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,16),i===DR_SEL?selMat:mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(m);
   const j=new THREE.Mesh(new THREE.SphereGeometry(r*1.18,14,10),jm);j.position.copy(b);g.add(j);

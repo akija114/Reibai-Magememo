@@ -119,6 +119,9 @@ function wzSync(){if(!W.on)return;const P=PLAN;if(!P||!P.img||W.img===P.img)retu
  if(st.bld&&st.bld.length&&st.bldKey!==wzKey())setTimeout(()=>sheetMsg(`<b style="font-size:17px">🧹 前に置いた物が残っています</b><p>室内機・壁など <b>${st.bld.length}個</b> が残っています。この図面用に、消してから始めますか？</p>`,
   [["消してから始める",()=>{st.bld=[];st.bldXf=null;st.bldKey=wzKey();BT.stack=[];bldChanged();wzRender();planDraw();toast("前の物を消しました")},"#dc2626","#fff"],["残して続ける",()=>{st.bldKey=wzKey();save()}]]),400);
  const m=wzMem()[wzKey()];
+ if(W.resume&&m&&m.mmpp&&m.org){W.resume=false;P.mmpp=m.mmpp;P.den=m.den||0;P.autoScale=0;try{$("#plDen").value=m.den||""}catch(e){}try{planWalls()}catch(e){}P.org=m.org.slice();if(m.CH&&!P.CH)P.CH=m.CH;
+  toast("前の図面の続きから開きました（縮尺・原点もそのまま）");setTimeout(()=>wzGo("menu"),0);return}
+ W.resume=false;
  /* 図面に「1/60」などが書いてあって、前回の縮尺と違う時は、図面の表記を使う（前回の値が古い・間違いのことがある） */
  if(m&&m.mmpp&&P.denTxt&&P.den&&m.den!==P.den){if(m.org&&!P.org)P.org=m.org.slice();setTimeout(()=>wzGo("scale"),0)}
  else if(m&&m.mmpp){P.mmpp=m.mmpp;P.den=m.den||0;P.autoScale=0;try{$("#plDen").value=m.den||""}catch(e){}try{planWalls()}catch(e){}if(m.org)P.org=m.org.slice();if(m.CH&&!P.CH)P.CH=m.CH;
@@ -136,7 +139,7 @@ function wzBtn(id,t,bg,fg,ex){return`<button id="${id}" style="min-height:44px;p
 function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.step;let h="",title="",bk=true,nx=true,nxT="次へ ▶";
  const cnt=k=>st.bld.filter(o=>o.k===k).length,sess=()=>{let n=0;for(let i=W.s0;i<BT.stack.length;i++)n+=BT.stack[i];return n};
  if(s==="open"){title="① 図面を開く";bk=false;nx=false;
-  h=`<p>図面のPDFを開きます。<b>CADから書き出したPDF</b>がいちばん正確です（写真の図面も開けます）。</p>${wzBtn("wzOpen","📄 図面を開く（ファイルを選ぶ）","#2563eb","#fff","width:100%")}<p style="font-size:12.5px;color:#64748b;margin-top:6px">iPhoneの「ファイル」が開くので、保存してあるPDFを選んでください。</p>`}
+  h=(PL_LAST?`<div style="background:#ecfdf5;border-radius:12px;padding:8px;margin-bottom:8px">${wzBtn("wzResume","↩ 前の図面の続きから","#16a34a","#fff","width:100%")}<div style="font-size:12.5px;color:#166534;margin-top:4px">${PL_LAST.name.replace(/[<>&]/g,"")}（${new Date(PL_LAST.t).toLocaleDateString("ja-JP")}に開いた図面）。置いた物・縮尺・原点もそのまま続けて編集できます。</div></div><p style="font-size:13px;color:#475569;margin-bottom:4px">ちがう図面を開く時はこちら：</p>`:"")+`<p>図面のPDFを開きます。<b>CADから書き出したPDF</b>がいちばん正確です（写真の図面も開けます）。</p>${wzBtn("wzOpen","📄 図面を開く（ファイルを選ぶ）","#2563eb","#fff","width:100%")}<p style="font-size:12.5px;color:#64748b;margin-top:6px">iPhoneの「ファイル」が開くので、保存してあるPDFを選んでください。</p>`}
  else if(s==="scale"){title="② 縮尺を決める";nx=!!(P&&P.mmpp);
   const den=P&&P.den,canDen=P&&P.ptpx;
   h=`<p>図面の<b>1mmが実際の何mmか</b>を決めます。ここがズレると、壁も室内機も全部ズレます。</p>`+
@@ -211,7 +214,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
  const B=$("#wzBack"),N=$("#wzNext");if(B){B.disabled=!bk;B.style.opacity=bk?1:.4}if(N){N.disabled=!nx;N.style.opacity=nx?1:.4;N.textContent=nxT}
  const on=(id,f)=>{const e=$("#"+id);if(e)e.onclick=f};if(s==="t:kabe")kbBind();
  on("wzFold",()=>{W.fold=!W.fold;wzRender()});
- on("wzOpen",()=>$("#plFile").click());
+ on("wzOpen",()=>$("#plFile").click());on("wzResume",()=>plResume());
  on("wzCalOk",()=>{const v=uParse(($("#wzCalV")||{}).value||"");calApply(v)});
  on("wzOkScale",()=>{P.userScale=1;wzSave();if(planCanAuto()){planAutoAll();return}wzGo(P.org?"menu":"org")});on("wzCal",()=>wzGo("cal"));
  bl.querySelectorAll("[data-den]").forEach(b=>b.onclick=()=>{const d=+b.dataset.den;if(P&&P.ptpx){P.den=d;P.autoScale=0;P.mmpp=25.4/72/P.ptpx*d;try{$("#plDen").value=d}catch(e){}try{planWalls()}catch(e){}wzRender();planDraw();toast("縮尺を1/"+d+"にしました")}});
@@ -550,12 +553,23 @@ function planBldDraw(x,sp){const P=PLAN;if((PV.mode!=="bld"&&!W.on)||!P||!P.mmpp
    if(o.k==="ind"||o.k==="hole"){const q=sp(btP(o.x,o.z));x.fillStyle=o.k==="ind"?"#1d4ed8":"#713f12";x.font="bold 12px sans-serif";x.textAlign="center";x.fillText(o.k==="ind"?"❄️":"🕳️",q[0],q[1]-8)}})}
  if(BT.pts.length){x.strokeStyle="#dc2626";x.lineWidth=2.5;x.beginPath();BT.pts.forEach((p,i)=>{const q=sp(p);i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1])});x.stroke();BT.pts.forEach(p=>{const q=sp(p);x.fillStyle="#dc2626";x.beginPath();x.arc(q[0],q[1],5,0,7);x.fill()})}}
 const PV={z:1,ox:0,oy:0,mode:"move",cal:[]};
-async function planLoad(f){
+/* 最後に開いた図面をこの端末（IndexedDB）に覚えておく。ページを移ったりアプリを閉じても、「前の図面の続き」で開き直せる */
+function plDB(mode,fn){return new Promise((ok,ng)=>{try{const q=indexedDB.open("pbmPlanDB",1);q.onupgradeneeded=()=>{q.result.createObjectStore("f")};q.onerror=()=>ng(q.error);
+ q.onsuccess=()=>{const t=q.result.transaction("f",mode),st2=t.objectStore("f");let r;try{r=fn(st2)}catch(e){ng(e);return}t.oncomplete=()=>ok(r&&r.result!==undefined?r.result:undefined);t.onerror=()=>ng(t.error)}}catch(e){ng(e)}})}
+let PL_LAST=null;   // {name,size,type,page,t}（ファイル本体は読む時だけ出す）
+async function plLastInfo(){try{const r=await plDB("readonly",o=>o.get("last"));PL_LAST=r?{name:r.name,size:r.size,type:r.type,page:r.page||1,t:r.t}:null}catch(e){PL_LAST=null}return PL_LAST}
+function plSaveLast(f){try{plDB("readwrite",o=>o.put({blob:f,name:f.name,size:f.size,type:f.type,page:1,t:Date.now()},"last")).then(()=>plLastInfo()).catch(()=>{})}catch(e){}}
+function plSavePage(n){try{plDB("readwrite",o=>{const g=o.get("last");g.onsuccess=()=>{const r=g.result;if(r){r.page=n;o.put(r,"last")}}}).catch(()=>{})}catch(e){}}
+async function plResume(){let r=null;try{r=await plDB("readonly",o=>o.get("last"))}catch(e){}if(!r||!r.blob){toast("前の図面が見つかりませんでした。もう一度ファイルから開いてください");return}
+ const f=new File([r.blob],r.name,{type:r.type||"application/pdf"});W.resume=true;W.resumePage=r.page||1;await planLoad(f,true)}
+plLastInfo();
+async function planLoad(f,resume){
  try{
+  if(!resume){W.resume=false;plSaveLast(f)}
   if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){
    toast("図面を読み込んでいます…");const lib=await loadPdfJs(),buf=await f.arrayBuffer();
    const pdf=await lib.getDocument({data:buf,cMapUrl:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/",cMapPacked:true}).promise;
-   PLAN={pdf,page:1,route:[],walls:[],segs:[],texts:[],H:(PLAN&&PLAN.H)||2400,CH:(PLAN&&PLAN.CH)||0,show:true,fkey:f.name+"|"+f.size};await planPage(1);
+   PLAN={pdf,page:1,route:[],walls:[],segs:[],texts:[],H:(PLAN&&PLAN.H)||2400,CH:(PLAN&&PLAN.CH)||0,show:true,fkey:f.name+"|"+f.size};await planPage(resume&&W.resumePage&&W.resumePage>1?Math.min(W.resumePage,pdf.numPages):1);
   }else{
    const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(f)});
    const sc=Math.min(1,3000/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
@@ -568,7 +582,7 @@ async function planPage(n){
  const P=PLAN,page=await P.pdf.getPage(n),v0=page.getViewport({scale:1}),sc=Math.min(4,3200/Math.max(v0.width,v0.height),Math.sqrt(6e6/(v0.width*v0.height))),vp=page.getViewport({scale:sc});
  const c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);
  await page.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
- P.page=n;P.img=c;P.W=c.width;P.H0=c.height;P.ptpx=sc;P.segs=[];P.texts=[];P.walls=[];P.route=[];
+ P.page=n;if(n!==1||!W.resume)plSavePage(n);P.img=c;P.W=c.width;P.H0=c.height;P.ptpx=sc;P.segs=[];P.texts=[];P.walls=[];P.route=[];
  /* 線（CADのPDFならデータで入っている） */
  try{const ol=await page.getOperatorList(),O=pdfjsLib.OPS,mul=(m,n2)=>[m[0]*n2[0]+m[2]*n2[1],m[1]*n2[0]+m[3]*n2[1],m[0]*n2[2]+m[2]*n2[3],m[1]*n2[2]+m[3]*n2[3],m[0]*n2[4]+m[2]*n2[5]+m[4],m[1]*n2[4]+m[3]*n2[5]+m[5]];
   let ctm=vp.transform.slice(),col="#000000";const stk=[],cst=[],hx=a2=>"#"+[0,1,2].map(k=>("0"+(Math.round(+a2[k])|0).toString(16)).slice(-2)).join(""),tp=(x,y)=>[ctm[0]*x+ctm[2]*y+ctm[4],ctm[1]*x+ctm[3]*y+ctm[5]];

@@ -210,10 +210,10 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
    (cnt("wall")?`<p>壁の上の、<b>扉の真ん中</b>をタップ。壁に吸い付きます。</p>`:`<p style="color:#b91c1c"><b>先に壁が必要です。</b>「キャンセル」→「壁を追加」で壁を置いてから来てください。</p>`)+wzInp("dw","扉の幅")+wzInp("dh","扉の高さ")+done}
  bl.innerHTML=`<div style="background:#fff;color:#0f172a;border-radius:16px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-size:14px;line-height:1.5;position:relative;touch-action:pan-y">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><b style="font-size:16px;flex:1">${title}</b><button id="wzFold" style="height:30px;padding:0 9px;border-radius:9px;background:#e2e8f0;font-weight:800;font-size:12px">${W.fold?"▼ 開く":"▲ 小さく"}</button></div>
-  <div style="display:${W.fold?"none":"block"}">${h}</div></div><div style="width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:12px solid #fff;margin-left:28px"></div>`;
+  ${W.fold&&s==="t:kabe"&&typeof kbMini==="function"?kbMini():""}<div style="display:${W.fold?"none":"block"}">${h}</div></div><div style="width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;border-top:12px solid #fff;margin-left:28px"></div>`;
  const B=$("#wzBack"),N=$("#wzNext");if(B){B.disabled=!bk;B.style.opacity=bk?1:.4}if(N){N.disabled=!nx;N.style.opacity=nx?1:.4;N.textContent=nxT}
  const on=(id,f)=>{const e=$("#"+id);if(e)e.onclick=f};if(s==="t:kabe")kbBind();
- on("wzFold",()=>{W.fold=!W.fold;wzRender()});
+ on("wzFold",()=>{W.fold=!W.fold;if(!W.fold&&typeof KB!=="undefined")KB.foc=null;wzRender();planDraw()});
  on("wzOpen",()=>$("#plFile").click());on("wzResume",()=>plResume());
  on("wzCalOk",()=>{const v=uParse(($("#wzCalV")||{}).value||"");calApply(v)});
  on("wzOkScale",()=>{P.userScale=1;wzSave();if(planCanAuto()){planAutoAll();return}wzGo(P.org?"menu":"org")});on("wzCal",()=>wzGo("cal"));

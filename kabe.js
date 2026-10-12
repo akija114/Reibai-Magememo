@@ -55,7 +55,17 @@ function kbAll(){const P=PLAN;if(!P||!P.mmpp){toast("先に縮尺を合わせて
  const M=kbPipes().filter(m=>(m.hi-m.lo)*P.mmpp>=300);if(!M.length){toast("この図面では、ピンク（冷媒）・オレンジ（ドレン）の配管が見つかりませんでした");return}
  M.sort((a,b)=>a.kind===b.kind?(a.h===b.h?a.c-b.c:a.h?-1:1):a.kind==="冷媒"?-1:1);
  KB.all=M.map(m=>kbAt(m,(m.lo+m.hi)/2));kbSync();wzRender();planDraw();toast("📋 配管の区間 "+KB.all.length+"か所を出しました")}
-function kbNext(w,i,s){const r=(w==="all"?KB.all:KB.res)[i];if(!r)return;const S=r[s];if(S.L.length<2)return;S.i=(S.i+1)%S.L.length;kbSync();wzRender();planDraw()}
+/* 別の線：吹き出しを小さくして、その寸法が見える所へ図面を動かし、選んでいる線を黄色で光らせる。小さい吹き出しの ◀ ▶ でも切り替えられる */
+function kbNext(w,i,s,dir){const r=(w==="all"?KB.all:KB.res)[i];if(!r)return;const S=r[s];if(S.L.length<2)return;S.i=(S.i+(dir||1)+S.L.length)%S.L.length;KB.foc={w,i,s};W.fold=true;kbSync();kbFocus();wzRender();planDraw()}
+function kbFocus(){const f=KB.foc;if(!f)return;const r=(f.w==="all"?KB.all:KB.res)||[];const R=r[f.i];if(!R)return;const m=R.m,o=R[f.s].L[R[f.s].i],p0=m.h?[R.t,m.c]:[m.c,R.t],p1=m.h?[R.t,o.c]:[o.c,R.t];
+ const wr=document.getElementById("plWrap");if(!wr)return;const W2=wr.clientWidth,H2=wr.clientHeight,len=Math.hypot(p1[0]-p0[0],p1[1]-p0[1])||1;
+ /* 寸法線が画面の半分くらいに見える拡大（今より小さくはしない程度に） */
+ const want=Math.min(W2,H2*0.6)*0.55/len;if(PV.z<want*0.6||PV.z>want*3)PV.z=Math.max(0.05,Math.min(30,want));
+ const cx=(p0[0]+p1[0])/2,cy=(p0[1]+p1[1])/2;PV.ox=W2/2-cx*PV.z;PV.oy=H2*0.6-cy*PV.z}
+function kbMini(){const f=KB.foc;if(!f)return"";const R=((f.w==="all"?KB.all:KB.res)||[])[f.i];if(!R)return"";const S=R[f.s],o=S.L[S.i],no=f.w==="all"?(CIRC[f.i]||f.i+1):"T"+(f.i+1);
+ return`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="flex:1 1 140px;font-size:13.5px"><b style="color:#7c3aed">${no}</b> ${R.m.kind}・${kbSide(R.m,f.s)}の${o.wall?"壁":"線"}から <b style="font-size:17px">${fmt(Math.round(o.d))}</b> <span style="color:#64748b">（${S.i+1}/${S.L.length}）</span></span>
+  <button id="kbPrevB" style="height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">◀ 前の線</button><button id="kbNextB" style="height:40px;padding:0 12px;border-radius:10px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">次の線 ▶</button><button id="kbOkB" style="height:40px;padding:0 12px;border-radius:10px;background:#16a34a;color:#fff;font-weight:800">✓ これにする</button></div>`}
+
 function kbClear(){KB.res=[];KB.all=null;kbSync();wzRender();planDraw()}
 function kbCopy(){const L=[...KB.res.map((r,i)=>kbTxt(r,"T"+(i+1))),...(KB.all||[]).map((r,i)=>kbTxt(r,CIRC[i]||String(i+1)))];if(!L.length){toast("まだ測っていません");return}
  const t="配管の位置（壁から・配管の芯まで）\n"+L.join("\n");try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}}
@@ -67,8 +77,12 @@ function kbHTML(){if(KB.key!==kbK()){KB.res=[];KB.all=null;KB.key=kbK()}const P=
  KB.res.forEach((r,i)=>h+=row(r,i,"res","T"+(i+1)));(KB.all||[]).forEach((r,i)=>h+=row(r,i,"all",CIRC[i]||String(i+1)));
  if(!KB.res.length&&!KB.all)h+=`<p style="font-size:12.5px;color:#64748b">「壁」＝その線の向こうに平行な線があって、壁の厚さ（40〜350mm）になっている所。図面の線から計算した目安なので、大事な所は図面の寸法でも確認してください。上下左右は図面の向きです。</p>`;
  return h}
-function kbBind(){const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};on("kbAllB",kbAll);on("kbCopyB",kbCopy);on("kbClrB",kbClear)}
+function kbBind(){const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};on("kbAllB",kbAll);on("kbCopyB",kbCopy);on("kbClrB",kbClear);const F=KB.foc;
+ on("kbPrevB",()=>F&&kbNext(F.w,F.i,F.s,-1));on("kbNextB",()=>F&&kbNext(F.w,F.i,F.s,1));on("kbOkB",()=>{KB.foc=null;W.fold=false;wzRender();planDraw()})}
 function kbDraw(x,sp){if(!W.on||W.step!=="t:kabe"||!PLAN)return;
+ {const f=KB.foc,R=f&&((f.w==="all"?KB.all:KB.res)||[])[f.i];if(R){const m=R.m,S=R[f.s];
+  S.L.forEach((o,k)=>{const a=sp(m.h?[o.lo!=null?o.lo:R.t-200,o.c]:[o.c,o.lo!=null?o.lo:R.t-200]),b=sp(m.h?[o.hi!=null?o.hi:R.t+200,o.c]:[o.c,o.hi!=null?o.hi:R.t+200]);
+   x.save();if(k===S.i){x.strokeStyle="rgba(250,204,21,.85)";x.lineWidth=9}else{x.strokeStyle="rgba(100,116,139,.55)";x.lineWidth=2;x.setLineDash([6,5])}x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();x.restore()})}}
  const one=(r,lab,col)=>{const m=r.m,p0=m.h?[r.t,m.c]:[m.c,r.t],q0=sp(p0);
   ["a","b"].forEach(s=>{const S=r[s];if(!S.L.length)return;const o=S.L[S.i],q1=sp(m.h?[r.t,o.c]:[o.c,r.t]);
    x.strokeStyle=col;x.lineWidth=2;x.beginPath();x.moveTo(q0[0],q0[1]);x.lineTo(q1[0],q1[1]);x.stroke();

@@ -48,15 +48,15 @@ function kbTap(p){const P=PLAN;if(!P||!P.mmpp){toast("先に縮尺を合わせ�
  const M=kbPipes();let best=null,bd=28/PV.z;
  M.forEach(m=>{const t=Math.max(m.lo,Math.min(m.hi,m.h?p[0]:p[1])),q=m.h?[t,m.c]:[m.c,t],d=Math.hypot(q[0]-p[0],q[1]-p[1]);if(d<bd){bd=d;best={m,t}}});
  if(!best){toast(M.length?"配管（ピンク・オレンジの2本線）の上をタップしてください":"この図面では、ピンク（冷媒）・オレンジ（ドレン）の配管が見つかりませんでした");planDraw();return}
- KB.res.push(kbAt(best.m,best.t));wzRender();planDraw()}
+ KB.res.push(kbAt(best.m,best.t));kbSync();wzRender();planDraw()}
 /* まとめて：配管の区間ごとに、真ん中で測る */
 function kbAll(){const P=PLAN;if(!P||!P.mmpp){toast("先に縮尺を合わせてください");return}
- if(KB.all){KB.all=null;wzRender();planDraw();return}
+ if(KB.all){KB.all=null;kbSync();wzRender();planDraw();return}
  const M=kbPipes().filter(m=>(m.hi-m.lo)*P.mmpp>=300);if(!M.length){toast("この図面では、ピンク（冷媒）・オレンジ（ドレン）の配管が見つかりませんでした");return}
  M.sort((a,b)=>a.kind===b.kind?(a.h===b.h?a.c-b.c:a.h?-1:1):a.kind==="冷媒"?-1:1);
- KB.all=M.map(m=>kbAt(m,(m.lo+m.hi)/2));wzRender();planDraw();toast("📋 配管の区間 "+KB.all.length+"か所を出しました")}
-function kbNext(w,i,s){const r=(w==="all"?KB.all:KB.res)[i];if(!r)return;const S=r[s];if(S.L.length<2)return;S.i=(S.i+1)%S.L.length;wzRender();planDraw()}
-function kbClear(){KB.res=[];KB.all=null;wzRender();planDraw()}
+ KB.all=M.map(m=>kbAt(m,(m.lo+m.hi)/2));kbSync();wzRender();planDraw();toast("📋 配管の区間 "+KB.all.length+"か所を出しました")}
+function kbNext(w,i,s){const r=(w==="all"?KB.all:KB.res)[i];if(!r)return;const S=r[s];if(S.L.length<2)return;S.i=(S.i+1)%S.L.length;kbSync();wzRender();planDraw()}
+function kbClear(){KB.res=[];KB.all=null;kbSync();wzRender();planDraw()}
 function kbCopy(){const L=[...KB.res.map((r,i)=>kbTxt(r,"T"+(i+1))),...(KB.all||[]).map((r,i)=>kbTxt(r,CIRC[i]||String(i+1)))];if(!L.length){toast("まだ測っていません");return}
  const t="配管の位置（壁から・配管の芯まで）\n"+L.join("\n");try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}}
 function kbHTML(){if(KB.key!==kbK()){KB.res=[];KB.all=null;KB.key=kbK()}const P=PLAN,row=(r,i,w,no)=>{const m=r.m,sd=s=>{const S=r[s];if(!S.L.length)return`<span style="color:#94a3b8">${kbSide(m,s)}：線なし</span>`;const o=S.L[S.i];
@@ -77,3 +77,10 @@ function kbDraw(x,sp){if(!W.on||W.step!=="t:kabe"||!PLAN)return;
    x.fillStyle="rgba(255,255,255,.92)";x.fillRect(mx-w/2,my-9,w,18);x.strokeStyle=col;x.lineWidth=1.5;x.strokeRect(mx-w/2,my-9,w,18);x.fillStyle=col;x.textAlign="center";x.textBaseline="middle";x.fillText(t,mx,my+1)});
   x.fillStyle=col;x.beginPath();x.arc(q0[0],q0[1],10,0,7);x.fill();x.fillStyle="#fff";x.font="bold 11px sans-serif";x.textAlign="center";x.textBaseline="middle";x.fillText(lab,q0[0],q0[1]+0.5);x.textBaseline="alphabetic"};
  (KB.all||[]).forEach((r,i)=>one(r,CIRC[i]||String(i+1),"#7c3aed"));KB.res.forEach((r,i)=>one(r,"T"+(i+1),"#0f766e"))}
+
+/* 3Dに出す：測った寸法を st.kabe に保存（原点からのmm・図面の向き）。3D（曲げ共有・図面どちらでも）は core.js の addKabe3D が描く */
+function kbSync(){const P=PLAN;if(!P||!P.org||!P.mmpp)return;const mm=P.mmpp,toM=q=>[Math.round((q[0]-P.org[0])*mm),Math.round((q[1]-P.org[1])*mm)],L=[];
+ const one=(r,no)=>{const m=r.m;["a","b"].forEach(sd=>{const S=r[sd];if(!S.L.length)return;const o=S.L[S.i],p0=m.h?[r.t,m.c]:[m.c,r.t],p1=m.h?[r.t,o.c]:[o.c,r.t];
+  L.push({k:m.kind,a:toM(p0),b:toM(p1),v:Math.round(o.d),w:o.wall?1:0,n:no})})};
+ KB.res.forEach((r,i)=>one(r,"T"+(i+1)));(KB.all||[]).forEach((r,i)=>one(r,CIRC[i]||String(i+1)));
+ st.kabe=L;save();if(T){build3D();T.dirty=true}}

@@ -218,7 +218,7 @@ function updUndoUI(){const u=$("#undoBtn"),r=$("#redoBtn");if(!u||!r)return;u.di
 function histGo(d){
  if(!hist)return;const n=hi+d;if(n<0||n>=hist.length)return;
  hi=n;const o=JSON.parse(hist[hi]);
- st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null};
+ st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[]};
  if(!legIds().includes(leg))leg="m";
  try{localStorage.setItem("pbm1",JSON.stringify(st))}catch(e){}
  histT=0;sel=0;render();if(T)fitT(true);updUndoUI();
@@ -998,6 +998,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
  }
  if(SCV&&GY!==null&&!GM){try{addScan3D()}catch(e){console.warn("scan",e)}}
  if(GY!==null){try{addBld3D(GY,CY!==null?CY-GY:st.gnd.ch,ext)}catch(e){console.warn("bld",e)}}else T.bldM=[];
+ if(!GM){try{addKabe3D(ext,GY,CY)}catch(e){console.warn("kabe3d",e)}}
  UN.forEach(u=>{if(!u.c2)return; // ネコ（吊り金具）の高さ
   const p=u.c2.nk,parts=[];
   if(GY!==null&&(st.gnd.on||st.gnd.c))parts.push("地面から "+fmt(p.y-GY));
@@ -1278,9 +1279,9 @@ $("#viewBtn").onclick=()=>{
  const v=VIEWS[T.vi];fitT(true);T.th=v[1];T.ph=v[2];T.dirty=true;toast("🔄 "+v[0]);
 };
 /* 文字のオンオフ */
-const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["ubolt","@udim|吊りピッチ（紫の矢印）"],["uopen","@udim|天井開口（オレンジの矢印）"],["upanel","@udim|パネル（青の矢印）"],["upipe","@udim|ガス・液・ドレンの位置"],["udim","@udim|その他の機器の寸法"],["neko","@neko|ネコ（吊り金具）の高さ"],["bld","🧱 建物・障害物の名前と大きさ"],["drl","💧 ドレンの寸法（💧①350・掃除口など）"],["drh","💧 ドレンの高さ（支 FL+・出口 FL）"],["drs","💧 ドレンの支持の間隔（↔1,000）"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
+const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["ubolt","@udim|吊りピッチ（紫の矢印）"],["uopen","@udim|天井開口（オレンジの矢印）"],["upanel","@udim|パネル（青の矢印）"],["upipe","@udim|ガス・液・ドレンの位置"],["udim","@udim|その他の機器の寸法"],["neko","@neko|ネコ（吊り金具）の高さ"],["bld","🧱 建物・障害物の名前と大きさ"],["drl","💧 ドレンの寸法（💧①350・掃除口など）"],["drh","💧 ドレンの高さ（支 FL+・出口 FL）"],["drs","💧 ドレンの支持の間隔（↔1,000）"],["kabe","📏 配管の位置（壁から何mm）"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
 let LABC={};
-const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=["dim","ang","udim","neko","ubolt","uopen","upipe","bld","drl","drh","drs"].includes(k));return o};
+const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=["dim","ang","udim","neko","ubolt","uopen","upipe","bld","drl","drh","drs","kabe"].includes(k));return o};
 try{const v=localStorage.getItem("pbm_labc");LABC=Object.assign(LABDEF(),v?(JSON.parse(v)||{}):{})}catch(e){LABC=LABDEF()}
 const labShow=o=>LABC[o.userData.cat||"other"]!==false;
 function applyLabels(){
@@ -2662,3 +2663,15 @@ initCloud();
 (function(){const go=(n,u)=>()=>{if(confirm(n+"は「"+(u==="zumen.html"?"📐 図面":"📹 現調")+"」アプリにあります。開きますか？"))location.href=u};
  const F={openSpecReader:["仕様書（PDF）を読む機能","zumen.html"],openDraw:["図面の読み込み","zumen.html"],openRoute:["ルートおまかせ","zumen.html"],openScan:["部屋のスキャン","zumen.html"],startXR:["AR","genchou.html"]};
  for(const k in F)if(typeof window[k]!=="function")window[k]=go(...F[k]);})();
+
+/* 📏 配管の位置（壁から何mm）を3Dに出す（図面で測った st.kabe）。高さは近くの配管（冷媒・ドレン）に合わせる。表示の設定「配管の位置（壁から）」でオンオフ */
+function addKabe3D(ext,GY,CY){const K=st.kabe;if(!Array.isArray(K)||!K.length||!T)return;const V=THREE.Vector3,f=st.bldXf&&isFinite(st.bldXf.x)?st.bldXf:{x:0,z:0,r:0},t=f.r*Math.PI/180,c=Math.cos(t),s=Math.sin(t);
+ const W=q=>{const px=q[0]-f.x,pz=q[1]-f.z;return[px*c+pz*s,-px*s+pz*c]};
+ const yAt=(k,q)=>{const S=(k==="ドレン"?T.drSegs:T.segs)||[];let by=null,bd=1500;S.forEach(g=>{const ax=g.a.x,az=g.a.z,dx=g.b.x-ax,dz=g.b.z-az,l2=dx*dx+dz*dz;const u=l2?Math.max(0,Math.min(1,((q[0]-ax)*dx+(q[1]-az)*dz)/l2)):0,d=Math.hypot(ax+dx*u-q[0],az+dz*u-q[1]);if(d<bd){bd=d;by=g.a.y+(g.b.y-g.a.y)*u}});
+  return by!=null?by:CY!=null?CY-150:GY!=null?GY+2500:0};
+ const g=new THREE.Group();T.grp.add(g);const col={冷媒:0xdb2777,ドレン:0xea580c},Y=new V(0,1,0);
+ K.forEach(o=>{const a=W(o.a),b=W(o.b),y=yAt(o.k,a),A=new V(a[0],y,a[1]),B=new V(b[0],y,b[1]),L=A.distanceTo(B);if(L<1)return;
+  const m=new THREE.MeshBasicMaterial({color:col[o.k]||0x0f766e}),cy=new THREE.Mesh(new THREE.CylinderGeometry(4,4,L,6),m);cy.position.copy(A).add(B).multiplyScalar(.5);cy.quaternion.setFromUnitVectors(Y,B.clone().sub(A).normalize());cy.userData.dimcat="kabe";g.add(cy);
+  const tk=new THREE.Mesh(new THREE.BoxGeometry(14,160,14),m);tk.position.copy(B);tk.userData.dimcat="kabe";g.add(tk);
+  try{const sp=label("📏"+(o.w?"壁":"線")+"から "+fmt(o.v),ext*0.022,"#ffffffee",o.k==="ドレン"?"#9a3412":"#9d174d");sp.position.copy(A).add(B).multiplyScalar(.5).add(new V(0,90,0));sp.userData.cat="kabe";pxl(sp,13);g.add(sp)}catch(e){}});
+ g.traverse(x=>{if(x.userData&&x.userData.dimcat)x.visible=LABC[x.userData.dimcat]!==false})}

@@ -125,16 +125,13 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
  if(HOSE){try{const hp=[pts[0].p.clone()];let last=-1;D.rows.forEach((r,i)=>{if(r.yg){const q=pts[i+1].p;if(q.distanceTo(hp[hp.length-1])>=1)hp.push(q.clone());last=i}});   // 長さ0の区間（同じ点）は除く（曲線が壊れる）
    /* 角を丸めた点の列（ホースはなめらかに曲がる） */
    const cp=[hp[0]];for(let k=1;k<hp.length-1;k++){const a=hp[k-1],b=hp[k],c=hp[k+1],r1=Math.min(300,a.distanceTo(b)/2),r2=Math.min(300,b.distanceTo(c)/2);cp.push(b.clone().add(a.clone().sub(b).setLength(r1)),b.clone(),b.clone().add(c.clone().sub(b).setLength(r2)))}cp.push(hp[hp.length-1]);for(let k=cp.length-1;k>0;k--)if(cp[k].distanceTo(cp[k-1])<1)cp.splice(k,1);
-   /* 見た目は実物のフレキシブルドレンホース：ベージュのジャバラ、両端は透明の継手（ソケット）、トップは黒いバンドで吊る */
+   /* 見た目は実物のフレキシブルドレンホース：ベージュのジャバラ、両端は透明の継手（ソケット）。支持はトップの1か所（支持の印）だけ */
    const cv=new THREE.CatmullRomCurve3(cp,false,"centripetal"),hr=rad(D.sz)*1.12,HL=cv.getLength();
    g.add(new THREE.Mesh(new THREE.TubeGeometry(cv,Math.max(80,cp.length*16),hr*0.93,16,false),new THREE.MeshStandardMaterial({color:0xe9dcc0,roughness:.85})));
    const rgG=new THREE.TorusGeometry(hr*0.93,hr*0.11,6,18),rgM=new THREE.MeshStandardMaterial({color:0xcdb88f,roughness:.9}),stp=Math.max(hr*0.55,HL/400);
    for(let s2=hr*2.2;s2<HL-hr*2.2;s2+=stp){const t=s2/HL,q=cv.getPointAt(t),rg=new THREE.Mesh(rgG,rgM);rg.position.copy(q);rg.lookAt(q.clone().add(cv.getTangentAt(t)));g.add(rg)}   // ジャバラの山
    const skM=new THREE.MeshStandardMaterial({color:0x60a5fa,roughness:.2,transparent:true,opacity:.6}),skG=new THREE.CylinderGeometry(hr*1.18,hr*1.18,hr*2.4,18);
    [0,1].forEach(t=>{const sk=new THREE.Mesh(skG,skM),q=cv.getPointAt(t),tg=cv.getTangentAt(t);sk.position.copy(q).addScaledVector(tg,(t?-1:1)*hr*1.2);sk.quaternion.setFromUnitVectors(Y,tg);g.add(sk)});   // 両端の透明継手
-   {let tb=0,my=-1e9;for(let t=0;t<=1;t+=0.01){const y=cv.getPointAt(t).y;if(y>my+0.5){my=y;tb=t}}let t0=tb,t1=tb;while(t0>0&&cv.getPointAt(t0).y>my-1)t0-=0.01;while(t1<1&&cv.getPointAt(t1).y>my-1)t1+=0.01;const tm=Math.max(0,Math.min(1,(t0+t1)/2)),q=cv.getPointAt(tm);
-    const bd=new THREE.Mesh(new THREE.CylinderGeometry(hr*1.12,hr*1.12,hr*1.6,18),new THREE.MeshStandardMaterial({color:0x1f2937,roughness:.6}));bd.position.copy(q);bd.quaternion.setFromUnitVectors(Y,cv.getTangentAt(tm));g.add(bd);   // 吊りバンド
-    const rl=Math.max(300,ext*0.06),rod=new THREE.Mesh(new THREE.CylinderGeometry(5,5,rl,8),new THREE.MeshStandardMaterial({color:0x94a3b8}));rod.position.copy(q).add(new V(0,hr*1.12+rl/2,0));g.add(rod)}   // 吊りボルト
    try{const s=label("〰 ドレンホース（ヤグラの代わり）約"+fmt(Math.ceil((drHoseLen()+200)/100)*100),ext*0.026,"#f1f5f9f2","#334155");s.position.copy(cv.getPointAt(0.5)).add(new V(0,hr*3,0));s.userData.cat="drl";if(typeof pxl==="function")pxl(s,14);g.add(s)}catch(e){}
    T.drHoseLast=last}catch(e){console.warn("hose",e)}}
  for(let i=0;i<pts.length-1;i++){const a=pts[i].p,b=pts[i+1].p,L=a.distanceTo(b);if(L<1)continue;const r=rad(pts[i+1].sz);

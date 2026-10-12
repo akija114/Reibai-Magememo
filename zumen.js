@@ -473,6 +473,7 @@ function planBldPanel(){if(W.on){wzRender();return}const el=$("#plPanel");if(!el
 const xfOf=()=>{const f=st.bldXf;return f&&isFinite(f.x)?f:{x:0,z:0,r:0}};
 const btW=(q)=>{const f=xfOf(),px=(q[0]-PLAN.org[0])*PLAN.mmpp-f.x,pz=(q[1]-PLAN.org[1])*PLAN.mmpp-f.z,t=f.r*Math.PI/180,c=Math.cos(t),s2=Math.sin(t);
  return[Math.round((px*c+pz*s2)/10)*10,Math.round((-px*s2+pz*c)/10)*10]};
+const btWx=(q)=>{const f=xfOf(),px=(q[0]-PLAN.org[0])*PLAN.mmpp-f.x,pz=(q[1]-PLAN.org[1])*PLAN.mmpp-f.z,t=f.r*Math.PI/180,c=Math.cos(t),s2=Math.sin(t);return[px*c+pz*s2,-px*s2+pz*c]};   // 丸めない版（自動読み込みで、読み直すたびに数mmずつずれないように）
 const btP=(x,z)=>{const f=xfOf(),t=f.r*Math.PI/180,c=Math.cos(t),s2=Math.sin(t),px=x*c-z*s2+f.x,pz=x*s2+z*c+f.z;return[PLAN.org[0]+px/PLAN.mmpp,PLAN.org[1]+pz/PLAN.mmpp]};
 function btAdd(list){if(!list.length)return;try{if(PLAN&&PLAN.fkey)st.bldKey=wzKey()}catch(e){}const n0=st.bld.length;list.forEach(o=>st.bld.push(o));st.bld=normBld(st.bld);st.bldHide=false;BT.stack.push(st.bld.length-n0);bldChanged();planBldPanel();planDraw()}
 function btWall(a,b,t,side,ext){const dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz);if(L<50)return null;const ux=dx/L,uz=dz/L,nx=-uz*side,nz=ux*side;
@@ -1267,7 +1268,7 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  let CH=chT?+normTx(chT.s).match(/(\d{4})/)[1]:(P.CH||st.gnd.ch||2500);if(!chT&&!BI&&botFL>=1800&&botFL<=6000)CH=botFL;
  const indY=BI&&botFL>=1000&&botFL<=8000?CH-botFL:0;   // 室内機の基準点（天カセ＝パネルの設置面、ビルトイン＝本体の下面）を、天井から何mm下げるか（－は上げる）
  /* 前に作った物（同じ所の室内機・室外機）は置きかえる */
- const W0=btW(ctr),near=(o,q,d)=>Math.hypot(o.x-q[0],o.z-q[1])<d;
+ const W0=btWx(ctr),near=(o,q,d)=>Math.hypot(o.x-q[0],o.z-q[1])<d;
  st.bld=st.bld.filter(o=>!((o.k==="ind"&&near(o,W0,800))||(o.k==="out"&&oc&&near(o,btW([oc.c2.cx,oc.c2.cy]),800))));
  P.CH=CH;st.gnd.ch=CH;st.gnd.on=true;st.gnd.c=true;
  /* 壁がまだ無ければ、まわりの壁を取り込む（図面のほかの部分は拾わない） */
@@ -1279,7 +1280,8 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  const RW=route.map(btW);let bestR=0,bestD=1e18;
  {const lg=RW.length>=2?[RW[1][0]-RW[0][0],RW[1][1]-RW[0][1]]:[1,0],ll=Math.hypot(lg[0],lg[1])||1;
   for(const r of[0,90,180,270]){st.bld[ii].r=r;try{build3D()}catch(e){}const m=T&&T.bldM&&T.bldM.find(q=>q.i===ii);if(!m||!m.port)continue;
-   const th=(r+(xfOf().r||0))*Math.PI/180,ex=[Math.cos(th),Math.sin(th)],dot=(ex[0]*lg[0]+ex[1]*lg[1])/ll;   // 配管口から出る向きと、図面の配管の向きが合うか
+   /* 室内機の向き r も配管の向き lg も3Dの座標（前回の読み込みでずれた分 st.bldXf は btW で戻してある）。ここに st.bldXf の回転を足すと、2回目に読むたびに向きが反対になる */
+   const th=r*Math.PI/180,ex=[Math.cos(th),Math.sin(th)],dot=(ex[0]*lg[0]+ex[1]*lg[1])/ll;   // 配管口から出る向きと、図面の配管の向きが合うか
    const d=Math.hypot(m.port.x-RW[0][0],m.port.z-RW[0][1])+(dot>0.7?0:dot>-0.3?600:2000);if(d<bestD){bestD=d;bestR=r}}}
  st.bld[ii].r=bestR;
  /* 室外機を置く（大きさは図面の通り。配管口が配管の端に近い向き） */

@@ -1468,6 +1468,9 @@ function planReadDrain(refFL){const P=PLAN,mm=P.mmpp,px=v=>v/mm;if(!T||!T.UN)ret
  addV(evAt(last.s));
  const rows=drRowsFromPts(pts,d0);if(!rows.length)return null;
  D.rows=rows.slice(0,40);D.sz=sz0;D.slope=slope;D.show=true;D.tr.on=false;D.up=0;
+ /* ヤグラの区間（ドレン口 → 立ち上げ → トップ → 下げるまで）に印。ドレンホースに切り替える時はこの区間をホースにする */
+ if(top){try{const dirs=drPath(new V(),d0.clone()).dirs;let up=-1,dn=-1;for(let i=0;i<D.rows.length;i++){const y=dirs[i]?dirs[i].y:0;if(up<0&&y>0.7)up=i;else if(up>=0&&y<-0.7){dn=i;break}}
+   if(up>=0&&dn>up)for(let i=0;i<=dn;i++)D.rows[i].yg=true}catch(e){console.warn(e)}}
  return{rows:D.rows.length,len:Math.round(D.rows.reduce((a,r)=>a+r.l,0)),co:nco,sizes:[...new Set(segSz.filter(Boolean))],slope,labs:labs.map(l=>[Math.round(l.s),l.FL,l.sz]),ev,endFL,portFL:Math.round(portFL),top}}
 /* ===== 🔗 冷媒をドレンに沿わせる（図面で同じ穴から出る時） =====
    ・別ルート：図面の冷媒のまま

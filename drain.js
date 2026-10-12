@@ -14,8 +14,8 @@ const DR_DIR={"前":[1,0,0],"右前":[1,0,1],"右":[0,0,1],"右後":[-1,0,1],"�
 const DR_ORDER=["前","右前","右","右後","後","左後","左","左前","上","下"];
 function normDrain(d){d=d||{};const tr=d.tr||{};
  const sl=d.sl||{};
- return{v:2,du:Math.max(0,Math.round(+d.du||0)),up:Math.round(+d.up||0),sl:{h:Math.max(0,Math.round(+sl.h||0)),L:Math.max(0,Math.round(+sl.L||0)),p:Math.max(0,Math.round(+sl.p||0))},tr:{H:Math.max(0,Math.round(+tr.H||600)),W:Math.max(0,Math.round(+tr.W||600)),F:Math.max(0,Math.round(+tr.F||800)),R:Math.max(0,Math.round(+tr.R||1500)),S:Math.max(0,Math.round(+tr.S||150)),on:!!tr.on},mat:d.mat==="AC"?"AC":"VP",sz:DR_SIZES.includes(+d.sz)?+d.sz:25,slope:[50,100].includes(+d.slope)?+d.slope:100,span:[1000,1200,1500].includes(+d.span)?+d.span:1000,co:!!d.co,show:d.show!==false,
-  rows:(Array.isArray(d.rows)?d.rows:[]).slice(0,40).map(r=>({l:Math.max(0,Math.round(+r.l||0)),a:[0,45,90].includes(+r.a)?+r.a:0,t:normT(r.t),j:["co","mg"].includes(r.j)?r.j:(r.tee?"mg":""),bsz:DR_SIZES.includes(+r.bsz)?+r.bsz:25,bl:Math.max(0,Math.round(+r.bl||600)),bs:["L","R","L45","R45"].includes(r.bs)?r.bs:"L",sz:DR_SIZES.includes(+r.sz)?+r.sz:0,tr:!!r.tr}))}}
+ return{v:2,du:Math.max(0,Math.round(+d.du||0)),up:Math.round(+d.up||0),sl:{h:Math.max(0,Math.round(+sl.h||0)),L:Math.max(0,Math.round(+sl.L||0)),p:Math.max(0,Math.round(+sl.p||0))},tr:{H:Math.max(0,Math.round(+tr.H||600)),W:Math.max(0,Math.round(+tr.W||600)),F:Math.max(0,Math.round(+tr.F||800)),R:Math.max(0,Math.round(+tr.R||1500)),S:Math.max(0,Math.round(+tr.S||150)),on:!!tr.on},mat:d.mat==="AC"?"AC":"VP",sz:DR_SIZES.includes(+d.sz)?+d.sz:25,slope:[50,100].includes(+d.slope)?+d.slope:100,span:[1000,1200,1500].includes(+d.span)?+d.span:1000,co:!!d.co,show:d.show!==false,ys:d.ys==="hose"?"hose":"pipe",
+  rows:(Array.isArray(d.rows)?d.rows:[]).slice(0,40).map(r=>({l:Math.max(0,Math.round(+r.l||0)),a:[0,45,90].includes(+r.a)?+r.a:0,t:normT(r.t),j:["co","mg"].includes(r.j)?r.j:(r.tee?"mg":""),bsz:DR_SIZES.includes(+r.bsz)?+r.bsz:25,bl:Math.max(0,Math.round(+r.bl||600)),bs:["L","R","L45","R45"].includes(r.bs)?r.bs:"L",sz:DR_SIZES.includes(+r.sz)?+r.sz:0,tr:!!r.tr,yg:!!r.yg}))}}
 const DRN=()=>{if(!st.drain||!st.drain._ok){st.drain=normDrain(st.drain);Object.defineProperty(st.drain,"_ok",{value:1})}return st.drain};   // 読み込んだデータは1回だけ整える（_okは保存されない）
 /* 区間の並び（長さ・その先の曲げ角・向き）→ 3Dの点。向きは冷媒と同じ：配管の進む方を見て 上=0・右=90・下=180・左=270 */
 function drPath(start,dir0){const V=THREE.Vector3,D=DRN();let d=dir0.clone().normalize(),u=Math.abs(d.y)>0.9?new V(-1,0,0):new V(0,1,0);u=u.sub(d.clone().multiplyScalar(u.dot(d))).normalize();let r=d.clone().cross(u).normalize();
@@ -61,17 +61,21 @@ function drRise(){const D=DRN(),U=drUnit(),y0=U&&U.m&&U.m.dr?U.m.dr.y:0;let mx=0
 function drSupports(PA){const D=DRN(),pts=PA.pts,dirs=PA.dirs,out=[];if(!D.rows.length)return out;const H=i=>dirs[i]&&Math.abs(dirs[i].y)<0.5,Vt=i=>dirs[i]&&Math.abs(dirs[i].y)>0.7;
  let upRow=-1;for(let i=0;i<D.rows.length;i++){if(!dirs[i])break;if(dirs[i].y>0.7&&D.rows[i].l>=30){out.push({p:pts[i+1].clone(),k:"up",i});upRow=i;break}if(H(i)&&D.rows[i].l>300)break}
  let sz=D.sz;const szAt=[];D.rows.forEach((r,i)=>{if(r.sz)sz=r.sz;szAt[i]=sz});
- for(let i=0;i<D.rows.length;){if(!H(i)){i++;continue}let j=i;while(j+1<D.rows.length&&H(j+1)&&!D.rows[j].a&&!D.rows[j].j)j++;
+ const hoseRow=i=>D.ys==="hose"&&D.rows[i]&&D.rows[i].yg;
+ for(let i=0;i<D.rows.length;){if(!H(i)||hoseRow(i)){i++;continue}let j=i;while(j+1<D.rows.length&&H(j+1)&&!D.rows[j].a&&!D.rows[j].j)j++;
   const L=D.rows.slice(i,j+1).reduce((a,r)=>a+r.l,0);
   const at=s2=>{let acc=0;for(let k=i;k<=j;k++){const l=D.rows[k].l;if(s2<=acc+l||k===j){const t=l?Math.max(0,Math.min(1,(s2-acc)/l)):0;return{p:pts[k].clone().lerp(pts[k+1],t),i:k}}acc+=l}return{p:pts[j+1].clone(),i:j}};
   if(L>=50){let ss;if(L<=500)ss=[L/2];else{const S=L-400,n=Math.max(1,Math.ceil(S/D.span-1e-9));ss=[200];for(let q=1;q<n;q++)ss.push(200+S*q/n);ss.push(L-200)}
    ss.forEach(s2=>{const a=at(s2);out.push({p:a.p,k:"h",i:a.i,sz:szAt[a.i]})})}
   i=j+1}
  /* 縦配管（別に数える）：曲げから300の所、その間は1500以下で等間隔。600以下は真ん中に1か所。ドレンアップの立ち上げは上の支持があるので除く */
- for(let i=0;i<D.rows.length;i++){if(!Vt(i)||i===upRow)continue;const L=D.rows[i].l;if(L<150)continue;
+ for(let i=0;i<D.rows.length;i++){if(!Vt(i)||i===upRow||hoseRow(i))continue;const L=D.rows[i].l;if(L<150)continue;
   let ss;if(L<=600)ss=[L/2];else{const S=L-600,n=Math.max(1,Math.ceil(S/1500-1e-9));ss=[300];for(let q=1;q<n;q++)ss.push(300+S*q/n);ss.push(L-300)}
   ss.forEach(s2=>out.push({p:pts[i].clone().lerp(pts[i+1],s2/L),k:"v",i,sz:szAt[i]}))}
  return out}
+/* ヤグラの区間をドレンホースにする時：その区間（yg の付いた区間）は、エルボ・ソケットの代わりにホース1本 */
+const drHose=()=>{const D=DRN();return D.ys==="hose"&&D.rows.some(r=>r.yg)};
+const drHoseLen=()=>DRN().rows.filter(r=>r.yg).reduce((a,r)=>a+r.l,0);
 function drCalc(){const D=DRN(),M=DR_MAT[D.mat],R={hz:0,vt:0,up:0,drop:0,fit:new Map(),sup:0,vsup:0,s200:0,nco:0,nmg:0,br:0,szEnd:D.sz,tr:D.tr.on&&D.rows.some(r=>r.tr)};
  const add=(k,n)=>{if(n>0)R.fit.set(k,(R.fit.get(k)||0)+n)};let sz=D.sz,fitN=0;
  let dirs=null;try{dirs=drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)).dirs}catch(e){dirs=D.rows.map(()=>({y:0}))}
@@ -81,12 +85,15 @@ function drCalc(){const D=DRN(),M=DR_MAT[D.mat],R={hz:0,vt:0,up:0,drop:0,fit:new
   /* 合流：ほかの室内機のドレンをチーズで割り込ませる（枝が細ければ異径チーズ）＋チーズから200mmの支持 */
   if(r.j==="mg"){const b=Math.min(r.bsz||sz,sz),y45=r.bs==="L45"||r.bs==="R45",yn=D.mat==="VP"?"DV-Y（45°Y）":"AC用 45°Y";
    add(y45?`${yn} ${M.s}${sz}${b<sz?"×"+b:""}`:(b<sz?`${M.f.rtee} ${M.s}${sz}×${b}`:`${M.f.tee} ${M.s}${sz}`),1);R.s200++;R.nmg++;R.br+=r.bl}
-  add(`${M.f.sock} ${M.s}${sz}`,Math.max(0,Math.ceil(r.l/4000)-1));   // 定尺4mを超える所はソケットでつなぐ
+  const HS=r.yg&&drHose();   // ドレンホースの区間：管・エルボ・ソケットは数えない
+  if(!HS)add(`${M.f.sock} ${M.s}${sz}`,Math.max(0,Math.ceil(r.l/4000)-1));   // 定尺4mを超える所はソケットでつなぐ
   const dy=dirs[i]?dirs[i].y:0;
   if(Math.abs(dy)>0.7){R.vt+=r.l;if(dy>0)R.up+=r.l}
   else{R.hz+=r.l}
-  if(r.a&&i<D.rows.length-1){if(!(r.j==="co"&&r.a===90))add(`${r.a===45?M.f.e45:M.f.e90} ${M.s}${sz}`,1);fitN++}});   // 角の掃除口は、チーズが曲がりを兼ねる（エルボは要らない）
+  if(r.a&&i<D.rows.length-1&&!HS){   // ホースの区間の曲がり（終わりも）はホースが曲がるのでエルボは要らない
+   if(!(r.j==="co"&&r.a===90))add(`${r.a===45?M.f.e45:M.f.e90} ${M.s}${sz}`,1);fitN++}});   // 角の掃除口は、チーズが曲がりを兼ねる（エルボは要らない）
  {let SP=[];try{SP=drSupports(drPath(new THREE.Vector3(),new THREE.Vector3(1,0,0)))}catch(e){}R.sup=SP.filter(o=>o.k==="h").length;R.upSup=SP.filter(o=>o.k==="up").length;R.vsup=SP.filter(o=>o.k==="v").length}   // 支持のルールは drSupports
+ if(drHose()){add(`フレキシブルドレンホース ${D.sz}用（ヤグラの代わり・約${fmt(Math.ceil((drHoseLen()+200)/100)*100)}mm）`,1);add(`ホース接続ソケット ${M.s}${D.sz}`,1);R.hose=drHoseLen()}
  if(R.tr){add("フレキシブルドレンホース（本体接続・ジャバラ）",1);add("鳥居の頂点の吊り金具セット（吊りボルト＋ハンガー＋断熱保護カバー）",1)}
  if(D.co)add(M.f.co,1);
  R.drop=R.hz/D.slope;R.szEnd=sz;R.tot=R.hz+R.vt;return R}
@@ -102,7 +109,16 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
  const ext=Math.max(...bb.getSize(new V()).toArray(),300),g=new THREE.Group();g.userData.drain=1;T.grp.add(g);
  const mat=new THREE.MeshStandardMaterial({color:DR_MAT[D.mat].col,roughness:.6}),jm=new THREE.MeshStandardMaterial({color:D.mat==="AC"?0x0ea5e9:0x6b7280,roughness:.5}),Y=new V(0,1,0),selMat=new THREE.MeshStandardMaterial({color:0xfacc15,roughness:.5,emissive:0x3a2a00});
  const rad=s2=>(DR_MAT[D.mat].od[s2]||32)/2;   // 実際の外径どおり（VP25＝32、VP40＝48、ACは保温込み）。サイズごとに太さが変わる
+ const HOSE=drHose();
+ if(HOSE){try{const hp=[pts[0].p.clone()];let last=-1;D.rows.forEach((r,i)=>{if(r.yg){const q=pts[i+1].p;if(q.distanceTo(hp[hp.length-1])>=1)hp.push(q.clone());last=i}});   // 長さ0の区間（同じ点）は除く（曲線が壊れる）
+   /* 角を丸めた点の列（ホースはなめらかに曲がる） */
+   const cp=[hp[0]];for(let k=1;k<hp.length-1;k++){const a=hp[k-1],b=hp[k],c=hp[k+1],r1=Math.min(80,a.distanceTo(b)/2),r2=Math.min(80,b.distanceTo(c)/2);cp.push(b.clone().add(a.clone().sub(b).setLength(r1)),b.clone(),b.clone().add(c.clone().sub(b).setLength(r2)))}cp.push(hp[hp.length-1]);for(let k=cp.length-1;k>0;k--)if(cp[k].distanceTo(cp[k-1])<1)cp.splice(k,1);
+   const cv=new THREE.CatmullRomCurve3(cp,false,"centripetal"),hr=rad(D.sz)*1.05,tube=new THREE.Mesh(new THREE.TubeGeometry(cv,Math.max(40,cp.length*10),hr,14,false),new THREE.MeshStandardMaterial({color:0x9aa8b8,roughness:.8}));g.add(tube);
+   for(let t=0.04;t<0.98;t+=0.06){const rg=new THREE.Mesh(new THREE.TorusGeometry(hr,hr*0.14,6,16),new THREE.MeshStandardMaterial({color:0x475569}));rg.position.copy(cv.getPointAt(t));rg.lookAt(cv.getPointAt(t).add(cv.getTangentAt(t)));g.add(rg)}   // ジャバラ
+   try{const s=label("〰 ドレンホース（ヤグラの代わり）約"+fmt(Math.ceil((drHoseLen()+200)/100)*100),ext*0.026,"#f1f5f9f2","#334155");s.position.copy(cv.getPointAt(0.5)).add(new V(0,hr*3,0));s.userData.cat="drain";if(typeof pxl==="function")pxl(s,14);g.add(s)}catch(e){}
+   T.drHoseLast=last}catch(e){console.warn("hose",e)}}
  for(let i=0;i<pts.length-1;i++){const a=pts[i].p,b=pts[i+1].p,L=a.distanceTo(b);if(L<1)continue;const r=rad(pts[i+1].sz);
+  if(HOSE&&D.rows[i]&&D.rows[i].yg){(T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:r,dr:1,i});continue}   // ホースの区間は上で描いた
   (T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:(DR_MAT[D.mat].od[pts[i+1].sz]||32)/2,dr:1,i});
   const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,16),i===DR_SEL?selMat:mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(m);
   const j=new THREE.Mesh(new THREE.SphereGeometry(r*1.18,14,10),jm);j.position.copy(b);g.add(j);
@@ -192,7 +208,7 @@ body.drmode #drPanel{display:block}
   save();drRender();drRedraw()});
  pn.addEventListener("pointerdown",e=>{const r=e.target.closest(".drrow");if(r&&+r.dataset.r!==DR_SEL){DR_SEL=+r.dataset.r;document.querySelectorAll(".drrow.sel").forEach(x=>x.classList.remove("sel"));r.classList.add("sel");drRedraw()}});
  pn.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const D=DRN(),i=+b.dataset.i,k=b.dataset.k;if(!k)return;
-  if(k==="mat")D.mat=b.dataset.v;else if(k==="slope")D.slope=+b.dataset.v;else if(k==="span")D.span=+b.dataset.v;
+  if(k==="mat")D.mat=b.dataset.v;else if(k==="ys")D.ys=b.dataset.v==="hose"?"hose":"pipe";else if(k==="slope")D.slope=+b.dataset.v;else if(k==="span")D.span=+b.dataset.v;
   else if(k==="del"){D.rows.splice(i,1);if(!D.rows.some(r=>r.tr))D.tr.on=false}
   else if(k==="ang"){const A=[0,90,45];D.rows[i].a=A[(A.indexOf(D.rows[i].a)+1)%A.length]}
   else if(k==="add"){D.rows.push({l:1000,a:0,t:0,j:"",sz:0});const pv=D.rows[D.rows.length-2];if(pv&&!pv.a)pv.a=90}
@@ -219,6 +235,7 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  ${st.rj.mode==="rod"?`<label style="font-size:13px;color:var(--sub)">ドレンと冷媒の間 <input data-k="rjg" inputmode="numeric" value="${st.rj.gap}" style="width:80px;height:38px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;font-weight:700;padding:0 8px;text-align:right">mm</label><div style="font-size:12px;color:var(--sub)">天井裏が狭い時は詰める・広い時は100mmなど</div>`:""}
  ${st.rj.mode!=="sep"?`<label style="display:block;font-size:13px;color:var(--sub);margin-top:6px">沿わせ始める所 <select data-k="rjf" style="height:38px;border-radius:10px;font-size:14px;font-weight:700">${[["auto","自動（ヤグラを降りた所から）"],...D.rows.slice(0,-1).map((r,i)=>[i,"💧"+(i+1)+" の後"+(r.a?"（"+r.a+"°の角）":"")])].map(([v,l])=>`<option value="${v}"${String(st.rj.from==null?"auto":st.rj.from)===String(v)?" selected":""}>${l}</option>`).join("")}</select></label>`:""}
  <div class="drnote">${st.rj.mode==="sep"?"冷媒は図面どおり、ドレンとは別のルートです。":st.rj.len?`冷媒をドレンの上に通しています（並んで走る区間 約${fmt(st.rj.len)}mm）。${st.rj.mode==="tomo"?"ドレンの上に載せて一緒に巻きます。":"ドレンの全ねじに横掴みバンドで付けます。"}分かれた所から先は図面どおり。`:"図面では、冷媒とドレンが並んで走る区間がありません（別の穴から出ています）。"}</div></div>`:""}
+ ${D.rows.some(r=>r.yg)?`<div class="drc"><h4>⛰ ヤグラ（ドレンアップのトップ）</h4>${seg("ys",[["pipe","VP管・エルボで組む"],["hose","ドレンホースでつなぐ"]],D.ys)}<div style="font-size:12.5px;color:var(--sub)">${D.ys==="hose"?"ドレン口からトップを通ってメインの手前まで、フレキシブルドレンホース1本（約"+fmt(Math.ceil((drHoseLen()+200)/100)*100)+"mm）でつなぎます。トップの支持はそのまま。":"立ち上げ・横・下げをVP管とエルボで組みます。"}</div></div>`:""}
  <div class="drc"><h4>📐 サイズを図面より上げる</h4><div style="font-size:12.5px;color:var(--sub)">図面はVP30だけど40にしてほしい、という時に。始まり・径変更・合流の枝を全部まとめて変えます。</div>
  <div class="drseg"><button data-k="rk" data-v="1">⬆ 全部1ランク上げる</button><button data-k="rk" data-v="-1">⬇ 1ランク下げる</button></div>${D.up?`<div class="drnote" style="background:#eef2ff;color:#3730a3">図面より <b>${D.up>0?"+":""}${D.up}ランク</b>（今の始まり ${M.s}${D.sz}）</div>`:""}</div>
  <div class="drc"><h4>🕳 スリーブ穴から逆算（オートレベル）</h4><div style="font-size:12.5px;color:var(--sub);margin-bottom:6px">出口（外壁のスリーブ穴など）の高さから、勾配で上流へ上っていって、室内機のドレン口に必要な高さを出します。</div>

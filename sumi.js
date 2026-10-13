@@ -29,7 +29,8 @@ function smGrids(ax,e){let G=(PLAN.grids||[]).filter(g=>g.ax===ax);const ok=G.fi
  if(e&&G.length>1){const P=PLAN,c=e.c,o=ax==="X"?c[1]:c[0],w=ax==="X"?c[0]:c[1],tol=1500/P.mmpp,inn=(g,v)=>g.lo==null||(v>=g.lo-tol&&v<=g.hi+tol);
   const other=(P.grids||[]).filter(g=>g.ax!==ax&&g.ok&&inn(g,w)),ref=other.length?other.reduce((b,g)=>!b||Math.abs(g.v-o)<Math.abs(b.v-o)?g:b,null):null;
   const G2=G.filter(g=>inn(g,o)&&(!ref||inn(ref,g.v)));if(G2.length)G=G2}
- const U=[];G.forEach(g=>{if(!U.some(u=>u.n===g.n&&Math.abs(u.v-g.v)<2))U.push(g)});return U}
+ /* 同じ名前（X1 など）が何本もある時は、機械にいちばん近いものだけ */
+ const U=[];G.forEach(g=>{const i=U.findIndex(u=>u.n===g.n);if(i<0){U.push(g);return}if(e){const w=ax==="X"?e.c[0]:e.c[1];if(Math.abs(g.v-w)<Math.abs(U[i].v-w))U[i]=g}});return U.sort((a,b)=>a.v-b.v)}
 function smPick(e,ax){const G=smGrids(ax,e);if(!G.length)return null;const k=(SM.g[e.i]||{})[ax],v=ax==="X"?e.c[0]:e.c[1];
  if(k!=null&&G[k])return G[k];return G.reduce((b,g)=>!b||Math.abs(g.v-v)<Math.abs(b.v-v)?g:b,null)}
 const smNige=n=>{const P=PLAN;P.nige=P.nige||{};return P.nige[n]||{dir:MSUM[n[0]].dir,mm:MSUM[n[0]].mm}};

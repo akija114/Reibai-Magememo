@@ -1,5 +1,5 @@
 /* オフライン用：一度開けば、電波がなくても開ける。更新したら VER の数字を上げる */
-const VER="pbm-v168",CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./zumen.html","./genchou.html","./kiki.html","./models.js?v=168","./core.js?v=168","./drain.js?v=168","./zumen.js?v=168","./genchou.js?v=168","./shashin.js?v=168","./kabe.js?v=168","./sumi.js?v=168"];
+const VER="pbm-v169",CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./zumen.html","./genchou.html","./kiki.html","./models.js?v=169","./core.js?v=169","./drain.js?v=169","./zumen.js?v=169","./genchou.js?v=169","./shashin.js?v=169","./kabe.js?v=169","./sumi.js?v=169","./kozo.js?v=169"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(VER).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==VER).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{

@@ -2119,11 +2119,14 @@ function runAR(onlyUnit){
  }catch(e){console.warn(e);toast("ARの準備に失敗しました")}
 }
 /* ===== 建物（壁・柱・梁・障害物）：3Dに箱で置く。位置は起点（配管の始まり）からのmm、高さは床から ===== */
-const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"},door:{n:"扉",c:0xb45309,i:"🚪"}};
+const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"},door:{n:"扉",c:0xb45309,i:"🚪"},ceil:{n:"天井高の範囲",c:0x0ea5e9,i:"📐"},rack:{n:"電気ラック",c:0x94a3b8,i:"⚡"}};
 function normBld(a){const n=v=>Math.round(+v||0);return(Array.isArray(a)?a:[]).slice(0,1500).filter(o=>o&&typeof o==="object").map(o=>{const k=BLDK[o.k]?o.k:"box";
- return{k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):k==="door"?(o.m==="swing"?"swing":"slide"):""}})}
+ return{...(k==="ceil"&&o.n?{n:String(o.n).slice(0,20)}:{}),k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):k==="door"?(o.m==="swing"?"swing":"slide"):k==="col"?(o.m==="h"?"h":""):""}})}
 st.bld=normBld(st.bld);
 const bldCH=()=>T&&T.CHh?T.CHh:st.gnd.ch;
+/* 天井高の範囲（📐）の中なら、その範囲（いちばん小さいもの） */
+function ceilAt(x,z){let b=null;(st.bld||[]).forEach(o=>{if(o.k!=="ceil")return;const th=o.r*Math.PI/180,dx=x-o.x,dz=z-o.z,lx=dx*Math.cos(th)+dz*Math.sin(th),lz=-dx*Math.sin(th)+dz*Math.cos(th);
+ if(Math.abs(lx)<=o.w/2&&Math.abs(lz)<=o.d/2&&(!b||o.w*o.d<b.w*b.d))b=o});return b}
 function bldNew(k,p){const CH=bldCH();
  const o=k==="col"?{w:600,d:600,h:CH,y:0,full:true}:k==="wall"?{w:3000,d:150,h:CH,y:0,full:true}:k==="beam"?{w:4000,d:400,h:700,y:CH+300,full:false}:k==="ind"?{w:840,d:840,h:300,y:0,full:false,m:CAS2M[RP.im]?RP.im:"56"}:k==="hole"?{w:65,d:150,h:65,y:2200,full:false}:k==="door"?{w:800,d:150,h:2000,y:0,full:false,m:"slide"}:{w:500,d:500,h:300,y:CH+100,full:false};
  return normBld([{k,x:p?p.x:0,z:p?p.z:0,r:0,...o}])[0]}
@@ -2131,7 +2134,7 @@ function bldNew(k,p){const CH=bldCH();
 function addBld3D(GY,CH,ext){
  T.bldM=[];if(!st.bld||!st.bld.length||st.bldHide)return;
  st.bld.forEach((o,i)=>{const K=BLDK[o.k],h=o.full?CH:o.h,y0=GY+(o.full?0:o.y);
-  if(o.k==="ind"){const CYd=GY+CH,ib=indMesh(o,CYd);T.grp.add(ib.g);ib.g.userData.bld=i+1;
+  if(o.k==="ind"){const zc=ceilAt(o.x,o.z),CYd=GY+(zc?zc.h:CH),ib=indMesh(o,CYd);T.grp.add(ib.g);ib.g.userData.bld=i+1;
    T.bldM.push({i,k:"ind",c:new THREE.Vector3(ib.cx,ib.y0+ib.h/2,ib.cz),hw:ib.hw,hd:ib.hd,hh:ib.h/2,r:o.r,y0:ib.y0,h:ib.h,port:ib.port});
    const nm=o.m?(CAS2M[o.m]?CAS2M[o.m].n:"室内機"):fmt(o.w)+"×"+fmt(o.d);
    const s2=label("❄️ 室内機 "+nm,ext*0.03,"#dbeafef2","#1d4ed8");s2.position.set(ib.cx,CYd+120,ib.cz);s2.userData.cat="bld";pxl(s2,17);T.grp.add(s2);return}
@@ -2150,6 +2153,25 @@ function addBld3D(GY,CH,ext){
    g.position.set(o.x,y0,o.z);g.rotation.y=th;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
    T.bldM.push({i,k:"door",c:new THREE.Vector3(o.x,y0+H2/2,o.z),hw:W2/2,hd:D2/2,hh:H2/2,r:o.r,y0,h:H2});
    const s4=label("🚪 "+(o.m==="swing"?"開き戸":"引き戸")+" 幅"+fmt(W2),ext*0.026,"#fef3c7f2","#78350f");s4.position.set(o.x,y0+H2+ext*0.03,o.z);s4.userData.cat="bld";pxl(s4,15);T.grp.add(s4);return}
+  if(o.k==="ceil"){const g=new THREE.Group(),yc=GY+o.h,yM=GY+CH;   // 天井高の範囲：その高さに天井の板＋メインの天井から下がる「垂れ壁」
+   const pl=new THREE.Mesh(new THREE.BoxGeometry(o.w,8,o.d),new THREE.MeshBasicMaterial({color:0x7dd3fc,transparent:true,opacity:.35,depthWrite:false}));pl.position.set(0,-4,0);g.add(pl);
+   if(yM-yc>20){const dh=yM-yc,sk=new THREE.MeshBasicMaterial({color:0xbae6fd,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false});
+    [[o.w,0,o.d/2],[o.w,0,-o.d/2],[o.d,1,o.w/2],[o.d,1,-o.w/2]].forEach(([L,v,q])=>{const f=new THREE.Mesh(new THREE.PlaneGeometry(L,dh),sk);f.position.set(v?q:0,dh/2,v?0:q);if(v)f.rotation.y=Math.PI/2;g.add(f)})}
+   try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(pl.geometry),new THREE.LineBasicMaterial({color:0x0284c7}));e.position.copy(pl.position);g.add(e)}catch(err){}
+   g.position.set(o.x,yc,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
+   T.bldM.push({i,k:"ceil",c:new THREE.Vector3(o.x,yc,o.z),hw:o.w/2,hd:o.d/2,hh:10,r:o.r,y0:yc,h:10});
+   const s5=label("📐 天井 CH"+fmt(o.h)+(o.n?"（"+o.n+"）":""),ext*0.03,"#e0f2fef2","#075985","bld");s5.position.set(o.x,yc-60,o.z);s5.userData.cat="bld";pxl(s5,17);T.grp.add(s5);return}
+  if(o.k==="rack"){const g=new THREE.Group(),Lr=o.w,Wr=o.d,Hr=Math.min(150,o.h||100),ms=new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.4,metalness:.5}),b3=(a,b2,c,x,y,z)=>{const q=new THREE.Mesh(new THREE.BoxGeometry(a,b2,c),ms);q.position.set(x,y,z);g.add(q)};
+   b3(Lr,Hr,20,0,Hr/2,Wr/2-10);b3(Lr,Hr,20,0,Hr/2,-Wr/2+10);for(let xx=-Lr/2+150;xx<Lr/2;xx+=300)b3(30,20,Wr-20,xx,10,0);   // 親げた2本＋子げた（300ピッチ）
+   g.position.set(o.x,GY+o.y,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
+   T.bldM.push({i,k:"rack",c:new THREE.Vector3(o.x,GY+o.y+Hr/2,o.z),hw:Lr/2,hd:Wr/2,hh:Hr/2,r:o.r,y0:GY+o.y,h:Hr});
+   const s6=label("⚡ 電気ラック 幅"+fmt(Wr)+" 下端FL+"+fmt(o.y),ext*0.028,"#f1f5f9f2","#334155","bld");s6.position.set(o.x,GY+o.y+Hr+60,o.z);s6.userData.cat="bld";pxl(s6,15);T.grp.add(s6);return}
+  if(o.k==="col"&&o.m==="h"){const g=new THREE.Group(),Bf=o.w,Dh=o.d,tf=Math.max(12,Math.round(Dh*0.05)),tw=Math.max(9,Math.round(Bf*0.04)),ms=new THREE.MeshStandardMaterial({color:0x6b7280,roughness:.6,metalness:.3});   // H鋼：フランジ（幅w）2枚＋ウェブ
+   const b3=(a,b2,c,z)=>{const q=new THREE.Mesh(new THREE.BoxGeometry(a,h,c),ms);q.position.set(0,h/2,z);g.add(q);try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(q.geometry),new THREE.LineBasicMaterial({color:0x374151}));e.position.copy(q.position);g.add(e)}catch(err){}};
+   b3(Bf,h,tf,Dh/2-tf/2);b3(Bf,h,tf,-Dh/2+tf/2);b3(tw,h,Dh-2*tf,0);
+   g.position.set(o.x,y0,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
+   T.bldM.push({i,k:"col",c:new THREE.Vector3(o.x,y0+h/2,o.z),hw:o.w/2,hd:o.d/2,hh:h/2,r:o.r,y0,h});
+   const s7=label("🏛 H鋼 "+fmt(Dh)+"×"+fmt(Bf),ext*0.028,"#f1f5f9f2","#334155","bld");s7.position.set(o.x,y0+Math.min(h,2400)+40,o.z);s7.userData.cat="bld";pxl(s7,15);T.grp.add(s7);return}
   const isW=o.k==="wall";
   const m=new THREE.Mesh(new THREE.BoxGeometry(o.w,h,o.d),new THREE.MeshStandardMaterial({color:isW?0xe2e8f0:K.c,transparent:true,opacity:o.k==="box"||o.k==="out"?.7:o.k==="spot"?.3:isW?.22:.45,depthWrite:false,roughness:.8}));
   m.position.set(o.x,y0+h/2,o.z);m.rotation.y=-o.r*Math.PI/180;m.renderOrder=-1;m.userData.bld=i+1;T.grp.add(m);
@@ -2163,7 +2185,7 @@ function addBld3D(GY,CH,ext){
 /* 配管が壁・柱・梁・障害物・機器に当たっていないか調べて、当たっていたら ⚠️ を出す（穴の所は通ってOK） */
 let HIT_SIG="";
 function pipeHits(ext){T.hits=[];if(!T.segs||!T.segs.length||!T.bldM||!T.bldM.length)return;
- const solid=T.bldM.filter(m=>["wall","col","beam","box","out","ind"].includes(m.k)),holes=T.bldM.filter(m=>m.k==="hole"||m.k==="door");
+ const solid=T.bldM.filter(m=>["wall","col","beam","box","out","ind","rack"].includes(m.k)),holes=T.bldM.filter(m=>m.k==="hole"||m.k==="door");
  const inBox=(m,p,mg)=>{const th=m.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=p.x-m.c.x,dz=p.z-m.c.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;
   return Math.abs(lx)<m.hw+mg&&Math.abs(lz)<m.hd+mg&&Math.abs(p.y-m.c.y)<m.hh+mg};
  const inHole=p=>holes.some(hm=>{const o=st.bld[hm.i];if(!o)return false;if(hm.k==="door")return inBox(hm,p,0);const th=hm.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=p.x-hm.c.x,dz=p.z-hm.c.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;

@@ -59,13 +59,13 @@ function mtCollect(){const G=[];const sec=(t,items,note)=>{if(items.length)G.pus
 const PR=()=>LS("pbm_mt_price",{}),setPR=p=>LSset("pbm_mt_price",p);
 const EX=()=>LS("pbm_mt_extra",[{n:"配管工事費",q:1,u:"式",p:0},{n:"ドレン工事費",q:1,u:"式",p:0}]),setEX=v=>LSset("pbm_mt_extra",v);
 const HD=()=>LS("pbm_mt_head",{to:"",from:"",tax:10,note:""}),setHD=v=>LSset("pbm_mt_head",v);
-function mtRows(){const P=PR(),rows=[];mtCollect().forEach(g=>g.items.forEach(it=>{if(it.u==="か所")return;rows.push({...it,sec:g.t,p:+P[it.n]||0})}));EX().forEach((e,i)=>rows.push({...e,sec:"工事費・その他",x:i}));return rows}
+function mtRows(){const rows=[];mtCollect().forEach(g=>g.items.forEach(it=>{if(it.u==="か所")return;const v=TK.get(it.n);rows.push({...it,sec:g.t,p:v.p||0,pv:v})}));EX().forEach((e,i)=>rows.push({...e,sec:"工事費・その他",x:i}));return rows}
 const yen=v=>"¥"+Math.round(v).toLocaleString("ja-JP");
 
 /* ===== 画面 ===== */
 function mtSheet(){let ov=document.getElementById("mtOv");if(ov)return ov;ov=document.createElement("div");ov.id="mtOv";ov.className="ov";ov.style.zIndex=75;
  ov.innerHTML=`<div class="sheet"><div class="shead"><h3>🧾 材料拾い・見積もり</h3><button id="mtClose">✕</button></div>
-  <div style="display:flex;gap:6px;margin-bottom:8px">${[["mat","📦 材料拾い"],["est","💴 見積もり"]].map(([k,l])=>`<button data-mt="${k}" style="flex:1;height:42px;border-radius:12px;font-weight:800;font-size:15px;border:1.5px solid #cbd5e1">${l}</button>`).join("")}</div>
+  <div style="display:flex;gap:6px;margin-bottom:8px">${[["mat","📦 材料"],["est","💴 見積もり"],["tk","💹 単価表"]].map(([k,l])=>`<button data-mt="${k}" style="flex:1;height:42px;border-radius:12px;font-weight:800;font-size:15px;border:1.5px solid #cbd5e1">${l}</button>`).join("")}</div>
   <div id="mtBody"></div></div>`;
  document.body.appendChild(ov);ov.addEventListener("click",e=>{if(e.target.id==="mtOv")ov.classList.remove("on")});ov.querySelector("#mtClose").onclick=()=>ov.classList.remove("on");
  ov.querySelectorAll("[data-mt]").forEach(b=>b.onclick=()=>{MT.tab=b.dataset.mt;mtRender()});
@@ -82,18 +82,19 @@ function mtRender(){const ov=mtSheet(),b=ov.querySelector("#mtBody");ov.querySel
    <p style="font-size:12px;color:#64748b;margin-top:6px">数は今の配管・支持のルールからの目安です。品番・サイズ・在庫は現場とメーカーで確認してください。</p>`;
   const c=b.querySelector("#mtCut");c.onchange=()=>{MT.cut=Math.max(0,Math.min(50,parseInt(c.value)||0));LSset("pbm_mt_cut",MT.cut);mtRender()};
   b.querySelector("#mtCopy").onclick=()=>{const t=mtText(G);try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}};return}
+ if(MT.tab==="tk"){TK.render(b,mtRender);return}
  /* 見積もり */
  const H=HD(),rows=mtRows(),sub=rows.reduce((a,r)=>a+r.q*(r.p||0),0),tax=Math.round(sub*(H.tax||0)/100);
  let cur="";b.innerHTML=`<div style="display:grid;grid-template-columns:auto 1fr;gap:6px;align-items:center;font-size:13.5px">宛名<input id="mtTo" value="${esc(H.to)}" placeholder="例：〇〇建設 御中">発行者<input id="mtFrom" value="${esc(H.from)}" placeholder="屋号・名前">消費税<span><input id="mtTax" inputmode="numeric" value="${H.tax}" style="width:56px"> %</span></div>
   <table style="margin-top:8px"><tr><th>品名</th><th class="q">数</th><th class="q">単価</th><th class="q">金額</th></tr>${rows.map((r,i)=>{const h=r.sec!==cur?`<tr><td colspan="4" style="background:#f1f5f9;font-weight:800">${esc(r.sec)}</td></tr>`:"";cur=r.sec;
-   return h+`<tr><td>${r.x!=null?`<input data-xn="${r.x}" value="${esc(r.n)}" style="width:100%">`:esc(r.n)}</td><td class="q">${r.x!=null?`<input data-xq="${r.x}" inputmode="decimal" value="${r.q}" style="width:48px">`:r.q} ${esc(r.u)}</td><td class="q"><input ${r.x!=null?`data-xp="${r.x}"`:`data-pn="${esc(r.n)}"`} inputmode="numeric" value="${r.p||""}" placeholder="0" style="width:76px"></td><td class="q">${yen(r.q*(r.p||0))}</td></tr>`}).join("")}
+   return h+`<tr><td>${r.x!=null?`<input data-xn="${r.x}" value="${esc(r.n)}" style="width:100%">`:esc(r.n)}</td><td class="q">${r.x!=null?`<input data-xq="${r.x}" inputmode="decimal" value="${r.q}" style="width:48px">`:r.q} ${esc(r.u)}</td><td class="q"><input ${r.x!=null?`data-xp="${r.x}"`:`data-pn="${esc(r.n)}"`} inputmode="numeric" value="${r.p||""}" placeholder="0" style="width:76px">${r.pv&&r.p?`<br><small style="color:${TK.isOld(r.n)?"#b45309":"#94a3b8"};font-weight:400">${TK.isOld(r.n)?"⚠️":""}${TK.dLab(r.pv)}</small>`:""}</td><td class="q">${yen(r.q*(r.p||0))}</td></tr>`}).join("")}
   <tr><td colspan="3" class="q">小計</td><td class="q">${yen(sub)}</td></tr><tr><td colspan="3" class="q">消費税（${H.tax}%）</td><td class="q">${yen(tax)}</td></tr><tr><td colspan="3" class="q" style="font-size:16px">合計</td><td class="q" style="font-size:16px">${yen(sub+tax)}</td></tr></table>
   <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button id="mtAdd" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">＋ 行を足す</button><button id="mtDel" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">－ 最後の行を消す</button></div>
   <div style="display:flex;gap:6px;margin-top:6px"><button id="mtPrintB" style="flex:1;height:46px;border-radius:12px;background:#0f766e;color:#fff;font-weight:800">🖨 見積書（印刷・PDF）</button><button id="mtCopyE" style="flex:1;height:46px;border-radius:12px;background:#0891b2;color:#fff;font-weight:800">📋 コピー</button></div>
-  <p style="font-size:12px;color:#64748b;margin-top:6px">単価はこのiPhoneに覚えておきます（次の現場でも同じ品名なら入ったまま）。印刷の画面で「共有」→ PDFとして保存できます。</p>`;
+  <p style="font-size:12px;color:#64748b;margin-top:6px">単価はこのiPhoneに覚えておきます（いつ直したかも）。値上げ・Excelの単価表・ネット相場は「💹 単価表」で。印刷の画面で「共有」→ PDFとして保存できます。</p>`;
  const hd=()=>{const h=HD();h.to=b.querySelector("#mtTo").value;h.from=b.querySelector("#mtFrom").value;h.tax=Math.max(0,parseInt(b.querySelector("#mtTax").value)||0);setHD(h)};
  ["#mtTo","#mtFrom"].forEach(s=>b.querySelector(s).onchange=hd);b.querySelector("#mtTax").onchange=()=>{hd();mtRender()};
- b.querySelectorAll("[data-pn]").forEach(i=>i.onchange=()=>{const p=PR();p[i.dataset.pn]=Math.max(0,parseInt(String(i.value).replace(/\D/g,""))||0);setPR(p);mtRender()});
+ b.querySelectorAll("[data-pn]").forEach(i=>i.onchange=()=>{TK.set(i.dataset.pn,String(i.value).replace(/\D/g,""));mtRender()});
  const ex=(attr,f)=>b.querySelectorAll(`[${attr}]`).forEach(i=>i.onchange=()=>{const e=EX(),k=+i.getAttribute(attr);if(e[k]){f(e[k],i.value);setEX(e);mtRender()}});
  ex("data-xn",(o,v)=>o.n=String(v).slice(0,40));ex("data-xq",(o,v)=>o.q=Math.max(0,parseFloat(v)||0));ex("data-xp",(o,v)=>o.p=Math.max(0,parseInt(String(v).replace(/\D/g,""))||0));
  b.querySelector("#mtAdd").onclick=()=>{const e=EX();e.push({n:"",q:1,u:"式",p:0});setEX(e);mtRender()};

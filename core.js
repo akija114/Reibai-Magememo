@@ -612,7 +612,9 @@ function makeUnit(type,opt){
   const body=new THREE.Group();g.add(body);tg=body;body.position.set(-Pn[0],-Pn[1],-Pn[2]);
   const CU=0xc2703a,BRS=0xb8860b,OR=0xf97316,RD=0xdc2626,mkN=(CAS2_MAKERS.find(x=>x[0]===md.mk)||["",""])[1];
   name=mkN+" "+md.kind+" "+md.n;cx=-Pn[0];top=TOP+430-Pn[1];opt.cz=-Pn[2];
-  bx(Lb,HB,Wb,0,TOP-HB/2,0,0x9ca3af);                                                      // 本体（天井裏）
+  if(md.pv){const sh=new THREE.Shape();md.pv.forEach(([px,py],i)=>{const u=py-Lb/2,v=sd*(Wb/2-px);i?sh.lineTo(u,v):sh.moveTo(u,v)});   // 本体（天井裏）：角の欠けた形
+   const geo=new THREE.ExtrudeGeometry(sh,{depth:HB,bevelEnabled:false});geo.rotateX(Math.PI/2);const m=put(geo,0,TOP,0,0x9ca3af);edge(m,geo)}
+  else bx(Lb,HB,Wb,0,TOP-HB/2,0,0x9ca3af);                                                      // 本体（天井裏）
   if(!md.bi)rb(md.pa,md.pt,md.pb,20,0,-md.pt/2,0,WH);                                                  // パネル
   const py=-md.pt-2,sl=(lx,lz,x,z,rx,rz)=>{bx(lx,5,lz,x,py,z,DK);const f=bx(lx*.97,6,lz*.97+8,x,py-5,z,0xf8fafc);if(rx)f.rotation.x=rx;if(rz)f.rotation.z=rz};
   if(md.kind==="4方向"){const q=md.pa/2-80,ln=md.pa*.6;sl(ln,60,0,q,0.5);sl(ln,60,0,-q,-0.5);sl(60,ln,q,0,0,-0.5);sl(60,ln,-q,0,0,0.5);   // 4辺の吹出口：ルーバーは外側へ斜め下
@@ -648,7 +650,7 @@ function makeUnit(type,opt){
   else bx(10,Math.abs(G0.y-L0.y)+90,Math.abs(G0.z-L0.z)+90,Lb/2+4,(G0.y+L0.y)/2,(G0.z+L0.z)/2,MD);
   [[G0,gas?13:9],[L0,gas?9:13]].forEach(([q,r])=>{const c=cyl(r*.75,60,PX+30,q.y,q.z,CU,16);c.rotation.z=Math.PI/2;const n=cyl(r*1.5,16,PX+12,q.y,q.z,BRS,6);n.rotation.z=Math.PI/2});
   if(md.eb)bx(md.eb[0],md.eb[1],md.eb[2],md.eb[3],md.eb[4],md.eb[5]*sd,0x6b7280);
-  if(!md.nodr){opt.dr={p:[Lb/2+135-Pn[0],D0r.y-Pn[1],D0r.z-Pn[2]],d:[1,0,0]};bx(10,70,70,Lb/2+4,D0r.y,D0r.z,MD);const d=cyl(17,90,Lb/2+45,D0r.y,D0r.z,0xe5e7eb,16);d.rotation.z=Math.PI/2;
+  if(!md.nodr){const DXr=md.drx||Lb/2;opt.dr={p:[DXr+135-Pn[0],D0r.y-Pn[1],D0r.z-Pn[2]],d:[1,0,0]};bx(10,70,70,DXr+4,D0r.y,D0r.z,MD);const d=cyl(17,90,DXr+45,D0r.y,D0r.z,0xe5e7eb,16);d.rotation.z=Math.PI/2;
    if(md.mi){const w=cyl(14,14,Lb/2+8,TOP-163,D0r.z,0xe5e7eb,16);w.rotation.z=Math.PI/2;const pl=cyl(13,14,Lb/2+8,TOP-260,-sd*(Wb/2-530),0x94a3b8,16);pl.rotation.z=Math.PI/2}}
   const L=(t,x,y,z,c)=>({t,c,p:[x-Pn[0],y-Pn[1],z-Pn[2]]}),hw=v=>v%2?(v/2).toFixed(1):fmt(v/2);
   opt.c2={ceil:[-Pn[0],-Pn[1],-Pn[2]],neko:[md.ba/2-Pn[0],yH-Pn[1],md.bb/2-Pn[2]],top:TOP,nkTxt:md.nkTxt||"",bolts:[[-1,-1],[1,-1],[1,1],[-1,1]].map(([u,w])=>[u*md.ba/2-Pn[0],yH-Pn[1],w*md.bb/2-Pn[2]]),ba:md.ba,bb:md.bb};

@@ -43,9 +43,9 @@ function smTxt(e){const R=smCalc(e);let t=`${e.no} ${smName(e.o)}\n　芯：${sm
  return t}
 /* 吹き出しの中身 */
 function smHTML(){const P=PLAN;if(!P||!P.org)return`<p style="color:#b91c1c">先に原点を決めてください。</p>`;
- const L=smItems();if(!L.length)return`<p>まだ室内機・室外機が置いてありません。</p><p style="font-size:13px;color:#475569">「✨ 図面から自動で読み込む」か「❄️ 室内機を追加」「🌀 室外機を追加」で置いてから来てください。</p>`;
+ const L=smItems();if(!L.length)return`<p>まだ室内機・室外機が置いてありません。</p><p style="font-size:14px"><b>図面の室内機（四角）の真ん中をタップ</b>すると、その場で室内機を置いて寸法を出します。</p><p style="font-size:12.5px;color:#475569">室外機は「🌀 室外機を追加」で置いてください。</p>`;
  const hasG=(P.grids||[]).length,show=SM.sel>=0?L.filter(e=>e.i===SM.sel):L;
- let h=`<p style="font-size:13.5px">床の墨出し用に、<b>機械の芯</b>と<b>吊りボルト</b>が<b>通り芯から何mm</b>かを出します。機械を<b>タップ</b>するとその機械だけ、図面に寸法線を出します。</p>`;
+ let h=`<p style="font-size:13.5px">床の墨出し用に、<b>機械の芯</b>と<b>吊りボルト</b>が<b>通り芯から何mm</b>かを出します。機械を<b>タップ</b>するとその機械だけ、図面に寸法線を出します。</p>`+(L.some(e=>e.o.k==="ind")?"":`<p style="font-size:13px;background:#fef9c3;border-radius:8px;padding:4px 8px">室内機がまだ置いてありません。<b>図面の室内機の真ん中をタップ</b>すると置いて寸法を出します。</p>`);
  if(!hasG)h+=`<p style="font-size:12.5px;color:#b45309">通り芯（X1・Y1など）が図面から読めなかったので、<b>原点（緑の十字）から</b>の寸法を出しています。</p>`;
  h+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">${SM.sel>=0?wzBtn("smAllB","📋 全部の機械を出す","#7c3aed","#fff","flex:1 1 100%"):""}${wzBtn("smBoltB",SM.bolt?"🔩 吊りボルト ON":"🔩 吊りボルト OFF",SM.bolt?"#ede9fe":"","#5b21b6","flex:1")}${hasG?wzBtn("smNigeB","↔ 逃げ墨","","","flex:1"):""}${wzBtn("smCopyB","📋 コピー","#0891b2","#fff","flex:1")}</div>`;
  if(SM.nige&&hasG)h+=`<div style="background:#f1f5f9;border-radius:10px;padding:6px 8px;margin-bottom:6px;font-size:12.5px;color:#334155">逃げ墨（返り墨）：通り芯から何mmずらして墨を打ったか（例：X1 右1000）。入れると、逃げ墨からの寸法になります。<br>`+
@@ -68,10 +68,10 @@ function smCopy(){const L=smItems(),show=SM.sel>=0?L.filter(e=>e.i===SM.sel):L;i
  const t="機械の位置（通り芯から・墨出し用）\n"+show.map(smTxt).join("\n");try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}}
 /* タップ：いちばん近い機械を選ぶ */
 function smTap(p){const P=PLAN;if(!P||!P.org){toast("先に原点を決めてください");return}
- const L=smItems();if(!L.length){toast("室内機・室外機が置いてありません");planDraw();return}
- let best=null;const hi=bldHit(btWx(p));if(hi>=0)best=L.find(e=>e.i===hi)||null;
+ const L=smItems();let best=null;const hi=bldHit(btWx(p));if(hi>=0)best=L.find(e=>e.i===hi)||null;
  if(!best){let bd=60/PV.z;L.forEach(e=>{const d=Math.hypot(e.c[0]-p[0],e.c[1]-p[1]);if(d<bd){bd=d;best=e}})}
- if(!best){toast("室内機・室外機の上をタップしてください");planDraw();return}
+ if(!best){const n=smPlace(p);if(n<0){toast("ここに室内機の四角が見つかりませんでした。室内機の真ん中をタップするか「❄️ 室内機を追加」で置いてください");planDraw();return}
+  best=smItems().find(e=>e.i===n);if(!best){planDraw();return}}
  if(SM.sel===best.i){SM.sel=-1;W.fold=false}else{SM.sel=best.i;W.fold=true;smFocus(best)}wzRender();planDraw()}
 /* 選んだ機械と通り芯が画面に入るように動かす */
 function smFocus(e){const wr=document.getElementById("plWrap");if(!wr)return;const R=smCalc(e),P=PLAN,vx=R.gx?R.gx.v:P.org[0],vy=R.gy?R.gy.v:P.org[1];
@@ -102,3 +102,22 @@ function smDraw(x,sp){if(!W.on||W.step!=="t:sumi"||!PLAN||!PLAN.org)return;const
     x.fillStyle="rgba(245,243,255,.95)";x.fillRect(Q[0]+ox,Q[1]+oy,w,15);x.fillStyle="#5b21b6";x.textAlign="left";x.textBaseline="middle";x.fillText(t,Q[0]+ox+3,Q[1]+oy+8);x.restore()})}}
 };
  L.forEach(e=>{if(SM.sel>=0&&e.i!==SM.sel)return;one(e,SM.sel>=0||L.length<=6)})}
+/* まだ置いていない室内機：タップした所の四角（閉じた四角、無ければ上下・左右の平行な線の組）を探して、室内機を置く。置いた st.bld の番号を返す（無ければ -1） */
+function smFindBox(p){const P=PLAN,mm=P.mmpp;if(!P.rects){try{planAnalyze()}catch(e){}}
+ const ok=(w,h)=>w>=500&&h>=500&&w<=1900&&h<=1900;let b=null;
+ (P.rects||[]).forEach(r=>{if(p[0]<r.x0||p[0]>r.x1||p[1]<r.y0||p[1]>r.y1)return;const w=(r.x1-r.x0)*mm,h=(r.y1-r.y0)*mm;if(!ok(w,h))return;if(!b||w*h<b.w*b.h)b={cx:(r.x0+r.x1)/2,cy:(r.y0+r.y1)/2,w,h}});
+ if(b)return b;
+ /* 角が欠けた記号（4方向カセットなど）：タップした所を上下・左右からはさむ、同じ色の平行な線 */
+ const H=[],V=[];(P.segs||[]).forEach(s=>{const dx=Math.abs(s[2]-s[0]),dy=Math.abs(s[3]-s[1]);if(dy<0.6&&dx*mm>=200&&Math.min(s[0],s[2])<=p[0]&&Math.max(s[0],s[2])>=p[0])H.push({v:(s[1]+s[3])/2,c:s[4]});else if(dx<0.6&&dy*mm>=200&&Math.min(s[1],s[3])<=p[1]&&Math.max(s[1],s[3])>=p[1])V.push({v:(s[0]+s[2])/2,c:s[4]})});
+ const pair=(A,t)=>{const R=[];A.filter(a=>a.v<t).forEach(a=>A.filter(c=>c.v>t&&c.c===a.c).forEach(c=>{const d=(c.v-a.v)*mm;if(d>=500&&d<=1900&&Math.abs((a.v+c.v)/2-t)*mm<d*0.3)R.push({a:a.v,b:c.v,d,c:a.c})}));return R};
+ const PH=pair(H,p[1]),PV2=pair(V,p[0]);let best=null;
+ PH.forEach(h=>PV2.forEach(v=>{if(h.c!==v.c)return;const sc=Math.abs(h.d-v.d)/Math.max(h.d,v.d)+(smModel(v.d,h.d)?0:0.5)+Math.max(h.d,v.d)/20000;if(!best||sc<best.sc)best={sc,cx:(v.a+v.b)/2,cy:(h.a+h.b)/2,w:v.d,h:h.d}}));
+ return best}
+/* 大きさから機種を探す（いま選んでいる機種が合えば、それを優先） */
+function smModel(w,h){const near=(a,b)=>Math.abs(a-b)/b<0.07,hit=[];
+ Object.keys(CAS2M).forEach(k=>{const m=CAS2M[k];(m.bi?[[m.L,m.W]]:[[m.pa,m.pb],[m.oa,m.ob],[m.L,m.W]]).forEach(([a,b])=>{if(((near(w,a)&&near(h,b))||(near(w,b)&&near(h,a)))&&!hit.includes(k))hit.push(k)})});
+ if(!hit.length)return null;return typeof RP!=="undefined"&&hit.includes(RP.im)?RP.im:hit[0]}
+function smPlace(p){const P=PLAN,b=smFindBox(p);if(!b)return -1;const q=btW([b.cx,b.cy]),k=smModel(b.w,b.h),o=bldNew("ind",{x:q[0],z:q[1]});
+ if(k){const m=CAS2M[k],mx=m.bi?m.L>=m.W:m.pa>=m.pb;o.m=k;o.r=Math.abs(b.w-b.h)<40||mx===(b.w>=b.h)?0:90}else{o.m="";o.w=Math.round(b.w/10)*10;o.d=Math.round(b.h/10)*10}
+ btAdd([normBld([o])[0]]);toast("室内機を置きました"+(k?"（"+CAS2M[k].n+"）":"（"+fmt(o.w)+"×"+fmt(o.d)+"）")+"。機種は3Dで変えられます");
+ const q2=btP(o.x,o.z);let n=-1,bd=1e18;st.bld.forEach((z,i)=>{if(z.k!=="ind")return;const c=btP(z.x,z.z),d=Math.hypot(c[0]-q2[0],c[1]-q2[1]);if(d<bd){bd=d;n=i}});return n}

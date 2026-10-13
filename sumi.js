@@ -24,8 +24,13 @@ function smBolts(o){if(o.k!=="ind"||!o.m||typeof CAS2M==="undefined")return null
  R.forEach(b=>b.n=b.n[1]+b.n[0]);   // 「左上」の言い方に
  return{L:R,ba:m.ba,bb:m.bb}}
 /* 使う通り芯（近い所。SM.g で切り替え） */
-function smGrids(ax){const G=(PLAN.grids||[]).filter(g=>g.ax===ax);const ok=G.filter(g=>g.ok);return ok.length?ok:G}
-function smPick(e,ax){const G=smGrids(ax);if(!G.length)return null;const k=(SM.g[e.i]||{})[ax],v=ax==="X"?e.c[0]:e.c[1];
+function smGrids(ax,e){let G=(PLAN.grids||[]).filter(g=>g.ax===ax);const ok=G.filter(g=>g.ok);if(ok.length)G=ok;
+ /* 1枚に図が2つある時：機械と同じ図の通り芯だけ（線の範囲に機械が入っている＆反対向きの通り芯の線の範囲に入っている） */
+ if(e&&G.length>1){const P=PLAN,c=e.c,o=ax==="X"?c[1]:c[0],w=ax==="X"?c[0]:c[1],tol=1500/P.mmpp,inn=(g,v)=>g.lo==null||(v>=g.lo-tol&&v<=g.hi+tol);
+  const other=(P.grids||[]).filter(g=>g.ax!==ax&&g.ok&&inn(g,w)),ref=other.length?other.reduce((b,g)=>!b||Math.abs(g.v-o)<Math.abs(b.v-o)?g:b,null):null;
+  const G2=G.filter(g=>inn(g,o)&&(!ref||inn(ref,g.v)));if(G2.length)G=G2}
+ const U=[];G.forEach(g=>{if(!U.some(u=>u.n===g.n&&Math.abs(u.v-g.v)<2))U.push(g)});return U}
+function smPick(e,ax){const G=smGrids(ax,e);if(!G.length)return null;const k=(SM.g[e.i]||{})[ax],v=ax==="X"?e.c[0]:e.c[1];
  if(k!=null&&G[k])return G[k];return G.reduce((b,g)=>!b||Math.abs(g.v-v)<Math.abs(b.v-v)?g:b,null)}
 const smNige=n=>{const P=PLAN;P.nige=P.nige||{};return P.nige[n]||{dir:MSUM[n[0]].dir,mm:MSUM[n[0]].mm}};
 /* 1点（図面の座標）の、X・Y通り芯からの寸法 */
@@ -50,7 +55,7 @@ function smHTML(){const P=PLAN;if(!P||!P.org)return`<p style="color:#b91c1c">先
  h+=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">${SM.sel>=0?wzBtn("smAllB","📋 全部の機械を出す","#7c3aed","#fff","flex:1 1 100%"):""}${wzBtn("smBoltB",SM.bolt?"🔩 吊りボルト ON":"🔩 吊りボルト OFF",SM.bolt?"#ede9fe":"","#5b21b6","flex:1")}${hasG?wzBtn("smNigeB","↔ 逃げ墨","","","flex:1"):""}${wzBtn("smCopyB","📋 コピー","#0891b2","#fff","flex:1")}</div>`;
  if(SM.nige&&hasG)h+=`<div style="background:#f1f5f9;border-radius:10px;padding:6px 8px;margin-bottom:6px;font-size:12.5px;color:#334155">逃げ墨（返り墨）：通り芯から何mmずらして墨を打ったか（例：X1 右1000）。入れると、逃げ墨からの寸法になります。<br>`+
   (P.grids||[]).map(g=>{const n=smNige(g.n);return`<span style="display:inline-flex;align-items:center;gap:3px;margin:2px 6px 2px 0">${g.n}<select data-smg="${g.n}" data-k="dir" style="height:30px;border-radius:8px">${g.ax==="X"?`<option value="1"${n.dir>0?" selected":""}>右</option><option value="-1"${n.dir<0?" selected":""}>左</option>`:`<option value="1"${n.dir>0?" selected":""}>下</option><option value="-1"${n.dir<0?" selected":""}>上</option>`}</select><input data-smg="${g.n}" data-k="mm" inputmode="numeric" value="${n.mm?uVal(n.mm):""}" placeholder="0" style="width:58px;height:30px;border-radius:8px;border:1px solid #cbd5e1;padding:0 4px">mm</span>`}).join("")+`</div>`;
- show.forEach(e=>{const R=smCalc(e),GX=smGrids("X"),GY=smGrids("Y");
+ show.forEach(e=>{const R=smCalc(e),GX=smGrids("X",e),GY=smGrids("Y",e);
   const sw=(ax,g)=>{const G=ax==="X"?GX:GY;return G.length>1?` <button onclick="smSwap(${e.i},'${ax}')" style="height:28px;padding:0 8px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800;font-size:12px">▶ 別の通り芯</button>`:""};
   const big=(r,ax)=>{const q=r[ax],f=ax==="x"?smFx:smFy;return q.dn==null?`${q.g}から <b style="font-size:17px">${f(q.d)}</b>`:`<span style="color:#64748b">${q.g}から ${f(q.d)}</span><br><b style="color:#0e7490">逃げ墨（${q.g} ${ax==="x"?(q.n.dir>0?"右":"左"):(q.n.dir>0?"下":"上")}${fmt(q.n.mm)}）から <span style="font-size:17px">${f(q.dn)}</span></b>`};
   h+=`<div style="border-top:1px solid #e2e8f0;padding:6px 0;font-size:13.5px"><b style="color:#dc2626">${e.no}</b> ${smName(e.o)}<br>
@@ -63,7 +68,7 @@ function smHTML(){const P=PLAN;if(!P||!P.org)return`<p style="color:#b91c1c">先
 function smBind(){const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};
  on("smAllB",()=>{SM.sel=-1;wzRender();planDraw()});on("smBoltB",()=>{SM.bolt=!SM.bolt;wzRender();planDraw()});on("smNigeB",()=>{SM.nige=!SM.nige;wzRender()});on("smCopyB",smCopy);
  document.querySelectorAll("[data-smg]").forEach(el=>el.onchange=()=>{const P=PLAN,n=el.dataset.smg,o={...smNige(n)};if(el.dataset.k==="dir")o.dir=+el.value;else o.mm=Math.max(0,uParse(el.value)||0);P.nige[n]=o;wzRender();planDraw()})}
-function smSwap(i,ax){const G=smGrids(ax);if(G.length<2)return;const e=smItems().find(z=>z.i===i);if(!e)return;const cur=smPick(e,ax),k=G.indexOf(cur);SM.g[i]=SM.g[i]||{};SM.g[i][ax]=(k+1)%G.length;wzRender();planDraw()}
+function smSwap(i,ax){const e=smItems().find(z=>z.i===i);if(!e)return;const G=smGrids(ax,e);if(G.length<2)return;const cur=smPick(e,ax),k=G.indexOf(cur);SM.g[i]=SM.g[i]||{};SM.g[i][ax]=(k+1)%G.length;wzRender();planDraw()}
 function smCopy(){const L=smItems(),show=SM.sel>=0?L.filter(e=>e.i===SM.sel):L;if(!show.length){toast("機械が置いてありません");return}
  const t="機械の位置（通り芯から・墨出し用）\n"+show.map(smTxt).join("\n");try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}}
 /* タップ：いちばん近い機械を選ぶ */

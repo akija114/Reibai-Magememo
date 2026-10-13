@@ -658,7 +658,8 @@ function planDraw(){
  const sp=p=>[p[0]*PV.z+PV.ox,p[1]*PV.z+PV.oy];
  if(P.grids){x.font="bold 12px sans-serif";x.textAlign="center";
   P.grids.forEach(g=>{x.strokeStyle="rgba(147,51,234,.55)";x.lineWidth=1.5;x.setLineDash([8,5]);x.beginPath();
-   if(g.ax==="X"){const a=sp([g.v,0]),b=sp([g.v,P.H0]);x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1])}else{const a=sp([0,g.v]),b=sp([P.W,g.v]);x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1])}x.stroke();x.setLineDash([])})}
+   const lo=g.lo!=null?g.lo:0,hi=g.hi!=null?g.hi:(g.ax==="X"?P.H0:P.W);   // 図が2つある時は、その図の線の範囲だけ
+   if(g.ax==="X"){const a=sp([g.v,lo]),b=sp([g.v,hi]);x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1])}else{const a=sp([lo,g.v]),b=sp([hi,g.v]);x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1])}x.stroke();x.setLineDash([])})}
  if(P.cols)P.cols.forEach(c=>{const q=sp([c.cx,c.cy]);x.strokeStyle="#64748b";x.lineWidth=1.5;x.beginPath();x.moveTo(q[0]-6,q[1]);x.lineTo(q[0]+6,q[1]);x.moveTo(q[0],q[1]-6);x.lineTo(q[0],q[1]+6);x.stroke()});
  if(P.units&&!W.on)P.units.forEach((u,i)=>{const q=sp([u.cx,u.cy]);x.strokeStyle="#dc2626";x.lineWidth=2;x.beginPath();x.arc(q[0],q[1],9,0,7);x.moveTo(q[0]-14,q[1]);x.lineTo(q[0]+14,q[1]);x.moveTo(q[0],q[1]-14);x.lineTo(q[0],q[1]+14);x.stroke();
   x.fillStyle="#dc2626";x.font="bold 12px sans-serif";x.textAlign="left";x.fillText(String(i+1),q[0]+10,q[1]-10)});
@@ -1077,14 +1078,26 @@ function planAnalyze(){
  const P=PLAN,T2=P.texts.map(t=>({s:(t.s||"").replace(/[\s　]/g,"").replace(/[Ｘｘ]/g,"X").replace(/[Ｙｙ]/g,"Y").replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)),cx:t.x+(t.w||0)/2,cy:t.y-(t.h||0)/2,h:t.h||10}));
  /* 通り芯：X1・Y5などの記号の真ん中を通る、長い縦線・横線 */
  const lab={};T2.forEach(t=>{const m=t.s.match(/^([XY])(\d{1,2})$/);if(m){const k=m[1]+m[2];(lab[k]=lab[k]||[]).push(t)}});
- Object.keys(lab).forEach(k=>{if(lab[k].length>6)delete lab[k]});   // 壁の記号（X2-A など）が何十個も出る図面は、通り芯とみなさない
+ Object.keys(lab).forEach(k=>{if(lab[k].length>12)delete lab[k]});   // 壁の記号（X2-A など）が何十個も出る図面は、通り芯とみなさない
  const grids=[];
- Object.keys(lab).forEach(k=>{const ax=k[0],ts=lab[k],c=ts.reduce((a,t)=>a+(ax==="X"?t.cx:t.cy),0)/ts.length,tol=Math.max(8,ts[0].h*1.2),acc={};
-  P.segs.forEach(s2=>{const vert=Math.abs(s2[0]-s2[2])<0.8,hor=Math.abs(s2[1]-s2[3])<0.8;
-   if(ax==="X"&&vert&&Math.abs(s2[0]-c)<tol){const k2=Math.round(s2[0]*4)/4;acc[k2]=(acc[k2]||0)+Math.abs(s2[3]-s2[1])}
-   if(ax==="Y"&&hor&&Math.abs(s2[1]-c)<tol){const k2=Math.round(s2[1]*4)/4;acc[k2]=(acc[k2]||0)+Math.abs(s2[2]-s2[0])}});
-  const best=Object.keys(acc).sort((a,b)=>acc[b]-acc[a])[0],v=best!=null&&acc[best]>(ax==="X"?P.H0:P.W)*0.15?+best:c;
-  grids.push({ax,n:k,v,ok:best!=null})});
+ /* 1枚に図が2つ以上（平面図と天井伏図など）並んでいると、同じ X1 が何か所も出る。記号の場所ごとに分けて、それぞれの線を探す */
+ const gapT=P.mmpp?1500/P.mmpp:60;
+ Object.keys(lab).forEach(k=>{const ax=k[0],pos=t=>ax==="X"?t.cx:t.cy,oth=t=>ax==="X"?t.cy:t.cx,grp=[];
+  /* 記号ごとに、記号の真ん中を通る線（縦 or 横）を探す */
+  lab[k].forEach(t=>{const c=pos(t),tol=Math.max(8,t.h*1.2),acc={},seg={};
+   P.segs.forEach(s2=>{const vert=Math.abs(s2[0]-s2[2])<0.8,hor=Math.abs(s2[1]-s2[3])<0.8;let k2=null,lo,hi;
+    if(ax==="X"&&vert&&Math.abs(s2[0]-c)<tol){k2=Math.round(s2[0]*4)/4;lo=Math.min(s2[1],s2[3]);hi=Math.max(s2[1],s2[3])}
+    if(ax==="Y"&&hor&&Math.abs(s2[1]-c)<tol){k2=Math.round(s2[1]*4)/4;lo=Math.min(s2[0],s2[2]);hi=Math.max(s2[0],s2[2])}
+    if(k2!=null){acc[k2]=(acc[k2]||0)+hi-lo;(seg[k2]=seg[k2]||[]).push([lo,hi])}});
+   const best=Object.keys(acc).sort((a,b)=>acc[b]-acc[a])[0],okL=best!=null&&acc[best]>(ax==="X"?P.H0:P.W)*0.15,v=okL?+best:c;
+   /* 線のひと続きの範囲（点線のすき間はつなぐ。となりの図の線とは分ける）のうち、記号にいちばん近いもの */
+   let ext=null;if(best!=null){const S=seg[best].sort((a,b)=>a[0]-b[0]),R=[];S.forEach(q=>{const r=R[R.length-1];if(r&&q[0]-r[1]<gapT)r[1]=Math.max(r[1],q[1]);else R.push(q.slice())});
+    const o=oth(t),dist=r=>o<r[0]?r[0]-o:o>r[1]?o-r[1]:0;ext=R.sort((a,b)=>dist(a)-dist(b))[0]}
+   /* 同じ線・同じ範囲の記号（線の両端に記号がある図）は1本にまとめる */
+   const same=grp.find(g=>Math.abs(g.v-v)<2&&(!ext||g.lo==null||(ext[0]<=g.hi&&ext[1]>=g.lo)));
+   if(same){if(ext&&same.lo!=null){same.lo=Math.min(same.lo,ext[0]);same.hi=Math.max(same.hi,ext[1])}}
+   else grp.push({ax,n:k,v,ok:best!=null,lo:ext?ext[0]:null,hi:ext?ext[1]:null})});
+  grp.forEach(g=>grids.push(g))});
  grids.sort((a,b)=>a.ax===b.ax?a.v-b.v:a.ax<b.ax?-1:1);P.grids=grids;
  /* 縮尺の自動合わせ：となりの通り芯の間に書いてある寸法（14650など）から */
  const rs=[];["X","Y"].forEach(ax=>{const G=grids.filter(g=>g.ax===ax);for(let i=0;i<G.length-1;i++){const a=G[i].v,b=G[i+1].v,mid=(a+b)/2,d=b-a;if(d<20)continue;

@@ -1881,7 +1881,7 @@ function kindSeg(box,after){
  box.appendChild(sg);
 }
 function renderTable(){
- const box=$("#tblBody");box.innerHTML="";
+ const box=$("#tblBody");box.innerHTML="";try{if(typeof mtBtn==="function")mtBtn()}catch(e){}
  kindSeg(box,renderTable);
  const t=document.createElement("table");t.className="tbl";
  t.innerHTML="<tr><th>配管</th><th style='text-align:right'>長さ</th><th>💧 液管</th><th>💨 ガス管</th></tr>";

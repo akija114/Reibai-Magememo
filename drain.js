@@ -116,7 +116,9 @@ function drCalc(){const D=DRN(),M=DR_MAT[D.mat],R={hz:0,vt:0,up:0,drop:0,fit:new
  if(R.tr&&!drHose()){add("フレキシブルドレンホース（本体接続・ジャバラ）",1);add("鳥居の頂点の吊り金具セット（吊りボルト＋ハンガー＋断熱保護カバー）",1)}
  if(D.co)add(M.f.co,1);
  R.drop=R.hz/D.slope;R.szEnd=sz;R.tot=R.hz+R.vt;return R}
-const drBand=(D,sz)=>D.mat==="AC"?`AC${sz}用（保温付き・外径約${DR_MAT.AC.od[sz]}mm）吊りバンド`:`VP${sz}用 吊りバンド`;
+/* ACドレンは保温のぶん外径が太いので、吊りバンドは1ランク上の呼び径（AC40 → 50A用） */
+const drBandUp=sz=>{const B=[20,25,30,40,50,65,75,100];return B[Math.min(B.length-1,B.indexOf(sz)+1)]||sz};
+const drBand=(D,sz)=>D.mat==="AC"?`吊りバンド ${drBandUp(sz)}A用（AC${sz}・保温付き外径約${DR_MAT.AC.od[sz]}mm → 1ランク上）`:`VP${sz}用 吊りバンド`;
 
 /* 3D：冷媒と同じ空間に描く（core.js の build3D から呼ばれる） */
 function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.show||!D.rows.length||!T)return;

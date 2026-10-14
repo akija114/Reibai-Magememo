@@ -2127,13 +2127,17 @@ const bldCH=()=>T&&T.CHh?T.CHh:st.gnd.ch;
 /* 天井高の範囲（📐）の中なら、その範囲（いちばん小さいもの） */
 function ceilAt(x,z){let b=null;(st.bld||[]).forEach(o=>{if(o.k!=="ceil")return;const th=o.r*Math.PI/180,dx=x-o.x,dz=z-o.z,lx=dx*Math.cos(th)+dz*Math.sin(th),lz=-dx*Math.sin(th)+dz*Math.cos(th);
  if(Math.abs(lx)<=o.w/2&&Math.abs(lz)<=o.d/2&&(!b||o.w*o.d<b.w*b.d))b=o});return b}
+/* 「天井まで」の壁（軽量のボード・スタッドも）の高さ：天井高の範囲（WCなど）の中にある壁は、その範囲の天井高で止める。範囲のまわりの壁（範囲の外）はメインの天井高 */
+function bldFullH(o,CH){if(o.k!=="wall")return CH;const z=ceilAt(o.x,o.z);if(z)return z.h;
+ /* 片面ボードの軽量壁（壁のふかし・柱の巻き）：ボードの面が範囲の中を向いていれば、その範囲の天井高 */
+ if(o.m!=="lgs"||(!o.bl&&!o.br)||(o.bl&&o.br))return CH;const t=o.r*Math.PI/180,sg=o.bl?1:-1,e=o.d/2+60,f=ceilAt(o.x+sg*Math.sin(t)*e,o.z-sg*Math.cos(t)*e);return f?f.h:CH}
 function bldNew(k,p){const CH=bldCH();
  const o=k==="col"?{w:600,d:600,h:CH,y:0,full:true}:k==="wall"?{w:3000,d:150,h:CH,y:0,full:true}:k==="beam"?{w:4000,d:400,h:700,y:CH+300,full:false}:k==="ind"?{w:840,d:840,h:300,y:0,full:false,m:CAS2M[RP.im]?RP.im:"56"}:k==="hole"?{w:65,d:150,h:65,y:2200,full:false}:k==="door"?{w:800,d:150,h:2000,y:0,full:false,m:"slide"}:{w:500,d:500,h:300,y:CH+100,full:false};
  return normBld([{k,x:p?p.x:0,z:p?p.z:0,r:0,...o}])[0]}
 /* 3Dに描く（build3Dから呼ぶ。GY＝床の高さ） */
 function addBld3D(GY,CH,ext){
  T.bldM=[];if(!st.bld||!st.bld.length||st.bldHide)return;
- st.bld.forEach((o,i)=>{const K=BLDK[o.k],h=o.full?CH:o.h,y0=GY+(o.full?0:o.y);
+ st.bld.forEach((o,i)=>{const K=BLDK[o.k],h=o.full?bldFullH(o,CH):o.h,y0=GY+(o.full?0:o.y);
   if(o.k==="ind"){const zc=ceilAt(o.x,o.z),CYd=GY+(zc?zc.h:CH),ib=indMesh(o,CYd);T.grp.add(ib.g);ib.g.userData.bld=i+1;
    T.bldM.push({i,k:"ind",c:new THREE.Vector3(ib.cx,ib.y0+ib.h/2,ib.cz),hw:ib.hw,hd:ib.hd,hh:ib.h/2,r:o.r,y0:ib.y0,h:ib.h,port:ib.port});
    const nm=o.m?(CAS2M[o.m]?CAS2M[o.m].n:"室内機"):fmt(o.w)+"×"+fmt(o.d);

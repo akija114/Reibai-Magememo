@@ -58,6 +58,19 @@ function kzFixMainCH(){const P=PLAN;if(!P)return false;const Z=(st.bld||[]).filt
 function kzCeilTap(p){const P=PLAN;if(!P.segs||P.segs.length<50){toast("線のデータがある図面で使えます。「2点で範囲」で置いてください");return}
  const r=kzRoomAt(p);if(!r){toast("まわりの壁が見つかりませんでした。「2点で範囲」に切り替えて、対角を2点タップしてください");planDraw();return}
  const c=kzCHIn(r);kzCeilPut(r,c.ch,c.nm)}
+/* 📐 天井高の範囲を自動で：図面の「CH=2400」など、メインの天井高と違う文字がある部屋に範囲を置く（作り直す時は自動で置いた物だけ消す）。
+   範囲の中に違う天井高の文字がもう1つある時は、部屋がうまく取れていないので置かない */
+function kzCeilAuto(){const P=PLAN;if(!P||!P.mmpp||!P.org||!P.segs||P.segs.length<50)return 0;const mm=P.mmpp,main=P.CH||bldCH(),bx=kzPlanBox();
+ st.bld=st.bld.filter(o=>!(o.k==="ceil"&&o.auto==="ch"));
+ const T2=(P.texts||[]).map(t=>{const s=String(t.s||"").replace(/[\s　]/g,"").replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/[＝]/g,"=");const m=s.match(/C\.?H=?([1-6]\d{3})/i);return m?{v:+m[1],p:[t.x+(t.w||0)/2,t.y-(t.h||0)/2]}:null}).filter(Boolean);
+ const inR=(p,r)=>p[0]>=r.x0&&p[0]<=r.x1&&p[1]>=r.y0&&p[1]<=r.y1,add=[];
+ T2.forEach(t=>{if(Math.abs(t.v-main)<20)return;if(bx&&(t.p[0]<bx.x0||t.p[0]>bx.x1||t.p[1]<bx.y0||t.p[1]>bx.y1))return;
+  const r=kzRoomAt(t.p);if(!r)return;if((r.x1-r.x0)*mm<500||(r.y1-r.y0)*mm<500)return;
+  if(T2.some(q=>q!==t&&Math.abs(q.v-t.v)>=20&&inR(q.p,r)))return;
+  const c=btWx([(r.x0+r.x1)/2,(r.y0+r.y1)/2]);if(st.bld.concat(add).some(o=>{if(o.k!=="ceil")return false;const th=o.r*Math.PI/180,dx=c[0]-o.x,dz=c[1]-o.z;return Math.abs(dx*Math.cos(th)+dz*Math.sin(th))<=o.w/2&&Math.abs(-dx*Math.sin(th)+dz*Math.cos(th))<=o.d/2}))return;
+  const A=btWx([r.x0,r.y0]),B=btWx([r.x1,r.y0]),rr=normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI));
+  add.push({k:"ceil",auto:"ch",x:Math.round(c[0]),z:Math.round(c[1]),w:Math.round((r.x1-r.x0)*mm),d:Math.round((r.y1-r.y0)*mm),h:t.v,y:0,r:rr,full:false,n:kzCHIn(r).nm||""})});
+ if(add.length)btAdd(normBld(add));return add.length}
 /* 置いた範囲の天井高を直す */
 function kzSetCH(v){const o=st.bld[KZ.last];if(!o||o.k!=="ceil")return;o.h=Math.max(1000,Math.min(9000,Math.round(v)||o.h));bldChanged();planDraw()}
 
@@ -285,8 +298,8 @@ function kzLgs(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("先�
    if(o.m==="lgs"||v<0.5*o.w)skip=true;else rp.push(o)});
   if(skip)return false;
   if(out.some(o=>{const v=ov(o);return v!==null&&v>0.5*Math.min(o.w,Lw)}))return false;rp.forEach(o=>rpl.add(o));
-  const zc=typeof ceilAt==="function"?ceilAt(c[0],c[1]):null;
-  out.push({k:"wall",m:"lgs",auto:"lgs",x:Math.round(c[0]),z:Math.round(c[1]),w:Math.round(Lw),d:Math.round(Dw),r,y:0,full:!zc,h:zc?zc.h:600,st:Math.round(gap/5)*5,bl,br});return true};
+  /* 高さは「天井まで」。天井高の範囲（WCなど）の中なら、3Dでその範囲の天井高で止まる */
+  out.push({k:"wall",m:"lgs",auto:"lgs",x:Math.round(c[0]),z:Math.round(c[1]),w:Math.round(Lw),d:Math.round(Dw),r,y:0,full:true,h:2400,st:Math.round(gap/5)*5,bl:hz?bl:br,br:hz?br:bl});return true};   /* 3Dの左（bl）は、壁の向きの右回り90°側。縦の壁は図面の右側になるので入れ替える */
  /* lo〜hi のうち、同じ向き・同じ厚みの帯に置いた軽量壁（out）がまだ無い所 */
  const free=(hz,e0,e1,lo,hi)=>{const cv=[],m=(e0+e1)/2,hd=(e1-e0)/2;out.forEach(o=>{if((o.r%180===0)!==!!hz)return;const p=btP(o.x,o.z),al=hz?p[0]:p[1],pp=hz?p[1]:p[0];
    if(Math.abs(pp-m)>=o.d/2/mm+hd-15/mm)return;cv.push([al-o.w/2/mm-20/mm,al+o.w/2/mm+20/mm])});
@@ -299,9 +312,11 @@ function kzLgs(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("先�
   const Ls=A.filter(l=>!dash.has(l)&&(l.hi-l.lo)*mm>=250&&!onCol(l)).sort((a,b)=>a.c-b.c),used=new Set(),inB=new Set(),B=[],EX=[];
   /* 束：近くに並ぶ平行な線（重なり60%以上）＝ボードの面（2本で1枚、3本で2枚貼り） */
   Ls.forEach((l,i)=>{if(used.has(i))return;const g=[l],gi=[i];used.add(i);for(let j=i+1;j<Ls.length;j++){const q=Ls[j];if((q.c-g[g.length-1].c)*mm>16)break;const ov=Math.min(q.hi,l.hi)-Math.max(q.lo,l.lo);if(ov>=0.6*Math.min(q.hi-q.lo,l.hi-l.lo)){g.push(q);gi.push(j);used.add(j)}}
-   if(g.length>=2){gi.forEach(k=>inB.add(k));const lo=Math.max(...g.map(x=>x.lo)),hi=Math.min(...g.map(x=>x.hi));B.push({c0:g[0].c,c1:g[g.length-1].c,n:g.length,lo,hi});
+   /* 同じ線の上で途中で切れている線（つなぎ目）は、1本の線にまとめる */
+   const u=[];g.slice().sort((a,b)=>a.c-b.c||a.lo-b.lo).forEach(x=>{const q=u.find(y=>Math.abs(y.c-x.c)*mm<1&&x.lo<=y.hi+30/mm&&x.hi>=y.lo-30/mm);if(q){q.lo=Math.min(q.lo,x.lo);q.hi=Math.max(q.hi,x.hi)}else u.push({c:x.c,lo:x.lo,hi:x.hi})});
+   if(u.length>=2){gi.forEach(k=>inB.add(k));const lo=Math.max(...u.map(x=>x.lo)),hi=Math.min(...u.map(x=>x.hi));B.push({c0:u[0].c,c1:u[u.length-1].c,n:u.length,lo,hi});
     /* 束の線のうち、束より先まで伸びている所（となりのボードが終わって、スタッドの面の線だけが続く所）は1本の線として使う */
-    g.forEach(x=>{if((lo-x.lo)*mm>=200)EX.push({c:x.c,lo:x.lo,hi:lo});if((x.hi-hi)*mm>=200)EX.push({c:x.c,lo:hi,hi:x.hi})})}});
+    u.forEach(x=>{if((lo-x.lo)*mm>=200)EX.push({c:x.c,lo:x.lo,hi:lo});if((x.hi-hi)*mm>=200)EX.push({c:x.c,lo:hi,hi:x.hi})})}});
   B.sort((a,b)=>a.c0-b.c0);const usedB=new Map();
   /* ① 両面ボード：ボードの束と束の間（スタッド40〜160mm） */
   for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){const a=B[i],b=B[j],gap=(b.c0-a.c1)*mm;if(gap<40)continue;if(gap>160)break;

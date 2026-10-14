@@ -1739,7 +1739,7 @@ ${APP==="zumen"?`  <div class="pt pt2" style="margin-top:10px;font-size:13px">�
   <button class="pm" data-a="b_ind">❄️ 室内機（複数置けます）</button>
   <button class="pm" data-a="scan">${typeof SCAN!=="undefined"&&SCAN&&SCAN.obj?"📡 部屋のスキャン（位置合わせ・表示）":"📡 部屋のスキャンを読み込む"}</button>${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}
   <button class="pm" data-a="route">🧭 ルートおまかせ（始点と終点から）</button>
-  <button class="pm" data-a="plan"><img alt="" src="${NICO.plan}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">図面を読み込む・なぞる</button>${typeof PLAN!=="undefined"&&PLAN&&PLAN.map?`<button class="pm${PLAN.show?" red":""}" data-a="plan3d">${PLAN.show?"🙈 図面と壁を3Dで隠す":"👁 図面と壁を3Dで表示"}</button>`:""}
+  <button class="pm" data-a="plan"><img alt="" src="${NICO.plan}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">図面を読み込む・なぞる</button>${typeof PLAN!=="undefined"&&PLAN&&PLAN.map?`<button class="pm${PLAN.show?" red":""}" data-a="plan3d">${PLAN.show?"🙈 図面と壁を3Dで隠す":"👁 図面と壁を3Dで表示"}</button>${PLAN.show?`<button class="pm" data-a="planop">🌫 図面の濃さ：${Math.round((PLAN.planOp!=null?PLAN.planOp:.4)*100)}%（変える）</button>`:""}`:""}
 `:`${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}`}  <button class="pm" data-a="ben"><img alt="" src="${icoSrc("bender")}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">ベンダー：${BENDERS[BENDER].n}</button>
   <button class="pm${LABC.neko!==false?" red":""}" data-a="neko">${LABC.neko!==false?"🙈 ネコの高さを隠す":NI("neko")+"ネコ（吊り金具）の高さを表示"}</button>`+ALLROW,cx,cy,a=>{
   if(a==="tbl"){openTable();return}
@@ -1755,6 +1755,7 @@ ${APP==="zumen"?`  <div class="pt pt2" style="margin-top:10px;font-size:13px">�
   else if(a==="scan")openScan();
   else if(a==="bhide"){st.bldHide=!st.bldHide;save();unitRefresh()}
   else if(a==="plan3d"){PLAN.show=!PLAN.show;unitRefresh()}
+  else if(a==="planop"){const L=[.2,.4,.6,.8];const cur=PLAN.planOp!=null?PLAN.planOp:.4;PLAN.planOp=L[(L.findIndex(v=>Math.abs(v-cur)<.05)+1)%L.length];try{save()}catch(e){}if(T){build3D();T.dirty=true}unitRefresh()}
   else if(a==="neko"){LABC.neko=LABC.neko===false;applyLabels();toast(LABC.neko?"ネコの高さを表示しました":"ネコの高さを隠しました")}
   else setAllHid(a==="none");
  });

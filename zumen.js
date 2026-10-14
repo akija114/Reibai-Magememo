@@ -196,7 +196,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${wzBtn("wzAll","❄️ "+g.length+"台ぜんぶ置く","#2563eb","#fff","flex:1 1 100%")}${g.length>1?wzBtn("wzOnly","この1台だけ","","","flex:1"):""}${wzBtn("wzRepick","違う・選び直す","","","flex:1")}</div>`}
    else h=`<p><b>室内機の真ん中をタップ</b>すると1台置きます。</p>${mdlSel()}${W.im?"":wzInp("ih","箱の高さ")}<button id="wzPickMode" style="background:none;border:0;color:#2563eb;font-weight:800;font-size:13px;padding:4px 0">← 図面の四角から選ぶ方法に戻る</button>`+done}
   else if(k==="wall"){const seg=[["room","🏠 部屋をぐるっと"],["wall","🧱 1本ずつ"],["rng","📥 図面の壁を取り込む"]];
-   h=`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${seg.map(([t,l])=>`<button data-wt="${t}" style="height:40px;padding:0 9px;border-radius:10px;font-weight:800;font-size:13px;border:1.5px solid #cbd5e1;background:${BT.tool===t?"#fbbf24":"#fff"}">${l}</button>`).join("")}</div>`+
+   h=wzBtn("kzLgsAuto","🧱 軽量鉄骨＋ボードの壁を図面から置く","#475569","#fff","width:100%;margin-bottom:6px")+`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${seg.map(([t,l])=>`<button data-wt="${t}" style="height:40px;padding:0 9px;border-radius:10px;font-weight:800;font-size:13px;border:1.5px solid #cbd5e1;background:${BT.tool===t?"#fbbf24":"#fff"}">${l}</button>`).join("")}</div>`+
     `<p>${BT.tool==="room"?"部屋の<b>内側の角</b>を順番にタップ。全部置いたら下の「壁を作る」。":BT.tool==="wall"?"壁の面の<b>端と端</b>を2点タップ。":"範囲の<b>対角を2点</b>タップ。その中の図面の壁（青い帯）をまとめて壁にします。"}</p>`+
     wzInp("t","厚み")+wzInp("wh","高さ（0＝天井まで）")+
     (BT.tool==="wall"?`<div>${wzBtn("wzSide","厚みを付ける側："+(BT.side>0?"右":"左")+"（押して切替）")}</div>`:"")+
@@ -1617,8 +1617,9 @@ function planAutoAll(){const P=PLAN;
     const m=(cut[j]+cut[j+1])/2,p=hz?[m,c]:[c,m];nw+=planWallLearn(p,rg,true)||0}}}
  const r=planReadAll();
  let nd=0,nwn=0,nh=0;try{if(r&&typeof kzPlaceH==="function"){const n0=st.bld.filter(o=>o.k==="col").length,tst=window.toast;window.toast=()=>{};try{kzPlaceH()}finally{window.toast=tst}nh=st.bld.filter(o=>o.k==="col").length-n0}}catch(e){console.warn("hcol",e)}
+ let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.warn("lgs",e)}
  try{if(r&&typeof kzDoors==="function")nd=kzDoors(true)}catch(e){console.warn("doors",e)}try{if(r&&typeof kzWindows==="function")nwn=kzWindows(true)}catch(e){console.warn("win",e)}
- if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+"。違う所は図面画面で直せます"),400)}
+ if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+"。違う所は図面画面で直せます"),400)}
  return r}
 
 /* 読み込み終わったら、建物・図面・スキャンを3Dに出し直す */

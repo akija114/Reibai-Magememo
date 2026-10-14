@@ -2121,7 +2121,7 @@ function runAR(onlyUnit){
 /* ===== 建物（壁・柱・梁・障害物）：3Dに箱で置く。位置は起点（配管の始まり）からのmm、高さは床から ===== */
 const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"},door:{n:"扉",c:0xb45309,i:"🚪"},ceil:{n:"天井高の範囲",c:0x0ea5e9,i:"📐"},rack:{n:"電気ラック",c:0x94a3b8,i:"⚡"},win:{n:"窓",c:0x38bdf8,i:"🪟"}};
 function normBld(a){const n=v=>Math.round(+v||0);return(Array.isArray(a)?a:[]).slice(0,1500).filter(o=>o&&typeof o==="object").map(o=>{const k=BLDK[o.k]?o.k:"box";
- return{...(k==="ceil"&&o.n?{n:String(o.n).slice(0,20)}:{}),k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):k==="door"?(o.m==="swing"?"swing":"slide"):k==="col"?(o.m==="h"?"h":""):""}})}
+ return{...(k==="ceil"&&o.n?{n:String(o.n).slice(0,20)}:{}),...(o.auto?{auto:String(o.auto).slice(0,8)}:{}),...(k==="wall"&&o.m==="lgs"?{st:Math.max(30,Math.min(200,n(o.st)||65)),bl:Math.max(0,Math.min(4,n(o.bl)||0)),br:Math.max(0,Math.min(4,n(o.br)||0))}:{}),k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):k==="door"?(o.m==="swing"?"swing":"slide"):k==="col"?(o.m==="h"?"h":""):k==="wall"?(o.m==="lgs"?"lgs":""):""}})}
 st.bld=normBld(st.bld);
 const bldCH=()=>T&&T.CHh?T.CHh:st.gnd.ch;
 /* 天井高の範囲（📐）の中なら、その範囲（いちばん小さいもの） */
@@ -2171,6 +2171,16 @@ function addBld3D(GY,CH,ext){
    g.position.set(o.x,GY+o.y,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
    T.bldM.push({i,k:"rack",c:new THREE.Vector3(o.x,GY+o.y+Hr/2,o.z),hw:Lr/2,hd:Wr/2,hh:Hr/2,r:o.r,y0:GY+o.y,h:Hr});
    const s6=label("⚡ 電気ラック 幅"+fmt(Wr)+" 下端FL+"+fmt(o.y),ext*0.028,"#f1f5f9f2","#334155","bld");s6.position.set(o.x,GY+o.y+Hr+60,o.z);s6.userData.cat="bld";pxl(s6,15);T.grp.add(s6);return}
+  if(o.k==="wall"&&o.m==="lgs"){const g=new THREE.Group(),Lw=o.w,Dw=o.d,Hs=h,stD=Math.min(o.st||65,Dw-10),bt=12.5,nl=o.bl||0,nr=o.br||0,steel=new THREE.MeshStandardMaterial({color:0xb8c2cc,roughness:.35,metalness:.6}),
+    bd=new THREE.MeshStandardMaterial({color:0xf3eee4,roughness:.9,transparent:true,opacity:.55,depthWrite:false}),b3=(a,b2,c,x,y,z,m)=>{const q=new THREE.Mesh(new THREE.BoxGeometry(a,b2,c),m);q.position.set(x,y,z);g.add(q);return q};
+   /* 軽量鉄骨の下地：上下のランナー＋スタッド（@455）。ボードは両側に枚数ぶん（半透明で下地が見える） */
+   const z0=-Dw/2+nl*bt+stD/2*0+(Dw-(nl+nr)*bt-stD)/2;b3(Lw,30,stD,0,15,z0+stD/2,steel);b3(Lw,30,stD,0,Hs-15,z0+stD/2,steel);
+   for(let x=-Lw/2+25;x<=Lw/2-25;x+=455){b3(45,Hs-60,stD,x,Hs/2,z0+stD/2,steel)}b3(45,Hs-60,stD,Lw/2-25,Hs/2,z0+stD/2,steel);
+   for(let k=0;k<nl;k++)b3(Lw,Hs,bt,0,Hs/2,-Dw/2+bt/2+k*bt,bd);for(let k=0;k<nr;k++)b3(Lw,Hs,bt,0,Hs/2,Dw/2-bt/2-k*bt,bd);
+   try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(Lw,Hs,Dw)),new THREE.LineBasicMaterial({color:0x64748b}));e.position.set(0,Hs/2,0);g.add(e)}catch(err){}
+   g.position.set(o.x,y0,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
+   T.bldM.push({i,k:"wall",c:new THREE.Vector3(o.x,y0+Hs/2,o.z),hw:Lw/2,hd:Dw/2,hh:Hs/2,r:o.r,y0,h:Hs});
+   const s9=label("🧱 軽量鉄骨"+fmt(stD)+"＋ボード"+(nl||nr?nl+"枚/"+nr+"枚":"")+"（厚"+fmt(Dw)+"）",ext*0.026,"#f1f5f9f2","#334155","bld");s9.position.set(o.x,y0+Math.min(Hs,2400)+40,o.z);s9.userData.cat="bld";pxl(s9,15);T.grp.add(s9);return}
   if(o.k==="col"&&o.m==="h"){const g=new THREE.Group(),Bf=o.w,Dh=o.d,tf=Math.max(12,Math.round(Dh*0.05)),tw=Math.max(9,Math.round(Bf*0.04)),ms=new THREE.MeshStandardMaterial({color:0x6b7280,roughness:.6,metalness:.3});   // H鋼：フランジ（幅w）2枚＋ウェブ
    const b3=(a,b2,c,z)=>{const q=new THREE.Mesh(new THREE.BoxGeometry(a,h,c),ms);q.position.set(0,h/2,z);g.add(q);try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(q.geometry),new THREE.LineBasicMaterial({color:0x374151}));e.position.copy(q.position);g.add(e)}catch(err){}};
    b3(Bf,h,tf,Dh/2-tf/2);b3(Bf,h,tf,-Dh/2+tf/2);b3(tw,h,Dh-2*tf,0);

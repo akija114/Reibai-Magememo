@@ -97,13 +97,14 @@ function kzHTML(k,done){const P=PLAN;
    `<p>現場で<b>実際に通したドレンのルート</b>を、ドレン口の近くから順番にタップ（曲がり角ごと）。縦・横はまっすぐに揃えます。</p>${wzInp("dtop","横引きの高さ FL+")}${wzInp("dend","終わりの高さ FL+（0＝下げない）")}
    <div style="font-size:13px;margin:4px 0">置いた点：<b>${BT.pts.length}</b>（「◀ 戻る」で1つ消す）</div>${BT.pts.length?wzBtn("kzDrOk","💧 このルートでドレンを作る","#0284c7","#fff","width:100%"):""}
    <p style="font-size:12.5px;color:#64748b;margin-top:6px">勾配は今の設定（1/${DRN().slope||100}）で下げます。終わりに高さを入れると、そこまで縦に下げます（ウォーターベストなど）。</p>`}
+ if(k==="lgs")return"";
  if(k==="col")return`<div style="display:flex;gap:4px;margin-bottom:6px">${[["","⬛ 角柱"],["h","🏗 H鋼"]].map(([t,l])=>`<button data-kzc="${t}" style="flex:1;height:40px;border-radius:10px;font-weight:800;font-size:14px;border:1.5px solid #cbd5e1;background:${(BT.ct||"")===t?"#fbbf24":"#fff"}">${l}</button>`).join("")}</div>
   ${wzBtn("kzHAuto","🏗 図面のH鋼の柱（C2 など）をまとめて置く","#475569","#fff","width:100%;margin-bottom:6px")}<p>柱の<b>角と角（対角）</b>を2点タップ${BT.ct==="h"?"（H鋼：横の長さ＝フランジ幅、縦＝せい。3Dで向きを回せます）":""}。</p>`+done;
  return""}
 function kzBind(){const q=s=>document.querySelectorAll(s);
  q("[data-kzt]").forEach(b=>b.onclick=()=>{BT.tool=b.dataset.kzt;BT.pts=[];wzRender();planDraw()});
  q("[data-kzc]").forEach(b=>b.onclick=()=>{BT.ct=b.dataset.kzc;wzRender()});
- const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};on("kzHAuto",kzPlaceH);on("kzDoorAuto",()=>kzDoors());on("kzWinAuto",()=>kzWindows());on("kzDrOk",kzDrMake);
+ const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};on("kzHAuto",kzPlaceH);on("kzDoorAuto",()=>kzDoors());on("kzWinAuto",()=>kzWindows());on("kzLgsAuto",()=>kzLgs());on("kzDrOk",kzDrMake);
  const ch=document.getElementById("kzCH");if(ch)ch.onchange=()=>kzSetCH(uParse(ch.value))}
 /* タップ（planBldPlace から）。処理したら true */
 function kzPlace(tool,p){
@@ -155,8 +156,8 @@ function kzDoors(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("�
  D.forEach(d=>{/* 閉じた位置が分からない時は、壁に近い方の端 */
   /* 壁の線の上にある向き（吊り元→端 が壁と平行で、吊り元が壁の芯の近く）を「閉じた位置」にする */
   const lineWall=(E)=>{const Hw=btWx(d.H),Ew=btWx(E),a=Math.atan2(Ew[1]-Hw[1],Ew[0]-Hw[0])*180/Math.PI;let best=null,bd=1e9;
-   walls.forEach(o=>{let da=Math.abs(((a-o.r)%180+180)%180);da=Math.min(da,180-da);if(da>6)return;const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),lz=Math.abs(-(Hw[0]-o.x)*si+(Hw[1]-o.z)*co);
-    if(lz<=o.d/2+150&&lz<bd){bd=lz;best={o,co,si,bd}}});return best};
+   walls.forEach(o=>{let da=Math.abs(((a-o.r)%180+180)%180);da=Math.min(da,180-da);if(da>6)return;const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),lz=Math.abs(-(Hw[0]-o.x)*si+(Hw[1]-o.z)*co),fc=Math.abs(lz-o.d/2);   // 吊り元は壁の面にある：面がいちばん近い壁
+    if(lz<=o.d/2+150&&fc<bd){bd=fc;best={o,co,si,bd}}});return best};
   let C=d.C,LW=null;if(!C){const w0=lineWall(d.E[0]),w1=lineWall(d.E[1]);if(w0&&!w1)C=d.E[0];else if(w1&&!w0)C=d.E[1];else if(w0&&w1)C=w0.bd<=w1.bd?d.E[0]:d.E[1];
    else{const v0=onWall(btWx(d.E[0])),v1=onWall(btWx(d.E[1]));C=!v1?d.E[0]:!v0?d.E[1]:(v0.bd<=v1.bd?d.E[0]:d.E[1])}}
   LW=lineWall(C);
@@ -164,7 +165,7 @@ function kzDoors(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("�
   /* 高さ：近くの「H2000」。1枚に図が2つある時は、もう一方の図の同じ所（通り芯の差だけずらした所）も見る */
   let h=2000;const spots=[Oc,...kzPlanOffsets(Oc).map(o=>[Oc[0]-o[0],Oc[1]-o[1]])];
   const tg=(P.texts||[]).map(t=>({t,m:String(t.s||"").normalize("NFKC").replace(/\s/g,"").match(/^H(\d{4})$/)})).filter(o=>o.m&&+o.m[1]>=1500&&+o.m[1]<=3500).map(o=>({v:+o.m[1],d:Math.min(...spots.map(S2=>Math.hypot(o.t.x-S2[0],o.t.y-S2[1])))*P.mmpp})).filter(o=>o.d<1500).sort((a,b)=>a.d-b.d)[0];if(tg)h=tg.v;
-  if(st.bld.some(o=>o.k==="door"&&Math.hypot(o.x-q[0],o.z-q[1])<400)||L.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<400))return;
+  if(st.bld.some(o=>o.k==="door"&&o.auto!=="door"&&!o.auto&&false)||L.some(o=>o.k==="door"&&Math.hypot(o.x-q[0],o.z-q[1])<400))return;
   /* 扉の所は壁が切れているので、同じ線の上にある壁（開口の両側）の向き・厚みを使う */
   let W2=null;if(LW){const o2=LW.o,dx=q[0]-o2.x,dz=q[1]-o2.z;W2={o:o2,lx:dx*LW.co+dz*LW.si,co:LW.co,si:LW.si,free:1}}
   if(!W2)W2=onWall(q);if(!W2){let bd=1e9;walls.forEach(o2=>{const th=o2.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=q[0]-o2.x,dz=q[1]-o2.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;if(Math.abs(lz)<=o2.d/2+80&&Math.abs(lx)<=o2.w/2+w+600&&Math.abs(lz)<bd){bd=Math.abs(lz);W2={o:o2,lx,co,si,free:1}}})}
@@ -174,7 +175,8 @@ function kzDoors(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("�
    /* 間仕切り：閉じた位置（開口の端）から、扉と同じ向きに伸びる図面の線を、薄い壁（その所の天井まで）にする */
    const pw=kzPartition(d.H,C);if(pw)L.push(pw)}
   L.push(o)});
- if(L.length)btAdd(normBld(L));const Ld=L.filter(o=>o.k==="door"),np=L.length-Ld.length;if(!quiet)toast(Ld.length?"🚪 扉マークから開き戸を "+Ld.length+"か所 置きました（"+Ld.map(o=>"幅"+fmt(o.w)+"・高さ"+fmt(o.h)).join("／")+"）"+(np?"・間仕切りの壁 "+np+"枚":""):D.length?"扉はもう置いてあります":"扉マーク（開き戸の弧）が見つかりませんでした");return Ld.length}
+ L.forEach(o=>o.auto="door");
+ if(L.length){const Nd=L.filter(o=>o.k==="door");st.bld=st.bld.filter(o=>!(o.auto==="door")&&!(o.k==="door"&&Nd.some(n=>Math.hypot(n.x-o.x,n.z-o.z)<Math.max(900,n.w+200))));btAdd(normBld(L))}const Ld=L.filter(o=>o.k==="door"),np=L.length-Ld.length;if(!quiet)toast(Ld.length?"🚪 扉マークから開き戸を "+Ld.length+"か所 置きました（"+Ld.map(o=>"幅"+fmt(o.w)+"・高さ"+fmt(o.h)).join("／")+"）"+(np?"・間仕切りの壁 "+np+"枚":""):D.length?"扉はもう置いてあります":"扉マーク（開き戸の弧）が見つかりませんでした");return Ld.length}
 
 /* 扉の開口の端 C から、吊り元 H と反対向きに伸びる線（間仕切り）→ 厚さ100の壁。天井高の範囲の中ならその高さまで */
 function kzPartition(H,C){const P=PLAN,mm=P.mmpp,ux=(C[0]-H[0]),uy=(C[1]-H[1]),ul=Math.hypot(ux,uy)||1,u=[ux/ul,uy/ul];let F=null;
@@ -182,7 +184,7 @@ function kzPartition(H,C){const P=PLAN,mm=P.mmpp,ux=(C[0]-H[0]),uy=(C[1]-H[1]),u
   if(Math.abs((vx*u[1]-vy*u[0])/L)>0.05||(vx*u[0]+vy*u[1])<0)return;if(!F||L>F.L)F={x:bx,y:by,L}})});
  if(!F)return null;const A=btWx(C),B=btWx([F.x,F.y]),Lw=Math.hypot(B[0]-A[0],B[1]-A[1]);if(Lw<300)return null;
  const mx=(A[0]+B[0])/2,mz=(A[1]+B[1])/2,z=typeof ceilAt==="function"?ceilAt(mx,mz):null,o={k:"wall",x:Math.round(mx),z:Math.round(mz),w:Math.round(Lw),d:100,r:normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI)),y:0,full:!z,h:z?z.h:600};
- if(st.bld.some(w=>w.k==="wall"&&Math.hypot(w.x-o.x,w.z-o.z)<200))return null;return o}
+ if(st.bld.some(w=>w.k==="wall"&&w.auto!=="door"&&Math.hypot(w.x-o.x,w.z-o.z)<200))return null;return o}
 
 /* ===== 🪟 窓 =====
    図面の窓＝壁の切れ目（同じ線の上の壁と壁の間）に、壁の厚みの中を通る細い平行線（ガラス・サッシ）が2本以上ある所。扉の弧がある切れ目は扉なので除く。
@@ -208,3 +210,25 @@ function kzWindows(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("
   const cov=a=>{a.sort((x,y)=>x[0]-y[0]);let t=0,c=-1e9;a.forEach(([l,h])=>{if(h>c){t+=h-Math.max(l,c);c=h}});return t};
   if(Object.values(acc).filter(a=>cov(a)>=gap*0.7).length<2)continue;const pt=x=>[p.x+x*co,p.z+x*si];out.push(...kzWinPut(pt(e0),pt(e1),p.d,p.r,sill,hw))}
  if(out.length)btAdd(normBld(out));const n=out.filter(o=>o.k==="win").length;if(!quiet)toast(n?"🪟 窓を "+n+"か所 置きました（下端 FL+"+fmt(sill)+"・高さ "+fmt(hw)+"。高さは3Dか「窓を追加」で直せます）":"窓（壁の切れ目にガラスの線がある所）が見つかりませんでした。端と端を2点タップで置けます");return n}
+
+/* ===== 🧱 軽量鉄骨（LGS）＋ボードの壁 =====
+   図面：両側に、細い線が近く（15mm以内）に2本以上並ぶ束（ボードの重ね張り）があって、その間が40〜160mm空いている（スタッド）。
+   → 外側の線から外側の線までを壁の厚み、間をスタッドの幅、束の線の数−1 をボードの枚数として置く。もう壁がある所には置かない */
+function kzLgs(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("先に縮尺と原点を決めてください");return 0}
+ const mm=P.mmpp,{H,V}=kzLines(),bx=kzPlanBox(),out=[];
+ [[H,1],[V,0]].forEach(([A,hz])=>{const Ls=A.filter(l=>(l.hi-l.lo)*mm>=800).sort((a,b)=>a.c-b.c),used=new Set(),B=[];
+  /* 束：近くに並ぶ平行な線（重なり60%以上） */
+  Ls.forEach((l,i)=>{if(used.has(i))return;const g=[l];used.add(i);for(let j=i+1;j<Ls.length;j++){const q=Ls[j];if((q.c-g[g.length-1].c)*mm>16)break;const ov=Math.min(q.hi,l.hi)-Math.max(q.lo,l.lo);if(ov>=0.6*Math.min(q.hi-q.lo,l.hi-l.lo)){g.push(q);used.add(j)}}
+   if(g.length>=2)B.push({c0:g[0].c,c1:g[g.length-1].c,n:g.length,lo:Math.max(...g.map(x=>x.lo)),hi:Math.min(...g.map(x=>x.hi))})});
+  B.sort((a,b)=>a.c0-b.c0);
+  for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){const a=B[i],b=B[j],gap=(b.c0-a.c1)*mm;if(gap<40)continue;if(gap>160)break;
+   const lo=Math.max(a.lo,b.lo),hi=Math.min(a.hi,b.hi);if((hi-lo)*mm<500)continue;const mid=(a.c0+b.c1)/2,Dw=(b.c1-a.c0)*mm;
+   const p0=hz?[lo,mid]:[mid,lo],p1=hz?[hi,mid]:[mid,hi],pc=[(p0[0]+p1[0])/2,(p0[1]+p1[1])/2];if(bx&&(pc[0]<bx.x0||pc[0]>bx.x1||pc[1]<bx.y0||pc[1]>bx.y1))continue;
+   const A2=btWx(p0),B2=btWx(p1),c=btWx(pc),Lw=Math.hypot(B2[0]-A2[0],B2[1]-A2[1]),r=normT(Math.round(Math.atan2(B2[1]-A2[1],B2[0]-A2[0])*180/Math.PI));
+   /* もう壁がある所（自動で置いた軽量壁は置き換える） */
+   const th=r*Math.PI/180,co=Math.cos(th),si=Math.sin(th);if(st.bld.some(o=>o.k==="wall"&&o.auto!=="lgs"&&(()=>{const dx=o.x-c[0],dz=o.z-c[1],lx=dx*co+dz*si,lz=-dx*si+dz*co;return Math.abs(lz)<(o.d+Dw)/2&&Math.abs(lx)<(o.w+Lw)/2-100})()))continue;
+   if(out.some(o=>Math.hypot(o.x-c[0],o.z-c[1])<300))continue;
+   const zc=typeof ceilAt==="function"?ceilAt(c[0],c[1]):null;
+   out.push({k:"wall",m:"lgs",auto:"lgs",x:Math.round(c[0]),z:Math.round(c[1]),w:Math.round(Lw),d:Math.round(Dw),r,y:0,full:!zc,h:zc?zc.h:600,st:Math.round(gap/5)*5,bl:a.n-1,br:b.n-1});break}});
+ st.bld=st.bld.filter(o=>o.auto!=="lgs");if(out.length)btAdd(normBld(out));
+ if(!quiet)toast(out.length?"🧱 軽量鉄骨＋ボードの壁を "+out.length+"枚 置きました（"+out.map(o=>"厚"+fmt(o.d)+"・スタッド"+o.st).join("／")+"）":"軽量鉄骨＋ボードの壁（両側にボードの線が並ぶ壁）が見つかりませんでした");return out.length}

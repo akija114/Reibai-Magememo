@@ -2149,7 +2149,7 @@ function addBld3D(GY,CH,ext){
    if(o.m==="swing"){const p=new THREE.Group();p.position.set(-W2/2,0,D2/2);const pn=new THREE.Mesh(new THREE.BoxGeometry(W2,H2-10,40),wood);pn.position.set(W2/2,H2/2,20);p.add(pn);p.rotation.y=0;g.add(p);
     for(let k=0;k<10;k++){const a0=k/10*Math.PI/2,a1=(k+1)/10*Math.PI/2,ax=-W2/2+W2*Math.cos(a0),az=D2/2+W2*Math.sin(a0),bx3=-W2/2+W2*Math.cos(a1),bz=D2/2+W2*Math.sin(a1),L2=Math.hypot(bx3-ax,bz-az);
      const sg=bx2(L2,6,14,(ax+bx3)/2,4,(az+bz)/2,new THREE.MeshBasicMaterial({color:0xb45309}));sg.rotation.y=-Math.atan2(bz-az,bx3-ax)}}
-   else{bx2(W2,H2-10,35,W2*0.35,H2/2,D2/2+30,wood);bx2(W2*2,20,30,W2/2,H2+5,D2/2+30,fr)}   // 引き戸：少し開いた戸と上のレール
+   else{const Lf=W2/2+80;bx2(Lf,H2-10,35,-W2/2+Lf/2,H2/2,-D2/4,wood);bx2(Lf,H2-10,35,W2/2-Lf/2,H2/2,D2/4,wood)}   // 引き戸：2枚の戸（前後にずらし、重なりを作る）   // 引き戸：少し開いた戸と上のレール
    g.position.set(o.x,y0,o.z);g.rotation.y=th;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
    T.bldM.push({i,k:"door",c:new THREE.Vector3(o.x,y0+H2/2,o.z),hw:W2/2,hd:D2/2,hh:H2/2,r:o.r,y0,h:H2});
    const s4=label("🚪 "+(o.m==="swing"?"開き戸":"引き戸")+" 幅"+fmt(W2),ext*0.026,"#fef3c7f2","#78350f");s4.position.set(o.x,y0+H2+ext*0.03,o.z);s4.userData.cat="bld";pxl(s4,15);T.grp.add(s4);return}

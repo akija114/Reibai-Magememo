@@ -152,6 +152,26 @@ function kzPlanOffsets(Oc){const P=PLAN,G=P.grids||[],out=[];["X","Y"].forEach(a
 /* 扉の高さ：近くの「H2000」。1枚に図が2つある時は、もう一方の図の同じ所（通り芯の差だけずらした所）も見る */
 function kzDoorH(Oc){const P=PLAN;const spots=[Oc,...kzPlanOffsets(Oc).map(o=>[Oc[0]-o[0],Oc[1]-o[1]])];
  const tg=(P.texts||[]).map(t=>({t,m:String(t.s||"").normalize("NFKC").replace(/\s/g,"").match(/^H(\d{4})$/)})).filter(o=>o.m&&+o.m[1]>=1500&&+o.m[1]<=3500).map(o=>({v:+o.m[1],d:Math.min(...spots.map(S2=>Math.hypot(o.t.x-S2[0],o.t.y-S2[1])))*P.mmpp})).filter(o=>o.d<1500).sort((a,b)=>a.d-b.d)[0];return tg?tg.v:2000}
+/* ===== 🏛 H鋼を囲む軽量鉄骨＋ボード =====
+   H鋼（m:"h"）の周りに、クリアランス10mm・厚さ90（スタッド65＋ボード12.5×両面1枚ずつ）の囲い（4面）を置く。
+   囲いの中を通る普通の壁（H鋼に重なって立っている図面の線）は消す。自動で置いた囲い（auto:"hlgs"）は作り直す */
+function kzHEnclose(quiet){const P=PLAN;if(!P)return 0;const Hs=st.bld.filter(o=>o.k==="col"&&o.m==="h");if(!Hs.length)return 0;
+ const CHh=typeof bldCH==="function"?bldCH():2400,G=10,ST=65,BD=12.5,T=ST+2*BD;
+ const inH=(x,z,c)=>{const th=c.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=x-c.x,dz=z-c.z;return Math.abs(dx*co+dz*si)<c.w/2&&Math.abs(-dx*si+dz*co)<c.d/2};
+ /* 1) H鋼の中を通る普通の壁は消す（H鋼に重なって立っていた壁） */
+ let nx=0;st.bld=st.bld.filter(o=>{if(o.k!=="wall"||o.m==="lgs"||o.auto==="hlgs")return true;const wt=o.r*Math.PI/180,ux=Math.cos(wt),uz=Math.sin(wt);
+  for(let t=-o.w/2;t<=o.w/2;t+=40){const x=o.x+t*ux,z=o.z+t*uz;if(Hs.some(c=>inH(x,z,c))){nx++;return false}}return true});
+ /* 2) 囲いを作り直す */
+ st.bld=st.bld.filter(o=>o.auto!=="hlgs");const L=[];
+ Hs.forEach(c=>{const th=c.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),at=(lx,lz)=>[c.x+lx*co-lz*si,c.z+lx*si+lz*co];
+  const mk=(lx,lz,len,r)=>{const q=at(lx,lz);return{k:"wall",m:"lgs",auto:"hlgs",x:Math.round(q[0]),z:Math.round(q[1]),w:Math.round(len),d:T,r:normT(Math.round(r)),y:0,full:true,h:CHh,st:ST,bl:1,br:1}};
+  /* 長手（H鋼の奥行方向）の2面、短手（フランジ方向）の2面。角は長手の面が受ける */
+  L.push(mk(0,c.d/2+G+T/2,c.w+2*(G+T),c.r));L.push(mk(0,-(c.d/2+G+T/2),c.w+2*(G+T),c.r));
+  L.push(mk(c.w/2+G+T/2,0,c.d+2*G,c.r+90));L.push(mk(-(c.w/2+G+T/2),0,c.d+2*G,c.r+90))});
+ if(L.length)btAdd(normBld(L));else if(nx)bldChanged();
+ if(!quiet)toast("🧱 H鋼を囲む軽量＋ボードを "+Hs.length+"本分（"+L.length+"枚）置きました"+(nx?"・H鋼の中を通っていた壁を"+nx+"枚消しました":""));
+ return L.length}
+
 /* ===== 🚪 引き戸 =====
    図面の引き戸＝細長い四角（戸板：幅20〜70mm・長さ450〜1600mm）が、同じ線の上（ずれ120mm以内）で2枚以上、少し重なって並んでいる所。
    戸板の端から端までを開口の幅にする（片引きの1枚だけの戸は、窓と見分けがつかないので置かない） */

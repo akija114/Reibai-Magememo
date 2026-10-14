@@ -264,26 +264,51 @@ function kzLgsCorners(W){const ax=o=>{const t=o.r*Math.PI/180;return[Math.cos(t)
   if(best>0){A.x=Math.round(A.x+sg*ux*best/2);A.z=Math.round(A.z+sg*uz*best/2);A.w=Math.round(A.w+best)}})})}
 function kzLgs(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("先に縮尺と原点を決めてください");return 0}
  const mm=P.mmpp,{H,V}=kzLines(),bx=kzPlanBox(),out=[],rpl=new Set();
- [[H,1],[V,0]].forEach(([A,hz])=>{const Ls=A.filter(l=>(l.hi-l.lo)*mm>=250).sort((a,b)=>a.c-b.c),used=new Set(),B=[];
-  /* 束：近くに並ぶ平行な線（重なり60%以上） */
-  Ls.forEach((l,i)=>{if(used.has(i))return;const g=[l];used.add(i);for(let j=i+1;j<Ls.length;j++){const q=Ls[j];if((q.c-g[g.length-1].c)*mm>16)break;const ov=Math.min(q.hi,l.hi)-Math.max(q.lo,l.lo);if(ov>=0.6*Math.min(q.hi-q.lo,l.hi-l.lo)){g.push(q);used.add(j)}}
-   if(g.length>=2)B.push({c0:g[0].c,c1:g[g.length-1].c,n:g.length,lo:Math.max(...g.map(x=>x.lo)),hi:Math.min(...g.map(x=>x.hi))})});
-  B.sort((a,b)=>a.c0-b.c0);
+ const cols=st.bld.filter(o=>o.k==="col"),inCol=c=>cols.some(o=>{const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=c[0]-o.x,dz=c[1]-o.z;return Math.abs(dx*co+dz*si)<o.w/2+5&&Math.abs(-dx*si+dz*co)<o.d/2+5});
+ /* 1枚置く：e0〜e1＝壁の両面（図面の座標・線に直角の向き）、lo〜hi＝壁の範囲（線の向き）。置けたら true */
+ const put=(hz,e0,e1,lo,hi,gap,bl,br)=>{const ovl=(hi-lo)*mm;if(ovl<200)return false;const mid=(e0+e1)/2,Dw=(e1-e0)*mm;
+  const p0=hz?[lo,mid]:[mid,lo],p1=hz?[hi,mid]:[mid,hi],pc=[(p0[0]+p1[0])/2,(p0[1]+p1[1])/2];if(bx&&(pc[0]<bx.x0||pc[0]>bx.x1||pc[1]<bx.y0||pc[1]>bx.y1))return false;
+  const A2=btWx(p0),B2=btWx(p1),c=btWx(pc),Lw=Math.hypot(B2[0]-A2[0],B2[1]-A2[1]),r=normT(Math.round(Math.atan2(B2[1]-A2[1],B2[0]-A2[0])*180/Math.PI));
+  /* H鋼・柱そのものの線（柱の中）は壁にしない */
+  if(inCol(c))return false;
+  /* 短い軽量壁（50cm未満）は、H鋼・柱のまわり（柱の巻き）だけ読む */
+  if(ovl<500&&!kzNearCol(c,Lw))return false;
+  /* もう壁がある所：同じ所に重なる普通の壁は、図面のボードの線から読んだ軽量壁に置き換える。手で置いた軽量壁はそのまま */
+  const ov=o=>{let da=Math.abs(((o.r-r)%180+180)%180);da=Math.min(da,180-da);if(da>5)return null;const th=r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=o.x-c[0],dz=o.z-c[1],lx=dx*co+dz*si,lz=-dx*si+dz*co;
+   if(Math.abs(lz)>=(o.d+Dw)/2-15)return null;return Math.min(lx+o.w/2,Lw/2)-Math.max(lx-o.w/2,-Lw/2)};
+  let skip=false;const rp=[];st.bld.forEach(o=>{if(o.k!=="wall"||o.auto==="lgs"||o.auto==="hlgs"||rpl.has(o))return;const v=ov(o);if(v===null||v<=100)return;
+   if(o.m==="lgs"||v<0.5*o.w)skip=true;else rp.push(o)});
+  if(skip)return false;
+  if(out.some(o=>{const v=ov(o);return v!==null&&v>0.5*Math.min(o.w,Lw)}))return false;rp.forEach(o=>rpl.add(o));
+  const zc=typeof ceilAt==="function"?ceilAt(c[0],c[1]):null;
+  out.push({k:"wall",m:"lgs",auto:"lgs",x:Math.round(c[0]),z:Math.round(c[1]),w:Math.round(Lw),d:Math.round(Dw),r,y:0,full:!zc,h:zc?zc.h:600,st:Math.round(gap/5)*5,bl,br});return true};
+ /* lo〜hi のうち、同じ向き・同じ厚みの帯に置いた軽量壁（out）がまだ無い所 */
+ const free=(hz,e0,e1,lo,hi)=>{const cv=[],m=(e0+e1)/2,hd=(e1-e0)/2;out.forEach(o=>{if((o.r%180===0)!==!!hz)return;const p=btP(o.x,o.z),al=hz?p[0]:p[1],pp=hz?p[1]:p[0];
+   if(Math.abs(pp-m)>=o.d/2/mm+hd-15/mm)return;cv.push([al-o.w/2/mm-20/mm,al+o.w/2/mm+20/mm])});
+  cv.sort((a,b)=>a[0]-b[0]);const R=[];let x=lo;cv.forEach(([a,b])=>{if(b<=x||a>=hi)return;if(a>x)R.push([x,a]);x=Math.max(x,b)});if(x<hi)R.push([x,hi]);return R.filter(([a,b])=>(b-a)*mm>=200)};
+ [[H,1],[V,0]].forEach(([A,hz])=>{/* 柱（H鋼）を描いている線は壁の面にしない：線の真ん中が柱の中（＋15mm）にある線 */
+  const onCol=l=>{const m=(l.lo+l.hi)/2,p=btWx(hz?[m,l.c]:[l.c,m]);return cols.some(o=>{const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=p[0]-o.x,dz=p[1]-o.z;return Math.abs(dx*co+dz*si)<o.w/2+15&&Math.abs(-dx*si+dz*co)<o.d/2+15})};
+  /* 破線（通り芯・隠れ線）：同じ線の上に、短い線（60cm未満）が少しすき間（5〜120mm）をあけて続くもの → 壁の線にしない */
+  const dash=new Set(),As=A.slice().sort((a,b)=>a.c-b.c||a.lo-b.lo);
+  for(let i=0;i<As.length;i++)for(let j=i+1;j<As.length;j++){const a=As[i],b=As[j];if((b.c-a.c)*mm>1)break;const g=(b.lo>=a.hi?b.lo-a.hi:a.lo>=b.hi?a.lo-b.hi:-1)*mm;if(g>5&&g<120&&(a.hi-a.lo)*mm<600&&(b.hi-b.lo)*mm<600){dash.add(a);dash.add(b)}}
+  const Ls=A.filter(l=>!dash.has(l)&&(l.hi-l.lo)*mm>=250&&!onCol(l)).sort((a,b)=>a.c-b.c),used=new Set(),inB=new Set(),B=[],EX=[];
+  /* 束：近くに並ぶ平行な線（重なり60%以上）＝ボードの面（2本で1枚、3本で2枚貼り） */
+  Ls.forEach((l,i)=>{if(used.has(i))return;const g=[l],gi=[i];used.add(i);for(let j=i+1;j<Ls.length;j++){const q=Ls[j];if((q.c-g[g.length-1].c)*mm>16)break;const ov=Math.min(q.hi,l.hi)-Math.max(q.lo,l.lo);if(ov>=0.6*Math.min(q.hi-q.lo,l.hi-l.lo)){g.push(q);gi.push(j);used.add(j)}}
+   if(g.length>=2){gi.forEach(k=>inB.add(k));const lo=Math.max(...g.map(x=>x.lo)),hi=Math.min(...g.map(x=>x.hi));B.push({c0:g[0].c,c1:g[g.length-1].c,n:g.length,lo,hi});
+    /* 束の線のうち、束より先まで伸びている所（となりのボードが終わって、スタッドの面の線だけが続く所）は1本の線として使う */
+    g.forEach(x=>{if((lo-x.lo)*mm>=200)EX.push({c:x.c,lo:x.lo,hi:lo});if((x.hi-hi)*mm>=200)EX.push({c:x.c,lo:hi,hi:x.hi})})}});
+  B.sort((a,b)=>a.c0-b.c0);const usedB=new Map();
+  /* ① 両面ボード：ボードの束と束の間（スタッド40〜160mm） */
   for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){const a=B[i],b=B[j],gap=(b.c0-a.c1)*mm;if(gap<40)continue;if(gap>160)break;
-   const lo=Math.max(a.lo,b.lo),hi=Math.min(a.hi,b.hi),ovl=(hi-lo)*mm;if(ovl<200)continue;const mid=(a.c0+b.c1)/2,Dw=(b.c1-a.c0)*mm;
-   const p0=hz?[lo,mid]:[mid,lo],p1=hz?[hi,mid]:[mid,hi],pc=[(p0[0]+p1[0])/2,(p0[1]+p1[1])/2];if(bx&&(pc[0]<bx.x0||pc[0]>bx.x1||pc[1]<bx.y0||pc[1]>bx.y1))continue;
-   const A2=btWx(p0),B2=btWx(p1),c=btWx(pc),Lw=Math.hypot(B2[0]-A2[0],B2[1]-A2[1]),r=normT(Math.round(Math.atan2(B2[1]-A2[1],B2[0]-A2[0])*180/Math.PI));
-   /* 短い軽量壁（50cm未満）は、H鋼・柱のまわり（柱の巻き）だけ読む */
-   if(ovl<500&&!kzNearCol(c,Lw))continue;
-   /* もう壁がある所：同じ所に重なる普通の壁は、図面のボードの線から読んだ軽量壁に置き換える。手で置いた軽量壁はそのまま */
-   const ov=o=>{let da=Math.abs(((o.r-r)%180+180)%180);da=Math.min(da,180-da);if(da>5)return null;const th=r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=o.x-c[0],dz=o.z-c[1],lx=dx*co+dz*si,lz=-dx*si+dz*co;
-    if(Math.abs(lz)>=(o.d+Dw)/2-15)return null;return Math.min(lx+o.w/2,Lw/2)-Math.max(lx-o.w/2,-Lw/2)};
-   let skip=false;const rp=[];st.bld.forEach(o=>{if(o.k!=="wall"||o.auto==="lgs"||o.auto==="hlgs"||rpl.has(o))return;const v=ov(o);if(v===null||v<=100)return;
-    if(o.m==="lgs"||v<0.5*o.w)skip=true;else rp.push(o)});
-   if(skip)continue;
-   if(out.some(o=>{const v=ov(o);return v!==null&&v>0.5*Math.min(o.w,Lw)}))continue;rp.forEach(o=>rpl.add(o));
-   const zc=typeof ceilAt==="function"?ceilAt(c[0],c[1]):null;
-   out.push({k:"wall",m:"lgs",auto:"lgs",x:Math.round(c[0]),z:Math.round(c[1]),w:Math.round(Lw),d:Math.round(Dw),r,y:0,full:!zc,h:zc?zc.h:600,st:Math.round(gap/5)*5,bl:a.n-1,br:b.n-1});break}});
+   if(put(hz,a.c0,b.c1,Math.max(a.lo,b.lo),Math.min(a.hi,b.hi),gap,a.n-1,b.n-1)){usedB.set(i,1);usedB.set(j,-1);break}}
+  /* ② 片面ボード（柱の巻き・壁のふかし）：ボードの束と、スタッドの面の線1本（間40〜110mm）。柱側・壁側にはボードが無い */
+  const S1=Ls.filter((l,k)=>!inB.has(k)).concat(EX);
+  /* 両面の壁に使ったボードの束も、線が長い時は別の所で片面の壁の面になる（相手の束と同じ側だけ見る） */
+  B.forEach((a,i)=>{
+   const cand=S1.map(l=>{const aft=l.c>a.c1,gap=(aft?l.c-a.c1:a.c0-l.c)*mm,lo=Math.max(a.lo,l.lo),hi=Math.min(a.hi,l.hi);return{l,aft,gap,lo,hi}}).filter(o=>o.gap>=40&&o.gap<=110&&(o.hi-o.lo)*mm>=200).sort((p,q)=>p.gap-q.gap);
+   for(const o of cand){if(usedB.has(i)&&o.aft!==(usedB.get(i)>0))continue;const e0=o.aft?a.c0:o.l.c,e1=o.aft?o.l.c:a.c1;
+    /* もう置いた軽量壁と重なる所は除いて、残りの所に置く（線が長く、となりの壁の下まで続いている時） */
+    free(hz,e0,e1,o.lo,o.hi).forEach(([lo,hi])=>{put(hz,e0,e1,lo,hi,o.gap,o.aft?a.n-1:0,o.aft?0:a.n-1)})}})});
  /* 軽量壁のボードの面を、片側の面として使っている普通の壁（図面から読んだ壁）は間違い（ボードの線と、となりの別の壁の線の間を壁にしてしまったもの）→ 消す */
  let nx=0;const bad=o=>o.k==="wall"&&o.m!=="lgs"&&(!o.auto||o.auto==="w")&&out.some(L=>{let da=Math.abs(((o.r-L.r)%180+180)%180);da=Math.min(da,180-da);if(da>3)return false;
   const th=L.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=o.x-L.x,dz=o.z-L.z,lx=dx*co+dz*si,lz=Math.abs(-dx*si+dz*co);if(Math.abs(lz-(o.d+L.d)/2)>40)return false;

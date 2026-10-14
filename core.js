@@ -2119,7 +2119,7 @@ function runAR(onlyUnit){
  }catch(e){console.warn(e);toast("ARの準備に失敗しました")}
 }
 /* ===== 建物（壁・柱・梁・障害物）：3Dに箱で置く。位置は起点（配管の始まり）からのmm、高さは床から ===== */
-const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"},door:{n:"扉",c:0xb45309,i:"🚪"},ceil:{n:"天井高の範囲",c:0x0ea5e9,i:"📐"},rack:{n:"電気ラック",c:0x94a3b8,i:"⚡"}};
+const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"},door:{n:"扉",c:0xb45309,i:"🚪"},ceil:{n:"天井高の範囲",c:0x0ea5e9,i:"📐"},rack:{n:"電気ラック",c:0x94a3b8,i:"⚡"},win:{n:"窓",c:0x38bdf8,i:"🪟"}};
 function normBld(a){const n=v=>Math.round(+v||0);return(Array.isArray(a)?a:[]).slice(0,1500).filter(o=>o&&typeof o==="object").map(o=>{const k=BLDK[o.k]?o.k:"box";
  return{...(k==="ceil"&&o.n?{n:String(o.n).slice(0,20)}:{}),k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):k==="door"?(o.m==="swing"?"swing":"slide"):k==="col"?(o.m==="h"?"h":""):""}})}
 st.bld=normBld(st.bld);
@@ -2146,7 +2146,7 @@ function addBld3D(GY,CH,ext){
   if(o.k==="door"){const g=new THREE.Group(),th=-o.r*Math.PI/180,W2=o.w,H2=o.h||2000,D2=o.d||150,wood=new THREE.MeshStandardMaterial({color:0xc08a4a,roughness:.7}),fr=new THREE.MeshStandardMaterial({color:0x6b4423,roughness:.6});
    const bx2=(w,h2,d,x,y,z,mt)=>{const mm=new THREE.Mesh(new THREE.BoxGeometry(w,h2,d),mt);mm.position.set(x,y,z);g.add(mm);return mm};
    bx2(40,H2,D2+20,-W2/2-20,H2/2,0,fr);bx2(40,H2,D2+20,W2/2+20,H2/2,0,fr);bx2(W2+80,40,D2+20,0,H2+20,0,fr);   // 枠
-   if(o.m==="swing"){const p=new THREE.Group();p.position.set(-W2/2,0,D2/2);const pn=new THREE.Mesh(new THREE.BoxGeometry(W2,H2-10,40),wood);pn.position.set(W2/2,H2/2,20);p.add(pn);p.rotation.y=-0.5;g.add(p);
+   if(o.m==="swing"){const p=new THREE.Group();p.position.set(-W2/2,0,D2/2);const pn=new THREE.Mesh(new THREE.BoxGeometry(W2,H2-10,40),wood);pn.position.set(W2/2,H2/2,20);p.add(pn);p.rotation.y=0;g.add(p);
     for(let k=0;k<10;k++){const a0=k/10*Math.PI/2,a1=(k+1)/10*Math.PI/2,ax=-W2/2+W2*Math.cos(a0),az=D2/2+W2*Math.sin(a0),bx3=-W2/2+W2*Math.cos(a1),bz=D2/2+W2*Math.sin(a1),L2=Math.hypot(bx3-ax,bz-az);
      const sg=bx2(L2,6,14,(ax+bx3)/2,4,(az+bz)/2,new THREE.MeshBasicMaterial({color:0xb45309}));sg.rotation.y=-Math.atan2(bz-az,bx3-ax)}}
    else{bx2(W2,H2-10,35,W2*0.35,H2/2,D2/2+30,wood);bx2(W2*2,20,30,W2/2,H2+5,D2/2+30,fr)}   // 引き戸：少し開いた戸と上のレール
@@ -2161,6 +2161,11 @@ function addBld3D(GY,CH,ext){
    g.position.set(o.x,yc,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
    T.bldM.push({i,k:"ceil",c:new THREE.Vector3(o.x,yc,o.z),hw:o.w/2,hd:o.d/2,hh:10,r:o.r,y0:yc,h:10});
    const s5=label("📐 天井 CH"+fmt(o.h)+(o.n?"（"+o.n+"）":""),ext*0.03,"#e0f2fef2","#075985","bld");s5.position.set(o.x,yc-60,o.z);s5.userData.cat="bld";pxl(s5,17);T.grp.add(s5);return}
+  if(o.k==="win"){const g=new THREE.Group(),Ww=o.w,Hw=o.h,Dw=o.d||150,fr=new THREE.MeshStandardMaterial({color:0x9ca3af,roughness:.4,metalness:.5}),gl=new THREE.MeshStandardMaterial({color:0x7dd3fc,transparent:true,opacity:.35,roughness:.1,depthWrite:false}),b3=(a,b2,c,x,y,z,m)=>{const q=new THREE.Mesh(new THREE.BoxGeometry(a,b2,c),m);q.position.set(x,y,z);g.add(q);return q};
+   b3(Ww,40,Dw,0,20,0,fr);b3(Ww,40,Dw,0,Hw-20,0,fr);b3(40,Hw,Dw,-Ww/2+20,Hw/2,0,fr);b3(40,Hw,Dw,Ww/2-20,Hw/2,0,fr);if(Ww>1200)b3(30,Hw,40,0,Hw/2,0,fr);   // 窓枠（幅が広い時は真ん中に召し合わせ）
+   b3(Ww-60,Hw-60,8,0,Hw/2,0,gl);g.position.set(o.x,GY+o.y,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
+   T.bldM.push({i,k:"win",c:new THREE.Vector3(o.x,GY+o.y+Hw/2,o.z),hw:Ww/2,hd:Dw/2,hh:Hw/2,r:o.r,y0:GY+o.y,h:Hw});
+   const s8=label("🪟 窓 幅"+fmt(Ww)+" 高さ"+fmt(Hw)+"（下端 FL+"+fmt(o.y)+"）",ext*0.026,"#e0f2fef2","#075985","bld");s8.position.set(o.x,GY+o.y+Hw+60,o.z);s8.userData.cat="bld";pxl(s8,15);T.grp.add(s8);return}
   if(o.k==="rack"){const g=new THREE.Group(),Lr=o.w,Wr=o.d,Hr=Math.min(150,o.h||100),ms=new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.4,metalness:.5}),b3=(a,b2,c,x,y,z)=>{const q=new THREE.Mesh(new THREE.BoxGeometry(a,b2,c),ms);q.position.set(x,y,z);g.add(q)};
    b3(Lr,Hr,20,0,Hr/2,Wr/2-10);b3(Lr,Hr,20,0,Hr/2,-Wr/2+10);for(let xx=-Lr/2+150;xx<Lr/2;xx+=300)b3(30,20,Wr-20,xx,10,0);   // 親げた2本＋子げた（300ピッチ）
    g.position.set(o.x,GY+o.y,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
@@ -2185,7 +2190,7 @@ function addBld3D(GY,CH,ext){
 /* 配管が壁・柱・梁・障害物・機器に当たっていないか調べて、当たっていたら ⚠️ を出す（穴の所は通ってOK） */
 let HIT_SIG="";
 function pipeHits(ext){T.hits=[];if(!T.segs||!T.segs.length||!T.bldM||!T.bldM.length)return;
- const solid=T.bldM.filter(m=>["wall","col","beam","box","out","ind","rack"].includes(m.k)),holes=T.bldM.filter(m=>m.k==="hole"||m.k==="door");
+ const solid=T.bldM.filter(m=>["wall","col","beam","box","out","ind","rack"].includes(m.k)),holes=T.bldM.filter(m=>m.k==="hole"||m.k==="door"||m.k==="win");
  const inBox=(m,p,mg)=>{const th=m.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=p.x-m.c.x,dz=p.z-m.c.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;
   return Math.abs(lx)<m.hw+mg&&Math.abs(lz)<m.hd+mg&&Math.abs(p.y-m.c.y)<m.hh+mg};
  const inHole=p=>holes.some(hm=>{const o=st.bld[hm.i];if(!o)return false;if(hm.k==="door")return inBox(hm,p,0);const th=hm.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=p.x-hm.c.x,dz=p.z-hm.c.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;

@@ -343,9 +343,11 @@ function drSumOpen(){const sh=$("#drSumSh");if(!sh)return;
   h+=`<div style="padding:6px 0;border-top:1px solid var(--line)"><b>${legName(g)}</b>　${SIZES[legSize(g)][0]}${SIZES[ps]?"／"+SIZES[ps][0]:""}<br>長さ <b>${fmt(c.tot)}</b> mm・曲げ <b>${bends.length}</b> か所${Object.keys(by).length?"（"+Object.keys(by).map(a=>a+"°×"+by[a]).join("・")+"）":""}
    <div style="font-size:13px;color:var(--sub);margin-top:2px">${rows.map((r,i)=>(i+1)+"："+fmt(r.l)+(r.a?"→"+r.a+"°":"")).join("　")}</div></div>`});
  h+=`</div>`;
+ h=h.replace(`</div>`,`</div><button id="drSumMt" style="width:100%;min-height:48px;border-radius:12px;background:#b45309;color:#fff;font-weight:800;font-size:15.5px;border:0;margin:10px 0 4px">🧾 材料拾い・見積もり・単価表</button>`);
  const D=DRN();h+=`<div class="drc">${D.rows.length?drSumHtml():"<h4>💧 ドレン配管</h4><div style='color:var(--sub)'>まだ入力されていません（「💧 ドレン」で入力）</div>"}</div>`;
  h+=`<div class="drc"><h4>3Dに表示</h4><div class="drseg"><button id="drSV1" class="${HID.size?"":"on"}">🔧 冷媒</button><button id="drSV2" class="${D.show?"on":""}">💧 ドレン</button></div></div>`;
  sh.innerHTML=h;$("#drSumOv").classList.add("on");
+ const mb=$("#drSumMt");if(mb)mb.onclick=()=>{$("#drSumOv").classList.remove("on");if(typeof mtOpen==="function")mtOpen()};
  $("#drSumX").onclick=()=>$("#drSumOv").classList.remove("on");
  $("#drSV1").onclick=()=>{setAllHid(!HID.size);drSumOpen()};
  $("#drSV2").onclick=()=>{D.show=!D.show;save();drRedraw&&drRedraw();drSumOpen()}}

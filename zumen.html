@@ -525,31 +525,31 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="zumen";</script>
-<script src="models.js?v=187"></script>
-<script src="core.js?v=187"></script>
-<script src="drain.js?v=187"></script>
-<script src="zumen.js?v=187"></script>
-<script src="kabe.js?v=187"></script>
-<script src="sumi.js?v=187"></script>
-<script src="kozo.js?v=187"></script>
-<script src="shashin.js?v=187"></script>
-<script src="tanka.js?v=187"></script>
-<script src="mitsumori.js?v=187"></script>
+<script src="models.js?v=188"></script>
+<script src="core.js?v=188"></script>
+<script src="drain.js?v=188"></script>
+<script src="zumen.js?v=188"></script>
+<script src="kabe.js?v=188"></script>
+<script src="sumi.js?v=188"></script>
+<script src="kozo.js?v=188"></script>
+<script src="shashin.js?v=188"></script>
+<script src="tanka.js?v=188"></script>
+<script src="mitsumori.js?v=188"></script>
 <script>
 (function(){
  const d=document.createElement("div");d.id="zdock";
  d.innerHTML=`<button class="main" data-z="plan">📄 図面（PDF・写真）を読み込む・なぞる</button>
 <button data-z="bld">🧱 柱・壁・梁・<br>室内機を置く</button><button data-z="route">🧭 ルート<br>おまかせ</button>
 <button data-z="scan">📡 部屋の<br>スキャン</button><button data-z="new">🆕 新しく作る<br><small>（模型・機械から）</small></button>
-<div style="display:flex;gap:6px;margin:0 0 6px"><button class="main" data-z="floor" id="zFloor" style="flex:1;background:#0369a1;border-color:#0369a1"></button><button class="main" data-z="floorop" id="zFloorOp" style="flex:none;background:#0369a1;border-color:#0369a1"></button></div>
+<button data-z="floor" id="zFloor" style="font-size:13.5px"></button><button data-z="floorop" id="zFloorOp" style="font-size:13.5px"></button>
 <button class="main" data-z="photo" style="background:#0f766e;border-color:#0f766e">📷 写真で測る（壁の真ん中・照明の間・天井高）</button>
 <button class="main" data-z="mt" style="background:#b45309;border-color:#b45309">🧾 材料拾い・見積もり・単価表</button>
 <button class="zgo" data-z="go">🔧 曲げ共有で長さ・曲げを見る ▶</button>`;
  $("#legbar").before(d);
  /* 🗺 地面に図面を映す：表示のON/OFFと濃さ（図面を読み込んだ後に使える） */
  const PL=()=>(typeof PLAN!=="undefined"&&PLAN)?PLAN:null,PLok=P=>!!(P&&P.img&&P.mmpp&&P.org);
- const fl=()=>{const P=PL();if(!PLok(P))return"🗺 地面に図面を映す（先に図面を読み込んでください）";return(P.show?"🙈 地面の図面を隠す":"🗺 地面に図面を映す")};
- const flo=()=>{const P=PL();return"濃さ "+Math.round((P&&P.planOp!=null?P.planOp:.4)*100)+"%"};
+ const fl=()=>{const P=PL();return(P&&P.show)?"🙈 地面の図面を隠す":"🗺 地面に図面を映す"};
+ const flo=()=>{const P=PL();return"🌫 濃さ "+Math.round((P&&P.planOp!=null?P.planOp:.4)*100)+"%"};
  const upFl=()=>{const a=$("#zFloor"),b=$("#zFloorOp");if(a)a.textContent=fl();if(b)b.textContent=flo()};
  window.zUpFloor=upFl;upFl();
  const mid=()=>{const r=$("#stage").getBoundingClientRect();return[r.left+r.width/2,r.top+r.height*0.6]};

@@ -133,5 +133,5 @@ window.mtCollect=mtCollect;
 /* 曲げ共有の画面（図面の画面はボタンの並びに入れてある）：3Dの下に「🧾 材料拾い・見積もり」 */
 function mtMainBtn(){if(document.getElementById("zdock")||document.getElementById("mtMainB"))return;const lb=document.getElementById("legbar");if(!lb)return;const b=document.createElement("button");b.id="mtMainB";b.textContent="🧾 材料拾い・見積もり・単価表";
  b.style.cssText="width:100%;min-height:46px;border-radius:14px;background:#b45309;color:#fff;font-weight:800;font-size:15.5px;border:0;margin:6px 0";b.onclick=()=>mtOpen();lb.before(b)}
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mtMainBtn);else setTimeout(mtMainBtn,0);
+/* 曲げ共有の画面のボタンは「📋 まとめ」の中に入れた（drain.js の drSumOpen）。ここでは出さない */
 })();

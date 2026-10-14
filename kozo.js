@@ -50,7 +50,11 @@ function kzCHIn(r){const P=PLAN;let ch=0,nm="";const T2=(P.texts||[]).map(t=>({t
  return{ch,nm}}
 function kzCeilPut(r,ch,nm){const P=PLAN,mm=P.mmpp,c=btWx([(r.x0+r.x1)/2,(r.y0+r.y1)/2]),A=btWx([r.x0,r.y0]),B=btWx([r.x1,r.y0]),rr=normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI));
  const o={k:"ceil",x:Math.round(c[0]),z:Math.round(c[1]),w:Math.round((r.x1-r.x0)*mm),d:Math.round((r.y1-r.y0)*mm),h:ch||BT.ch||2400,y:0,r:rr,full:false,n:nm||""};
- btAdd(normBld([o]));KZ.last=st.bld.length-1;toast("📐 天井高の範囲を置きました："+(nm?nm+" ":"")+"CH"+fmt(o.h)+"（"+fmt(o.w)+"×"+fmt(o.d)+"）");wzRender()}
+ btAdd(normBld([o]));KZ.last=st.bld.length-1;const fx=kzFixMainCH(),mainCH=(P.CH||bldCH());
+ toast("📐 天井高の範囲を置きました："+(nm?nm+" ":"")+"CH"+fmt(o.h)+"（"+fmt(o.w)+"×"+fmt(o.d)+"）・メインは CH"+fmt(mainCH)+(fx?"（図面に合わせて直しました）":"")+(Math.abs(mainCH-o.h)<20?"。⚠️ メインと同じ高さなので3Dで差が出ません":""));wzRender()}
+/* メインの天井高が「天井高の範囲」（WCなど）と同じになっている時は、図面にあるほかの CH（範囲の外の部屋）に戻す。直したら true */
+function kzFixMainCH(){const P=PLAN;if(!P)return false;const Z=(st.bld||[]).filter(o=>o.k==="ceil");if(!Z.length)return false;const cur=P.CH||st.gnd.ch;if(!Z.some(z=>Math.abs(z.h-cur)<20))return false;
+ const L=(P.chList||[]).map(Number).filter(v=>v>=1800&&v<=9000&&!Z.some(z=>Math.abs(z.h-v)<20));if(!L.length)return false;const v=Math.max(...L);P.CH=v;st.gnd.ch=v;try{wzSave()}catch(e){}try{save()}catch(e){}return true}
 function kzCeilTap(p){const P=PLAN;if(!P.segs||P.segs.length<50){toast("線のデータがある図面で使えます。「2点で範囲」で置いてください");return}
  const r=kzRoomAt(p);if(!r){toast("まわりの壁が見つかりませんでした。「2点で範囲」に切り替えて、対角を2点タップしてください");planDraw();return}
  const c=kzCHIn(r);kzCeilPut(r,c.ch,c.nm)}

@@ -119,12 +119,12 @@ function wzSync(){if(!W.on)return;const P=PLAN;if(!P||!P.img||W.img===P.img)retu
  if(st.bld&&st.bld.length&&st.bldKey!==wzKey())setTimeout(()=>sheetMsg(`<b style="font-size:17px">🧹 前に置いた物が残っています</b><p>室内機・壁など <b>${st.bld.length}個</b> が残っています。この図面用に、消してから始めますか？</p>`,
   [["消してから始める",()=>{st.bld=[];st.bldXf=null;st.bldKey=wzKey();BT.stack=[];bldChanged();wzRender();planDraw();toast("前の物を消しました")},"#dc2626","#fff"],["残して続ける",()=>{st.bldKey=wzKey();save()}]]),400);
  const m=wzMem()[wzKey()];
- if(W.resume&&m&&m.mmpp&&m.org){W.resume=false;P.mmpp=m.mmpp;P.den=m.den||0;P.autoScale=0;try{$("#plDen").value=m.den||""}catch(e){}try{planWalls()}catch(e){}P.org=m.org.slice();if(m.CH&&!P.CH)P.CH=m.CH;
+ if(W.resume&&m&&m.mmpp&&m.org){W.resume=false;P.mmpp=m.mmpp;P.den=m.den||0;P.autoScale=0;try{$("#plDen").value=m.den||""}catch(e){}try{planWalls()}catch(e){}P.org=m.org.slice();if(m.CH)P.CH=m.CH;
   toast("前の図面の続きから開きました（縮尺・原点もそのまま）");setTimeout(()=>wzGo("menu"),0);return}
  W.resume=false;
  /* 図面に「1/60」などが書いてあって、前回の縮尺と違う時は、図面の表記を使う（前回の値が古い・間違いのことがある） */
  if(m&&m.mmpp&&P.denTxt&&P.den&&m.den!==P.den){if(m.org&&!P.org)P.org=m.org.slice();setTimeout(()=>wzGo("scale"),0)}
- else if(m&&m.mmpp){P.mmpp=m.mmpp;P.den=m.den||0;P.autoScale=0;try{$("#plDen").value=m.den||""}catch(e){}try{planWalls()}catch(e){}if(m.org)P.org=m.org.slice();if(m.CH&&!P.CH)P.CH=m.CH;
+ else if(m&&m.mmpp){P.mmpp=m.mmpp;P.den=m.den||0;P.autoScale=0;try{$("#plDen").value=m.den||""}catch(e){}try{planWalls()}catch(e){}if(m.org)P.org=m.org.slice();if(m.CH)P.CH=m.CH;
   toast("前回の縮尺"+(m.den?"（1/"+m.den+"）":"")+"が入っています。合っていれば「この縮尺でOK」");setTimeout(()=>wzGo("scale"),0)}
  else setTimeout(()=>wzGo("scale"),0)}
 function wzGo(step,sub){if(!step.startsWith("t:"))W.fold=false;W.step=step;W.sub=sub||"";W.cand=null;W.pick=null;
@@ -383,7 +383,7 @@ function wzRotateInd(deg){if(!W.snap){wzOriBar(false);return}
  W.snap=JSON.stringify({...o,bld:st.bld});
  if(T)build3D();wzMakePipe(true)}
 function wzCalDone(){if(!W.on||W.step!=="cal")return;PLAN.userScale=1;wzSave();if(planCanAuto()){planAutoAll();return}wzGo(PLAN.org?"menu":"org")}
-function wz3D(){const P=PLAN;if(P&&P.CH){st.gnd.ch=P.CH;if(st.nopipe){st.gnd.on=true;st.gnd.c=true;st.gnd.h=P.CH}}st.bldHide=false;wzSave();save();$("#planOv").style.display="none";
+function wz3D(){const P=PLAN;try{if(typeof kzFixMainCH==="function"&&kzFixMainCH())toast("天井高：メインを CH"+fmt(P.CH)+" に直しました（WCなどの範囲と同じになっていたため）")}catch(e){}if(P&&P.CH){st.gnd.ch=P.CH;if(st.nopipe){st.gnd.on=true;st.gnd.c=true;st.gnd.h=P.CH}}st.bldHide=false;wzSave();save();$("#planOv").style.display="none";
  try{render()}catch(e){}if(T){build3D();fitT(true)}toast("3Dで表示しました。図面に戻るときは、もう一度図面を開いてください")}
 
 /* ===== 図面画面：手順バー・使い方・戻す／やめる ===== */
@@ -607,7 +607,8 @@ async function planPage(n){
  try{const tc=await page.getTextContent();tc.items.forEach(it=>{const m=pdfjsLib.Util.transform(vp.transform,it.transform);P.texts.push({s:it.str,x:m[4],y:m[5],w:(it.width||0)*sc,h:Math.hypot(it.transform[2],it.transform[3])*sc})});
   const all=P.texts.map(t=>t.s).join(" ").replace(/[０-９]/g,c2=>String.fromCharCode(c2.charCodeAt(0)-65248)).replace(/[＝：]/g,"=");
   const ch={};(all.match(/C\.?\s?H\s*=?\s*([1-6][0-9]{3})/gi)||[]).concat(all.match(/天井高\D{0,4}([1-6][0-9]{3})/g)||[]).forEach(x=>{const v=+(x.match(/([1-6][0-9]{3})/)||[])[1];if(v)ch[v]=(ch[v]||0)+1});
-  const best=Object.keys(ch).sort((a,b)=>ch[b]-ch[a])[0];if(best)P.CH=+best;P.chList=Object.keys(ch);
+  const best=Object.keys(ch).sort((a,b)=>ch[b]-ch[a]||b-a)[0];   // 同じ数なら高い方（WCなどの低い天井より、メインの部屋の方が高いことが多い）
+ if(best)P.CH=+best;P.chList=Object.keys(ch);
   /* 「A1-1/30 A3-1/60」のように用紙ごとの縮尺が書いてある時は、このPDFの用紙の大きさに合う方を使う */
   let dm=null;{const pl=[...all.matchAll(/A\s*([0-4])\s*[-‐ー−:：]?\s*(?:S\s*=?\s*)?1\s*[\/／:]\s*(\d{2,3})/gi)];
    if(pl.length){const L=Math.max(v0.width,v0.height),paper=[3370,2384,1684,1191,842],k=paper.reduce((bi,v,i)=>Math.abs(v-L)<Math.abs(paper[bi]-L)?i:bi,0),hit=pl.find(m2=>+m2[1]===k);dm=hit?[0,hit[2]]:null}}

@@ -525,14 +525,16 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="zumen";</script>
-<script src="models.js?v=171"></script>
-<script src="core.js?v=171"></script>
-<script src="drain.js?v=171"></script>
-<script src="zumen.js?v=171"></script>
-<script src="kabe.js?v=171"></script>
-<script src="sumi.js?v=171"></script>
-<script src="kozo.js?v=171"></script>
-<script src="shashin.js?v=171"></script>
+<script src="models.js?v=172"></script>
+<script src="core.js?v=172"></script>
+<script src="drain.js?v=172"></script>
+<script src="zumen.js?v=172"></script>
+<script src="kabe.js?v=172"></script>
+<script src="sumi.js?v=172"></script>
+<script src="kozo.js?v=172"></script>
+<script src="shashin.js?v=172"></script>
+<script src="tanka.js?v=172"></script>
+<script src="mitsumori.js?v=172"></script>
 <script>
 (function(){
  const d=document.createElement("div");d.id="zdock";
@@ -540,11 +542,12 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <button data-z="bld">🧱 柱・壁・梁・<br>室内機を置く</button><button data-z="route">🧭 ルート<br>おまかせ</button>
 <button data-z="scan">📡 部屋の<br>スキャン</button><button data-z="new">🆕 新しく作る<br><small>（模型・機械から）</small></button>
 <button class="main" data-z="photo" style="background:#0f766e;border-color:#0f766e">📷 写真で測る（壁の真ん中・照明の間・天井高）</button>
+<button class="main" data-z="mt" style="background:#b45309;border-color:#b45309">🧾 材料拾い・見積もり・単価表</button>
 <button class="zgo" data-z="go">🔧 曲げ共有で長さ・曲げを見る ▶</button>`;
  $("#legbar").before(d);
  const mid=()=>{const r=$("#stage").getBoundingClientRect();return[r.left+r.width/2,r.top+r.height*0.6]};
  d.onclick=e=>{const b=e.target.closest("button");if(!b)return;const z=b.dataset.z;
-  if(z==="plan")openDraw();else if(z==="route")openRoute();else if(z==="scan")openScan();else if(z==="new")openNew();else if(z==="photo")openShashin();
+  if(z==="plan")openDraw();else if(z==="route")openRoute();else if(z==="scan")openScan();else if(z==="new")openNew();else if(z==="photo")openShashin();else if(z==="mt"){if(typeof mtOpen==="function")mtOpen()}
   else if(z==="go")location.href="index.html";
   else if(z==="bld"){const[x,y]=mid();placeMenu(`<div class="pt pt2">🧱 3Dに置く</div><div class="pr"><button class="pm" data-a="col">🏛 柱</button><button class="pm" data-a="wall">🧱 壁</button></div><div class="pr"><button class="pm" data-a="beam">🟫 梁</button><button class="pm" data-a="box">📦 障害物</button></div><button class="pm" data-a="ind">❄️ 室内機（複数置けます）</button><button class="pm" data-a="hole">🕳 穴</button>${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物を表示":"🙈 建物を隠す"}（${st.bld.length}）</button>`:""}`,x,y,a=>{if(a==="bhide"){st.bldHide=!st.bldHide;save();unitRefresh()}else bldAddAt(a)})}
  };

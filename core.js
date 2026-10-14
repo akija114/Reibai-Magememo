@@ -2154,8 +2154,8 @@ function addBld3D(GY,CH,ext){
    T.bldM.push({i,k:"door",c:new THREE.Vector3(o.x,y0+H2/2,o.z),hw:W2/2,hd:D2/2,hh:H2/2,r:o.r,y0,h:H2});
    const s4=label("🚪 "+(o.m==="swing"?"開き戸":"引き戸")+" 幅"+fmt(W2),ext*0.026,"#fef3c7f2","#78350f");s4.position.set(o.x,y0+H2+ext*0.03,o.z);s4.userData.cat="bld";pxl(s4,15);T.grp.add(s4);return}
   if(o.k==="ceil"){const g=new THREE.Group(),yc=GY+o.h,yM=GY+CH;   // 天井高の範囲：その高さに天井の板＋メインの天井から下がる「垂れ壁」
-   const pl=new THREE.Mesh(new THREE.BoxGeometry(o.w,8,o.d),new THREE.MeshBasicMaterial({color:0x7dd3fc,transparent:true,opacity:.35,depthWrite:false}));pl.position.set(0,-4,0);g.add(pl);
-   if(yM-yc>20){const dh=yM-yc,sk=new THREE.MeshBasicMaterial({color:0xbae6fd,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false});
+   const pl=new THREE.Mesh(new THREE.BoxGeometry(o.w,8,o.d),new THREE.MeshBasicMaterial({color:0x38bdf8,transparent:true,opacity:.5,depthWrite:false}));pl.position.set(0,-4,0);g.add(pl);
+   if(yM-yc>20){const dh=yM-yc,sk=new THREE.MeshBasicMaterial({color:0x7dd3fc,transparent:true,opacity:.45,side:THREE.DoubleSide,depthWrite:false});
     [[o.w,0,o.d/2],[o.w,0,-o.d/2],[o.d,1,o.w/2],[o.d,1,-o.w/2]].forEach(([L,v,q])=>{const f=new THREE.Mesh(new THREE.PlaneGeometry(L,dh),sk);f.position.set(v?q:0,dh/2,v?0:q);if(v)f.rotation.y=Math.PI/2;g.add(f)})}
    try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(pl.geometry),new THREE.LineBasicMaterial({color:0x0284c7}));e.position.copy(pl.position);g.add(e)}catch(err){}
    g.position.set(o.x,yc,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);

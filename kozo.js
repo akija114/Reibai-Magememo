@@ -266,7 +266,12 @@ function kzLgs(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("先�
  const mm=P.mmpp,{H,V}=kzLines(),bx=kzPlanBox(),out=[],rpl=new Set();
  const cols=st.bld.filter(o=>o.k==="col"),inCol=c=>cols.some(o=>{const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=c[0]-o.x,dz=c[1]-o.z;return Math.abs(dx*co+dz*si)<o.w/2+5&&Math.abs(-dx*si+dz*co)<o.d/2+5});
  /* 1枚置く：e0〜e1＝壁の両面（図面の座標・線に直角の向き）、lo〜hi＝壁の範囲（線の向き）。置けたら true */
- const put=(hz,e0,e1,lo,hi,gap,bl,br)=>{const ovl=(hi-lo)*mm;if(ovl<200)return false;const mid=(e0+e1)/2,Dw=(e1-e0)*mm;
+ /* 引き戸の所（戸板の線）は軽量壁にしない：戸の範囲を除いた所だけに置く */
+ let SL=[];try{SL=kzFindSlides()}catch(e){}
+ const put=(hz,e0,e1,lo,hi,gap,bl,br)=>{const m=(e0+e1)/2;let R=[[lo,hi]];
+  SL.forEach(d=>{if(!d.hz!==!hz||Math.abs(d.c-m)*mm>(e1-e0)*mm/2+120)return;const a=d.lo-30/mm,b=d.hi+30/mm,N=[];R.forEach(([x,y])=>{if(b<=x||a>=y){N.push([x,y]);return}if(a>x)N.push([x,a]);if(b<y)N.push([b,y])});R=N});
+  let ok=false;R.forEach(([x,y])=>{if(put1(hz,e0,e1,x,y,gap,bl,br))ok=true});return ok};
+ const put1=(hz,e0,e1,lo,hi,gap,bl,br)=>{const ovl=(hi-lo)*mm;if(ovl<200)return false;const mid=(e0+e1)/2,Dw=(e1-e0)*mm;
   const p0=hz?[lo,mid]:[mid,lo],p1=hz?[hi,mid]:[mid,hi],pc=[(p0[0]+p1[0])/2,(p0[1]+p1[1])/2];if(bx&&(pc[0]<bx.x0||pc[0]>bx.x1||pc[1]<bx.y0||pc[1]>bx.y1))return false;
   const A2=btWx(p0),B2=btWx(p1),c=btWx(pc),Lw=Math.hypot(B2[0]-A2[0],B2[1]-A2[1]),r=normT(Math.round(Math.atan2(B2[1]-A2[1],B2[0]-A2[0])*180/Math.PI));
   /* H鋼・柱そのものの線（柱の中）は壁にしない */

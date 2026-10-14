@@ -198,7 +198,10 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
   else if(k==="wall"){const seg=[["room","🏠 部屋をぐるっと"],["wall","🧱 1本ずつ"],["rng","📥 図面の壁を取り込む"]];
    h=wzBtn("kzLgsAuto","🧱 軽量鉄骨＋ボードの壁を図面から置く","#475569","#fff","width:100%;margin-bottom:6px")+`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${seg.map(([t,l])=>`<button data-wt="${t}" style="height:40px;padding:0 9px;border-radius:10px;font-weight:800;font-size:13px;border:1.5px solid #cbd5e1;background:${BT.tool===t?"#fbbf24":"#fff"}">${l}</button>`).join("")}</div>`+
     `<p>${BT.tool==="room"?"部屋の<b>内側の角</b>を順番にタップ。全部置いたら下の「壁を作る」。":BT.tool==="wall"?"壁の面の<b>端と端</b>を2点タップ。":"範囲の<b>対角を2点</b>タップ。その中の図面の壁（青い帯）をまとめて壁にします。"}</p>`+
-    wzInp("t","厚み")+wzInp("wh","高さ（0＝天井まで）")+
+    `<div style="display:flex;gap:4px;margin:2px 0 4px">${[["","普通の壁"],["lgs","軽量（スタッド）＋ボード"]].map(([t,l])=>`<button data-wk="${t}" style="flex:1;height:38px;border-radius:10px;font-weight:800;font-size:13px;border:1.5px solid #cbd5e1;background:${(BT.wk||"")===t?"#fbbf24":"#fff"}">${l}</button>`).join("")}</div>`+
+    (BT.wk==="lgs"?`<div style="font-size:13px;margin:2px 0">スタッド：${[45,50,65,75,90,100].map(v=>`<button data-ls="${v}" style="height:34px;min-width:40px;margin:2px;border-radius:9px;font-weight:800;border:1.5px solid #cbd5e1;background:${BT.ls===v?"#fbbf24":"#fff"}">${v}</button>`).join("")}</div>
+     <div style="font-size:13px;margin:2px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">ボード（12.5mm）：${wzBtn("wzLbl","片側 "+BT.lbl+"枚")}${wzBtn("wzLbr","反対側 "+BT.lbr+"枚")}</div>
+     <div style="font-size:13px;margin:2px 0">→ 壁の厚み <b>${fmt(btTh())}</b>mm（3Dでスタッド@455・ランナー・ボードを出します）</div>`:wzInp("t","厚み"))+wzInp("wh","高さ（0＝天井まで）")+
     (BT.tool==="wall"?`<div>${wzBtn("wzSide","厚みを付ける側："+(BT.side>0?"右":"左")+"（押して切替）")}</div>`:"")+
     (BT.tool==="room"?`<div style="font-size:13px;margin-top:4px">置いた角：${BT.pts.length}</div>${BT.pts.length>=3?wzBtn("wzRoom","✅ 角を置き終わった → 壁を作る","#16a34a","#fff","width:100%;margin-top:4px"):""}`:"")+done}
   else if(k==="beam")h=`<p>梁の<b>中心線の端と端</b>を2点タップ。</p>${wzInp("bw","梁の幅")}${wzInp("bd","梁せい")}${wzInp("bb","梁下の高さ（床から）")}<p style="font-size:12.5px;color:#64748b">梁下の高さ：床から梁の下の面まで。天井より上なら天井高より大きい数字（いまの天井高 ${fmt((P&&P.CH)||st.gnd.ch||2400)}）。</p>`+done;
@@ -242,6 +245,9 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
  on("wzORot",()=>{BT.or=((BT.or||0)+90)%360;wzRender()});
  bl.querySelectorAll("[data-wt]").forEach(b=>b.onclick=()=>{BT.tool=b.dataset.wt;BT.pts=[];wzRender();planDraw()});
  on("wzSide",()=>{BT.side*=-1;wzRender()});
+ bl.querySelectorAll("[data-wk]").forEach(b=>b.onclick=()=>{BT.wk=b.dataset.wk;wzRender()});
+ bl.querySelectorAll("[data-ls]").forEach(b=>b.onclick=()=>{BT.ls=+b.dataset.ls;wzRender()});
+ on("wzLbl",()=>{BT.lbl=(BT.lbl+1)%4;wzRender()});on("wzLbr",()=>{BT.lbr=(BT.lbr+1)%4;wzRender()});
  bl.querySelectorAll("[data-dt2]").forEach(b=>b.onclick=()=>{BT.dt=b.dataset.dt2;wzRender()});on("wzRoom",()=>{planBldRoom();wzRender()});
  bl.querySelectorAll("[data-wz]").forEach(i=>i.oninput=()=>{const v=uParse(i.value);if(isFinite(v))BT[i.dataset.wz]=Math.abs(v)});
 }
@@ -280,7 +286,7 @@ function bldFoot(o,i){let hw=o.w/2,hd=o.d/2,cx=o.x,cz=o.z;
  return{cx,cz,hw:Math.max(hw,60),hd:Math.max(hd,60),th:o.r*Math.PI/180}}
 function bldHit(q){let best=-1,ba=1e18;st.bld.forEach((o,i)=>{const f=bldFoot(o,i),co=Math.cos(f.th),si=Math.sin(f.th),dx=q[0]-f.cx,dz=q[1]-f.cz,lx=dx*co+dz*si,lz=-dx*si+dz*co;
   if(Math.abs(lx)<=f.hw+80&&Math.abs(lz)<=f.hd+80){const a=f.hw*f.hd+(o.k==="hole"?-1e12:0);if(a<ba){ba=a;best=i}}});return best}
-function bldDesc(o){const K=BLDK[o.k]||{i:"",n:""};return K.i+" "+K.n+"（"+(o.k==="wall"?"厚"+fmt(o.d)+"・長さ"+fmt(o.w):o.k==="hole"?"φ"+fmt(o.w):o.k==="door"?(o.m==="swing"?"開き戸":"引き戸")+" 幅"+fmt(o.w):fmt(o.w)+"×"+fmt(o.d))+"）"}
+function bldDesc(o){const K=BLDK[o.k]||{i:"",n:""};return K.i+" "+K.n+"（"+(o.k==="wall"?(o.m==="lgs"?"軽量＋ボード ":"")+"厚"+fmt(o.d)+"・長さ"+fmt(o.w):o.k==="hole"?"φ"+fmt(o.w):o.k==="door"?(o.m==="swing"?"開き戸":"引き戸")+" 幅"+fmt(o.w):fmt(o.w)+"×"+fmt(o.d))+"）"}
 function wzDel(idx){if(!idx.length)return;const s=[...new Set(idx)].sort((a,b)=>b-a),rec=s.map(i=>({i,o:st.bld[i]}));s.forEach(i=>st.bld.splice(i,1));
  (W.delStack=W.delStack||[]).push(rec.reverse());BT.stack=[];W.s0=0;W.sel=[];bldChanged();wzRender();planDraw();toast(s.length+"個 消しました（「◀ 戻る」で元に戻せます）")}
 function wzUndel(){const r=W.delStack&&W.delStack.pop();if(!r)return false;r.forEach(({i,o})=>st.bld.splice(Math.min(i,st.bld.length),0,o));bldChanged();wzRender();planDraw();toast("元に戻しました");return true}
@@ -456,7 +462,10 @@ function planStepGo(i){const P=PLAN;
  if(i===5){planMake()}}
 
 /* ===== 図面の上から、壁・柱・障害物・室内機・穴を置く（図面の上の点 → 原点からのmm） ===== */
-const BT={ch:2400,rw:400,ry:2800,ct:"",tool:"org",t:150,wh:0,ih:300,side:1,bh:500,by:0,hd:65,hy:2200,bw:400,bd:700,bb:2700,om:"p40",or:0,oy:0,dw:800,dh:2000,dt:"slide",pts:[],stack:[]};
+const BT={ch:2400,rw:400,ry:2800,ct:"",tool:"org",t:150,wh:0,ih:300,side:1,bh:500,by:0,hd:65,hy:2200,bw:400,bd:700,bb:2700,om:"p40",or:0,oy:0,dw:800,dh:2000,dt:"slide",wk:"",ls:65,lbl:1,lbr:1,pts:[],stack:[]};
+/* 壁の種類：軽量（スタッド）＋ボード の時は、スタッド幅＋ボード12.5mm×枚数 が厚み */
+function btTh(){return BT.wk==="lgs"?Math.round(BT.ls+(BT.lbl+BT.lbr)*12.5):BT.t}
+function btLgs(o){if(o&&BT.wk==="lgs"){o.m="lgs";o.bl=BT.lbl;o.br=BT.lbr;o.st=Math.abs(o.d-btTh())<=2?BT.ls:Math.max(30,Math.round(o.d-(BT.lbl+BT.lbr)*12.5))}return o}
 const BT_TOOLS=[["org","🎯 原点"],["room","🏠 部屋の内側"],["wall","🧱 壁1本"],["rng","📥 図面の壁を取り込む"],["col","🏛 柱"],["box","📦 障害物"],["ind","❄️ 室内機"],["hole","🕳️ 穴"]];
 const BT_HELP={org:"原点（0,0）にする点をタップ。部屋の基準にする角や、室内機の位置など。最初に1回決めます。",room:"部屋の「内側」の角を順にタップ。最初の点の近くをもう一度タップ（または下の「閉じる」）で、外側に壁ができます。",wall:"壁の面の両端を2点タップ。厚みは「壁の厚み」で、付ける側は下のボタンで切り替え。",rng:"図面から自動で見つけた壁（青い帯）を、四角の範囲でまとめて取り込みます。範囲の対角を2点タップ。",col:"柱の対角の2点をタップ（柱の角から角）。",box:"障害物（ダクト・設備など）の対角の2点をタップ。高さは下の欄。",ind:"室内機の中心をタップ。機種はあとで3Dの編集画面で変えられます。",hole:"配管を通す穴を、壁の近くでタップ。壁の厚みに合わせて向きが決まります。"};
 function planBldPanel(){if(W.on){wzRender();return}const el=$("#plPanel");if(!el)return;PV.bldPanelOn=true;el.style.display="block";
@@ -486,8 +495,8 @@ function btWall(a,b,t,side,ext){const dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,
  return{k:"wall",x:Math.round((a[0]+b[0])/2+nx*t/2),z:Math.round((a[1]+b[1])/2+nz*t/2),w:Math.round(L+(ext?t:0)),d:t,h:BT.wh>0?BT.wh:600,y:0,r:normT(Math.round(Math.atan2(dz,dx)*180/Math.PI)),full:!(BT.wh>0)}}
 function planBldRoom(){const P=PLAN;if(BT.pts.length<3){toast("角を3つ以上タップしてください");return}
  const W=BT.pts.map(btW);let A=0;W.forEach((q,i)=>{const r=W[(i+1)%W.length];A+=q[0]*r[1]-r[0]*q[1]});
- const out=A>0?-1:1,t=Math.max(50,BT.t||150),L=[];
- W.forEach((q,i)=>{const w=btWall(q,W[(i+1)%W.length],t,out,true);if(w)L.push(w)});
+ const out=A>0?-1:1,t=Math.max(50,btTh()||150),L=[];
+ W.forEach((q,i)=>{const w=btLgs(btWall(q,W[(i+1)%W.length],t,out,true));if(w)L.push(w)});
  BT.pts=[];btAdd(L);toast("部屋の壁を"+L.length+"枚つくりました（3Dで確認）")}
 function planBldUndo(){if(BT.pts.length){BT.pts.pop();planDraw();return}
  const n=BT.stack.pop();if(!n){toast("取り消せるものがありません");return}st.bld.splice(st.bld.length-n,n);bldChanged();planBldPanel();planDraw();toast("取り消しました")}
@@ -521,7 +530,7 @@ function planBldPlace(p){const P=PLAN;if(!P.mmpp){toast("先に縮尺を合わ�
   btAdd(normBld([{k:"beam",x:Math.round((a[0]+b[0])/2),z:Math.round((a[1]+b[1])/2),w:Math.round(L),d:BT.bw||400,h:BT.bd||700,y:BT.bb||2700,r:normT(Math.round(Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI)),full:false}]));toast("梁を置きました");return}
  if(tool==="spot"){if(n<2){planDraw();return}const a=btW(BT.pts[0]),b=btW(BT.pts[1]);BT.pts=[];const w=Math.abs(b[0]-a[0]),d=Math.abs(b[1]-a[1]);if(w<100||d<100){toast("小さすぎます。対角の2点をタップ");planDraw();return}
   btAdd(normBld([{k:"spot",x:(a[0]+b[0])/2,z:(a[1]+b[1])/2,w,d,h:20,y:0,r:0,full:false}]));toast("室外機の置き場を置きました");return}
- if(tool==="wall"){if(n<2){planDraw();return}const w=btWall(btW(BT.pts[0]),btW(BT.pts[1]),Math.max(50,BT.t),BT.side,false);BT.pts=[];if(w){btAdd([w]);toast("壁を置きました")}else{toast("短すぎます");planDraw()}return}
+ if(tool==="wall"){if(n<2){planDraw();return}const w=btLgs(btWall(btW(BT.pts[0]),btW(BT.pts[1]),Math.max(50,btTh()),BT.side,false));BT.pts=[];if(w){btAdd([w]);toast(w.m==="lgs"?"軽量＋ボードの壁を置きました（厚"+fmt(w.d)+"）":"壁を置きました")}else{toast("短すぎます");planDraw()}return}
  if(tool==="col"||tool==="box"){if(n<2){planDraw();return}const a=btW(BT.pts[0]),b=btW(BT.pts[1]);BT.pts=[];const w=Math.abs(b[0]-a[0]),d=Math.abs(b[1]-a[1]);if(w<30||d<30){toast("小さすぎます。対角の2点をタップしてください");planDraw();return}
   const o={k:tool,m:tool==="col"&&BT.ct==="h"?"h":"",x:(a[0]+b[0])/2,z:(a[1]+b[1])/2,w,d,r:0,full:tool==="col",h:tool==="col"?600:BT.bh,y:tool==="col"?0:BT.by};btAdd([o]);toast(tool==="col"?"柱を置きました":"障害物を置きました");return}
  if(tool==="ind"){const q=btW(BT.pts[0]);BT.pts=[];const o=bldNew("ind",{x:q[0],z:q[1]});o.h=Math.max(10,BT.ih||300);btAdd([normBld([o])[0]]);toast("室内機を置きました。3Dで機種や向きを直せます");return}
@@ -538,7 +547,7 @@ function planBldPlace(p){const P=PLAN;if(!P.mmpp){toast("先に縮尺を合わ�
   const o=best.o,h=bldNew("hole",{x:Math.round(o.x+best.lx*best.co),z:Math.round(o.z+best.lx*best.si)});h.r=o.r;h.d=o.d;h.w=Math.max(10,BT.hd);h.y=BT.hy;btAdd([normBld([h])[0]]);toast("穴を置きました（3Dで高さや大きさを直せます）");return}
  if(tool==="rng"){if(n<2){planDraw();return}const a=BT.pts[0],b=BT.pts[1];BT.pts=[];const x0=Math.min(a[0],b[0]),x1=Math.max(a[0],b[0]),y0=Math.min(a[1],b[1]),y1=Math.max(a[1],b[1]);
   const L=[];(P.walls||[]).forEach(w=>{const mx=(w.a[0]+w.b[0])/2,my=(w.a[1]+w.b[1])/2;if(mx<x0||mx>x1||my<y0||my>y1)return;
-   const A=btW(w.a),B=btW(w.b),t=Math.max(50,Math.round(w.t/10)*10),o=btWall(A,B,t,0,false);if(o){o.x=Math.round((A[0]+B[0])/2);o.z=Math.round((A[1]+B[1])/2);L.push(o)}});
+   const A=btW(w.a),B=btW(w.b),t=Math.max(50,Math.round(w.t/10)*10),o=btWall(A,B,t,0,false);if(o){o.x=Math.round((A[0]+B[0])/2);o.z=Math.round((A[1]+B[1])/2);L.push(btLgs(o))}});
   if(!L.length){toast("この範囲に、自動で見つかった壁（青い帯）がありません。「部屋の内側」で置いてください");planDraw();return}
   btAdd(L);toast("図面の壁を"+L.length+"枚取り込みました");return}}
 /* 「室内機を探す」で選んだ四角を、3Dの室内機（箱）として置く */

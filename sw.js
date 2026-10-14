@@ -1,5 +1,5 @@
 /* オフライン用：一度開けば、電波がなくても開ける。更新したら VER の数字を上げる */
-const VER="pbm-v176",CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./zumen.html","./genchou.html","./kiki.html","./models.js?v=176","./core.js?v=176","./drain.js?v=176","./zumen.js?v=176","./genchou.js?v=176","./shashin.js?v=176","./kabe.js?v=176","./sumi.js?v=176","./kozo.js?v=176","./tanka.js?v=176","./mitsumori.js?v=176"];
+const VER="pbm-v177",CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./zumen.html","./genchou.html","./kiki.html","./models.js?v=177","./core.js?v=177","./drain.js?v=177","./zumen.js?v=177","./genchou.js?v=177","./shashin.js?v=177","./kabe.js?v=177","./sumi.js?v=177","./kozo.js?v=177","./tanka.js?v=177","./mitsumori.js?v=177"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(VER).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==VER).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{

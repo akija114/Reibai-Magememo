@@ -1214,14 +1214,16 @@ function planMake(){
 /* 3Dに図面（床）と壁を出す */
 function addPlan3D(){
  const P=PLAN,M=P.map,H=P.H||2400,fy=-H;
+ /* 図面の映し方：古い方式（配管をなぞった P.map）か、今の方式（縮尺・原点＝btWx と同じ座標）のどちらか */
+ const XF=M?{c:planToWorld([P.W/2,P.H0/2]),th:M.th}:{c:btWx([P.W/2,P.H0/2]),th:xfOf().r*Math.PI/180};
  const w=P.W*P.mmpp,h=P.H0*P.mmpp;
  if(!P.tex){P.tex=new THREE.CanvasTexture(P.img)}
  const g=new THREE.PlaneGeometry(w,h);g.rotateX(-Math.PI/2);
  /* 図面は「地面（床）」に映す。半透明の度合いは P.planOp（ボタンで変える） */
  const floorY=T&&T.GYr!=null?T.GYr:fy,op=P.planOp!=null?P.planOp:.4;
  const pl=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:P.tex,transparent:true,opacity:op,side:THREE.DoubleSide,depthWrite:false}));
- const c=planToWorld([P.W/2,P.H0/2]);pl.position.set(c[0],floorY+2,c[1]);pl.rotation.y=M.th;pl.renderOrder=-2;pl.userData.planFloor=true;T.grp.add(pl);
- if(P.walls.length&&!(st.bld&&st.bld.some(o=>o.k==="wall"))){const CH=P.CH||2500,wm=new THREE.MeshStandardMaterial({color:0xcbd5e1,transparent:true,opacity:.35,depthWrite:false});
+ const c=XF.c;pl.position.set(c[0],floorY+2,c[1]);pl.rotation.y=XF.th;pl.renderOrder=-2;pl.userData.planFloor=true;T.grp.add(pl);
+ if(M&&P.walls.length&&!(st.bld&&st.bld.some(o=>o.k==="wall"))){const CH=P.CH||2500,wm=new THREE.MeshStandardMaterial({color:0xcbd5e1,transparent:true,opacity:.35,depthWrite:false});
   P.walls.forEach(wl=>{const a=planToWorld(wl.a),b=planToWorld(wl.b),L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<1)return;
    const m=new THREE.Mesh(new THREE.BoxGeometry(L,CH,wl.t),wm);m.position.set((a[0]+b[0])/2,fy+CH/2,(a[1]+b[1])/2);
    m.rotation.y=M.th-Math.atan2(wl.b[1]-wl.a[1],wl.b[0]-wl.a[0]);T.grp.add(m)})}

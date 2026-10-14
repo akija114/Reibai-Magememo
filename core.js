@@ -989,7 +989,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   ball.position.copy(pt);ball.position.y+=h;T.grp.add(ball);
   const s=label(txt,ext*0.05,bg,fg);s.position.copy(pt);s.position.y+=h;s.userData.cat="flag";pxl(s,26,{t:"up"},rad*0.8);T.grp.add(s);
  };
- if(typeof PLAN!=="undefined"&&PLAN&&PLAN.show&&PLAN.map&&!GM){try{addPlan3D()}catch(e){console.warn("plan3d",e)}}
+ if(typeof PLAN!=="undefined"&&PLAN&&PLAN.show&&(PLAN.map||(PLAN.img&&PLAN.mmpp&&PLAN.org))&&!GM){try{addPlan3D()}catch(e){console.warn("plan3d",e)}}
  if(CY!==null){ // 天井（青みのある白・半透明）
   const size=Math.max(sz.x,sz.z)*1.5+1500;
   if(THREE.PlaneGeometry){
@@ -1739,7 +1739,7 @@ ${APP==="zumen"?`  <div class="pt pt2" style="margin-top:10px;font-size:13px">�
   <button class="pm" data-a="b_ind">❄️ 室内機（複数置けます）</button>
   <button class="pm" data-a="scan">${typeof SCAN!=="undefined"&&SCAN&&SCAN.obj?"📡 部屋のスキャン（位置合わせ・表示）":"📡 部屋のスキャンを読み込む"}</button>${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}
   <button class="pm" data-a="route">🧭 ルートおまかせ（始点と終点から）</button>
-  <button class="pm" data-a="plan"><img alt="" src="${NICO.plan}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">図面を読み込む・なぞる</button>${typeof PLAN!=="undefined"&&PLAN&&PLAN.map?`<button class="pm${PLAN.show?" red":""}" data-a="plan3d">${PLAN.show?"🙈 図面と壁を3Dで隠す":"👁 図面と壁を3Dで表示"}</button>${PLAN.show?`<button class="pm" data-a="planop">🌫 図面の濃さ：${Math.round((PLAN.planOp!=null?PLAN.planOp:.4)*100)}%（変える）</button>`:""}`:""}
+  <button class="pm" data-a="plan"><img alt="" src="${NICO.plan}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">図面を読み込む・なぞる</button>${typeof PLAN!=="undefined"&&PLAN&&(PLAN.map||(PLAN.img&&PLAN.mmpp&&PLAN.org))?`<button class="pm${PLAN.show?" red":""}" data-a="plan3d">${PLAN.show?"🙈 図面と壁を3Dで隠す":"👁 図面と壁を3Dで表示"}</button>${PLAN.show?`<button class="pm" data-a="planop">🌫 図面の濃さ：${Math.round((PLAN.planOp!=null?PLAN.planOp:.4)*100)}%（変える）</button>`:""}`:""}
 `:`${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}`}  <button class="pm" data-a="ben"><img alt="" src="${icoSrc("bender")}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">ベンダー：${BENDERS[BENDER].n}</button>
   <button class="pm${LABC.neko!==false?" red":""}" data-a="neko">${LABC.neko!==false?"🙈 ネコの高さを隠す":NI("neko")+"ネコ（吊り金具）の高さを表示"}</button>`+ALLROW,cx,cy,a=>{
   if(a==="tbl"){openTable();return}

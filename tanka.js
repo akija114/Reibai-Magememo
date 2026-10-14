@@ -11,10 +11,13 @@ const esc=s=>String(s==null?"":s).replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const OLD=180;
 /* 単価の保存：{品名:{p:単価,d:"2026-10-14",s:"手入力|Excel|楽天|Yahoo|値上げ"}}（前の版の数字だけの形も読める） */
-const ALL=()=>{const o=LS("pbm_mt_price",{}),r={};Object.keys(o).forEach(k=>{const v=o[k];r[k]=typeof v==="object"&&v?{p:+v.p||0,d:v.d||"",s:v.s||""}:{p:+v||0,d:"",s:""}});return r};
+const ALL=()=>{const o=LS("pbm_mt_price",{}),r={};Object.keys(o).forEach(k=>{const v=o[k];r[k]=typeof v==="object"&&v?{p:+v.p||0,d:v.d||"",s:v.s||"",c:v.c||""}:{p:+v||0,d:"",s:"",c:""}});return r};
 const SAVE=o=>LSset("pbm_mt_price",o);
-const get=n=>ALL()[n]||{p:0,d:"",s:""};
-const set=(n,p,s)=>{const o=ALL();o[n]={p:Math.max(0,Math.round(+p||0)),d:today(),s:s||"手入力"};SAVE(o)};
+/* 品番：入れた品番。無ければ品名の中の品番（DV-DL など）を使う */
+const autoCode=n=>{const m=String(n).match(/\b((?:DV|CMY|SDP|KHRP|BKSP|PAC)-[A-Z0-9-]+)/i);return m?m[1]:""};
+const get=n=>{const v=ALL()[n]||{p:0,d:"",s:"",c:""};return{...v,c:v.c||autoCode(n)}};
+const setCode=(n,c)=>{const o=ALL();o[n]={...(o[n]||{p:0,d:"",s:""}),c:String(c||"").trim().slice(0,40)};SAVE(o)};
+const set=(n,p,s)=>{const o=ALL();o[n]={p:Math.max(0,Math.round(+p||0)),d:today(),s:s||"手入力",c:(o[n]||{}).c||""};SAVE(o)};
 const age=d=>{if(!d)return 9999;const t=Date.parse(d);return isFinite(t)?Math.floor((Date.now()-t)/864e5):9999};
 const isOld=n=>{const v=get(n);return v.p>0&&age(v.d)>OLD};
 const dLab=v=>v.p?(v.d?v.d.slice(0,7).replace("-","/"):"日付なし")+(v.s&&v.s!=="手入力"?"・"+v.s:""):"";
@@ -69,12 +72,12 @@ function readCsv(t){const rows=[];let row=[],cur="",q=false;for(let i=0;i<t.leng
   else if(c==='"')q=true;else if(c===","||c==="\t"){row.push(cur);cur=""}else if(c==="\n"||c==="\r"){if(c==="\r"&&t[i+1]==="\n")i++;row.push(cur);rows.push(row);row=[];cur=""}else cur+=c}
  if(cur||row.length){row.push(cur);rows.push(row)}return rows}
 /* 表から「品名」と「単価」を取り出す（見出しの行を探す。無ければ文字の多い列と数字の多い列） */
-function pickRows(rows){const num=v=>{const s=String(v).normalize("NFKC").replace(/[,¥円\s]/g,"");return/^\d+(\.\d+)?$/.test(s)?+s:NaN};let hi=-1,cN=-1,cS=[],cP=-1;
+function pickRows(rows){const num=v=>{const s=String(v).normalize("NFKC").replace(/[,¥円\s]/g,"");return/^\d+(\.\d+)?$/.test(s)?+s:NaN};let hi=-1,cN=-1,cS=[],cP=-1,cC=-1;
  for(let i=0;i<Math.min(rows.length,40);i++){const r=rows[i].map(x=>String(x).normalize("NFKC").replace(/\s/g,""));const n=r.findIndex(x=>/^(品名|商品名|名称|品目|摘要|材料名|品番名称)$/.test(x)),p=r.findIndex(x=>/^(単価|価格|売価|仕切|仕切単価|販売単価|見積単価|新単価|改定後)/.test(x));
-  if(n>=0&&p>=0){hi=i;cN=n;cP=p;cS=r.map((x,k)=>/^(規格|サイズ|型番|品番|仕様|寸法)/.test(x)?k:-1).filter(k=>k>=0);break}}
+  if(n>=0&&p>=0){hi=i;cN=n;cP=p;cS=r.map((x,k)=>/^(規格|サイズ|仕様|寸法)/.test(x)?k:-1).filter(k=>k>=0);cC=r.findIndex(x=>/^(品番|型番|コード|品目コード|商品コード|メーカー品番)/.test(x));break}}
  if(hi<0){const W=Math.max(...rows.map(r=>r.length),0),cnt=k=>rows.reduce((a,r)=>a+(isFinite(num(r[k]))?1:0),0),tx=k=>rows.reduce((a,r)=>a+(String(r[k]||"").length>2&&!isFinite(num(r[k]))?1:0),0);
   let bt=-1,bn=-1;for(let k=0;k<W;k++){if(bt<0||tx(k)>tx(bt))bt=k}for(let k=W-1;k>=0;k--){if(k!==bt&&(bn<0||cnt(k)>cnt(bn)))bn=k}cN=bt;cP=bn}
- const out=[];rows.slice(hi+1).forEach(r=>{const n=[r[cN],...cS.map(k=>r[k])].filter(Boolean).join(" ").trim(),p=num(r[cP]);if(n&&isFinite(p)&&p>0)out.push({n,p:Math.round(p)})});return out}
+ const out=[];rows.slice(hi+1).forEach(r=>{const n=[r[cN],...cS.map(k=>r[k])].filter(Boolean).join(" ").trim(),p=num(r[cP]);if(n&&isFinite(p)&&p>0)out.push({n,p:Math.round(p),c:cC>=0?String(r[cC]||"").trim():""})});return out}
 /* 読み込んだ行 → アプリの品名に結び付ける */
 function matchAll(list,names){return list.map(o=>{let best=null,bs=0,second=0;names.forEach(nm=>{if(N(nm)===N(o.n)){best=nm;bs=99;return}const s=score(o.n,nm);if(s>bs){second=bs;bs=s;best=nm}else if(s>second)second=s});
  return{...o,to:bs>=5&&bs>second?best:(bs===99?best:""),sc:bs}})}
@@ -95,13 +98,14 @@ function render(b,rerender){const A=ALL(),L=names(),K=KEY();const nOld=L.filter(
    <table><tr><th>読み込んだ品名</th><th class="q">単価</th><th>→ アプリの品名</th></tr>${I.rows.slice(0,200).map((r,i)=>`<tr><td>${esc(r.n)}</td><td class="q">${r.p.toLocaleString()}</td><td><select data-imp="${i}" style="max-width:150px;height:32px;font-size:12px;border-radius:8px"><option value="">（使わない）</option>${L.map(nm=>`<option value="${esc(nm)}"${nm===r.to?" selected":""}>${esc(nm)}</option>`).join("")}<option value="__new"${r.to==="__new"?" selected":""}>＋この品名で新しく登録</option></select></td></tr>`).join("")}</table>
    <div style="display:flex;gap:6px;margin-top:6px"><button id="tkImpOk" style="flex:1;height:44px;border-radius:12px;background:#16a34a;color:#fff;font-weight:800">✅ 反映する</button><button id="tkImpNo" style="flex:1;height:44px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">やめる</button></div></div>`}
  h+=`<h4>💹 単価表${nOld?` <span style="font-size:12px;color:#b45309">（⚠️ 半年以上前の単価 ${nOld}件）</span>`:""}</h4><table><tr><th>品名</th><th class="q">単価</th><th></th></tr>${L.map(nm=>{const v=A[nm]||{p:0,d:""},old=isOld(nm),r=ST.net[nm];
-   return`<tr${old?' style="background:#fff7ed"':""}><td>${esc(nm)}<br><small style="color:${old?"#b45309":"#64748b"}">${v.p?(old?"⚠️ ":"")+dLab(v)+(old?"（見直し）":""):"未入力"}</small>${r?netHtml(nm,r):""}</td><td class="q"><input data-tk="${esc(nm)}" inputmode="numeric" value="${v.p||""}" placeholder="0" style="width:84px"></td><td><button data-net="${esc(nm)}" style="height:34px;padding:0 8px;border-radius:9px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">🔎</button></td></tr>`}).join("")}</table>`;
+   return`<tr${old?' style="background:#fff7ed"':""}><td>${esc(nm)}<br><small style="color:${old?"#b45309":"#64748b"}">${v.p?(old?"⚠️ ":"")+dLab(v)+(old?"（見直し）":""):"未入力"}</small><br><input data-tkc="${esc(nm)}" value="${esc(v.c||autoCode(nm))}" placeholder="品番" style="width:150px;height:28px;font-size:12px;margin-top:2px">${r?netHtml(nm,r):""}</td><td class="q"><input data-tk="${esc(nm)}" inputmode="numeric" value="${v.p||""}" placeholder="0" style="width:84px"></td><td><button data-net="${esc(nm)}" style="height:34px;padding:0 8px;border-radius:9px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">🔎</button></td></tr>`}).join("")}</table>`;
  h+=`<details style="background:#f8fafc;border-radius:12px;padding:8px;margin-bottom:8px"><summary style="font-weight:800">🔎 ネット相場の設定（楽天・Yahoo!）${K.rk||K.yh?" ✅":""}</summary>
    <div style="font-size:12.5px;color:#475569;margin:4px 0">無料登録でもらえるキーを入れると、品名の横の「🔎」でネットの値段を調べられます。キーはこのiPhoneにだけ保存します。<br>・楽天：<a href="https://webservice.rakuten.co.jp/" target="_blank" rel="noopener">楽天ウェブサービス</a>でアプリを登録（アプリID・アクセスキー。許可するサイトに <b>${esc(location.origin)}</b> を入れる）<br>・Yahoo!：<a href="https://e.developer.yahoo.co.jp/register" target="_blank" rel="noopener">Yahoo!デベロッパーネットワーク</a>でアプリを登録（Client ID）</div>
    <div style="display:grid;grid-template-columns:auto 1fr;gap:4px;align-items:center;font-size:13px">楽天 アプリID<input id="tkRk" value="${esc(K.rk)}" autocomplete="off">楽天 アクセスキー<input id="tkRka" value="${esc(K.rka)}" autocomplete="off">Yahoo! Client ID<input id="tkYh" value="${esc(K.yh)}" autocomplete="off"></div></details>`;
  b.innerHTML=h;
  const q=s=>b.querySelector(s),qa=s=>b.querySelectorAll(s);
  qa("[data-tk]").forEach(i=>i.onchange=()=>{set(i.dataset.tk,String(i.value).replace(/\D/g,""));rerender()});
+ qa("[data-tkc]").forEach(i=>i.onchange=()=>{setCode(i.dataset.tkc,i.value)});
  q("#tkUp").onclick=()=>{const pc=parseFloat(String(q("#tkPct").value).normalize("NFKC"));if(!isFinite(pc)||!pc){toast("% を入れてください");return}const c=CATS.find(x=>x[0]===q("#tkCat").value),o=ALL();let n=0;
   Object.keys(o).forEach(k=>{if(o[k].p>0&&c[2].test(k)){o[k]={p:Math.round(o[k].p*(1+pc/100)),d:today(),s:"値上げ"+(pc>0?"+":"")+pc+"%"};n++}});SAVE(o);toast(n?c[1]+"の単価 "+n+"件を "+(pc>0?"+":"")+pc+"% にしました":"単価が入っている品目がありません");rerender()};
  q("#tkFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const buf=await f.arrayBuffer();let rows;
@@ -110,9 +114,9 @@ function render(b,rerender){const A=ALL(),L=names(),K=KEY();const nOld=L.filter(
    const list=pickRows(rows);if(!list.length){toast("品名と単価の列が見つかりませんでした（見出しに「品名」「単価」があると確実です）");return}
    ST.imp={file:f.name,rows:matchAll(list,names())};rerender()}catch(err){console.warn(err);toast(err.message||"読み込めませんでした")}e.target.value=""};
  if(ST.imp){qa("[data-imp]").forEach(s=>s.onchange=()=>{ST.imp.rows[+s.dataset.imp].to=s.value});
-  q("#tkImpOk").onclick=()=>{const o=ALL();let n=0;ST.imp.rows.forEach(r=>{const k=r.to==="__new"?r.n:r.to;if(!k)return;o[k]={p:r.p,d:today(),s:"Excel"};n++});SAVE(o);toast("📥 単価を "+n+"件 反映しました");ST.imp=null;rerender()};
+  q("#tkImpOk").onclick=()=>{const o=ALL();let n=0;ST.imp.rows.forEach(r=>{const k=r.to==="__new"?r.n:r.to;if(!k)return;o[k]={p:r.p,d:today(),s:"Excel",c:r.c||(o[k]||{}).c||""};n++});SAVE(o);toast("📥 単価を "+n+"件 反映しました");ST.imp=null;rerender()};
   q("#tkImpNo").onclick=()=>{ST.imp=null;rerender()}}
- q("#tkExp").onclick=()=>{const o=ALL(),rows=[["品名","単価","更新日","メモ"],...names().map(k=>[k,(o[k]||{}).p||"",(o[k]||{}).d||"",(o[k]||{}).s||""])];
+ q("#tkExp").onclick=()=>{const o=ALL(),rows=[["品名","品番","単価","更新日","メモ"],...names().map(k=>[k,(o[k]||{}).c||autoCode(k),(o[k]||{}).p||"",(o[k]||{}).d||"",(o[k]||{}).s||""])];
   const csv="﻿"+rows.map(r=>r.map(v=>{const s=String(v);return/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}).join(",")).join("\r\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="単価表_"+today()+".csv";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);toast("単価表を書き出しました（ファイル アプリに保存されます）")};
  const kk=()=>setKEY({rk:q("#tkRk").value.trim(),rka:q("#tkRka").value.trim(),yh:q("#tkYh").value.trim()});["#tkRk","#tkRka","#tkYh"].forEach(s=>q(s).onchange=kk);
@@ -124,5 +128,5 @@ function netHtml(nm,r){if(!r.L.length)return`<div style="font-size:12px;color:#b
  return`<div style="font-size:12px;background:#eff6ff;border-radius:8px;padding:6px;margin-top:4px">🔎「${esc(r.q)}」${r.L.length}件：安値 <b>${r.min.toLocaleString()}</b>円／真ん中 <b>${r.med.toLocaleString()}</b>円（税込・送料は店ごと）
   <div style="display:flex;gap:4px;margin:4px 0"><button data-use="${u(r.min,"ネット安値")}" style="flex:1;height:30px;border-radius:8px;background:#2563eb;color:#fff;font-weight:800;font-size:12px">安値を使う</button><button data-use="${u(r.med,"ネット相場")}" style="flex:1;height:30px;border-radius:8px;background:#1d4ed8;color:#fff;font-weight:800;font-size:12px">真ん中を使う</button></div>
   ${r.L.slice(0,5).map(o=>`<div>・${o.p.toLocaleString()}円 <a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(String(o.n).slice(0,40))}</a>（${esc(o.src)}${o.shop?"・"+esc(o.shop):""}${o.free?"・送料無料":""}）</div>`).join("")}${r.errs.length?`<div style="color:#b91c1c">${esc(r.errs.join("・"))}</div>`:""}</div>`}
-window.TK={get,set,isOld,dLab,render,readCsv,readXlsx,pickRows,matchAll,score,feat};
+window.TK={get,set,setCode,names:()=>names(),isOld,dLab,render,readCsv,readXlsx,pickRows,matchAll,score,feat};
 })();

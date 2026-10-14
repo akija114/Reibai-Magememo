@@ -208,7 +208,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${wzBtn("wzORot","向き：正面が"+["下","左","上","右"][((BT.or||0)/90)%4]+"（押して回す）")}${wzInp("oy","置く高さ（床から）")}</div>`+done;
   else if(k==="hole")h=(cnt("wall")?`<p>壁の上の、<b>穴を開ける位置</b>をタップ。</p>`:`<p style="color:#b91c1c"><b>先に壁が必要です。</b>「キャンセル」→「壁を追加」で壁を置いてから来てください。</p>`)+wzInp("hd","穴の直径")+wzInp("hy","穴の中心の高さ（床から）")+done;
   else if(k==="spot")h=`<p>室外機を置く<b>場所の範囲</b>を、対角に2点タップ（バルコニーや架台など）。</p>`+done;
-  else if(k==="door")h=`<div style="display:flex;gap:4px;margin-bottom:6px">${[["slide","引き戸"],["swing","開き戸"]].map(([t,l])=>`<button data-dt2="${t}" style="flex:1;height:40px;border-radius:10px;font-weight:800;font-size:14px;border:1.5px solid #cbd5e1;background:${BT.dt===t?"#fbbf24":"#fff"}">${l}</button>`).join("")}</div>`+
+  else if(k==="door")h=wzBtn("kzDoorAuto","🚪 図面の扉マークからまとめて置く","#b45309","#fff","width:100%;margin-bottom:6px")+`<div style="display:flex;gap:4px;margin-bottom:6px">${[["slide","引き戸"],["swing","開き戸"]].map(([t,l])=>`<button data-dt2="${t}" style="flex:1;height:40px;border-radius:10px;font-weight:800;font-size:14px;border:1.5px solid #cbd5e1;background:${BT.dt===t?"#fbbf24":"#fff"}">${l}</button>`).join("")}</div>`+
    (cnt("wall")?`<p>壁の上の、<b>扉の真ん中</b>をタップ。壁に吸い付きます。</p>`:`<p style="color:#b91c1c"><b>先に壁が必要です。</b>「キャンセル」→「壁を追加」で壁を置いてから来てください。</p>`)+wzInp("dw","扉の幅")+wzInp("dh","扉の高さ")+done}
  bl.innerHTML=`<div style="background:#fff;color:#0f172a;border-radius:16px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.28);font-size:14px;line-height:1.5;position:relative;touch-action:pan-y">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><b style="font-size:16px;flex:1">${title}</b><button id="wzFold" style="height:30px;padding:0 9px;border-radius:9px;background:#e2e8f0;font-weight:800;font-size:12px">${W.fold?"▼ 開く":"▲ 小さく"}</button></div>
@@ -588,7 +588,7 @@ async function planPage(n){
  const P=PLAN,page=await P.pdf.getPage(n),v0=page.getViewport({scale:1}),sc=Math.min(4,3200/Math.max(v0.width,v0.height),Math.sqrt(6e6/(v0.width*v0.height))),vp=page.getViewport({scale:sc});
  const c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);
  await page.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
- P.page=n;if(n!==1||!W.resume)plSavePage(n);P.img=c;P.W=c.width;P.H0=c.height;P.ptpx=sc;P.segs=[];P.texts=[];P.walls=[];P.route=[];
+ P.page=n;if(n!==1||!W.resume)plSavePage(n);P.img=c;P.W=c.width;P.H0=c.height;P.ptpx=sc;P.segs=[];P.arcs=[];P.texts=[];P.walls=[];P.route=[];
  /* 線（CADのPDFならデータで入っている） */
  try{const ol=await page.getOperatorList(),O=pdfjsLib.OPS,mul=(m,n2)=>[m[0]*n2[0]+m[2]*n2[1],m[1]*n2[0]+m[3]*n2[1],m[0]*n2[2]+m[2]*n2[3],m[1]*n2[2]+m[3]*n2[3],m[0]*n2[4]+m[2]*n2[5]+m[4],m[1]*n2[4]+m[3]*n2[5]+m[5]];
   let ctm=vp.transform.slice(),col="#000000";const stk=[],cst=[],hx=a2=>"#"+[0,1,2].map(k=>("0"+(Math.round(+a2[k])|0).toString(16)).slice(-2)).join(""),tp=(x,y)=>[ctm[0]*x+ctm[2]*y+ctm[4],ctm[1]*x+ctm[3]*y+ctm[5]];
@@ -599,7 +599,9 @@ async function planPage(n){
     for(const op of ops){if(op===O.moveTo){cur=tp(ar[k],ar[k+1]);st0=cur;k+=2}
      else if(op===O.lineTo){const p2=tp(ar[k],ar[k+1]);if(cur)P.segs.push([cur[0],cur[1],p2[0],p2[1],col]);cur=p2;k+=2}
      else if(op===O.rectangle){const x=ar[k],y=ar[k+1],w=ar[k+2],h=ar[k+3],q=[tp(x,y),tp(x+w,y),tp(x+w,y+h),tp(x,y+h)];for(let j=0;j<4;j++){const A=q[j],B2=q[(j+1)%4];P.segs.push([A[0],A[1],B2[0],B2[1],col])}cur=q[0];st0=q[0];k+=4}
-     else if(op===O.curveTo){cur=tp(ar[k+4],ar[k+5]);k+=6}else if(op===O.curveTo2||op===O.curveTo3){cur=tp(ar[k+2],ar[k+3]);k+=4}
+     else if(op===O.curveTo||op===O.curveTo2||op===O.curveTo3){   /* 曲線（扉の弧など）：始点・真ん中・終点を覚えておく */
+      let c1,c2,e;if(op===O.curveTo){c1=tp(ar[k],ar[k+1]);c2=tp(ar[k+2],ar[k+3]);e=tp(ar[k+4],ar[k+5]);k+=6}else{const q=tp(ar[k],ar[k+1]);e=tp(ar[k+2],ar[k+3]);if(op===O.curveTo2){c1=cur||q;c2=q}else{c1=q;c2=e}k+=4}
+      if(cur&&P.arcs.length<20000)P.arcs.push({a:cur,m:[(cur[0]+3*c1[0]+3*c2[0]+e[0])/8,(cur[1]+3*c1[1]+3*c2[1]+e[1])/8],b:e,col});cur=e}
      else if(op===O.closePath){if(cur&&st0)P.segs.push([cur[0],cur[1],st0[0],st0[1],col]);cur=st0}}}}
   P.segs=P.segs.filter(s2=>Math.hypot(s2[2]-s2[0],s2[3]-s2[1])>1.5);
  }catch(e){console.warn("ops",e)}
@@ -1614,7 +1616,8 @@ function planAutoAll(){const P=PLAN;
    for(let j=0;j<cut.length-1;j++){const g=(cut[j+1]-cut[j])*mm;if(g<80||g>450)continue;if(done.some(t=>Math.abs(t-g)<25))continue;done.push(g);
     const m=(cut[j]+cut[j+1])/2,p=hz?[m,c]:[c,m];nw+=planWallLearn(p,rg,true)||0}}}
  const r=planReadAll();
- if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本。違う所は図面画面で直せます"),400)}
+ let nd=0;try{if(r&&typeof kzDoors==="function")nd=kzDoors(true)}catch(e){console.warn("doors",e)}
+ if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nd?"・扉 "+nd+"か所":"")+"。違う所は図面画面で直せます"),400)}
  return r}
 
 /* 読み込み終わったら、建物・図面・スキャンを3Dに出し直す */

@@ -59,7 +59,11 @@ function mtCollect(){const G=[];const sec=(t,items,note)=>{if(items.length)G.pus
 const PR=()=>LS("pbm_mt_price",{}),setPR=p=>LSset("pbm_mt_price",p);
 const EX=()=>LS("pbm_mt_extra",[{n:"配管工事費",q:1,u:"式",p:0},{n:"ドレン工事費",q:1,u:"式",p:0}]),setEX=v=>LSset("pbm_mt_extra",v);
 const HD=()=>LS("pbm_mt_head",{to:"",from:"",tax:10,note:""}),setHD=v=>LSset("pbm_mt_head",v);
-function mtRows(){const rows=[];mtCollect().forEach(g=>g.items.forEach(it=>{if(it.u==="か所")return;const v=TK.get(it.n);rows.push({...it,sec:g.t,p:v.p||0,pv:v})}));EX().forEach((e,i)=>rows.push({...e,sec:"工事費・その他",x:i}));return rows}
+function mtRows(){const rows=[];mtCollect().forEach(g=>g.items.forEach(it=>{if(it.u==="か所")return;const v=TK.get(it.n);rows.push({...it,sec:g.t,p:v.p||0,pv:v,c:v.c})}));
+ const E=EX();E.forEach((e,i)=>{if(!e.mat)return;const v=TK.get(e.n);rows.push({...e,sec:"追加の材料",x:i,p:v.p||e.p||0,pv:v,c:v.c})});   // 追加の材料：単価・品番は単価表から（直すと単価表にも覚える）
+ E.forEach((e,i)=>{if(e.mat)return;rows.push({...e,sec:"工事費・その他",x:i})});return rows}
+/* 材料を追加する時の候補（単価表にある品目＋よく使う物） */
+const MT_CAT=["化粧カバー 直管","化粧カバー コーナー","化粧カバー 壁面取り出し","ウォールキャップ","配管穴 スリーブ","パテ（シールパテ）","ビニルテープ（配管用）","非粘着テープ","インシュロック（結束バンド）","サドルバンド","VVF 2.0-3C","VVF 1.6-3C","冷媒用フレアナット","ろう材","窒素ガス","真空引き・気密試験","冷媒ガス 追加充填","ドレンホース","ドレン 逆止弁","防振ゴム","架台（室外機）","ブロック","ボンド・コーキング","アンカー","高所作業車","産廃処分"];
 const yen=v=>"¥"+Math.round(v).toLocaleString("ja-JP");
 
 /* ===== 画面 ===== */
@@ -86,17 +90,25 @@ function mtRender(){const ov=mtSheet(),b=ov.querySelector("#mtBody");ov.querySel
  /* 見積もり */
  const H=HD(),rows=mtRows(),sub=rows.reduce((a,r)=>a+r.q*(r.p||0),0),tax=Math.round(sub*(H.tax||0)/100);
  let cur="";b.innerHTML=`<div style="display:grid;grid-template-columns:auto 1fr;gap:6px;align-items:center;font-size:13.5px">宛名<input id="mtTo" value="${esc(H.to)}" placeholder="例：〇〇建設 御中">発行者<input id="mtFrom" value="${esc(H.from)}" placeholder="屋号・名前">消費税<span><input id="mtTax" inputmode="numeric" value="${H.tax}" style="width:56px"> %</span></div>
+  <label style="display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-weight:800;font-size:14px"><input id="mtCode" type="checkbox" ${H.code?"checked":""} style="width:22px;height:22px"> 品番を表示（見積書・コピーにも）</label>
   <table style="margin-top:8px"><tr><th>品名</th><th class="q">数</th><th class="q">単価</th><th class="q">金額</th></tr>${rows.map((r,i)=>{const h=r.sec!==cur?`<tr><td colspan="4" style="background:#f1f5f9;font-weight:800">${esc(r.sec)}</td></tr>`:"";cur=r.sec;
-   return h+`<tr><td>${r.x!=null?`<input data-xn="${r.x}" value="${esc(r.n)}" style="width:100%">`:esc(r.n)}</td><td class="q">${r.x!=null?`<input data-xq="${r.x}" inputmode="decimal" value="${r.q}" style="width:48px">`:r.q} ${esc(r.u)}</td><td class="q"><input ${r.x!=null?`data-xp="${r.x}"`:`data-pn="${esc(r.n)}"`} inputmode="numeric" value="${r.p||""}" placeholder="0" style="width:76px">${r.pv&&r.p?`<br><small style="color:${TK.isOld(r.n)?"#b45309":"#94a3b8"};font-weight:400">${TK.isOld(r.n)?"⚠️":""}${TK.dLab(r.pv)}</small>`:""}</td><td class="q">${yen(r.q*(r.p||0))}</td></tr>`}).join("")}
+   return h+`<tr><td>${r.x!=null?`<input data-xn="${r.x}" value="${esc(r.n)}" style="width:100%">`:esc(r.n)}${H.code&&r.c?`<br><small style="color:#0369a1;font-weight:700">品番 ${esc(r.c)}</small>`:H.code&&r.mat!=null?"":""}${H.code&&!r.c&&r.pv?`<br><small style="color:#94a3b8">品番 －</small>`:""}</td><td class="q">${r.x!=null?`<input data-xq="${r.x}" inputmode="decimal" value="${r.q}" style="width:48px">`:r.q} ${esc(r.u)}</td><td class="q"><input ${r.x!=null?`data-xp="${r.x}"`:`data-pn="${esc(r.n)}"`} inputmode="numeric" value="${r.p||""}" placeholder="0" style="width:76px">${r.pv&&r.p?`<br><small style="color:${TK.isOld(r.n)?"#b45309":"#94a3b8"};font-weight:400">${TK.isOld(r.n)?"⚠️":""}${TK.dLab(r.pv)}</small>`:""}</td><td class="q">${yen(r.q*(r.p||0))}</td></tr>`}).join("")}
   <tr><td colspan="3" class="q">小計</td><td class="q">${yen(sub)}</td></tr><tr><td colspan="3" class="q">消費税（${H.tax}%）</td><td class="q">${yen(tax)}</td></tr><tr><td colspan="3" class="q" style="font-size:16px">合計</td><td class="q" style="font-size:16px">${yen(sub+tax)}</td></tr></table>
-  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button id="mtAdd" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">＋ 行を足す</button><button id="mtDel" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">－ 最後の行を消す</button></div>
+  <div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:12px;padding:8px;margin-top:8px"><b>＋ 材料を追加</b>（自動で数えていない物）
+   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px"><input id="mtMn" list="mtDl" placeholder="品名（選ぶか打つ）" style="flex:1 1 180px;min-width:0"><datalist id="mtDl">${[...new Set([...TK.names(),...MT_CAT])].map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
+   <input id="mtMq" inputmode="decimal" value="1" style="width:56px"><select id="mtMu" style="height:34px;border-radius:8px">${["個","本","m","巻","組","箱","缶","式","台","枚"].map(u=>`<option>${u}</option>`).join("")}</select>
+   <button id="mtMadd" style="height:36px;padding:0 14px;border-radius:10px;background:#b45309;color:#fff;font-weight:800">追加</button></div>
+   <div style="font-size:12px;color:#92400e;margin-top:2px">単価表にある品名なら、単価・品番が入ります。</div></div>
+  <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button id="mtAdd" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">＋ 工事費・その他の行</button><button id="mtDel" style="flex:1;height:42px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800">－ 最後に足した行を消す</button></div>
   <div style="display:flex;gap:6px;margin-top:6px"><button id="mtPrintB" style="flex:1;height:46px;border-radius:12px;background:#0f766e;color:#fff;font-weight:800">🖨 見積書（印刷・PDF）</button><button id="mtCopyE" style="flex:1;height:46px;border-radius:12px;background:#0891b2;color:#fff;font-weight:800">📋 コピー</button></div>
   <p style="font-size:12px;color:#64748b;margin-top:6px">単価はこのiPhoneに覚えておきます（いつ直したかも）。値上げ・Excelの単価表・ネット相場は「💹 単価表」で。印刷の画面で「共有」→ PDFとして保存できます。</p>`;
  const hd=()=>{const h=HD();h.to=b.querySelector("#mtTo").value;h.from=b.querySelector("#mtFrom").value;h.tax=Math.max(0,parseInt(b.querySelector("#mtTax").value)||0);setHD(h)};
  ["#mtTo","#mtFrom"].forEach(s=>b.querySelector(s).onchange=hd);b.querySelector("#mtTax").onchange=()=>{hd();mtRender()};
  b.querySelectorAll("[data-pn]").forEach(i=>i.onchange=()=>{TK.set(i.dataset.pn,String(i.value).replace(/\D/g,""));mtRender()});
  const ex=(attr,f)=>b.querySelectorAll(`[${attr}]`).forEach(i=>i.onchange=()=>{const e=EX(),k=+i.getAttribute(attr);if(e[k]){f(e[k],i.value);setEX(e);mtRender()}});
- ex("data-xn",(o,v)=>o.n=String(v).slice(0,40));ex("data-xq",(o,v)=>o.q=Math.max(0,parseFloat(v)||0));ex("data-xp",(o,v)=>o.p=Math.max(0,parseInt(String(v).replace(/\D/g,""))||0));
+ ex("data-xn",(o,v)=>o.n=String(v).slice(0,40));ex("data-xq",(o,v)=>o.q=Math.max(0,parseFloat(v)||0));ex("data-xp",(o,v)=>{o.p=Math.max(0,parseInt(String(v).replace(/\D/g,""))||0);if(o.mat&&o.n)TK.set(o.n,o.p)});
+ b.querySelector("#mtCode").onchange=e=>{const h=HD();h.code=e.target.checked;setHD(h);mtRender()};
+ b.querySelector("#mtMadd").onclick=()=>{const n=String(b.querySelector("#mtMn").value).trim().slice(0,40);if(!n){toast("品名を入れてください");return}const e=EX();e.push({n,q:Math.max(0,parseFloat(String(b.querySelector("#mtMq").value).normalize("NFKC"))||1),u:b.querySelector("#mtMu").value,p:0,mat:true});setEX(e);toast("「"+n+"」を追加しました");mtRender()};
  b.querySelector("#mtAdd").onclick=()=>{const e=EX();e.push({n:"",q:1,u:"式",p:0});setEX(e);mtRender()};
  b.querySelector("#mtDel").onclick=()=>{const e=EX();e.pop();setEX(e);mtRender()};
  b.querySelector("#mtCopyE").onclick=()=>{const t=mtEstText();try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}};
@@ -104,13 +116,13 @@ function mtRender(){const ov=mtSheet(),b=ov.querySelector("#mtBody");ov.querySel
 function mtHead(){const i=st.info||{};return[i.site?"現場："+i.site:"",i.line?"系統："+i.line:""].filter(Boolean).join("　")}
 function mtText(G){return"材料拾い"+(mtHead()?"（"+mtHead()+"）":"")+"\n"+G.map(g=>"■"+g.t+"\n"+g.items.map(it=>"・"+it.n+"　"+it.q+it.u).join("\n")+(g.note?"\n（"+g.note+"）":"")).join("\n")}
 function mtEstText(){const H=HD(),rows=mtRows(),sub=rows.reduce((a,r)=>a+r.q*(r.p||0),0),tax=Math.round(sub*(H.tax||0)/100);
- return"御見積書"+(H.to?"\n"+H.to:"")+(mtHead()?"\n"+mtHead():"")+"\n"+rows.map(r=>"・"+r.n+"　"+r.q+r.u+(r.p?" × "+yen(r.p)+" = "+yen(r.q*r.p):"")).join("\n")+`\n小計 ${yen(sub)}\n消費税(${H.tax}%) ${yen(tax)}\n合計 ${yen(sub+tax)}`+(H.from?"\n"+H.from:"")}
+ return"御見積書"+(H.to?"\n"+H.to:"")+(mtHead()?"\n"+mtHead():"")+"\n"+rows.map(r=>"・"+r.n+(H.code&&r.c?"［"+r.c+"］":"")+"　"+r.q+r.u+(r.p?" × "+yen(r.p)+" = "+yen(r.q*r.p):"")).join("\n")+`\n小計 ${yen(sub)}\n消費税(${H.tax}%) ${yen(tax)}\n合計 ${yen(sub+tax)}`+(H.from?"\n"+H.from:"")}
 function mtPrint(){const H=HD(),rows=mtRows(),sub=rows.reduce((a,r)=>a+r.q*(r.p||0),0),tax=Math.round(sub*(H.tax||0)/100),d=new Date();
  let el=document.getElementById("mtPrint");if(!el){el=document.createElement("div");el.id="mtPrint";document.body.appendChild(el)}
  el.innerHTML=`<h2 style="text-align:center;letter-spacing:.5em">御見積書</h2><div style="display:flex;justify-content:space-between"><div style="font-size:14pt;border-bottom:1px solid #000">${esc(H.to||"　　　　　　　　御中")}</div><div>${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日</div></div>
   <p>${esc(mtHead())}</p><p style="font-size:15pt;border-bottom:2px solid #000;display:inline-block">御見積金額　${yen(sub+tax)}（税込）</p>
-  <table><tr><th>品名</th><th>数量</th><th>単位</th><th>単価</th><th>金額</th></tr>${rows.map(r=>`<tr><td>${esc(r.n)}</td><td class="r">${r.q}</td><td>${esc(r.u)}</td><td class="r">${r.p?yen(r.p):""}</td><td class="r">${r.p?yen(r.q*r.p):""}</td></tr>`).join("")}
-  <tr><td colspan="4" class="r">小計</td><td class="r">${yen(sub)}</td></tr><tr><td colspan="4" class="r">消費税（${H.tax}%）</td><td class="r">${yen(tax)}</td></tr><tr><td colspan="4" class="r"><b>合計</b></td><td class="r"><b>${yen(sub+tax)}</b></td></tr></table>
+  <table><tr><th>品名</th>${H.code?"<th>品番</th>":""}<th>数量</th><th>単位</th><th>単価</th><th>金額</th></tr>${rows.map(r=>`<tr><td>${esc(r.n)}</td>${H.code?`<td>${esc(r.c||"")}</td>`:""}<td class="r">${r.q}</td><td>${esc(r.u)}</td><td class="r">${r.p?yen(r.p):""}</td><td class="r">${r.p?yen(r.q*r.p):""}</td></tr>`).join("")}
+  <tr><td colspan="${H.code?5:4}" class="r">小計</td><td class="r">${yen(sub)}</td></tr><tr><td colspan="${H.code?5:4}" class="r">消費税（${H.tax}%）</td><td class="r">${yen(tax)}</td></tr><tr><td colspan="${H.code?5:4}" class="r"><b>合計</b></td><td class="r"><b>${yen(sub+tax)}</b></td></tr></table>
   <p style="text-align:right;margin-top:16px">${esc(H.from)}</p>`;
  setTimeout(()=>window.print(),50)}
 window.mtOpen=function(){mtSheet().classList.add("on");mtRender()};

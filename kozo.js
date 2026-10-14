@@ -102,7 +102,7 @@ function kzHTML(k,done){const P=PLAN;
 function kzBind(){const q=s=>document.querySelectorAll(s);
  q("[data-kzt]").forEach(b=>b.onclick=()=>{BT.tool=b.dataset.kzt;BT.pts=[];wzRender();planDraw()});
  q("[data-kzc]").forEach(b=>b.onclick=()=>{BT.ct=b.dataset.kzc;wzRender()});
- const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};on("kzHAuto",kzPlaceH);on("kzDrOk",kzDrMake);
+ const on=(id,f)=>{const e=document.getElementById(id);if(e)e.onclick=f};on("kzHAuto",kzPlaceH);on("kzDoorAuto",()=>kzDoors());on("kzDrOk",kzDrMake);
  const ch=document.getElementById("kzCH");if(ch)ch.onchange=()=>kzSetCH(uParse(ch.value))}
 /* タップ（planBldPlace から）。処理したら true */
 function kzPlace(tool,p){
@@ -114,3 +114,50 @@ function kzPlace(tool,p){
   const A=btWx(a),B=btWx(b),L=Math.hypot(B[0]-A[0],B[1]-A[1]);if(L<200){toast("短すぎます");planDraw();return true}
   btAdd(normBld([{k:"rack",x:Math.round((A[0]+B[0])/2),z:Math.round((A[1]+B[1])/2),w:Math.round(L),d:BT.rw||400,h:100,y:BT.ry||2800,r:normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI)),full:false}]));toast("⚡ 電気ラックを置きました");return true}
  return false}
+
+/* ===== 🚪 扉マークから扉を置く =====
+   開き戸の記号＝吊り元を中心にした 1/4 の円弧（半径＝扉の幅）＋吊り元から伸びる扉の線。
+   CADの円弧は短い直線をつないで描かれていることが多いので、つながった短い線をたどって円に当てはめる（本当の曲線も使う）。
+   吊り元から扉の線が伸びている方が「開いた側」、もう一方の弧の端が「閉じた位置」＝壁の開口。開口の真ん中を壁に合わせて開き戸を置く。
+   近くに「H2000」などの書き込みがあれば、それを扉の高さにする */
+function kzCircle(a,m,b){const ax=a[0],ay=a[1],bx=m[0],by=m[1],cx=b[0],cy=b[1],d=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by));if(Math.abs(d)<1e-9)return null;
+ const ux=((ax*ax+ay*ay)*(by-cy)+(bx*bx+by*by)*(cy-ay)+(cx*cx+cy*cy)*(ay-by))/d,uy=((ax*ax+ay*ay)*(cx-bx)+(bx*bx+by*by)*(ax-cx)+(cx*cx+cy*cy)*(bx-ax))/d;return{x:ux,y:uy,r:Math.hypot(ax-ux,ay-uy)}}
+function kzArcPieces(){const P=PLAN,mm=P.mmpp,S=P.segs||[],out=[],near=(p,q)=>Math.abs(p[0]-q[0])+Math.abs(p[1]-q[1])<0.05;let ch=[];
+ const flush=()=>{if(ch.length>=4){const pts=[[ch[0][0],ch[0][1]],...ch.map(s=>[s[2],s[3]])],a=pts[0],b=pts[pts.length-1],m=pts[pts.length>>1],c=kzCircle(a,m,b);
+   if(c&&pts.every(p=>Math.abs(Math.hypot(p[0]-c.x,p[1]-c.y)-c.r)<=c.r*0.04+0.5))out.push({a,m,b,c,col:ch[0][4]})}ch=[]};
+ for(let i=0;i<S.length;i++){const s=S[i],L=Math.hypot(s[2]-s[0],s[3]-s[1])*mm;if(L>250||L<1||!kzNeu(s[4])){flush();continue}
+  if(ch.length){const p=ch[ch.length-1];if(!near([p[2],p[3]],[s[0],s[1]])||p[4]!==s[4]){flush()}}ch.push(s)}flush();
+ (P.arcs||[]).forEach(o=>{if(!kzNeu(o.col))return;const c=kzCircle(o.a,o.m,o.b);if(c)out.push({...o,c})});return out}
+function kzFindDoors(){const P=PLAN,mm=P.mmpp,pc=kzArcPieces().filter(o=>o.c.r*mm>=450&&o.c.r*mm<=1400),G=[];
+ const ang=(c,p)=>Math.atan2(p[1]-c.y,p[0]-c.x),sweep=o=>{let d=Math.abs(ang(o.c,o.b)-ang(o.c,o.a));if(d>Math.PI)d=2*Math.PI-d;return d};
+ pc.forEach(o=>{const g=G.find(g2=>Math.hypot(g2.c.x-o.c.x,g2.c.y-o.c.y)*mm<40&&Math.abs(g2.c.r-o.c.r)<o.c.r*0.04);if(g){g.P.push(o)}else G.push({c:o.c,P:[o]})});
+ const D=[];G.forEach(g=>{const E=[];g.P.forEach(o=>[o.a,o.b].forEach(p=>{const k=E.findIndex(q=>Math.hypot(q[0]-p[0],q[1]-p[1])*mm<20);if(k>=0)E.splice(k,1);else E.push(p)}));
+  if(E.length!==2)return;const sw=g.P.reduce((s,o)=>s+sweep(o),0)*180/Math.PI;if(sw<75||sw>105)return;const c=g.c,H=[c.x,c.y],r=c.r;
+  /* 開いた側：吊り元から弧の端まで伸びる線がある方 */
+  const leaf=p=>(P.segs||[]).some(s=>{const A=[s[0],s[1]],B=[s[2],s[3]],L=Math.hypot(B[0]-A[0],B[1]-A[1]);if(Math.abs(L-r)>r*0.12)return false;const d=(u,v)=>Math.hypot(u[0]-v[0],u[1]-v[1])*mm;return(d(A,H)<60&&d(B,p)<60)||(d(B,H)<60&&d(A,p)<60)});
+  const l0=leaf(E[0]),l1=leaf(E[1]);let C=null;if(l0&&!l1)C=E[1];else if(l1&&!l0)C=E[0];
+  D.push({H,C,E,r:r*mm})});return D}
+/* 1枚に図が2つある時の、ほかの図までのずれ（同じ名前の通り芯の差）。Oc に近い方の図から見た差の一覧 */
+function kzPlanOffsets(Oc){const P=PLAN,G=P.grids||[],out=[];["X","Y"].forEach(ax=>{});
+ const xs={},ys={};G.forEach(g=>{(g.ax==="X"?xs:ys)[g.n]=((g.ax==="X"?xs:ys)[g.n]||[]).concat([g.v])});
+ const dx=[],dy=[];Object.values(xs).forEach(v=>{if(v.length<2)return;const me=v.reduce((b,x)=>Math.abs(x-Oc[0])<Math.abs(b-Oc[0])?x:b);v.forEach(x=>{if(x!==me)dx.push(me-x)})});
+ Object.values(ys).forEach(v=>{if(v.length<2)return;const me=v.reduce((b,y)=>Math.abs(y-Oc[1])<Math.abs(b-Oc[1])?y:b);v.forEach(y=>{if(y!==me)dy.push(me-y)})});
+ const md=a=>a.length?a.sort((p,q)=>p-q)[a.length>>1]:0;if(dx.length||dy.length)out.push([md(dx),md(dy)]);return out}
+function kzDoors(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("先に縮尺と原点を決めてください");return 0}
+ const bx=kzPlanBox(),D=kzFindDoors().filter(d=>!bx||(d.H[0]>=bx.x0&&d.H[0]<=bx.x1&&d.H[1]>=bx.y0&&d.H[1]<=bx.y1)),walls=st.bld.filter(o=>o.k==="wall"),L=[];
+ const onWall=q=>{let best=null,bd=1e9;walls.forEach(o=>{const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=q[0]-o.x,dz=q[1]-o.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;
+  if(Math.abs(lx)<=o.w/2+150&&Math.abs(lz)<=o.d/2+300&&Math.abs(lz)<bd){bd=Math.abs(lz);best={o,lx,co,si,bd}}});return best};
+ D.forEach(d=>{/* 閉じた位置が分からない時は、壁に近い方の端 */
+  let C=d.C;if(!C){const w0=onWall(btWx(d.E[0])),w1=onWall(btWx(d.E[1]));C=!w1?d.E[0]:!w0?d.E[1]:(w0.bd<=w1.bd?d.E[0]:d.E[1])}
+  const Oc=[(d.H[0]+C[0])/2,(d.H[1]+C[1])/2],q=btWx(Oc),w=Math.round(d.r/10)*10;
+  /* 高さ：近くの「H2000」。1枚に図が2つある時は、もう一方の図の同じ所（通り芯の差だけずらした所）も見る */
+  let h=2000;const spots=[Oc,...kzPlanOffsets(Oc).map(o=>[Oc[0]-o[0],Oc[1]-o[1]])];
+  const tg=(P.texts||[]).map(t=>({t,m:String(t.s||"").normalize("NFKC").replace(/\s/g,"").match(/^H(\d{4})$/)})).filter(o=>o.m&&+o.m[1]>=1500&&+o.m[1]<=3500).map(o=>({v:+o.m[1],d:Math.min(...spots.map(S2=>Math.hypot(o.t.x-S2[0],o.t.y-S2[1])))*P.mmpp})).filter(o=>o.d<1500).sort((a,b)=>a.d-b.d)[0];if(tg)h=tg.v;
+  if(st.bld.some(o=>o.k==="door"&&Math.hypot(o.x-q[0],o.z-q[1])<400)||L.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<400))return;
+  /* 扉の所は壁が切れているので、同じ線の上にある壁（開口の両側）の向き・厚みを使う */
+  let W2=onWall(q);if(!W2){let bd=1e9;walls.forEach(o2=>{const th=o2.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=q[0]-o2.x,dz=q[1]-o2.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;if(Math.abs(lz)<=o2.d/2+80&&Math.abs(lx)<=o2.w/2+w+600&&Math.abs(lz)<bd){bd=Math.abs(lz);W2={o:o2,lx,co,si,free:1}}})}
+  let o;
+  if(W2){const lx=W2.free?W2.lx:Math.max(-W2.o.w/2+w/2,Math.min(W2.o.w/2-w/2,W2.lx));o={k:"door",x:Math.round(W2.o.x+lx*W2.co),z:Math.round(W2.o.z+lx*W2.si),w,d:W2.o.d,h,y:0,r:W2.o.r,full:false,m:"swing"}}
+  else{const A=btWx(d.H),B=btWx(C);o={k:"door",x:Math.round(q[0]),z:Math.round(q[1]),w,d:150,h,y:0,r:normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI)),full:false,m:"swing"}}
+  L.push(o)});
+ if(L.length)btAdd(normBld(L));if(!quiet)toast(L.length?"🚪 扉マークから開き戸を "+L.length+"か所 置きました（"+L.map(o=>"幅"+fmt(o.w)+"・高さ"+fmt(o.h)).join("／")+"）":D.length?"扉はもう置いてあります":"扉マーク（開き戸の弧）が見つかりませんでした");return L.length}

@@ -137,7 +137,9 @@ function kzFindDoors(){const P=PLAN,mm=P.mmpp,pc=kzArcPieces().filter(o=>o.c.r*m
  const D=[];G.forEach(g=>{const E=[];g.P.forEach(o=>[o.a,o.b].forEach(p=>{const k=E.findIndex(q=>Math.hypot(q[0]-p[0],q[1]-p[1])*mm<20);if(k>=0)E.splice(k,1);else E.push(p)}));
   if(E.length!==2)return;const sw=g.P.reduce((s,o)=>s+sweep(o),0)*180/Math.PI;if(sw<75||sw>105)return;const c=g.c,H=[c.x,c.y],r=c.r;
   /* 開いた側：吊り元から弧の端まで伸びる線がある方 */
-  const leaf=p=>(P.segs||[]).some(s=>{const A=[s[0],s[1]],B=[s[2],s[3]],L=Math.hypot(B[0]-A[0],B[1]-A[1]);if(Math.abs(L-r)>r*0.12)return false;const d=(u,v)=>Math.hypot(u[0]-v[0],u[1]-v[1])*mm;return(d(A,H)<60&&d(B,p)<60)||(d(B,H)<60&&d(A,p)<60)});
+  /* 扉の線：吊り元と弧の端の両方を通る線（扉の枠まで伸びていて長さが違ってもよい） */
+  const dSeg=(q,A,B)=>{const vx=B[0]-A[0],vy=B[1]-A[1],L2=vx*vx+vy*vy||1,t=Math.max(0,Math.min(1,((q[0]-A[0])*vx+(q[1]-A[1])*vy)/L2));return Math.hypot(A[0]+vx*t-q[0],A[1]+vy*t-q[1])*mm};
+  const leaf=p=>(P.segs||[]).some(s=>{const A=[s[0],s[1]],B=[s[2],s[3]],L=Math.hypot(B[0]-A[0],B[1]-A[1]);if(L<r*0.8)return false;return dSeg(H,A,B)<40&&dSeg(p,A,B)<40});
   const l0=leaf(E[0]),l1=leaf(E[1]);let C=null;if(l0&&!l1)C=E[1];else if(l1&&!l0)C=E[0];
   D.push({H,C,E,r:r*mm})});return D}
 /* 1枚に図が2つある時の、ほかの図までのずれ（同じ名前の通り芯の差）。Oc に近い方の図から見た差の一覧 */
@@ -151,14 +153,21 @@ function kzDoors(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("�
  const onWall=q=>{let best=null,bd=1e9;walls.forEach(o=>{const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=q[0]-o.x,dz=q[1]-o.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;
   if(Math.abs(lx)<=o.w/2+150&&Math.abs(lz)<=o.d/2+300&&Math.abs(lz)<bd){bd=Math.abs(lz);best={o,lx,co,si,bd}}});return best};
  D.forEach(d=>{/* 閉じた位置が分からない時は、壁に近い方の端 */
-  let C=d.C;if(!C){const w0=onWall(btWx(d.E[0])),w1=onWall(btWx(d.E[1]));C=!w1?d.E[0]:!w0?d.E[1]:(w0.bd<=w1.bd?d.E[0]:d.E[1])}
+  /* 壁の線の上にある向き（吊り元→端 が壁と平行で、吊り元が壁の芯の近く）を「閉じた位置」にする */
+  const lineWall=(E)=>{const Hw=btWx(d.H),Ew=btWx(E),a=Math.atan2(Ew[1]-Hw[1],Ew[0]-Hw[0])*180/Math.PI;let best=null,bd=1e9;
+   walls.forEach(o=>{let da=Math.abs(((a-o.r)%180+180)%180);da=Math.min(da,180-da);if(da>6)return;const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),lz=Math.abs(-(Hw[0]-o.x)*si+(Hw[1]-o.z)*co);
+    if(lz<=o.d/2+150&&lz<bd){bd=lz;best={o,co,si,bd}}});return best};
+  let C=d.C,LW=null;if(!C){const w0=lineWall(d.E[0]),w1=lineWall(d.E[1]);if(w0&&!w1)C=d.E[0];else if(w1&&!w0)C=d.E[1];else if(w0&&w1)C=w0.bd<=w1.bd?d.E[0]:d.E[1];
+   else{const v0=onWall(btWx(d.E[0])),v1=onWall(btWx(d.E[1]));C=!v1?d.E[0]:!v0?d.E[1]:(v0.bd<=v1.bd?d.E[0]:d.E[1])}}
+  LW=lineWall(C);
   const Oc=[(d.H[0]+C[0])/2,(d.H[1]+C[1])/2],q=btWx(Oc),w=Math.round(d.r/10)*10;
   /* 高さ：近くの「H2000」。1枚に図が2つある時は、もう一方の図の同じ所（通り芯の差だけずらした所）も見る */
   let h=2000;const spots=[Oc,...kzPlanOffsets(Oc).map(o=>[Oc[0]-o[0],Oc[1]-o[1]])];
   const tg=(P.texts||[]).map(t=>({t,m:String(t.s||"").normalize("NFKC").replace(/\s/g,"").match(/^H(\d{4})$/)})).filter(o=>o.m&&+o.m[1]>=1500&&+o.m[1]<=3500).map(o=>({v:+o.m[1],d:Math.min(...spots.map(S2=>Math.hypot(o.t.x-S2[0],o.t.y-S2[1])))*P.mmpp})).filter(o=>o.d<1500).sort((a,b)=>a.d-b.d)[0];if(tg)h=tg.v;
   if(st.bld.some(o=>o.k==="door"&&Math.hypot(o.x-q[0],o.z-q[1])<400)||L.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<400))return;
   /* 扉の所は壁が切れているので、同じ線の上にある壁（開口の両側）の向き・厚みを使う */
-  let W2=onWall(q);if(!W2){let bd=1e9;walls.forEach(o2=>{const th=o2.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=q[0]-o2.x,dz=q[1]-o2.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;if(Math.abs(lz)<=o2.d/2+80&&Math.abs(lx)<=o2.w/2+w+600&&Math.abs(lz)<bd){bd=Math.abs(lz);W2={o:o2,lx,co,si,free:1}}})}
+  let W2=null;if(LW){const o2=LW.o,dx=q[0]-o2.x,dz=q[1]-o2.z;W2={o:o2,lx:dx*LW.co+dz*LW.si,co:LW.co,si:LW.si,free:1}}
+  if(!W2)W2=onWall(q);if(!W2){let bd=1e9;walls.forEach(o2=>{const th=o2.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=q[0]-o2.x,dz=q[1]-o2.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;if(Math.abs(lz)<=o2.d/2+80&&Math.abs(lx)<=o2.w/2+w+600&&Math.abs(lz)<bd){bd=Math.abs(lz);W2={o:o2,lx,co,si,free:1}}})}
   let o;
   if(W2){const lx=W2.free?W2.lx:Math.max(-W2.o.w/2+w/2,Math.min(W2.o.w/2-w/2,W2.lx));o={k:"door",x:Math.round(W2.o.x+lx*W2.co),z:Math.round(W2.o.z+lx*W2.si),w,d:W2.o.d,h,y:0,r:W2.o.r,full:false,m:"swing"}}
   else{const A=btWx(d.H),B=btWx(C);o={k:"door",x:Math.round(q[0]),z:Math.round(q[1]),w,d:100,h,y:0,r:normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI)),full:false,m:"swing"};

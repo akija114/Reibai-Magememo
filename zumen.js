@@ -1641,3 +1641,4 @@ let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.war
 
 /* 読み込み終わったら、建物・図面・スキャンを3Dに出し直す */
 if(T){build3D();T.dirty=true}
+if(window.zUpFloor)window.zUpFloor();

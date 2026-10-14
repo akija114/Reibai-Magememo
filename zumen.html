@@ -525,28 +525,38 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="zumen";</script>
-<script src="models.js?v=184"></script>
-<script src="core.js?v=184"></script>
-<script src="drain.js?v=184"></script>
-<script src="zumen.js?v=184"></script>
-<script src="kabe.js?v=184"></script>
-<script src="sumi.js?v=184"></script>
-<script src="kozo.js?v=184"></script>
-<script src="shashin.js?v=184"></script>
-<script src="tanka.js?v=184"></script>
-<script src="mitsumori.js?v=184"></script>
+<script src="models.js?v=185"></script>
+<script src="core.js?v=185"></script>
+<script src="drain.js?v=185"></script>
+<script src="zumen.js?v=185"></script>
+<script src="kabe.js?v=185"></script>
+<script src="sumi.js?v=185"></script>
+<script src="kozo.js?v=185"></script>
+<script src="shashin.js?v=185"></script>
+<script src="tanka.js?v=185"></script>
+<script src="mitsumori.js?v=185"></script>
 <script>
 (function(){
  const d=document.createElement("div");d.id="zdock";
  d.innerHTML=`<button class="main" data-z="plan">📄 図面（PDF・写真）を読み込む・なぞる</button>
 <button data-z="bld">🧱 柱・壁・梁・<br>室内機を置く</button><button data-z="route">🧭 ルート<br>おまかせ</button>
 <button data-z="scan">📡 部屋の<br>スキャン</button><button data-z="new">🆕 新しく作る<br><small>（模型・機械から）</small></button>
+<div style="display:flex;gap:6px;margin:0 0 6px"><button class="main" data-z="floor" id="zFloor" style="flex:1;background:#0369a1;border-color:#0369a1"></button><button class="main" data-z="floorop" id="zFloorOp" style="flex:none;background:#0369a1;border-color:#0369a1"></button></div>
 <button class="main" data-z="photo" style="background:#0f766e;border-color:#0f766e">📷 写真で測る（壁の真ん中・照明の間・天井高）</button>
 <button class="main" data-z="mt" style="background:#b45309;border-color:#b45309">🧾 材料拾い・見積もり・単価表</button>
 <button class="zgo" data-z="go">🔧 曲げ共有で長さ・曲げを見る ▶</button>`;
  $("#legbar").before(d);
+ /* 🗺 地面に図面を映す：表示のON/OFFと濃さ（図面を読み込んだ後に使える） */
+ const PL=()=>(typeof PLAN!=="undefined"&&PLAN)?PLAN:null,PLok=P=>!!(P&&P.img&&P.mmpp&&P.org);
+ const fl=()=>{const P=PL();if(!PLok(P))return"🗺 地面に図面を映す（先に図面を読み込んでください）";return(P.show?"🙈 地面の図面を隠す":"🗺 地面に図面を映す")};
+ const flo=()=>{const P=PL();return"濃さ "+Math.round((P&&P.planOp!=null?P.planOp:.4)*100)+"%"};
+ const upFl=()=>{const a=$("#zFloor"),b=$("#zFloorOp");if(a)a.textContent=fl();if(b)b.textContent=flo()};
+ window.zUpFloor=upFl;upFl();
  const mid=()=>{const r=$("#stage").getBoundingClientRect();return[r.left+r.width/2,r.top+r.height*0.6]};
  d.onclick=e=>{const b=e.target.closest("button");if(!b)return;const z=b.dataset.z;
+  if(z==="floor"||z==="floorop"){const P=PL();if(!PLok(P)){toast("先に「📄 図面」で図面を読み込んで、縮尺と原点を決めてください");return}
+   if(z==="floor")P.show=!P.show;else{const L=[.2,.4,.6,.8],cur=P.planOp!=null?P.planOp:.4;P.planOp=L[(L.findIndex(v=>Math.abs(v-cur)<.05)+1)%L.length]}
+   try{save()}catch(err){}if(typeof build3D==="function"&&T){build3D();T.dirty=true}upFl();return}
   if(z==="plan")openDraw();else if(z==="route")openRoute();else if(z==="scan")openScan();else if(z==="new")openNew();else if(z==="photo")openShashin();else if(z==="mt"){if(typeof mtOpen==="function")mtOpen()}
   else if(z==="go")location.href="index.html";
   else if(z==="bld"){const[x,y]=mid();placeMenu(`<div class="pt pt2">🧱 3Dに置く</div><div class="pr"><button class="pm" data-a="col">🏛 柱</button><button class="pm" data-a="wall">🧱 壁</button></div><div class="pr"><button class="pm" data-a="beam">🟫 梁</button><button class="pm" data-a="box">📦 障害物</button></div><button class="pm" data-a="ind">❄️ 室内機（複数置けます）</button><button class="pm" data-a="hole">🕳 穴</button>${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物を表示":"🙈 建物を隠す"}（${st.bld.length}）</button>`:""}`,x,y,a=>{if(a==="bhide"){st.bldHide=!st.bldHide;save();unitRefresh()}else bldAddAt(a)})}

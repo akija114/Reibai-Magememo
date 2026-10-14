@@ -1603,7 +1603,15 @@ function planWallLearn(p,rg,quiet){const P=PLAN,mm=P.mmpp;
 function planFindInd(){const P=PLAN,BL=planClusters(isBlue),norm=s=>normTx(s).toUpperCase().replace(/[\s\-‐ー－]/g,""),models=Object.keys(CAS2M).map(k=>({k,n:norm(CAS2M[k].n)})).filter(m=>m.n.length>=6);
  for(const t of P.texts||[]){const nt=norm(t.s);if(nt.length<6)continue;const hit=models.find(m=>m.n===nt||(nt.length>=8&&(m.n.startsWith(nt)||nt.startsWith(m.n))));if(!hit)continue;
   const tx=t.x+t.w/2,ty=t.y-t.h/2,L=CAS2M[hit.k].L,c=BL.filter(c2=>tx>=c2.x0&&tx<=c2.x1&&ty>=c2.y0&&ty<=c2.y1&&Math.max(c2.w,c2.h)>=L*0.3&&Math.max(c2.w,c2.h)<=L*3.5).sort((a,b)=>a.w*a.h-b.w*b.h)[0];if(c)return{c,k:hit.k}}
- return null}
+ /* 品番が図面に書いてない時：青い四角のうち、室内機くらいの大きさ（500〜1200mm・ほぼ正方形）のものを拾い、
+    いちばん近い大きさの4方向の機種を「仮」で置く（型番を全部入れなくてもよいように）。ほかは品番で探す */
+ if(!P.mmpp)return null;
+ const sq=BL.filter(c2=>{const big=Math.max(c2.w,c2.h),sm=Math.min(c2.w,c2.h);return big>=500&&big<=1200&&sm>=big*0.75&&c2.n>=4}).sort((a,b)=>b.w*b.h-a.w*a.h)[0];
+ if(!sq)return null;
+ const meas=Math.max(sq.w,sq.h),four=Object.keys(CAS2M).filter(k=>CAS2M[k].kind==="4方向"&&!CAS2M[k].bi&&CAS2M[k].L);
+ if(!four.length)return null;
+ const k=four.reduce((b,q)=>Math.abs(CAS2M[q].L-meas)<Math.abs(CAS2M[b].L-meas)?q:b,four[0]);
+ return{c:sq,k,prov:true}}
 /* 縮尺の確かめ：室内機の記号の大きさが、その機種の本体（パネル）とだいたい同じになるはず。大きく違えば、合う縮尺に直す */
 function planScaleByUnit(I){const P=PLAN,m=CAS2M[I.k],meas=Math.max(I.c.w,I.c.h),ref=[m.L,m.W,m.pa||0,m.pb||0].filter(Boolean),ok=v=>ref.some(r=>v>=r*0.8&&v<=r*1.25);
  if(ok(meas))return false;const D=[20,25,30,40,50,60,75,80,100,120,150,200,250,300];if(!P.den)return false;
@@ -1615,7 +1623,8 @@ function planCanAuto(){const P=PLAN;if(!P)return false;const key=P.mmpp+"|"+(P.s
 function planAutoAll(){const P=PLAN;
  if(!P||!P.segs||P.segs.length<50){toast("線のデータがある図面（CADのPDF）で使えます。写真の図面は、縮尺と原点を手で決めてください");return}
  if(!P.mmpp){toast("縮尺が分かりませんでした。縮尺を選ぶか「縮尺を2点で」で合わせてから、もう一度押してください");try{wzGo("scale")}catch(e){}return}
- let I=planFindInd();if(!I){toast("品番の分かる室内機が見つかりませんでした（青い記号の中に品番が必要です）");return}
+ let I=planFindInd();if(!I){toast("室内機が見つかりませんでした（青い四角の記号が必要です）");return}
+ if(I.prov)toast("図面に品番が無いので、仮の機種（"+CAS2M[I.k].n+"）で置きます。違えば機械の欄で機種を変えてください");
  {const r=planScaleByUnit(I);if(r==="ng"){try{wzGo("scale")}catch(e){}return}if(r)I=planFindInd()||I}
  if(!P.org){P.org=[Math.round(I.c.cx),Math.round(I.c.cy)];try{wzSave()}catch(e){}}
  const mm=P.mmpp,route=planPipeRoute([I.c.cx,I.c.cy]);

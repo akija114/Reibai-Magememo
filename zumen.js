@@ -1615,6 +1615,7 @@ function planAutoAll(){const P=PLAN;
  {const r=planScaleByUnit(I);if(r==="ng"){try{wzGo("scale")}catch(e){}return}if(r)I=planFindInd()||I}
  if(!P.org){P.org=[Math.round(I.c.cx),Math.round(I.c.cy)];try{wzSave()}catch(e){}}
  const mm=P.mmpp,route=planPipeRoute([I.c.cx,I.c.cy]);
+ /* （H鋼のまわりは機械的に囲わず、図面のボード＋スタッドの線を kzLgs で読む） */
  /* 壁：配管が横切るグレーの線のうち、間隔8〜45cmの2本＝壁。その厚さをお手本に、まわりの壁を取り込む */
  let nw=0;if(route&&route.length>=2){const xs=[...route.map(p=>p[0]),I.c.x0,I.c.x1],ys=[...route.map(p=>p[1]),I.c.y0,I.c.y1],pad=4500/mm,rg=[Math.min(...xs)-pad,Math.min(...ys)-pad,Math.max(...xs)+pad,Math.max(...ys)+pad];
   const neu=c=>{const[r,g,b]=rgbOf(c);return Math.max(r,g,b)-Math.min(r,g,b)<24},done=[];

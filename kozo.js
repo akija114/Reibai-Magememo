@@ -152,25 +152,18 @@ function kzPlanOffsets(Oc){const P=PLAN,G=P.grids||[],out=[];["X","Y"].forEach(a
 /* 扉の高さ：近くの「H2000」。1枚に図が2つある時は、もう一方の図の同じ所（通り芯の差だけずらした所）も見る */
 function kzDoorH(Oc){const P=PLAN;const spots=[Oc,...kzPlanOffsets(Oc).map(o=>[Oc[0]-o[0],Oc[1]-o[1]])];
  const tg=(P.texts||[]).map(t=>({t,m:String(t.s||"").normalize("NFKC").replace(/\s/g,"").match(/^H(\d{4})$/)})).filter(o=>o.m&&+o.m[1]>=1500&&+o.m[1]<=3500).map(o=>({v:+o.m[1],d:Math.min(...spots.map(S2=>Math.hypot(o.t.x-S2[0],o.t.y-S2[1])))*P.mmpp})).filter(o=>o.d<1500).sort((a,b)=>a.d-b.d)[0];return tg?tg.v:2000}
-/* ===== 🏛 H鋼を囲む軽量鉄骨＋ボード =====
-   H鋼（m:"h"）の周りに、クリアランス10mm・厚さ90（スタッド65＋ボード12.5×両面1枚ずつ）の囲い（4面）を置く。
-   囲いの中を通る普通の壁（H鋼に重なって立っている図面の線）は消す。自動で置いた囲い（auto:"hlgs"）は作り直す */
-function kzHEnclose(quiet){const P=PLAN;if(!P)return 0;const Hs=st.bld.filter(o=>o.k==="col"&&o.m==="h");if(!Hs.length)return 0;
- const CHh=typeof bldCH==="function"?bldCH():2400,G=10,ST=65,BD=12.5,T=ST+2*BD;
+/* ===== 🏛 H鋼のまわりの片付け =====
+   H鋼の中を通る普通の壁（H鋼に重なって立っている図面の線）は消す。
+   前のバージョンで自動で置いた「H鋼を囲む4面の囲い」（auto:"hlgs"）も消す。
+   ※ H鋼のまわりのボード＋スタッドは、図面に描いてある線を kzLgs で読む（機械的な囲いは置かない） */
+function kzHEnclose(quiet){const P=PLAN;if(!P)return 0;const Hs=st.bld.filter(o=>o.k==="col"&&o.m==="h");
  const inH=(x,z,c)=>{const th=c.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=x-c.x,dz=z-c.z;return Math.abs(dx*co+dz*si)<c.w/2&&Math.abs(-dx*si+dz*co)<c.d/2};
- /* 1) H鋼の中を通る普通の壁は消す（H鋼に重なって立っていた壁） */
- let nx=0;st.bld=st.bld.filter(o=>{if(o.k!=="wall"||o.m==="lgs"||o.auto==="hlgs")return true;const wt=o.r*Math.PI/180,ux=Math.cos(wt),uz=Math.sin(wt);
+ const n0=st.bld.length;let nx=0;
+ st.bld=st.bld.filter(o=>{if(o.auto==="hlgs")return false;if(!Hs.length||o.k!=="wall"||o.m==="lgs")return true;const wt=o.r*Math.PI/180,ux=Math.cos(wt),uz=Math.sin(wt);
   for(let t=-o.w/2;t<=o.w/2;t+=40){const x=o.x+t*ux,z=o.z+t*uz;if(Hs.some(c=>inH(x,z,c))){nx++;return false}}return true});
- /* 2) 囲いを作り直す */
- st.bld=st.bld.filter(o=>o.auto!=="hlgs");const L=[];
- Hs.forEach(c=>{const th=c.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),at=(lx,lz)=>[c.x+lx*co-lz*si,c.z+lx*si+lz*co];
-  const mk=(lx,lz,len,r)=>{const q=at(lx,lz);return{k:"wall",m:"lgs",auto:"hlgs",x:Math.round(q[0]),z:Math.round(q[1]),w:Math.round(len),d:T,r:normT(Math.round(r)),y:0,full:true,h:CHh,st:ST,bl:1,br:1}};
-  /* 長手（H鋼の奥行方向）の2面、短手（フランジ方向）の2面。角は長手の面が受ける */
-  L.push(mk(0,c.d/2+G+T/2,c.w+2*(G+T),c.r));L.push(mk(0,-(c.d/2+G+T/2),c.w+2*(G+T),c.r));
-  L.push(mk(c.w/2+G+T/2,0,c.d+2*G,c.r+90));L.push(mk(-(c.w/2+G+T/2),0,c.d+2*G,c.r+90))});
- if(L.length)btAdd(normBld(L));else if(nx)bldChanged();
- if(!quiet)toast("🧱 H鋼を囲む軽量＋ボードを "+Hs.length+"本分（"+L.length+"枚）置きました"+(nx?"・H鋼の中を通っていた壁を"+nx+"枚消しました":""));
- return L.length}
+ if(st.bld.length!==n0)bldChanged();
+ if(!quiet&&nx)toast("H鋼の中を通っていた壁を"+nx+"枚消しました");
+ return nx}
 
 /* ===== 🚪 引き戸 =====
    図面の引き戸＝細長い四角（戸板：幅20〜70mm・長さ450〜1600mm）が、同じ線の上（ずれ120mm以内）で2枚以上、少し重なって並んでいる所。
@@ -259,20 +252,36 @@ function kzWindows(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("
 /* ===== 🧱 軽量鉄骨（LGS）＋ボードの壁 =====
    図面：両側に、細い線が近く（15mm以内）に2本以上並ぶ束（ボードの重ね張り）があって、その間が40〜160mm空いている（スタッド）。
    → 外側の線から外側の線までを壁の厚み、間をスタッドの幅、束の線の数−1 をボードの枚数として置く。もう壁がある所には置かない */
+/* 柱（H鋼・角柱）の近く？ c＝壁の中心（3Dの座標）、Lw＝壁の長さ */
+function kzNearCol(c,Lw){return st.bld.some(o=>o.k==="col"&&Math.hypot(o.x-c[0],o.z-c[1])<Lw/2+Math.max(o.w,o.d)/2+1200)}
+/* L字・コの字の角：軽量壁の端が、直角の軽量壁の面で止まっている時は、その壁の外の面まで伸ばして角を埋める */
+function kzLgsCorners(W){const ax=o=>{const t=o.r*Math.PI/180;return[Math.cos(t),Math.sin(t)]};
+ W.forEach(A=>{const[ux,uz]=ax(A);[-1,1].forEach(sg=>{const ex=A.x+sg*ux*A.w/2,ez=A.z+sg*uz*A.w/2;let best=0;
+  W.forEach(B=>{if(B===A)return;let da=Math.abs(((A.r-B.r)%180+180)%180);da=Math.min(da,180-da);if(Math.abs(da-90)>5)return;const[bx,bz]=ax(B),dx=ex-B.x,dz=ez-B.z,lx=dx*bx+dz*bz,lz=-dx*bz+dz*bx;
+   if(Math.abs(lx)>B.w/2+A.d/2+30)return;
+   /* 端からBの中心線までの距離（Aの外向き）：Bの面の手前（〜面の少し先）で止まっている時だけ */
+   const toC=-(dx*ux+dz*uz)*sg;if(toC<0||toC>B.d/2+60)return;const e=toC+B.d/2;if(e>best)best=e});
+  if(best>0){A.x=Math.round(A.x+sg*ux*best/2);A.z=Math.round(A.z+sg*uz*best/2);A.w=Math.round(A.w+best)}})})}
 function kzLgs(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("先に縮尺と原点を決めてください");return 0}
- const mm=P.mmpp,{H,V}=kzLines(),bx=kzPlanBox(),out=[];
- [[H,1],[V,0]].forEach(([A,hz])=>{const Ls=A.filter(l=>(l.hi-l.lo)*mm>=800).sort((a,b)=>a.c-b.c),used=new Set(),B=[];
+ const mm=P.mmpp,{H,V}=kzLines(),bx=kzPlanBox(),out=[],rpl=new Set();
+ [[H,1],[V,0]].forEach(([A,hz])=>{const Ls=A.filter(l=>(l.hi-l.lo)*mm>=250).sort((a,b)=>a.c-b.c),used=new Set(),B=[];
   /* 束：近くに並ぶ平行な線（重なり60%以上） */
   Ls.forEach((l,i)=>{if(used.has(i))return;const g=[l];used.add(i);for(let j=i+1;j<Ls.length;j++){const q=Ls[j];if((q.c-g[g.length-1].c)*mm>16)break;const ov=Math.min(q.hi,l.hi)-Math.max(q.lo,l.lo);if(ov>=0.6*Math.min(q.hi-q.lo,l.hi-l.lo)){g.push(q);used.add(j)}}
    if(g.length>=2)B.push({c0:g[0].c,c1:g[g.length-1].c,n:g.length,lo:Math.max(...g.map(x=>x.lo)),hi:Math.min(...g.map(x=>x.hi))})});
   B.sort((a,b)=>a.c0-b.c0);
   for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){const a=B[i],b=B[j],gap=(b.c0-a.c1)*mm;if(gap<40)continue;if(gap>160)break;
-   const lo=Math.max(a.lo,b.lo),hi=Math.min(a.hi,b.hi);if((hi-lo)*mm<500)continue;const mid=(a.c0+b.c1)/2,Dw=(b.c1-a.c0)*mm;
+   const lo=Math.max(a.lo,b.lo),hi=Math.min(a.hi,b.hi),ovl=(hi-lo)*mm;if(ovl<200)continue;const mid=(a.c0+b.c1)/2,Dw=(b.c1-a.c0)*mm;
    const p0=hz?[lo,mid]:[mid,lo],p1=hz?[hi,mid]:[mid,hi],pc=[(p0[0]+p1[0])/2,(p0[1]+p1[1])/2];if(bx&&(pc[0]<bx.x0||pc[0]>bx.x1||pc[1]<bx.y0||pc[1]>bx.y1))continue;
    const A2=btWx(p0),B2=btWx(p1),c=btWx(pc),Lw=Math.hypot(B2[0]-A2[0],B2[1]-A2[1]),r=normT(Math.round(Math.atan2(B2[1]-A2[1],B2[0]-A2[0])*180/Math.PI));
-   /* もう壁がある所（自動で置いた軽量壁は置き換える） */
-   const th=r*Math.PI/180,co=Math.cos(th),si=Math.sin(th);if(st.bld.some(o=>o.k==="wall"&&o.auto!=="lgs"&&(()=>{const dx=o.x-c[0],dz=o.z-c[1],lx=dx*co+dz*si,lz=-dx*si+dz*co;return Math.abs(lz)<(o.d+Dw)/2&&Math.abs(lx)<(o.w+Lw)/2-100})()))continue;
-   if(out.some(o=>Math.hypot(o.x-c[0],o.z-c[1])<300))continue;
+   /* 短い軽量壁（50cm未満）は、H鋼・柱のまわり（柱の巻き）だけ読む */
+   if(ovl<500&&!kzNearCol(c,Lw))continue;
+   /* もう壁がある所：同じ所に重なる普通の壁は、図面のボードの線から読んだ軽量壁に置き換える。手で置いた軽量壁はそのまま */
+   const ov=o=>{let da=Math.abs(((o.r-r)%180+180)%180);da=Math.min(da,180-da);if(da>5)return null;const th=r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=o.x-c[0],dz=o.z-c[1],lx=dx*co+dz*si,lz=-dx*si+dz*co;
+    if(Math.abs(lz)>=(o.d+Dw)/2-15)return null;return Math.min(lx+o.w/2,Lw/2)-Math.max(lx-o.w/2,-Lw/2)};
+   let skip=false;const rp=[];st.bld.forEach(o=>{if(o.k!=="wall"||o.auto==="lgs"||o.auto==="hlgs"||rpl.has(o))return;const v=ov(o);if(v===null||v<=100)return;
+    if(o.m==="lgs"||v<0.5*o.w)skip=true;else rp.push(o)});
+   if(skip)continue;
+   if(out.some(o=>{const v=ov(o);return v!==null&&v>0.5*Math.min(o.w,Lw)}))continue;rp.forEach(o=>rpl.add(o));
    const zc=typeof ceilAt==="function"?ceilAt(c[0],c[1]):null;
    out.push({k:"wall",m:"lgs",auto:"lgs",x:Math.round(c[0]),z:Math.round(c[1]),w:Math.round(Lw),d:Math.round(Dw),r,y:0,full:!zc,h:zc?zc.h:600,st:Math.round(gap/5)*5,bl:a.n-1,br:b.n-1});break}});
  /* 軽量壁のボードの面を、片側の面として使っている普通の壁（図面から読んだ壁）は間違い（ボードの線と、となりの別の壁の線の間を壁にしてしまったもの）→ 消す */
@@ -286,5 +295,6 @@ function kzLgs(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("先�
   const Lp=btP(L.x,L.z),away=Math.sign(c-(hz?Lp[1]:Lp[0])),fc=F.reduce((t,l)=>t+l.c,0)/F.length,e0=Math.min(...F.map(l=>l.lo)),e1=Math.max(...F.map(l=>l.hi)),Pp=hz?V:H;
   const corner=e=>Pp.some(l=>Math.abs(l.c-e)*mm<=60&&(away>0?(Math.abs(l.lo-fc)*mm<=60&&(l.hi-fc)*mm>=300):(Math.abs(l.hi-fc)*mm<=60&&(fc-l.lo)*mm>=300)));
   return corner(e0)&&corner(e1)});
- st.bld=st.bld.filter(o=>{if(o.auto==="lgs")return false;if(bad(o)){nx++;return false}return true});if(out.length)btAdd(normBld(out));else if(nx)bldChanged();
- if(!quiet)toast(out.length?"🧱 軽量鉄骨＋ボードの壁を "+out.length+"枚 置きました（"+out.map(o=>"厚"+fmt(o.d)+"・スタッド"+o.st).join("／")+"）"+(nx?"・軽量壁のとなりの間違った壁を"+nx+"枚 消しました":""):"軽量鉄骨＋ボードの壁（両側にボードの線が並ぶ壁）が見つかりませんでした");return out.length}
+ kzLgsCorners(out);
+ st.bld=st.bld.filter(o=>{if(o.auto==="lgs"||o.auto==="hlgs")return false;if(rpl.has(o)){nx++;return false}if(bad(o)){nx++;return false}return true});if(out.length)btAdd(normBld(out));else if(nx)bldChanged();
+ if(!quiet)toast(out.length?"🧱 軽量鉄骨＋ボードの壁を "+out.length+"枚 置きました（"+out.map(o=>"厚"+fmt(o.d)+"・スタッド"+o.st).join("／")+"）"+(nx?"・軽量壁と重なる／となりの間違った壁を"+nx+"枚 消しました":""):"軽量鉄骨＋ボードの壁（両側にボードの線が並ぶ壁）が見つかりませんでした");return out.length}

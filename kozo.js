@@ -58,6 +58,20 @@ function kzRoomByWalls(p){const P=PLAN,mm=P.mmpp,gapMax=2500/mm;
   return null};
  const y0=ray(true,-1),y1=ray(true,1),x0=ray(false,-1),x1=ray(false,1);
  if(x0==null||x1==null||y0==null||y1==null)return null;if((x1-x0)*mm>30000||(y1-y0)*mm>30000)return null;return{x0,x1,y0,y1}}
+/* 外壁など（軽量壁ではない壁）：古いやり方（配管が横切る2本線の厚さ）で見つけた壁のうち、
+   読んだ軽量壁のまとまりの「外まわり」（外周の線から内側30cm〜外側1m）にあって、軽量壁と重ならない物だけ残す。
+   部屋の中（天井ボードの割付線など）は捨てる */
+function kzExtFilter(L){const LG=st.bld.filter(o=>o.k==="wall"&&o.auto==="lgs");if(!LG.length)return [];
+ const ext=o=>{const h=Math.abs(Math.cos(o.r*Math.PI/180))>0.7;return h?{x0:o.x-o.w/2,x1:o.x+o.w/2,z0:o.z-o.d/2,z1:o.z+o.d/2,h}:{x0:o.x-o.d/2,x1:o.x+o.d/2,z0:o.z-o.w/2,z1:o.z+o.w/2,h}};
+ const E=LG.map(ext),X0=Math.min(...E.map(e=>e.x0)),X1=Math.max(...E.map(e=>e.x1)),Z0=Math.min(...E.map(e=>e.z0)),Z1=Math.max(...E.map(e=>e.z1));
+ const cols=st.bld.filter(o=>o.k==="col");
+ return L.filter(o=>{const e=ext(o);
+  /* 柱の中（柱の線を壁と間違えた物）はいらない */
+  if(cols.some(c=>{const th=c.r*Math.PI/180,dx=o.x-c.x,dz=o.z-c.z;return Math.abs(dx*Math.cos(th)+dz*Math.sin(th))<c.w/2+50&&Math.abs(-dx*Math.sin(th)+dz*Math.cos(th))<c.d/2+50}))return false;
+  /* 軽量壁と重なる物はいらない */
+  if(E.some(g=>{const ix=Math.min(g.x1,e.x1)-Math.max(g.x0,e.x0),iz=Math.min(g.z1,e.z1)-Math.max(g.z0,e.z0);return (e.h?iz:ix)>30&&(e.h?ix:iz)>0.3*o.w}))return false;   // 厚みの方向に3cm以上めり込んでいる（となり合うだけならOK）
+  if(e.h){const al=(e.x0+e.x1)/2;if(al<X0-1000||al>X1+1000)return false;return (o.z<=Z0+300&&o.z>=Z0-1000)||(o.z>=Z1-300&&o.z<=Z1+1000)}
+  const al=(e.z0+e.z1)/2;if(al<Z0-1000||al>Z1+1000)return false;return (o.x<=X0+300&&o.x>=X0-1000)||(o.x>=X1-300&&o.x<=X1+1000)})}
 /* 範囲の中の「CH=2400」と部屋の名前 */
 function kzCHIn(r){const P=PLAN;let ch=0,nm="";const T2=(P.texts||[]).map(t=>({t,s:String(t.s||"").replace(/[\s　]/g,"").replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/[＝]/g,"=")}));
  T2.forEach(o=>{const cx=o.t.x+(o.t.w||0)/2,cy=o.t.y-(o.t.h||0)/2;if(cx<r.x0||cx>r.x1||cy<r.y0||cy>r.y1)return;const m=o.s.match(/C\.?H=?([1-6]\d{3})/i);if(!m)return;ch=+m[1];

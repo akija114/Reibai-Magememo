@@ -1651,6 +1651,9 @@ let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.war
    /* 古い壁が重なっていて置けなかった軽量壁があるので、消した後にもう一度読む */
    if(nrm){try{nl=kzLgs(true)}catch(e){console.warn("lgs2",e)}}}
   else{learnWalls()}
+  /* 外壁など（軽量壁でない壁）：古いやり方で探し、軽量壁のまわり（外周）にある物だけ足す。部屋の中の物（天井ボードの線）は捨てる */
+  if(typeof kzExtFilter==="function"&&st.bld.some(o=>o.auto==="lgs")){st.bld=st.bld.filter(o=>o.auto!=="ext");const b0=new Set(st.bld);nw=0;try{learnWalls()}catch(e){console.warn("ext",e)}
+   const NEW=st.bld.filter(o=>!b0.has(o)&&o.k==="wall"),keep=new Set(kzExtFilter(NEW));st.bld=st.bld.filter(o=>b0.has(o)||keep.has(o));keep.forEach(o=>o.auto="ext");nw=keep.size;st.bld=normBld(st.bld)}
   /* 配管の穴（スリーブ）を、今の壁で開け直す */
   try{if(P._mkHoles)P._mkHoles()}catch(e){console.warn("holes",e)}}
  /* 天井高の範囲：メインと違う「CH=2400」などの部屋に自動で置く（範囲の中の壁・ボード・スタッドはその高さで止まる） */

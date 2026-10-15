@@ -1321,7 +1321,7 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  st.bld=st.bld.filter(o=>!((o.k==="ind"&&near(o,W0,800))||(o.k==="out"&&oc&&near(o,btW([oc.c2.cx,oc.c2.cy]),800))));
  P.CH=CH;st.gnd.ch=CH;st.gnd.on=true;st.gnd.c=true;
  /* 壁がまだ無ければ、まわりの壁を取り込む（図面のほかの部分は拾わない） */
- if(!st.bld.some(o=>o.k==="wall")){const xs=[...route.map(p=>p[0]),I.c.x0,I.c.x1],ys=[...route.map(p=>p[1]),I.c.y0,I.c.y1],pad=3500/mm;
+ if(!P._kzOnly&&!st.bld.some(o=>o.k==="wall")){const xs=[...route.map(p=>p[0]),I.c.x0,I.c.x1],ys=[...route.map(p=>p[1]),I.c.y0,I.c.y1],pad=3500/mm;
   const sv={aw:W.aw,ac:W.ac,ai:W.ai};W.aw=true;W.ac=false;W.ai=false;const tst=window.toast;window.toast=()=>{};
   try{wzAuto([Math.min(...xs)-pad,Math.min(...ys)-pad],[Math.max(...xs)+pad,Math.max(...ys)+pad])}catch(e){console.warn(e)}window.toast=tst;Object.assign(W,sv)}
  /* 室内機を置く（配管の出口が、図面の配管の始まりの方を向くように4方向から選ぶ） */
@@ -1630,22 +1630,29 @@ function planAutoAll(){const P=PLAN;
  const mm=P.mmpp,route=planPipeRoute([I.c.cx,I.c.cy]);
  /* （H鋼のまわりは機械的に囲わず、図面のボード＋スタッドの線を kzLgs で読む） */
  /* 壁：配管が横切るグレーの線のうち、間隔8〜45cmの2本＝壁。その厚さをお手本に、まわりの壁を取り込む */
- let nw=0;if(route&&route.length>=2){const xs=[...route.map(p=>p[0]),I.c.x0,I.c.x1],ys=[...route.map(p=>p[1]),I.c.y0,I.c.y1],pad=4500/mm,rg=[Math.min(...xs)-pad,Math.min(...ys)-pad,Math.max(...xs)+pad,Math.max(...ys)+pad];
+ /* （古いやり方）軽量壁の読み取り（kzLgs）が使えない時・何も見つからない時だけ使う。天井ボードの割付線などを壁と間違えやすいため */
+ let nw=0;const learnWalls=()=>{if(!(route&&route.length>=2))return;const xs=[...route.map(p=>p[0]),I.c.x0,I.c.x1],ys=[...route.map(p=>p[1]),I.c.y0,I.c.y1],pad=4500/mm,rg=[Math.min(...xs)-pad,Math.min(...ys)-pad,Math.max(...xs)+pad,Math.max(...ys)+pad];
   const neu=c=>{const[r,g,b]=rgbOf(c);return Math.max(r,g,b)-Math.min(r,g,b)<24},done=[];
   for(let i=0;i<route.length-1;i++){const a=route[i],b=route[i+1],hz=Math.abs(b[1]-a[1])<Math.abs(b[0]-a[0]),lo=hz?Math.min(a[0],b[0]):Math.min(a[1],b[1]),hi=hz?Math.max(a[0],b[0]):Math.max(a[1],b[1]),c=hz?a[1]:a[0];
    const cut=P.segs.filter(s2=>neu(s2[4])).filter(s2=>{const l=Math.hypot(s2[2]-s2[0],s2[3]-s2[1])*mm;if(l<800)return false;
      if(hz){if(Math.abs(s2[0]-s2[2])>1)return false;const y0=Math.min(s2[1],s2[3]),y1=Math.max(s2[1],s2[3]);return s2[0]>lo&&s2[0]<hi&&c>=y0&&c<=y1}
      if(Math.abs(s2[1]-s2[3])>1)return false;const x0=Math.min(s2[0],s2[2]),x1=Math.max(s2[0],s2[2]);return s2[1]>lo&&s2[1]<hi&&c>=x0&&c<=x1}).map(s2=>hz?s2[0]:s2[1]).sort((u,v)=>u-v);
    for(let j=0;j<cut.length-1;j++){const g=(cut[j+1]-cut[j])*mm;if(g<80||g>450)continue;if(done.some(t=>Math.abs(t-g)<25))continue;done.push(g);
-    const m=(cut[j]+cut[j+1])/2,p=hz?[m,c]:[c,m];nw+=planWallLearn(p,rg,true)||0}}}
- const r=planReadAll();
+    const m=(cut[j]+cut[j+1])/2,p=hz?[m,c]:[c,m];nw+=planWallLearn(p,rg,true)||0}}};
+ const KZ=typeof kzLgs==="function";if(!KZ)learnWalls();
+ P._kzOnly=KZ;let r;try{r=planReadAll()}finally{P._kzOnly=false}
  let nd=0,nwn=0,nh=0;try{if(r&&typeof kzPlaceH==="function"){const n0=st.bld.filter(o=>o.k==="col").length,tst=window.toast;window.toast=()=>{};try{kzPlaceH()}finally{window.toast=tst}nh=st.bld.filter(o=>o.k==="col").length-n0}}catch(e){console.warn("hcol",e)}
  try{if(r&&typeof kzHEnclose==="function")kzHEnclose(true)}catch(e){console.warn("henc",e)}
 let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.warn("lgs",e)}
+ /* 図面の軽量壁が読めたら、前の読み込みで置いた「印の無い壁」（天井ボードの線などを壁と間違えた物）を、その範囲から消す。読めなければ古いやり方で読む */
+ let nrm=0;if(r&&KZ){const LG=st.bld.filter(o=>o.k==="wall"&&o.auto==="lgs");
+  if(LG.length){const x0=Math.min(...LG.map(o=>o.x))-500,x1=Math.max(...LG.map(o=>o.x))+500,z0=Math.min(...LG.map(o=>o.z))-500,z1=Math.max(...LG.map(o=>o.z))+500,n0=st.bld.length;
+   st.bld=st.bld.filter(o=>!(o.k==="wall"&&!o.auto&&o.m!=="lgs"&&o.x>=x0&&o.x<=x1&&o.z>=z0&&o.z<=z1));nrm=n0-st.bld.length}
+  else{learnWalls()}}
  /* 天井高の範囲：メインと違う「CH=2400」などの部屋に自動で置く（範囲の中の壁・ボード・スタッドはその高さで止まる） */
  let nc=0;try{if(r&&typeof kzCeilAuto==="function"){nc=kzCeilAuto();if(typeof kzFixMainCH==="function")kzFixMainCH()}}catch(e){console.warn("ceil",e)}
  try{if(r&&typeof kzDoors==="function")nd=kzDoors(true)}catch(e){console.warn("doors",e)}try{if(r&&typeof kzWindows==="function")nwn=kzWindows(true)}catch(e){console.warn("win",e)}
- if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+"。違う所は図面画面で直せます"),400)}
+ if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+"。違う所は図面画面で直せます"),400)}
  return r}
 
 /* 読み込み終わったら、建物・図面・スキャンを3Dに出し直す */

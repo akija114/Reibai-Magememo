@@ -215,7 +215,8 @@ function kzDoors(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("�
   if(!W2)W2=onWall(q);if(!W2){let bd=1e9;walls.forEach(o2=>{const th=o2.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=q[0]-o2.x,dz=q[1]-o2.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;if(Math.abs(lz)<=o2.d/2+80&&Math.abs(lx)<=o2.w/2+w+600&&Math.abs(lz)<bd){bd=Math.abs(lz);W2={o:o2,lx,co,si,free:1}}})}
   let o;
   if(W2){const lx=W2.free?W2.lx:Math.max(-W2.o.w/2+w/2,Math.min(W2.o.w/2-w/2,W2.lx));o={k:"door",x:Math.round(W2.o.x+lx*W2.co),z:Math.round(W2.o.z+lx*W2.si),w,d:W2.o.d,h,y:0,r:W2.o.r,full:false,m:"swing"}}
-  else{const A=btWx(d.H),B=btWx(C);o={k:"door",x:Math.round(q[0]),z:Math.round(q[1]),w,d:100,h,y:0,r:normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI)),full:false,m:"swing"};
+  else{const A=btWx(d.H),B=btWx(C);const ra=Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI,sn=Math.round(ra/90)*90;   /* 弧の端が少しずれていても、ほぼ縦横なら縦横にそろえる */
+   o={k:"door",x:Math.round(q[0]),z:Math.round(q[1]),w,d:100,h,y:0,r:normT(Math.round(Math.abs(ra-sn)<=8?sn:ra)),full:false,m:"swing"};
    /* 間仕切り：閉じた位置（開口の端）から、扉と同じ向きに伸びる図面の線を、薄い壁（その所の天井まで）にする */
    const pw=kzPartition(d.H,C);if(pw)L.push(pw)}
   L.push(o)});
@@ -289,6 +290,8 @@ function kzLgs(quiet){const P=PLAN;if(!P||!P.mmpp||!P.org){if(!quiet)toast("先�
   const A2=btWx(p0),B2=btWx(p1),c=btWx(pc),Lw=Math.hypot(B2[0]-A2[0],B2[1]-A2[1]),r=normT(Math.round(Math.atan2(B2[1]-A2[1],B2[0]-A2[0])*180/Math.PI));
   /* H鋼・柱そのものの線（柱の中）は壁にしない */
   if(inCol(c))return false;
+  /* 2本の線の間に文字（の枠）がかかる＝部屋名・天井高の枠（「WC CH=2400」など）なので壁にしない（配管の高さ「FL+2809」・寸法などの書き込みは除く） */
+  if((P.texts||[]).some(t=>{const ts=String(t.s||"").trim();if(!ts||/^(FL|GL|[+\-±]?\d|φ|Φ|H-|C-|[A-Z]?\d+A\b)/i.test(ts))return false;const tx0=t.x,tx1=t.x+(t.w||0),ty0=t.y-(t.h||0),ty1=t.y,cu=hz?(tx0+tx1)/2:(ty0+ty1)/2,v0=hz?ty0:tx0,v1=hz?ty1:tx1;return cu>lo&&cu<hi&&v1>e0&&v0<e1}))return false;
   /* 短い軽量壁（50cm未満）は、H鋼・柱のまわり（柱の巻き）だけ読む */
   if(ovl<500&&!kzNearCol(c,Lw))return false;
   /* もう壁がある所：同じ所に重なる普通の壁は、図面のボードの線から読んだ軽量壁に置き換える。手で置いた軽量壁はそのまま */

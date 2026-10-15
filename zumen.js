@@ -1370,13 +1370,13 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
   if(Math.abs(d.y)<1&&a<=-50){const al=out.clone().multiplyScalar(a);go(d.clone().sub(al));go(al)}   // もう口の高さ：横のずれを合わせてから、まっすぐ口へ（行き過ぎて戻らない）
   else{const toAp=Ap.clone().sub(cur());toAp.y=0;const al=out.clone().multiplyScalar(toAp.dot(out));go(al);go(toAp.clone().sub(al));go(new V(0,T0.y-cur().y,0));go(T0.clone().sub(cur()))}}   // 口の向きに出る→横を合わせる→（上げ下げ）→口へ
  /* スリーブ（穴）：出来上がった3Dの冷媒が壁を通る所に、その高さで開ける（図面の線は配管口に合わせて少しずらすので、図面の線の位置だと合わない） */
- {st.bld=st.bld.filter(o=>!(o.k==="hole"&&o.auto));const walls=st.bld.filter(o=>o.k==="wall");
+ const mkHoles=()=>{st.bld=st.bld.filter(o=>!(o.k==="hole"&&o.auto));const walls=st.bld.filter(o=>o.k==="wall");
   for(let i=1;i<PP.length;i++){const A=PP[i-1],B=PP[i];if(Math.abs(B.y-A.y)>1)continue;
    walls.forEach(w=>{const th=w.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),loc=p=>[(p.x-w.x)*co+(p.z-w.z)*si,-(p.x-w.x)*si+(p.z-w.z)*co],La=loc(A),Lb=loc(B);
     if(La[1]*Lb[1]>=0)return;const u=La[1]/(La[1]-Lb[1]),lx=La[0]+(Lb[0]-La[0])*u;if(Math.abs(lx)>w.w/2)return;const X=A.x+(B.x-A.x)*u,Z=A.z+(B.z-A.z)*u;
     if(st.bld.some(o=>o.k==="hole"&&Math.hypot(o.x-X,o.z-Z)<200&&Math.abs(o.y-(A.y-GY))<200))return;
     st.bld.push({k:"hole",x:Math.round(X),z:Math.round(Z),r:w.r,w:75,d:w.d,h:75,y:Math.round(A.y-GY),full:false,auto:1})})}
-  st.bld=normBld(st.bld);bldChanged()}
+  st.bld=normBld(st.bld);bldChanged()};mkHoles();P._mkHoles=mkHoles;   /* 全部自動では、軽量壁を読んだ後にもう一度開け直す（消えた壁の穴が残らないように） */
  const F=frameFor(new V(1,0,0)),Pf=PP.map(p=>new V(p.dot(F.ex),p.dot(F.ey),p.dot(F.ez)));
  const rows=polyToRows(Pf).filter(r=>r.l>0);if(!rows.length){toast("ルートを作れませんでした");return}
  st.rows=normRows(rows,[{l:1000,a:0,t:0,o:false}]);sel=0;st.units.e="";save();render();if(T){build3D();fitT(true)}
@@ -1640,15 +1640,19 @@ function planAutoAll(){const P=PLAN;
    for(let j=0;j<cut.length-1;j++){const g=(cut[j+1]-cut[j])*mm;if(g<80||g>450)continue;if(done.some(t=>Math.abs(t-g)<25))continue;done.push(g);
     const m=(cut[j]+cut[j+1])/2,p=hz?[m,c]:[c,m];nw+=planWallLearn(p,rg,true)||0}}};
  const KZ=typeof kzLgs==="function";if(!KZ)learnWalls();
- P._kzOnly=KZ;let r;try{r=planReadAll()}finally{P._kzOnly=false}
+ P._kzOnly=KZ;P._mkHoles=null;let r;try{r=planReadAll()}finally{P._kzOnly=false}
  let nd=0,nwn=0,nh=0;try{if(r&&typeof kzPlaceH==="function"){const n0=st.bld.filter(o=>o.k==="col").length,tst=window.toast;window.toast=()=>{};try{kzPlaceH()}finally{window.toast=tst}nh=st.bld.filter(o=>o.k==="col").length-n0}}catch(e){console.warn("hcol",e)}
  try{if(r&&typeof kzHEnclose==="function")kzHEnclose(true)}catch(e){console.warn("henc",e)}
 let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.warn("lgs",e)}
  /* 図面の軽量壁が読めたら、前の読み込みで置いた「印の無い壁」（天井ボードの線などを壁と間違えた物）を、その範囲から消す。読めなければ古いやり方で読む */
  let nrm=0;if(r&&KZ){const LG=st.bld.filter(o=>o.k==="wall"&&o.auto==="lgs");
   if(LG.length){const x0=Math.min(...LG.map(o=>o.x))-500,x1=Math.max(...LG.map(o=>o.x))+500,z0=Math.min(...LG.map(o=>o.z))-500,z1=Math.max(...LG.map(o=>o.z))+500,n0=st.bld.length;
-   st.bld=st.bld.filter(o=>!(o.k==="wall"&&!o.auto&&o.m!=="lgs"&&o.x>=x0&&o.x<=x1&&o.z>=z0&&o.z<=z1));nrm=n0-st.bld.length}
-  else{learnWalls()}}
+   st.bld=st.bld.filter(o=>!(o.k==="wall"&&!o.auto&&o.m!=="lgs"&&o.x>=x0&&o.x<=x1&&o.z>=z0&&o.z<=z1));nrm=n0-st.bld.length;
+   /* 古い壁が重なっていて置けなかった軽量壁があるので、消した後にもう一度読む */
+   if(nrm){try{nl=kzLgs(true)}catch(e){console.warn("lgs2",e)}}}
+  else{learnWalls()}
+  /* 配管の穴（スリーブ）を、今の壁で開け直す */
+  try{if(P._mkHoles)P._mkHoles()}catch(e){console.warn("holes",e)}}
  /* 天井高の範囲：メインと違う「CH=2400」などの部屋に自動で置く（範囲の中の壁・ボード・スタッドはその高さで止まる） */
  let nc=0;try{if(r&&typeof kzCeilAuto==="function"){nc=kzCeilAuto();if(typeof kzFixMainCH==="function")kzFixMainCH()}}catch(e){console.warn("ceil",e)}
  try{if(r&&typeof kzDoors==="function")nd=kzDoors(true)}catch(e){console.warn("doors",e)}try{if(r&&typeof kzWindows==="function")nwn=kzWindows(true)}catch(e){console.warn("win",e)}

@@ -43,6 +43,21 @@ function kzRoomAt(p){const P=PLAN,mm=P.mmpp,{H,V}=kzLines(),max=15000/mm;
   for(const l of C){const pr=A.find(q=>{const g=sg*(q.c-l.c)*mm;return g>=40&&g<=350&&(q.hi-q.lo)*mm>=500&&Math.min(q.hi,l.hi)-Math.max(q.lo,l.lo)>300/mm});if(pr)return l.c}return null};
  const x0=hit(V,p[1],p[0],-1),x1=hit(V,p[1],p[0],1),y0=hit(H,p[0],p[1],-1),y1=hit(H,p[0],p[1],1);
  if(x0==null||x1==null||y0==null||y1==null)return null;return{x0,x1,y0,y1}}
+/* 部屋の範囲を、置いた壁（軽量壁など）から決める：点から上下左右に見て、いちばん近い壁の内側の面。
+   扉の所は壁が切れているので、同じ線の上に壁が両側にあって、すき間が2.5m以内なら、つながっているとみなす */
+function kzRoomByWalls(p){const P=PLAN,mm=P.mmpp,gapMax=2500/mm;
+ const B=st.bld.filter(o=>o.k==="wall").map(o=>{const th=o.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),q=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,b])=>btP(o.x+a*o.w/2*co-b*o.d/2*si,o.z+a*o.w/2*si+b*o.d/2*co)),xs=q.map(v=>v[0]),ys=q.map(v=>v[1]);
+  return{x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)}}).filter(b=>Math.max(b.x1-b.x0,b.y1-b.y0)*mm>=300);
+ const ray=(hz,sg)=>{/* hz：横の壁（上下を見る）。along＝p の横位置、cross＝p の縦位置 */
+  const W=B.filter(b=>hz?(b.x1-b.x0)>(b.y1-b.y0):(b.y1-b.y0)>(b.x1-b.x0)).map(b=>({lo:hz?b.x0:b.y0,hi:hz?b.x1:b.y1,f0:hz?b.y0:b.x0,f1:hz?b.y1:b.x1,c:hz?(b.y0+b.y1)/2:(b.x0+b.x1)/2}));
+  const al=hz?p[0]:p[1],cr=hz?p[1]:p[0];
+  const C=W.filter(w=>sg*(w.c-cr)>0).sort((a,b)=>sg*(a.c-b.c));
+  for(const w of C){const G=W.filter(q=>Math.abs(q.c-w.c)<=Math.max(30/mm,(w.f1-w.f0)/2));
+   const inI=G.some(q=>al>=q.lo-1&&al<=q.hi+1),L=G.filter(q=>q.hi<al).map(q=>q.hi),R=G.filter(q=>q.lo>al).map(q=>q.lo);
+   if(inI||(L.length&&R.length&&Math.min(...R)-Math.max(...L)<=gapMax))return sg>0?Math.min(...G.map(q=>q.f0)):Math.max(...G.map(q=>q.f1))}
+  return null};
+ const y0=ray(true,-1),y1=ray(true,1),x0=ray(false,-1),x1=ray(false,1);
+ if(x0==null||x1==null||y0==null||y1==null)return null;if((x1-x0)*mm>30000||(y1-y0)*mm>30000)return null;return{x0,x1,y0,y1}}
 /* 範囲の中の「CH=2400」と部屋の名前 */
 function kzCHIn(r){const P=PLAN;let ch=0,nm="";const T2=(P.texts||[]).map(t=>({t,s:String(t.s||"").replace(/[\s　]/g,"").replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/[＝]/g,"=")}));
  T2.forEach(o=>{const cx=o.t.x+(o.t.w||0)/2,cy=o.t.y-(o.t.h||0)/2;if(cx<r.x0||cx>r.x1||cy<r.y0||cy>r.y1)return;const m=o.s.match(/C\.?H=?([1-6]\d{3})/i);if(!m)return;ch=+m[1];
@@ -65,7 +80,7 @@ function kzCeilAuto(){const P=PLAN;if(!P||!P.mmpp||!P.org||!P.segs||P.segs.lengt
  const T2=(P.texts||[]).map(t=>{const s=String(t.s||"").replace(/[\s　]/g,"").replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/[＝]/g,"=");const m=s.match(/C\.?H=?([1-6]\d{3})/i);return m?{v:+m[1],p:[t.x+(t.w||0)/2,t.y-(t.h||0)/2]}:null}).filter(Boolean);
  const inR=(p,r)=>p[0]>=r.x0&&p[0]<=r.x1&&p[1]>=r.y0&&p[1]<=r.y1,add=[];
  T2.forEach(t=>{if(Math.abs(t.v-main)<20)return;if(bx&&(t.p[0]<bx.x0||t.p[0]>bx.x1||t.p[1]<bx.y0||t.p[1]>bx.y1))return;
-  const r=kzRoomAt(t.p);if(!r)return;if((r.x1-r.x0)*mm<500||(r.y1-r.y0)*mm<500)return;
+  const r=kzRoomByWalls(t.p)||kzRoomAt(t.p);if(!r)return;   /* 読んだ壁で囲まれた範囲を優先（線だけで探すと、天井ボードの割付線や部屋名の枠で小さくなる） */if((r.x1-r.x0)*mm<500||(r.y1-r.y0)*mm<500)return;
   if(T2.some(q=>q!==t&&Math.abs(q.v-t.v)>=20&&inR(q.p,r)))return;
   const c=btWx([(r.x0+r.x1)/2,(r.y0+r.y1)/2]);if(st.bld.concat(add).some(o=>{if(o.k!=="ceil")return false;const th=o.r*Math.PI/180,dx=c[0]-o.x,dz=c[1]-o.z;return Math.abs(dx*Math.cos(th)+dz*Math.sin(th))<=o.w/2&&Math.abs(-dx*Math.sin(th)+dz*Math.cos(th))<=o.d/2}))return;
   const A=btWx([r.x0,r.y0]),B=btWx([r.x1,r.y0]),rr=normT(Math.round(Math.atan2(B[1]-A[1],B[0]-A[0])*180/Math.PI));

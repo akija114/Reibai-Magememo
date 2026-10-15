@@ -1283,6 +1283,25 @@ function planRefHeights(route,pipeH){const P=PLAN,mm=P.mmpp,px=v=>v/mm,S=[0];for
   if(gap>4.1)continue;   // 4分の1の円（曲げの角、すき間約270°）は除く。半円（管の丸い端、少し欠けても可）と丸
   let bj=-1,bd=1e18;route.forEach((q,j)=>{const d=v2l(v2s(q,c));if(d<bd){bd=d;bj=j}});if(bj>=0&&bd*mm<=300&&!caps.includes(bj))caps.push(bj)}
  caps.sort((a,b)=>a-b);return{s:S,labs,caps}}
+/* 室外機側の上げ下げの位置：外壁を出たら、すぐに室外機の配管口の高さへ上げ下げする。
+   図面は平面なので「どこで下りるか」は描いてない。外で横に回してから下りると、外壁から離れた空中を走ってしまうため。
+   src＝3Dの配管の点（配管口基準）、yT＝室外機の配管口の高さ、walls＝壁。いちばん最後に通る壁（＝外壁）の外側 壁厚/2+250mm で上げ下げ。
+   変えられない時（壁を通らない・もう同じ高さ）は null */
+function pipeDropOut(src,yT,walls){const V=THREE.Vector3;let hit=null;
+ for(let i=1;i<src.length;i++){const A=src[i-1],B=src[i];if(Math.abs(B.y-A.y)>1)continue;
+  walls.forEach(w=>{const th=w.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),loc=p=>[(p.x-w.x)*co+(p.z-w.z)*si,-(p.x-w.x)*si+(p.z-w.z)*co],La=loc(A),Lb=loc(B);
+   if(La[1]*Lb[1]>=0)return;const u=La[1]/(La[1]-Lb[1]),lx=La[0]+(Lb[0]-La[0])*u;if(Math.abs(lx)>w.w/2)return;
+   if(!hit||i>hit.i||(i===hit.i&&u>hit.u))hit={i,u,w}})}
+ if(!hit)return null;const A=src[hit.i-1],B=src[hit.i];if(Math.abs(A.y-yT)<1)return null;
+ /* 外壁の後に、まだ高さが変わる所（ピンクの丸い端の上げ下げ）がある時は、図面の印どおりにする */
+ for(let i=hit.i;i<src.length-1;i++){if(Math.abs(src[i+1].y-src[i].y)>1&&Math.abs(src[i+1].y-yT)>1)return null}
+ const L=B.clone().sub(A).length(),dir=B.clone().sub(A).normalize(),X=A.clone().lerp(B,hit.u),off=(hit.w.d||150)/2+250;
+ const E=off>=L*(1-hit.u)?B.clone():X.clone().addScaledVector(dir,off);
+ let pts=src.slice(0,hit.i).map(p=>p.clone()).concat([E,new V(E.x,yT,E.z)],src.slice(hit.i).map(p=>new V(p.x,yT,p.z)));
+ /* 同じ点・まっすぐ続く点をまとめる */
+ const out=[];pts.forEach(p=>{if(out.length&&out[out.length-1].distanceTo(p)<1)return;
+  if(out.length>=2){const a=out[out.length-2],b=out[out.length-1],d0=b.clone().sub(a).normalize(),d1=p.clone().sub(b).normalize();if(d0.dot(d1)>0.999){b.copy(p);return}}out.push(p.clone())});
+ return out}
 function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線のデータがある図面（CADのPDF）で使えます");return}
  if(!P.mmpp||!P.org){toast("先に縮尺と原点を決めてください");return}
  const mm=P.mmpp,BL=planClusters(isBlue),norm=s=>normTx(s).toUpperCase().replace(/[\s\-‐ー－]/g,"");
@@ -1369,6 +1388,8 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  if(T0){const out=Ap.clone().sub(T0).normalize(),d=T0.clone().sub(cur()),a=d.dot(out);
   if(Math.abs(d.y)<1&&a<=-50){const al=out.clone().multiplyScalar(a);go(d.clone().sub(al));go(al)}   // もう口の高さ：横のずれを合わせてから、まっすぐ口へ（行き過ぎて戻らない）
   else{const toAp=Ap.clone().sub(cur());toAp.y=0;const al=out.clone().multiplyScalar(toAp.dot(out));go(al);go(toAp.clone().sub(al));go(new V(0,T0.y-cur().y,0));go(T0.clone().sub(cur()))}}   // 口の向きに出る→横を合わせる→（上げ下げ）→口へ
+ /* 外壁を出たらすぐ室外機の高さへ（壁がまだ無い時は、全部自動で壁を読んだ後にもう一度） */
+ const PP0=PP.map(p=>p.clone()),dropOut=()=>{if(!T0||capO!=null)return false;const n=pipeDropOut(PP0,T0.y,st.bld.filter(o=>o.k==="wall"&&o.m!=="lgs"&&o.auto!=="lgs"));if(!n)return false;PP.length=0;n.forEach(p=>PP.push(p));return true};dropOut();
  /* スリーブ（穴）：出来上がった3Dの冷媒が壁を通る所に、その高さで開ける（図面の線は配管口に合わせて少しずらすので、図面の線の位置だと合わない） */
  const mkHoles=()=>{st.bld=st.bld.filter(o=>!(o.k==="hole"&&o.auto));const walls=st.bld.filter(o=>o.k==="wall");
   for(let i=1;i<PP.length;i++){const A=PP[i-1],B=PP[i];if(Math.abs(B.y-A.y)>1)continue;
@@ -1384,6 +1405,8 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  let DRr=null;try{DRr=planReadDrain(pipeH||null);if(DRr){save();render();if(T){build3D();fitT(true)}}}catch(e){console.warn("drain read",e)}
  /* 冷媒の通し方：図面で冷媒とドレンが並んで走っていれば、ドレンの上（全ねじの横掴み・50mm）に通す */
  let RJ=null;if(DRr){try{RJ=rjInit(Pf)}catch(e){console.warn("rj",e)}}else st.rj=null;
+ P._dropOut=()=>{if(!dropOut())return false;const F2=frameFor(new V(1,0,0)),Pf2=PP.map(p=>new V(p.dot(F2.ex),p.dot(F2.ey),p.dot(F2.ez))),rows2=polyToRows(Pf2).filter(r=>r.l>0);if(!rows2.length)return false;
+  st.rows=normRows(rows2,[{l:1000,a:0,t:0,o:false}]);sel=0;if(DRr){try{rjInit(Pf2)}catch(e){console.warn("rj",e)}}save();render();if(T){build3D();fitT(true)}return true};
  const po=$("#planOv");if(po)po.style.display="none";
  toast("読み込みました：室内機 "+CAS2M[I.k].n+"（天井 "+fmt(CH)+(BI&&botFL?"・本体下面 FL+"+fmt(botFL):"")+"）"+(O?"・室外機 "+fmt(O.w)+"×"+fmt(O.d):"")+"・配管 "+(szG>=0?SIZES[szG][0].split(" ")[0]+(szL>=0?"／"+SIZES[szL][0].split(" ")[0]:""):"")+(pipeH?" FL+"+pipeH:"")+"（合計"+fmt(rows.reduce((a,r)=>a+r.l,0))+"mm）"+(RJ&&RJ.mode!=="sep"?"・冷媒はドレンの上（全ねじ・"+RJ.gap+"mm）":"")+(DRr?"・ドレン "+DRr.sizes.map(z=>z+"A").join("／")+" "+fmt(DRr.len)+"mm（1/"+DRr.slope+(DRr.co?"・掃除口 "+DRr.co:"")+"）":""));
  return{ind:CAS2M[I.k].n,CH,botFL,indY,drain:DRr,rj:RJ&&{mode:RJ.mode,gap:RJ.gap,len:RJ.len},pipeH,szG,szL,out:O?[O.w,O.d,O.m]:null,rows:rows.length}}
@@ -1640,7 +1663,7 @@ function planAutoAll(){const P=PLAN;
    for(let j=0;j<cut.length-1;j++){const g=(cut[j+1]-cut[j])*mm;if(g<80||g>450)continue;if(done.some(t=>Math.abs(t-g)<25))continue;done.push(g);
     const m=(cut[j]+cut[j+1])/2,p=hz?[m,c]:[c,m];nw+=planWallLearn(p,rg,true)||0}}};
  const KZ=typeof kzLgs==="function";if(!KZ)learnWalls();
- P._kzOnly=KZ;P._mkHoles=null;let r;try{r=planReadAll()}finally{P._kzOnly=false}
+ P._kzOnly=KZ;P._mkHoles=null;P._dropOut=null;let r;try{r=planReadAll()}finally{P._kzOnly=false}
  let nd=0,nwn=0,nh=0;try{if(r&&typeof kzPlaceH==="function"){const n0=st.bld.filter(o=>o.k==="col").length,tst=window.toast;window.toast=()=>{};try{kzPlaceH()}finally{window.toast=tst}nh=st.bld.filter(o=>o.k==="col").length-n0}}catch(e){console.warn("hcol",e)}
  try{if(r&&typeof kzHEnclose==="function")kzHEnclose(true)}catch(e){console.warn("henc",e)}
 let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.warn("lgs",e)}
@@ -1655,6 +1678,8 @@ let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.war
   if(typeof kzExtFilter==="function"&&st.bld.some(o=>o.auto==="lgs")){st.bld=st.bld.filter(o=>o.auto!=="ext");const n0=st.bld.length;nw=0;try{learnWalls()}catch(e){console.warn("ext",e)}
    /* 足した物は後ろに並ぶ（normBld で作り直されるので、物そのものではなく並び順で見分ける） */
    const NEW=st.bld.slice(n0).filter(o=>o.k==="wall"),keep=new Set(kzExtFilter(NEW));st.bld=st.bld.slice(0,n0).concat(st.bld.slice(n0).filter(o=>keep.has(o)));keep.forEach(o=>o.auto="ext");nw=keep.size;st.bld=normBld(st.bld)}
+  /* 外壁が読めたので、室外機側は外壁を出てすぐ上げ下げするルートに直す */
+  try{if(P._dropOut)P._dropOut()}catch(e){console.warn("dropout",e)}
   /* 配管の穴（スリーブ）を、今の壁で開け直す */
   try{if(P._mkHoles)P._mkHoles()}catch(e){console.warn("holes",e)}}
  /* 天井高の範囲：メインと違う「CH=2400」などの部屋に自動で置く（範囲の中の壁・ボード・スタッドはその高さで止まる） */

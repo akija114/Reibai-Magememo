@@ -1391,18 +1391,25 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  /* 外壁を出たらすぐ室外機の高さへ（壁がまだ無い時は、全部自動で壁を読んだ後にもう一度） */
  const PP0=PP.map(p=>p.clone()),dropOut=()=>{if(!T0||capO!=null)return false;const n=pipeDropOut(PP0,T0.y,st.bld.filter(o=>o.k==="wall"&&o.m!=="lgs"&&o.auto!=="lgs"));if(!n)return false;PP.length=0;n.forEach(p=>PP.push(p));return true};dropOut();
  /* スリーブ（穴）：出来上がった3Dの冷媒が壁を通る所に、その高さで開ける（図面の線は配管口に合わせて少しずらすので、図面の線の位置だと合わない） */
- const mkHoles=()=>{st.bld=st.bld.filter(o=>!(o.k==="hole"&&o.auto));const walls=st.bld.filter(o=>o.k==="wall");
-  for(let i=1;i<PP.length;i++){const A=PP[i-1],B=PP[i];if(Math.abs(B.y-A.y)>1)continue;
+ /* 穴：線（点の並び）が壁を横切る所に、その高さで開ける。dia＝穴の直径、tag＝冷媒1・ドレン2、near＝ほかの穴とこれより近ければ開けない */
+ const holesOn=(L,dia,tag,near)=>{const walls=st.bld.filter(o=>o.k==="wall");
+  for(let i=1;i<L.length;i++){const A=L[i-1],B=L[i],hl=Math.hypot(B.x-A.x,B.z-A.z);if(hl<1||Math.abs(B.y-A.y)>hl*0.1)continue;   // 横の区間だけ（ドレンの勾配はよい）
    walls.forEach(w=>{const th=w.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),loc=p=>[(p.x-w.x)*co+(p.z-w.z)*si,-(p.x-w.x)*si+(p.z-w.z)*co],La=loc(A),Lb=loc(B);
-    if(La[1]*Lb[1]>=0)return;const u=La[1]/(La[1]-Lb[1]),lx=La[0]+(Lb[0]-La[0])*u;if(Math.abs(lx)>w.w/2)return;const X=A.x+(B.x-A.x)*u,Z=A.z+(B.z-A.z)*u;
-    if(st.bld.some(o=>o.k==="hole"&&Math.hypot(o.x-X,o.z-Z)<200&&Math.abs(o.y-(A.y-GY))<200))return;
-    st.bld.push({k:"hole",x:Math.round(X),z:Math.round(Z),r:w.r,w:75,d:w.d,h:75,y:Math.round(A.y-GY),full:false,auto:1})})}
+    if(La[1]*Lb[1]>=0)return;const u=La[1]/(La[1]-Lb[1]),lx=La[0]+(Lb[0]-La[0])*u;if(Math.abs(lx)>w.w/2)return;const X=A.x+(B.x-A.x)*u,Z=A.z+(B.z-A.z)*u,Y=A.y+(B.y-A.y)*u-GY;
+    if(st.bld.some(o=>o.k==="hole"&&Math.hypot(o.x-X,o.z-Z)<near&&Math.abs(o.y-Y)<near))return;
+    st.bld.push({k:"hole",x:Math.round(X),z:Math.round(Z),r:w.r,w:dia,d:w.d,h:dia,y:Math.round(Y),full:false,auto:tag})})}};
+ /* ドレンの穴の直径：管の外径＋20mm 以上のスリーブ（50・65・75・100・125） */
+ const drHoleDia=()=>{const D=DRN(),M=DR_MAT[D.mat]||DR_MAT.VP,szs=[D.sz,...D.rows.map(r=>r.sz)].filter(v=>DR_SIZES.includes(v)),od=Math.max(...szs.map(v=>M.od[v]||48),48);return[50,65,75,100,125].find(v=>v>=od+20)||150};
+ const mkHoles=()=>{st.bld=st.bld.filter(o=>!(o.k==="hole"&&o.auto));holesOn(PP,75,1,200);
+  /* ドレンも壁を通る所に穴（冷媒の穴とほぼ同じ所＝一緒に通す時は、冷媒の穴を使う） */
+  try{const D=st.drain?DRN():null,u=T&&T.UN&&(T.UN.find(x=>x.t==="s"&&x.dr)||T.UN.find(x=>x.dr));
+   if(D&&D.show&&D.rows.length&&u){const DP=drPath(u.dr.p.clone(),new THREE.Vector3(u.dr.d.x,0,u.dr.d.z)).pts;holesOn(DP,drHoleDia(),2,120)}}catch(e){console.warn("drain holes",e)}
   st.bld=normBld(st.bld);bldChanged()};mkHoles();P._mkHoles=mkHoles;   /* 全部自動では、軽量壁を読んだ後にもう一度開け直す（消えた壁の穴が残らないように） */
  const F=frameFor(new V(1,0,0)),Pf=PP.map(p=>new V(p.dot(F.ex),p.dot(F.ey),p.dot(F.ez)));
  const rows=polyToRows(Pf).filter(r=>r.l>0);if(!rows.length){toast("ルートを作れませんでした");return}
  st.rows=normRows(rows,[{l:1000,a:0,t:0,o:false}]);sel=0;st.units.e="";save();render();if(T){build3D();fitT(true)}
  /* ドレン：図面のオレンジの管から自動で作る（冷媒と同じ3Dに出す） */
- let DRr=null;try{DRr=planReadDrain(pipeH||null);if(DRr){save();render();if(T){build3D();fitT(true)}}}catch(e){console.warn("drain read",e)}
+ let DRr=null;try{DRr=planReadDrain(pipeH||null);if(DRr){mkHoles();save();render();if(T){build3D();fitT(true)}}}catch(e){console.warn("drain read",e)}   // ドレンが壁を通る所にも穴
  /* 冷媒の通し方：図面で冷媒とドレンが並んで走っていれば、ドレンの上（全ねじの横掴み・50mm）に通す */
  let RJ=null;if(DRr){try{RJ=rjInit(Pf)}catch(e){console.warn("rj",e)}}else st.rj=null;
  P._dropOut=()=>{if(!dropOut())return false;const F2=frameFor(new V(1,0,0)),Pf2=PP.map(p=>new V(p.dot(F2.ex),p.dot(F2.ey),p.dot(F2.ez))),rows2=polyToRows(Pf2).filter(r=>r.l>0);if(!rows2.length)return false;

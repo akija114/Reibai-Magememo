@@ -175,6 +175,7 @@ const BENDERS={
  mb:{n:"手動ミニ TA515MB",sub:"TASCO 直管ミニベンダー・1/2〜1-1/4（R=4D）",R:{},S:[12.7,15.88,19.05,22.22,25.4,28.58,31.75]},
  lev:{n:"レバー式 TA540G",sub:"TASCO 2段式クイックアクションカラーベンダー・3分〜6分（メーカーR）",lev:1,R:{"9.52":23.8,"12.7":38,"15.88":57.2,"19.05":76.2},S:[9.52,12.7,15.88,19.05]},
  levb:{n:"レバー式 TA540B",sub:"TASCO 2段式クイックアクション（青）・4分〜7分・R未確認（仮に外径×4）",lev:1,R:{},S:[12.7,15.88,19.05,22.22],unk:1},
+ rb147:{n:"ラチェット式 BBK RB-147W",sub:"BBK ラチェット式チューブベンダー・2分〜6分・なまし銅管専用・寸法出しライン・90°目盛・R未確認（仮に外径×4）",lev:1,rat:1,mk:{f:"ホイールの右ライン",b:"ホイールの左ライン",fs:"前",bs:"後ろ"},R:{},S:[6.35,9.52,12.7,15.88,19.05],unk:1},
  bbk:{n:"レバー式 BBK",sub:"BBK チューブベンダー（レバータイプ）・2分〜6分・Lマーク／Rマーク・R未確認（仮に外径×4）",lev:1,R:{},S:[6.35,9.52,12.7,15.88,19.05],unk:1},
  rat:{n:"ラチェットベンダー TA512AX",sub:"TASCO ラチェットベンダーセット・2分〜7分・R未確認（仮に外径×4）",R:{},S:[6.35,9.52,12.7,15.88,19.05,22.22],unk:1},
  my:{n:"マイベンダー",sub:"自分でRを入れる・全サイズ",R:{}}};
@@ -1105,7 +1106,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    /* TA515のような形：青い本体（左右に長い）の上に、左にシュー（半円）、右にガイド。右端にハンドル、下に三脚。
       配管は前後（x）に通り、シューとガイドの間にはさむ。シューは配管の左（ダイス側）、ハンドルは右。 */
    const lg0=new THREE.MeshStandardMaterial({color:0x1f2937,roughness:.6});
-   const BMOD=BENDER==="bbk"?"lev":["g4d","ek","mb","lev","levb","rat"].includes(BENDER)?BENDER:"std";   // 選んだベンダーの模型（対応外サイズでも形は見せる）
+   const BMOD=BENDER==="bbk"?"lev":BENDER==="rb147"?"rat":["g4d","ek","mb","lev","levb","rat"].includes(BENDER)?BENDER:"std";   // 選んだベンダーの模型（対応外サイズでも形は見せる）
    const blk=new THREE.MeshStandardMaterial({color:0x1f2937,metalness:.3,roughness:.5});
    const legTo=(x0,y0,z0,x1,z1,rr,mat)=>{const p0=new V(x0,y0,z0*sg),p1=new V(x1,-GUIDE_H,z1*sg),l=new THREE.Mesh(new THREE.CylinderGeometry(rr,rr,p0.distanceTo(p1),8),mat);l.position.copy(p0).add(p1).multiplyScalar(.5);l.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());bg.add(l)};
    const rod=(x0,y0,z0,x1,y1,z1,rr,mat)=>{const p0=new V(x0,y0,z0*sg),p1=new V(x1,y1,z1*sg),l=new THREE.Mesh(new THREE.CylinderGeometry(rr,rr,p0.distanceTo(p1),10),mat);l.position.copy(p0).add(p1).multiplyScalar(.5);l.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());bg.add(l)};
@@ -1586,20 +1587,24 @@ function showGuideStep(){
   const pn=G.rev?"前の配管（シュー側の先）":"前の配管";how=el<=2?`${pn}は台の上に寝かせる（${side}）`:el>=88?`${pn}は真${ud}に向ける`:`${pn}を台の面から ${ud}へ ${el}°（${side}）`;
  }
  const Dg=SIZES[legSize(GUIDE.g)][1],aa=rows[i].a,back=bR(Dg)*aa/90,fwd=back/2,rv2=!!GUIDE.rev[i];
- /* レバー式（BBK・TASCO TA540）：90°は Lマーク／Rマークで、印＝寸法どおり（バックの差し引きなし）。
-    Lマーク＝フック側（前）に寸法をとる、Rマーク＝ホイール側（後ろ）に寸法をとる。角度はホイールの0点と目盛りで合わせる。
-    90°以外はL/Rマークが合わないので、今までどおりシューの0にバックで合わせる */
- const LEV=benOn(Dg)&&!!BENDERS[BENDER].lev,LM=LEV&&aa===90,mk=rv2?"R":"L",from=i>0?"前の管の中心":"管の端";
+ /* レバー式（BBK・TASCO TA540）・ラチェット式 BBK RB-147W：90°は寸法出しのマーク（ライン）で、印＝寸法どおり（バックの差し引きなし）。
+    前寸法（寸法をとった側が前）＝ Lマーク／ホイールの右ライン、後寸法（寸法をとった側が後ろ）＝ Rマーク／ホイールの左ライン。
+    角度：レバー式＝ホイールの0点と目盛り。ラチェット式＝ピストンの目盛ライン（90°だけ）と本体の矢印。
+    90°以外はマークが合わないので、今までどおりシューの0にバックで合わせる */
+ const BD=BENDERS[BENDER],LEV=benOn(Dg)&&!!BD.lev,LM=LEV&&aa===90,MK=BD.mk||{f:"Lマーク",b:"Rマーク",fs:"フック側（前）",bs:"ホイール側（後ろ）"},mk=rv2?MK.b:MK.f,from=i>0?"前の管の中心":"管の端";
  if(LEV)$("#gdTxt").innerHTML=`曲げ寸法 <b>${fmt(rows[i].l)}</b>mm<br><small>（${i>0?"前の曲げの角（前の管の中心）から":"端から"}、この曲げの角まで）</small><br>`+
-  (LM?`${from}から <b>${fmt(rows[i].l)}</b>mm に印 → 印を<br><b class="${rv2?"fw":"bk"}">${mk}マーク</b>にぴったり合わせる<br><small>${rv2?"Rマーク：寸法をとった側を<b>ホイール側（後ろ）</b>に置く":"Lマーク：寸法をとった側を<b>フック側（前）</b>に置く"}。90°曲げると、${from}から次の管の中心まで ${fmt(rows[i].l)}mm${i>0?"。前の管の外側から測る時は、外径の半分（"+fmt(Dg/2)+"mm）を足し引き":""}</small>`
-   :`<small>90°以外はL／Rマークが使えません</small><br>印を<b>シューの0</b>に合わせて <b class="bk">バック ${fmt(back)}mm</b><small>（${bRtxt(Dg)}×${aa}/90）</small>`)+
-  `<br>ホイールの<b>0</b>をシューの0に合わせてから、ハンドルを目盛り <b>${aa}°${aa>=180?"（返し）":""}</b>まで <small>（戻り分 1〜2°多めに）</small><span class="big">${how}</span>`;
+  (LM?`${from}から <b>${fmt(rows[i].l)}</b>mm に印 → 印を<br><b class="${rv2?"fw":"bk"}">${mk}</b>にぴったり合わせる<br><small>${rv2?"後寸法：寸法をとった側を<b>"+MK.bs+"</b>に置く":"前寸法：寸法をとった側を<b>"+MK.fs+"</b>に置く"}。90°曲げると、${from}から次の管の中心まで ${fmt(rows[i].l)}mm${i>0?"。前の管の外側から測る時は、外径の半分（"+fmt(Dg/2)+"mm）を足し引き":""}</small>`
+   :`<small>90°以外は${MK.f}・${MK.b}が使えません</small><br>印を<b>シューの0</b>に合わせて <b class="bk">バック ${fmt(back)}mm</b><small>（${bRtxt(Dg)}×${aa}/90）</small>`)+
+  (BD.rat?(aa===90?`<br>ピストンの目盛ライン（正曲げ【（ 】／逆曲げ【 ）】）と本体の矢印が揃うまでハンドルを動かす＝<b>90°</b> <small>（目盛は目安。管によって変わるので少し様子を見ながら）</small>`:`<br>ピストンの目盛は90°だけ。<b>${aa}°${aa>=180?"（返し）":""}</b>は角度を見ながら曲げる`)
+   :`<br>ホイールの<b>0</b>をシューの0に合わせてから、ハンドルを目盛り <b>${aa}°${aa>=180?"（返し）":""}</b>まで <small>（戻り分 1〜2°多めに）</small>`)+
+  (BD.rat?`<small style="color:#9a3412">⚠️ なまし銅管だけ（1/2H・直管は不可）。管のくせは内側に向ける（外側だとへこみ・シワ）。ピストンを最後まで出さない（故障の元）。壁ぎわ・奥は逆曲げアダプタで</small>`:"")+
+  `<span class="big">${how}</span>`;
  else $("#gdTxt").innerHTML=`曲げ寸法 <b>${fmt(rows[i].l)}</b>mm<br><small>（${i>0?"前の曲げの角から":"端から"}、この曲げの角まで）</small><br>`+
   `印を赤いライン（シューの0）に合わせて<br>`+(rv2?`<b class="fw">前に出す ${fmt(fwd)}mm</b><small>（逆向き：${bRtxt(Dg)}÷2${aa!==90?"×"+aa+"/90":""}）</small>`:`<b class="bk">バック ${fmt(back)}mm</b><small>（${bRtxt(Dg)}${aa!==90?"×"+aa+"/90":""}）</small>`)+
   `<br>曲げ角度 <b>${aa}°${aa>=180?"（返し）":""}</b> <small>（戻り分 1〜2°多めに）</small><span class="big">${how}</span><small style="color:#94a3b8">シュー位置で印をつける時：前の印から ${fmt(c.shoe)}（端から ${fmt(c.cum)}）</small>`;
  $("#gdBen").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:20px;height:20px;vertical-align:-5px;margin-right:4px">ベンダー：${benOn(Dg)?BENDERS[BENDER].n+"（"+bRtxt(Dg)+"）":"⚠️ "+BENDERS[BENDER].n+"は "+szName(Dg)+" 非対応（標準 外径×4で表示）"} ▸`;
  $("#gdDie").textContent="ダイスの位置：後ろから見て "+(DIE_R?"右 ▶（タップで左）":"◀ 左（タップで右）");
- const rv=!!GUIDE.rev[i],gb=$("#gdRev");gb.classList.toggle("on",rv);gb.textContent=LM?(rv?"🔄 Rマークで曲げる（ON）":"🔄 Rマークにする（寸法をホイール側に）"):rv?"🔄 逆向きで曲げる（ON）":"🔄 逆向きにする（反対から差す）";
+ const rv=!!GUIDE.rev[i],gb=$("#gdRev");gb.classList.toggle("on",rv);gb.textContent=LM?(rv?"🔄 後寸法："+MK.b+"（ON）":"🔄 後寸法にする（"+MK.b+"）"):rv?"🔄 逆向きで曲げる（ON）":"🔄 逆向きにする（反対から差す）";
  $("#gdH").value=uVal(GUIDE_H);
  const H=GUIDE_H,rr=G.rad||0,hitN=G.minN<-H+rr,hitR=G.minR<-H+rr,w=$("#gdWarn");
  if(hitN||hitR){w.className="gdwarn on "+((rv?hitR:hitN)?"bad":"ok");
@@ -1607,7 +1612,7 @@ function showGuideStep(){
  else{w.className="gdwarn";w.textContent=""}
  if(!benOn(Dg)){const t0=(hitN||hitR)?" "+w.textContent:"";w.className="gdwarn on bad";w.textContent="⚠️ "+BENDERS[BENDER].n+"は "+szName(Dg)+" に対応していません（計算は標準 外径×4）。"+t0}
  const hitNow=rv?hitR:hitN;
- $("#gdMini").innerHTML=`<span>${nm(i)} 曲げ寸法 ${fmt(rows[i].l)}</span>${LM?`<span class="${rv?"fw":"bk"}">${rv?"R":"L"}マークに印</span>`:`<span class="${rv?"fw":"bk"}">${rv&&!LEV?"前に出す":"バック"} ${fmt(rv&&!LEV?fwd:back)}</span>`}<span>${rows[i].a}°${rows[i].a>=180?"返し":""}</span>${hitNow?'<span class="warn">⚠️床</span>':""}<button class="more" id="gdMore">詳細 ▲</button>`;
+ $("#gdMini").innerHTML=`<span>${nm(i)} 曲げ寸法 ${fmt(rows[i].l)}</span>${LM?`<span class="${rv?"fw":"bk"}">${rv?MK.b:MK.f}に印</span>`:`<span class="${rv?"fw":"bk"}">${rv&&!LEV?"前に出す":"バック"} ${fmt(rv&&!LEV?fwd:back)}</span>`}<span>${rows[i].a}°${rows[i].a>=180?"返し":""}</span>${hitNow?'<span class="warn">⚠️床</span>':""}<button class="more" id="gdMore">詳細 ▲</button>`;
  $("#gdMore").onclick=()=>setGdMini(false);
  $("#gdPrev").disabled=GUIDE.k===0;$("#gdNext").textContent=GUIDE.k>=N-1?"✅ 終わり":"次の曲げ ▶";if(!gdBusy)$("#gdNext").disabled=false;
 }

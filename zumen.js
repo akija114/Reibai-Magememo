@@ -187,14 +187,16 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
    `<p style="font-size:12.5px;color:#64748b;margin-top:6px">消したあと「◀ 戻る」で元に戻せます。「✖ キャンセル」でこの作業で消した物を全部戻します。</p>`}
  else if(s.startsWith("t:")){const k=s.slice(2),A=WZ_ADD.find(z=>z[0]===k)||["","",""];title=A[1]+" "+A[2];nxT="✅ 終わり ▶";
   const n=sess(),done=n?`<div style="font-size:12.5px;color:#16a34a;margin-top:6px">この作業で置いた数：${n}（「戻る」で1つ取り消し、「キャンセル」で全部取り消し）</div>`:"";
+  const irBtn=()=>`<div style="display:flex;gap:6px;margin:6px 0">${wzBtn("wzIr","↻ 向きを90°回す（今 "+(W.ir||0)+"°）","#fff7ed","#9a3412","flex:1")}</div>`,
+   lastInd=()=>{for(let i=st.bld.length-1;i>=0;i--)if(st.bld[i].k==="ind")return i;return -1},rotLast=()=>n&&lastInd()>=0?wzBtn("wzIrLast","↻ 最後に置いた室内機を90°回す","","","width:100%;margin-top:6px")+'<div style="font-size:12px;color:#9a3412;margin-top:2px">図面のオレンジの矢印＝配管の出る向き</div>':"";
   const mdlSel=()=>`<label style="display:block;font-size:13px;margin:4px 0">機種：<select id="wzIm" style="height:40px;border-radius:10px;font-size:14px;font-weight:700;max-width:100%"><option value="">（機種なし・四角の大きさの箱）</option>${CAS2_MAKERS.map(([mm,mn])=>`<optgroup label="${mn}">`+CAS2_ORDER.filter(x=>CAS2M[x].mk===mm).map(x=>`<option value="${x}"${x===W.im?" selected":""}>${CAS2M[x].n}（${CAS2M[x].kind}）</option>`).join("")+"</optgroup>").join("")}</select></label>`;
   if(k==="ind"){
-   if(W.sub==="pick")h=`<p><b>図面の上の、室内機の四角を1つタップ</b>してください。同じ大きさの四角をまとめて探します。</p><p style="font-size:12.5px;color:#475569">2本指で拡大すると選びやすいです。</p><button id="wzOne" style="background:none;border:0;color:#2563eb;font-weight:800;font-size:13px;padding:4px 0">四角がない図面なら → タップした所に1台ずつ置く</button>`+done;
-   else if(W.sub==="notfound")h=`<p style="color:#b91c1c;font-weight:800">タップした所に、室内機くらいの大きさの四角が見つかりませんでした。</p><p style="font-size:13px">（図面の室内機が四角の線で描かれていないと見つかりません）</p>${mdlSel()}<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${wzBtn("wzTapPlace","❄️ タップした所に1台置く","#2563eb","#fff")}${wzBtn("wzRepick","別の所をタップし直す")}</div>`;
+   if(W.sub==="pick")h=`<p><b>図面の上の、室内機の四角を1つタップ</b>してください。同じ大きさの四角をまとめて探します。</p><p style="font-size:12.5px;color:#475569">2本指で拡大すると選びやすいです。</p><p style="font-size:12.5px;color:#475569">写真の図面でも、色の付いた室内機の記号（赤紫・青など）ならタップで見つけます。</p><button id="wzOne" style="background:none;border:0;color:#2563eb;font-weight:800;font-size:13px;padding:4px 0">四角がない図面なら → タップした所に1台ずつ置く</button>`+rotLast()+done;
+   else if(W.sub==="notfound")h=`<p style="color:#b91c1c;font-weight:800">タップした所に、室内機くらいの大きさの四角が見つかりませんでした。</p><p style="font-size:13px">（図面の室内機が四角の線や色のかたまりで描かれていないと見つかりません）</p>${mdlSel()}${irBtn()}<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${wzBtn("wzTapPlace","❄️ タップした所に1台置く","#2563eb","#fff")}${wzBtn("wzRepick","別の所をタップし直す")}</div>`;
    else if(W.sub==="confirm"){const g=W.cand||[],r=W.pick;const w=r?Math.round((r.x1-r.x0)*P.mmpp/10)*10:0,d=r?Math.round((r.y1-r.y0)*P.mmpp/10)*10:0;
-    h=`<p>${fmt(w)}×${fmt(d)} の四角が <b style="font-size:17px;color:#dc2626">${g.length}個</b> 見つかりました（図面で<b style="color:#dc2626">赤く</b>光っている所）。</p>${mdlSel()}
+    h=`<p>${fmt(w)}×${fmt(d)} の四角が <b style="font-size:17px;color:#dc2626">${g.length}個</b> 見つかりました（図面で<b style="color:#dc2626">赤く</b>光っている所）。${W.photo?"<br><small>写真から読んだので、大きさは目安です。機種を確かめてください</small>":""}</p>${mdlSel()}${irBtn()}
      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${wzBtn("wzAll","❄️ "+g.length+"台ぜんぶ置く","#2563eb","#fff","flex:1 1 100%")}${g.length>1?wzBtn("wzOnly","この1台だけ","","","flex:1"):""}${wzBtn("wzRepick","違う・選び直す","","","flex:1")}</div>`}
-   else h=`<p><b>室内機の真ん中をタップ</b>すると1台置きます。</p>${mdlSel()}${W.im?"":wzInp("ih","箱の高さ")}<button id="wzPickMode" style="background:none;border:0;color:#2563eb;font-weight:800;font-size:13px;padding:4px 0">← 図面の四角から選ぶ方法に戻る</button>`+done}
+   else h=`<p><b>室内機の真ん中をタップ</b>すると1台置きます。</p>${mdlSel()}${irBtn()}${W.im?"":wzInp("ih","箱の高さ")}<button id="wzPickMode" style="background:none;border:0;color:#2563eb;font-weight:800;font-size:13px;padding:4px 0">← 図面の四角から選ぶ方法に戻る</button>`+done}
   else if(k==="wall"){const seg=[["room","🏠 部屋をぐるっと"],["wall","🧱 1本ずつ"],["rng","📥 図面の壁を取り込む"]];
    h=wzBtn("kzLgsAuto","🧱 軽量鉄骨＋ボードの壁を図面から置く","#475569","#fff","width:100%;margin-bottom:6px")+`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${seg.map(([t,l])=>`<button data-wt="${t}" style="height:40px;padding:0 9px;border-radius:10px;font-weight:800;font-size:13px;border:1.5px solid #cbd5e1;background:${BT.tool===t?"#fbbf24":"#fff"}">${l}</button>`).join("")}</div>`+
     `<p>${BT.tool==="room"?"部屋の<b>内側の角</b>を順番にタップ。全部置いたら下の「壁を作る」。":BT.tool==="wall"?"壁の面の<b>端と端</b>を2点タップ。":"範囲の<b>対角を2点</b>タップ。その中の図面の壁（青い帯）をまとめて壁にします。"}</p>`+
@@ -239,7 +241,9 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
  on("wzClassic",()=>{W.on=false;try{localStorage.setItem("pbmPlanClassic","1")}catch(e){}wzApplyUI();PV.md("move");toast("細かい道具の画面です。下の「🧭 かんたん画面」で戻れます")});
  on("wzOne",()=>{W.sub="one";BT.tool="indone";BT.pts=[];wzRender()});on("wzPickMode",()=>{W.sub="pick";BT.tool="indpick";wzRender()});
  on("wzAll",()=>wzPlaceCand(W.cand||[]));
- on("wzTapPlace",()=>{const p=W.tap;if(!p)return;const q=btW(p),o=bldNew("ind",{x:q[0],z:q[1]});o.m=W.im||"";o.h=Math.max(10,BT.ih||300);btAdd([normBld([o])[0]]);W.sub="pick";W.tap=null;BT.tool="indpick";wzRender();planDraw();toast("室内機を置きました")});on("wzOnly",()=>wzPlaceCand([W.pick]));on("wzRepick",()=>{W.sub="pick";W.cand=null;W.pick=null;BT.tool="indpick";wzRender();planDraw()});
+ on("wzIr",()=>{W.ir=((W.ir||0)+90)%360;wzRender();planDraw()});
+ on("wzIrLast",()=>{let i=-1;for(let k=st.bld.length-1;k>=0;k--)if(st.bld[k].k==="ind"){i=k;break}if(i<0)return;st.bld[i].r=normT((st.bld[i].r||0)+90);st.bld=normBld(st.bld);bldChanged();planDraw();toast("向き "+st.bld[i].r+"°")});
+ on("wzTapPlace",()=>{const p=W.tap;if(!p)return;const q=btW(p),o=bldNew("ind",{x:q[0],z:q[1]});o.m=W.im||"";o.r=W.ir||0;o.h=Math.max(10,BT.ih||300);btAdd([normBld([o])[0]]);W.sub="pick";W.tap=null;BT.tool="indpick";wzRender();planDraw();toast("室内機を置きました")});on("wzOnly",()=>wzPlaceCand([W.pick]));on("wzRepick",()=>{W.sub="pick";W.cand=null;W.pick=null;BT.tool="indpick";wzRender();planDraw()});
  {const e=$("#wzIm");if(e)e.onchange=()=>{W.im=e.value;wzRender()}}
  {const e=$("#wzOm");if(e)e.onchange=()=>{BT.om=e.value}}
  on("wzORot",()=>{BT.or=((BT.or||0)+90)%360;wzRender()});
@@ -257,23 +261,50 @@ function wzPick(p){const P=PLAN;if(!P.rects){try{planAnalyze()}catch(e){}}const 
  const inn=R.filter(r=>p[0]>=r.x0-2&&p[0]<=r.x1+2&&p[1]>=r.y0-2&&p[1]<=r.y1+2&&okSz(r));
  let r=inn.sort((a,b)=>(a.x1-a.x0)*(a.y1-a.y0)-(b.x1-b.x0)*(b.y1-b.y0))[0];
  if(!r){const tol=40/PV.z;let bd=1e9;R.forEach(q=>{const dx=Math.max(q.x0-p[0],0,p[0]-q.x1),dy=Math.max(q.y0-p[1],0,p[1]-q.y1),d=Math.hypot(dx,dy);if(d<tol&&d<bd&&okSz(q)){bd=d;r=q}})}
- if(!r){W.tap=p.slice();W.sub="notfound";wzRender();planDraw();return}
+ if(!r){const ph=wzPickPhoto(p);if(ph){W.pick=ph;W.cand=[ph];W.sub="confirm";W.photo=1;wzGuessModel(ph);wzRender();planDraw();return}
+  W.tap=p.slice();W.sub="notfound";wzRender();planDraw();return}
+ W.photo=0;
  /* 室内機の記号は、外の大きい四角（パネル）より、内側にある本体の四角を選ぶことがあるので、いちばん外側の四角を優先 */
  const outer=inn.filter(q=>q!==r&&okSz(q)).sort((a,b)=>(b.x1-b.x0)*(b.y1-b.y0)-(a.x1-a.x0)*(a.y1-a.y0))[0];
  if(outer&&(outer.x1-outer.x0)<(r.x1-r.x0)*1.6)r=outer;
  const w0=(r.x1-r.x0),h0=(r.y1-r.y0),tl=Math.max(2,30/P.mmpp),same=q=>q.col===r.col&&((Math.abs((q.x1-q.x0)-w0)<tl&&Math.abs((q.y1-q.y0)-h0)<tl)||(Math.abs((q.x1-q.x0)-h0)<tl&&Math.abs((q.y1-q.y0)-w0)<tl));
  const g=[],tol2=300/P.mmpp;R.filter(same).forEach(q=>{const cx=(q.x0+q.x1)/2,cy=(q.y0+q.y1)/2;if(!g.some(z=>Math.hypot((z.x0+z.x1)/2-cx,(z.y0+z.y1)/2-cy)<tol2))g.push(q)});
  W.pick=r;W.cand=g;W.sub="confirm";
- /* 大きさから機種を推測 */
- const wm=w0*P.mmpp,hm=h0*P.mmpp,near=(a,b)=>Math.abs(a-b)/b<0.07;let hit="";
- Object.keys(CAS2M).forEach(k=>{const m=CAS2M[k];(m.bi?[[m.L,m.W],[m.L,m.W+65]]:[[m.pa,m.pb],[m.oa,m.ob],[m.L,m.W]]).forEach(([a,b])=>{if(!hit&&((near(wm,a)&&near(hm,b))||(near(wm,b)&&near(hm,a))))hit=k})});
- if(hit)W.im=hit;
- wzRender();planDraw()}
+ wzGuessModel(r);wzRender();planDraw()}
+/* 大きさから機種を推測（写真は線が太く大きさがずれるので、ゆるめに） */
+function wzGuessModel(r){const P=PLAN,wm=(r.x1-r.x0)*P.mmpp,hm=(r.y1-r.y0)*P.mmpp,tol=W.photo?0.12:0.07,near=(a,b)=>Math.abs(a-b)/b<tol;let hit="",bd=1e9;
+ Object.keys(CAS2M).forEach(k=>{const m=CAS2M[k];(m.bi?[[m.L,m.W],[m.L,m.W+65]]:[[m.pa,m.pb],[m.oa,m.ob],[m.L,m.W]]).forEach(([a,b])=>{[[a,b],[b,a]].forEach(([u,v])=>{if(near(wm,u)&&near(hm,v)){const d=Math.abs(wm-u)/u+Math.abs(hm-v)/v;if(d<bd){bd=d;hit=k}}})})});
+ if(hit)W.im=hit}
+/* 写真の図面：タップした所の「色のかたまり」から室内機の四角を探す（線のデータが無い時）。
+   ・タップの近く（30cm以内）に色の付いた線（赤紫・青など）があれば、その色と同じ色の点だけを見る。無ければ黒っぽい線
+   ・2ピクセルまでのすき間はつなげて、ひとかたまりの外枠（四角）を室内機の大きさにする。室内機くらいの大きさでなければ見つからない */
+function wzPickPhoto(p){const P=PLAN;if(!P||!P.img||!P.mmpp||!P.img.getContext)return null;
+ const mm=P.mmpp,Rw=Math.min(700,Math.round(2300/mm)),x0=Math.max(0,Math.round(p[0])-Rw),y0=Math.max(0,Math.round(p[1])-Rw),x1=Math.min(P.img.width,Math.round(p[0])+Rw),y1=Math.min(P.img.height,Math.round(p[1])+Rw),w=x1-x0,h=y1-y0;if(w<8||h<8)return null;
+ let D;try{D=P.img.getContext("2d").getImageData(x0,y0,w,h).data}catch(e){return null}
+ const hue=(r,g,b)=>{const mx=Math.max(r,g,b),mn=Math.min(r,g,b),c=mx-mn;if(!c)return 0;let H=mx===r?((g-b)/c)%6:mx===g?(b-r)/c+2:(r-g)/c+4;return(H*60+360)%360};
+ const px=(x,y)=>{const i=(y*w+x)*4;return[D[i],D[i+1],D[i+2]]},sat=c=>Math.max(...c)-Math.min(...c);
+ /* 種の色：タップの近くの色の付いた点の色相（いちばん多い30°の区切り） */
+ const r0=Math.max(4,Math.round(300/mm)),cx=Math.round(p[0])-x0,cy=Math.round(p[1])-y0,bins=new Array(12).fill(0);let nS=0;
+ for(let y=Math.max(0,cy-r0);y<Math.min(h,cy+r0);y++)for(let x=Math.max(0,cx-r0);x<Math.min(w,cx+r0);x++){const c=px(x,y);if(sat(c)>=70&&Math.max(...c)>90){bins[Math.floor(hue(...c)/30)%12]++;nS++}}
+ let mask;
+ if(nS>=8){const bi=bins.indexOf(Math.max(...bins)),hc=bi*30+15,dh=a=>{const d=Math.abs(a-hc)%360;return Math.min(d,360-d)};mask=(x,y)=>{const c=px(x,y);return sat(c)>=55&&Math.max(...c)>80&&dh(hue(...c))<=35}}
+ else mask=(x,y)=>{const c=px(x,y);return(c[0]+c[1]+c[2])/3<110&&sat(c)<60};
+ /* かたまり：タップに近い点から、すき間2ピクセルまでつなげる */
+ const seen=new Uint8Array(w*h),Q=[];let s0=-1,bd=1e9;
+ for(let y=Math.max(0,cy-r0);y<Math.min(h,cy+r0);y++)for(let x=Math.max(0,cx-r0);x<Math.min(w,cx+r0);x++)if(mask(x,y)){const d=Math.hypot(x-cx,y-cy);if(d<bd){bd=d;s0=y*w+x}}
+ if(s0<0)return null;
+ let bx0=1e9,by0=1e9,bx1=-1,by1=-1,n=0;const lim=Math.round(2200/mm);seen[s0]=1;Q.push(s0);
+ while(Q.length){const k=Q.pop(),x=k%w,y=(k-x)/w;n++;if(x<bx0)bx0=x;if(x>bx1)bx1=x;if(y<by0)by0=y;if(y>by1)by1=y;
+  if(bx1-bx0>lim||by1-by0>lim)return null;   // 大きすぎ＝壁などにつながっている
+  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=w||Y>=h)continue;const j=Y*w+X;if(seen[j])continue;seen[j]=1;if(mask(X,Y))Q.push(j)}}
+ const r={x0:x0+bx0,y0:y0+by0,x1:x0+bx1+1,y1:y0+by1+1,col:"photo"},a=(r.x1-r.x0)*mm,b=(r.y1-r.y0)*mm;
+ if(n<20||Math.max(a,b)<250||Math.max(a,b)>2000||Math.min(a,b)<150)return null;return r}
 function wzPlaceCand(list){const P=PLAN,L=[],have=st.bld.filter(o=>o.k==="ind");
  list.forEach(r=>{if(!r)return;const q=btW([(r.x0+r.x1)/2,(r.y0+r.y1)/2]);if(have.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<300)||L.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<300))return;
   const w=Math.round((r.x1-r.x0)*P.mmpp/10)*10,d=Math.round((r.y1-r.y0)*P.mmpp/10)*10,o=bldNew("ind",{x:q[0],z:q[1]});
   o.m=W.im||"";o.w=Math.max(10,w);o.d=Math.max(10,d);o.h=Math.max(10,BT.ih||300);
   if(o.m){const m=CAS2M[o.m],mx=m.bi?m.L>=m.W:m.pa>=m.pb;o.r=Math.abs(w-d)<40||mx===(w>=d)?0:90}
+  o.r=normT((o.r||0)+(W.ir||0));   // 「↻ 向き」で回した分
   L.push(normBld([o])[0])});
  if(!L.length){toast("もう置いてあります");return}
  P.units=(P.units||[]);list.forEach(r=>{if(!r)return;const cx=(r.x0+r.x1)/2,cy=(r.y0+r.y1)/2;if(!P.units.some(u=>Math.hypot(u.cx-cx,u.cy-cy)<300/P.mmpp))P.units.push({cx,cy,w:Math.round((r.x1-r.x0)*P.mmpp/10)*10,h:Math.round((r.y1-r.y0)*P.mmpp/10)*10})});P.unitsChosen=1;
@@ -522,7 +553,7 @@ function planBldPlace(p){const P=PLAN;if(!P.mmpp){toast("先に縮尺を合わ�
   const A=btW(a),B=btW(b),x0=Math.min(A[0],B[0]),x1=Math.max(A[0],B[0]),z0=Math.min(A[1],B[1]),z1=Math.max(A[1],B[1]);
   W.sel=st.bld.map((o,i)=>[o,i]).filter(([o,i])=>{const f=bldFoot(o,i);return f.cx>=x0&&f.cx<=x1&&f.cz>=z0&&f.cz<=z1}).map(z=>z[1]);
   if(!W.sel.length)toast("この範囲には何もありません");wzRender();planDraw();return}
- if(tool==="indone"){const q=btW(p),o=bldNew("ind",{x:q[0],z:q[1]});o.m=W.im||"";o.h=Math.max(10,BT.ih||300);btAdd([normBld([o])[0]]);toast("室内機を置きました");return}
+ if(tool==="indone"){const q=btW(p),o=bldNew("ind",{x:q[0],z:q[1]});o.m=W.im||"";o.r=W.ir||0;o.h=Math.max(10,BT.ih||300);btAdd([normBld([o])[0]]);toast("室内機を置きました");return}
  if(tool==="out"){const q=btW(p),m=OUTM[BT.om]||OUTM.p40;btAdd(normBld([{k:"out",x:q[0],z:q[1],w:m.w,d:m.d,h:m.h,y:BT.oy||0,r:BT.or||0,m:BT.om}]));toast("室外機を置きました（3Dで向きや位置を直せます）");return}
  if(typeof kzPlace==="function"&&kzPlace(tool,p))return;
  BT.pts.push(p);const n=BT.pts.length;
@@ -565,7 +596,12 @@ function planBldDraw(x,sp){const P=PLAN;if((PV.mode!=="bld"&&!W.on)||!P||!P.mmpp
    const pts=[[-hw,-hd],[hw,-hd],[hw,hd],[-hw,hd]].map(([a,b])=>sp(btP(cx+a*co-b*si,cz+a*si+b*co)));
    x.beginPath();pts.forEach((q,j)=>j?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]));x.closePath();x.fillStyle=(col[o.k]||"#64748b")+(o.k==="hole"?"ff":o.k==="ceil"?"1f":"55");x.fill();x.strokeStyle=col[o.k]||"#64748b";x.lineWidth=o.k==="ceil"?2.5:1.5;if(o.k==="ceil")x.setLineDash([10,6]);x.stroke();x.setLineDash([]);
    if(o.k==="ceil"){const q=sp(btP(o.x,o.z));x.fillStyle="#0369a1";x.font="bold 13px sans-serif";x.textAlign="center";x.fillText("📐 CH"+fmt(o.h)+(o.n?" "+o.n:""),q[0],q[1])}
-   if(o.k==="ind"||o.k==="hole"){const q=sp(btP(o.x,o.z));x.fillStyle=o.k==="ind"?"#1d4ed8":"#713f12";x.font="bold 12px sans-serif";x.textAlign="center";x.fillText(o.k==="ind"?"❄️":"🕳️",q[0],q[1]-8)}})}
+   if(o.k==="ind"||o.k==="hole"){const q=sp(btP(o.x,o.z));x.fillStyle=o.k==="ind"?"#1d4ed8":"#713f12";x.font="bold 12px sans-serif";x.textAlign="center";x.fillText(o.k==="ind"?"❄️":"🕳️",q[0],q[1]-8)}
+   /* 室内機：配管の出る向きの矢印（配管口へ） */
+   if(o.k==="ind"){const m=T&&T.bldM&&T.bldM.find(z=>z.i===i),E=m&&m.port?[m.port.x,m.port.z]:[cx+(hw+120)*co,cz+(hw+120)*si],a=sp(btP(cx,cz)),b=sp(btP(E[0],E[1])),L=Math.hypot(b[0]-a[0],b[1]-a[1]);
+    if(L>6){const ux=(b[0]-a[0])/L,uy=(b[1]-a[1])/L,tip=[b[0]+ux*14,b[1]+uy*14];x.strokeStyle="#ea580c";x.lineWidth=4;x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(tip[0],tip[1]);x.stroke();
+     x.fillStyle="#ea580c";x.beginPath();x.moveTo(tip[0]+ux*10,tip[1]+uy*10);x.lineTo(tip[0]-uy*8,tip[1]+ux*8);x.lineTo(tip[0]+uy*8,tip[1]-ux*8);x.closePath();x.fill();
+     x.font="bold 11px sans-serif";x.textAlign="center";x.fillText("配管",tip[0]+ux*22,tip[1]+uy*22+4)}}})}
  if(BT.pts.length){x.strokeStyle="#dc2626";x.lineWidth=2.5;x.beginPath();BT.pts.forEach((p,i)=>{const q=sp(p);i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1])});x.stroke();BT.pts.forEach(p=>{const q=sp(p);x.fillStyle="#dc2626";x.beginPath();x.arc(q[0],q[1],5,0,7);x.fill()})}}
 const PV={z:1,ox:0,oy:0,mode:"move",cal:[]};
 /* 最後に開いた図面をこの端末（IndexedDB）に覚えておく。ページを移ったりアプリを閉じても、「前の図面の続き」で開き直せる */

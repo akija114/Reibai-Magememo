@@ -190,6 +190,8 @@ const benOn=D=>!!benFor(D);   // 使えるベンダーが無いサイズは標�
 const szName=D=>(SIZES.find(x=>x[1]===D)||[""])[0];
 const bR=D=>{const k=benFor(D);if(!k)return 4*D;const t=k==="my"?MYR:BENDERS[k].R,v=+t[String(D)];return v>0?v:4*D};
 const bRtxt=D=>{const k=benFor(D);if(!k)return "外径×4";if(BENDERS[k].unk)return "R未確認・仮に外径×4";const t=k==="my"?MYR:BENDERS[k].R;return +t[String(D)]>0?"R"+fmt(bR(D)):"外径×4"};
+/* TA515 は実物の形で向きが決まっている（上から見て、送りねじを右にすると、ガイド側が奥・シューの丸い所も奥）ので、ダイスの位置は切りかえない */
+const dieR=D=>{try{if(D==null&&GUIDE)D=SIZES[legSize(GUIDE.g)][1];if(D!=null&&benFor(D)==="ta515")return true}catch(e){}return DIE_R};
 let DIE_R=false;try{DIE_R=localStorage.getItem("pbm_die")==="R"}catch(e){}   // ダイスが後ろから見て右側
 const legObj=g=>st.bl.find(l=>l.id===g);
 const legRows=g=>g==="m"?st.rows:(legObj(g)||{rows:st.rows}).rows;
@@ -1077,7 +1079,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   const L=LG.find(x=>x.id===GUIDE.g),rows=legRows(GUIDE.g),i=GUIDE.i,row=rows[i],fr=L&&L.frames[i];
   if(L&&fr&&row){
    const t=effT(i,rows)*Math.PI/180,b=fr.u.clone().multiplyScalar(Math.cos(t)).addScaledVector(fr.r,Math.sin(t));
-   const sg=DIE_R?-1:1,n=fr.d.clone().cross(b).normalize().multiplyScalar(sg),e3=fr.d.clone().cross(n).normalize();
+   const sg=dieR(L.D)?-1:1,n=fr.d.clone().cross(b).normalize().multiplyScalar(sg),e3=fr.d.clone().cross(n).normalize();
    const Dl=L.D,R=bR(Dl),Tn=row.a>=180?R:R*Math.tan(row.a*Math.PI/360);
    const rev=!!(GUIDE.rev&&GUIDE.rev[i]),TnOf=aa=>aa>=180?R:R*Math.tan(aa*Math.PI/360);
    const traceR=rx=>{if(GUIDE.g==="m")return trace(rx,new V(),F0.ex,F0.ey,F0.ez,Dl);const o=legObj(GUIDE.g),par=LG.find(x=>x.id===o.p);return trace(rx,par.pos,par.d,par.u,par.r,Dl)};
@@ -1655,16 +1657,16 @@ function showGuideStep(){
  GUIDE.i=GUIDE.steps[GUIDE.k];sel=GUIDE.i;
  build3D();
  const G=GUIDE.geo||{R:50,Tn:0,D:10,a:90,prev:null},R=G.R;
- T.custom=null;T.tg.set(-G.Tn*0.5,-R*0.3,R*0.6*(DIE_R?-1:1));T.th=DIE_R?-1.95:-1.2;T.ph=0.95;T.dist=R*45;
+ T.custom=null;T.tg.set(-G.Tn*0.5,-R*0.3,R*0.6*(dieR()?-1:1));T.th=dieR()?-1.95:-1.2;T.ph=0.95;T.dist=R*45;
  T.cam.near=Math.max(1,R*0.03);T.cam.far=Math.max(T.ext*60,R*400);T.cam.updateProjectionMatrix();T.dirty=true;
  const rows=LR(),i=GUIDE.i,c=calc(GUIDE.g).out[i],N=GUIDE.steps.length;
  $("#gdTop").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:22px;height:22px;vertical-align:-5px;margin-right:4px">曲げ手順 ${GUIDE.k+1}／${N}：${brOn()?legName(GUIDE.g)+" の ":""}${nm(i)} の曲げ`;
- $("#gdLeg").textContent=(benOn(SIZES[legSize(GUIDE.g)][1])&&BENDERS[benFor(SIZES[legSize(GUIDE.g)][1])].lev)?"赤い輪＝印をつける所（ここをマーク／ラインに合わせる）、うすいオレンジ＝曲げた後の形":(DIE_R?"シューが右・ガイドが左・ハンドルが左端":"シューが左・ガイドが右・ハンドルが右端")+"（台が水平）。赤い輪＝赤いライン（シューの0）、うすいオレンジ＝曲げた後の形";
+ $("#gdLeg").textContent=(benOn(SIZES[legSize(GUIDE.g)][1])&&BENDERS[benFor(SIZES[legSize(GUIDE.g)][1])].lev)?"赤い輪＝印をつける所（ここをマーク／ラインに合わせる）、うすいオレンジ＝曲げた後の形":(dieR()?"シューが右・ガイドが左・ハンドルが左端":"シューが左・ガイドが右・ハンドルが右端")+"（台が水平）。赤い輪＝赤いライン（シューの0）、うすいオレンジ＝曲げた後の形";
  drawGuideFront();
  const p=G.prev;let how;
  if(!p)how="1つ目の曲げ：向きは自由。台に置いて曲げるだけ";
  else{
-  const el=Math.round(Math.atan2(Math.abs(p.y),Math.abs(p.z))*180/Math.PI),side=(DIE_R?p.z>0:p.z<0)?"ダイス側":"ダイスと反対側",ud=p.y>=0?"上":"下";
+  const el=Math.round(Math.atan2(Math.abs(p.y),Math.abs(p.z))*180/Math.PI),side=(dieR()?p.z>0:p.z<0)?"ダイス側":"ダイスと反対側",ud=p.y>=0?"上":"下";
   const pn=G.rev?"前の配管（シュー側の先）":"前の配管";how=el<=2?`${pn}は台の上に寝かせる（${side}）`:el>=88?`${pn}は真${ud}に向ける`:`${pn}を台の面から ${ud}へ ${el}°（${side}）`;
  }
  const Dg=SIZES[legSize(GUIDE.g)][1],aa=rows[i].a,back=bR(Dg)*aa/90,fwd=back/2,rv2=!!GUIDE.rev[i];
@@ -1687,7 +1689,7 @@ function showGuideStep(){
  if(!LEV&&BK==="ta515")$("#gdTxt").innerHTML+=`<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#fffbeb;border:1.5px solid #f59e0b;font-size:13px;line-height:1.5;color:#78350f"><b>重要ポイント（TA515）</b><br>1. ガイドの先端は、シューの<b>ゼロ点より15〜20mm内側</b>にセット<br>2. 締付けは少しキツめ。ゆっくり体重をかけて、ハンドルが回らなくなるまで（弱いと外側が平ら・内側にしわ）<br>3. 内側にセットした分、<b>90°の手前で止める</b></div>`;
  $("#gdBen").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:20px;height:20px;vertical-align:-5px;margin-right:4px">ベンダー：${benOn(Dg)?BD.n+"（"+bRtxt(Dg)+"）":"⚠️ "+szName(Dg)+"に使えるベンダーが登録されていません"+" 非対応（標準 外径×4で表示）"} ▸`;
  $("#gdDie").textContent="ダイスの位置：後ろから見て "+(DIE_R?"右 ▶（タップで左）":"◀ 左（タップで右）");
- $("#gdDie").style.display=LEV&&!BD.rat?"none":"";   // レバー式にはダイスが無いので出さない。RB-147W は「正曲げ／逆曲げ」の切りかえに使う
+ $("#gdDie").style.display=(LEV&&!BD.rat)||BK==="ta515"?"none":"";   // レバー式にはダイスが無いので出さない。RB-147W は「正曲げ／逆曲げ」の切りかえに使う
  if(LEV&&BD.rat)$("#gdDie").textContent=RB_REV?"曲げ方：逆曲げ（アダプタ）▸ タップで正曲げ":"曲げ方：正曲げ ▸ タップで逆曲げ（壁ぎわ）";
  const rv=!!GUIDE.rev[i],gb=$("#gdRev");gb.classList.toggle("on",rv);gb.textContent=C45?"（45°はシューの真ん中・前後どちらでも同じ）":LEV?(rv?"🔄 後寸法："+MK.b+"（ON）":"🔄 後寸法にする（"+MK.b+"）"):rv?"🔄 逆向きで曲げる（ON）":"🔄 逆向きにする（反対から差す）";
  $("#gdH").value=uVal(GUIDE_H);
@@ -1716,8 +1718,8 @@ function drawGuideFront(){
  h+=`<path d="M${cx-R} ${cy} A${R} ${R} 0 0 1 ${cx+R} ${cy} A${R} ${R} 0 0 1 ${cx-R} ${cy}" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>`;
  for(let a=0;a<360;a+=15){const big=a%45===0,[x1,y1]=pt(a,R-(big?9:5)),[x2,y2]=pt(a,R);h+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${big?"#0f172a":"#94a3b8"}" stroke-width="${big?2:1}"/>`}
  [[0,"0"],[45,"45"],[90,"90"],[135,"45"],[180,"0"],[225,"45"],[270,"90"],[315,"45"]].forEach(([a,t])=>{const [x,y]=pt(a,R-17);h+=`<text x="${x}" y="${y+3.5}" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">${t}</text>`});
- h+=`<line x1="4" y1="${cy}" x2="146" y2="${cy}" stroke="#2b8be8" stroke-width="4"/><text x="${DIE_R?4:146}" y="${cy+14}" text-anchor="${DIE_R?"start":"end"}" font-size="9.5" font-weight="800" fill="#2b8be8">台の面</text>`;
- const dx=DIE_R?150-12:12,ax=DIE_R?122:28,tip=DIE_R?126:24,bk=DIE_R?117:33,lx=DIE_R?106:44;
+ h+=`<line x1="4" y1="${cy}" x2="146" y2="${cy}" stroke="#2b8be8" stroke-width="4"/><text x="${dieR()?4:146}" y="${cy+14}" text-anchor="${dieR()?"start":"end"}" font-size="9.5" font-weight="800" fill="#2b8be8">台の面</text>`;
+ const DR=dieR(),dx=DR?150-12:12,ax=DR?122:28,tip=DR?126:24,bk=DR?117:33,lx=DR?106:44;
  h+=`<rect x="${dx-8}" y="${cy-16}" width="16" height="32" rx="4" fill="#b8c0c8" stroke="#64748b"/><text x="${dx}" y="${cy-20}" text-anchor="middle" font-size="9" font-weight="800" fill="#475569">ダイス</text>`;
  h+=`<line x1="${cx}" y1="${cy}" x2="${ax}" y2="${cy}" stroke="#16a34a" stroke-width="3"/><polygon points="${tip},${cy} ${bk},${cy-5} ${bk},${cy+5}" fill="#16a34a"/><text x="${lx}" y="${cy+14}" text-anchor="middle" font-size="9" font-weight="800" fill="#16a34a">曲がる</text>`;
  if(p){const a=Math.atan2(p.y,p.z)*180/Math.PI,[x,y]=pt(a,R-4);

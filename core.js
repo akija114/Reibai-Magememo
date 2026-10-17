@@ -2567,7 +2567,7 @@ function planMeta(p){
 }
 function renderPlans(){
  const box=$("#planList");
- if(!plans.length){box.innerHTML='<div class="pempty">保存されたプランはまだありません</div>';return}
+ if(!plans.length){box.innerHTML='<div class="pempty">保存した現場はまだありません</div>';return}
  box.innerHTML="";
  plans.forEach(p=>{
   const el=document.createElement("div");el.className="pcard";
@@ -2579,13 +2579,31 @@ function renderPlans(){
   box.appendChild(el);
  });
 }
+/* 端末内の保存（GitHub Pages など Claude の外で開いた時） */
+let LOCAL=false;const SITES_KEY="pbm_sites";
+function loadSites(){try{const a=JSON.parse(localStorage.getItem(SITES_KEY));return Array.isArray(a)?a:[]}catch(e){return[]}}
+function storeSites(a){localStorage.setItem(SITES_KEY,JSON.stringify(a))}
+function restoreSt(o){
+ st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[]};
+ leg="m";sel=0;save();$("#sz").value=st.s;render();if(T)fitT(true);
+}
 function openPlan(p){
+ if(LOCAL){
+  let o=null;try{o=JSON.parse(p.data)}catch(e){}
+  if(!o||!SIZES[o.s]||!Array.isArray(o.rows)){toast("読み込めませんでした");return}
+  restoreSt(o);closeCloud();toast("「"+(p.title||"無題")+"」を開きました");return;
+ }
  if(!SIZES[p.s]||!Array.isArray(p.rows)||!p.rows.length){toast("読み込めませんでした");return}
  st.s=p.s;st.rows=JSON.parse(JSON.stringify(p.rows));migrateLegacy(p);st.bl=normBL(p.bl);leg="m";st.info=normInfo(p.info);st.goal=normGoal(p.goal);st.units=normUnits(p.units);sel=0;save();
  $("#sz").value=st.s;render();if(T)fitT();
  closeCloud();toast("「"+(p.title||"無題プラン")+"」を開きました");
 }
 function deletePlan(p){
+ if(LOCAL){
+  if(!confirm((p.title||"無題")+" を削除しますか？"))return;
+  try{storeSites(loadSites().filter(x=>x.id!==p.id))}catch(e){}
+  plans=loadSites();renderPlans();toast("削除しました");return;
+ }
  if(!DB)return;
  if(!confirm((p.title||"無題プラン")+" を削除しますか？"))return;
  DB.doc("plans/"+p.id).delete().catch(()=>toast("削除できませんでした（権限がない可能性）"));
@@ -2594,8 +2612,16 @@ function noCloud(){
  ["#planList",".saverow","#cloudNote"].forEach(s=>{const e=$(s);if(e)e.style.display="none"});
  $("#cloudTitle").textContent="📤 共有";$("#cloudBtn").textContent="📋";
 }
+function initLocal(){
+ LOCAL=true;
+ $("#cloudTitle").textContent="💾 現場の保存";
+ $("#cloudNote").textContent="💾 この端末の中だけに保存されます（他の人には見えません）。Safariの履歴・データを消すと消えるので、大事な現場は 📤 で送っておくと安心です。";
+ $("#planTitle").placeholder="現場名（例：A様邸 室外機）";
+ const m=$("#shMore");m.style.display="";m.textContent="💾 現場を保存・保存した現場を開く";m.style.background="#2563eb";m.style.color="#fff";
+ plans=loadSites();renderPlans();
+}
 async function initCloud(){
- if(!window.claude){noCloud();return}
+ if(!window.claude){initLocal();return}
  try{DB=await window.claude.use("db")}catch(e){DB=null}
  if(!DB){noCloud();return}
  DB.collection("plans").orderBy("savedAt","desc").limit(30).onSnapshot(
@@ -2603,12 +2629,23 @@ async function initCloud(){
   ()=>{}
  );
 }
-const openCloud=()=>{$("#cloudOv").classList.add("on")};
+const openCloud=()=>{if(LOCAL){plans=loadSites();renderPlans();if(!$("#planTitle").value)$("#planTitle").value=[st.info.site,st.info.line].filter(Boolean).join(" ")}$("#cloudOv").classList.add("on")};
 const closeCloud=()=>{$("#cloudOv").classList.remove("on")};
 $("#cloudBtn").onclick=openCloud;
 $("#closeCloud").onclick=closeCloud;
 $("#cloudOv").addEventListener("click",e=>{if(e.target.id==="cloudOv")closeCloud()});
 $("#savePlan").onclick=async ()=>{
+ if(LOCAL){
+  const title=($("#planTitle").value||"").trim()||st.info.site||"無題";
+  const now=new Date();
+  const dateLabel=now.toLocaleDateString("ja-JP",{month:"numeric",day:"numeric",weekday:"short"});
+  let a=loadSites();const same=a.find(x=>x.title===title);
+  if(same&&!confirm("「"+title+"」はもうあります。上書きしますか？"))return;
+  const item={id:same?same.id:String(Date.now()),title,dateLabel,savedAt:Date.now(),s:st.s,rows:st.rows,data:JSON.stringify(st)};
+  a=[item,...a.filter(x=>x!==same)];
+  try{storeSites(a)}catch(e){toast("保存できませんでした（容量がいっぱいです。古い現場を消してください）");return}
+  $("#planTitle").value="";plans=a;renderPlans();toast("保存しました");return;
+ }
  if(!DB){toast("保存機能が使えません");return}
  const title=($("#planTitle").value||"").trim()||st.info.site||"無題プラン";
  const now=new Date();

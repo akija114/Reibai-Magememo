@@ -175,10 +175,11 @@ const BENDERS={
  mb:{n:"手動ミニ TA515MB",sub:"TASCO 直管ミニベンダー・1/2〜1-1/4（R=4D）",R:{},S:[12.7,15.88,19.05,22.22,25.4,28.58,31.75]},
  lev:{n:"レバー式 TA540G",sub:"TASCO 2段式クイックアクションカラーベンダー・3分〜6分（メーカーR）",lev:1,R:{"9.52":23.8,"12.7":38,"15.88":57.2,"19.05":76.2},S:[9.52,12.7,15.88,19.05]},
  levb:{n:"レバー式 TA540B",sub:"TASCO 2段式クイックアクション（青）・4分〜7分・R未確認（仮に外径×4）",lev:1,R:{},S:[12.7,15.88,19.05,22.22],unk:1},
- rb147:{n:"ラチェット式 BBK RB-147W",sub:"BBK ラチェット式チューブベンダー・2分〜6分・なまし銅管専用・寸法出しライン・90°目盛・R未確認（仮に外径×4）",lev:1,rat:1,mk:{f:"ホイールの右ライン",b:"ホイールの左ライン",c:"シューの真ん中の線",fs:"前",bs:"後ろ"},R:{},S:[6.35,9.52,12.7,15.88,19.05],unk:1},
+ rb147:{n:"ラチェットベンダー BBK RB-147W",sub:"BBK ラチェット式チューブベンダー（真ん中のシューで押す・正曲げ／逆曲げ）・2分〜6分・なまし銅管専用・寸法出しライン・90°目盛・R未確認（仮に外径×4）",lev:1,rat:1,mk:{f:"ホイールの右ライン",b:"ホイールの左ライン",c:"シューの真ん中の線",fs:"前",bs:"後ろ"},R:{},S:[6.35,9.52,12.7,15.88,19.05],unk:1},
  bbk:{n:"レバー式 BBK",sub:"BBK チューブベンダー（レバータイプ）・2分〜6分・Lマーク／Rマーク・R未確認（仮に外径×4）",lev:1,R:{},S:[6.35,9.52,12.7,15.88,19.05],unk:1},
- rat:{n:"ラチェットベンダー TA512AX",sub:"TASCO ラチェットベンダーセット・2分〜7分・R未確認（仮に外径×4）",R:{},S:[6.35,9.52,12.7,15.88,19.05,22.22],unk:1},
+ rat:{n:"TASCO TA512AX（ラチェット）",sub:"TASCO ラチェットベンダーセット・2分〜7分・R未確認（仮に外径×4）",R:{},S:[6.35,9.52,12.7,15.88,19.05,22.22],unk:1},
  my:{n:"マイベンダー",sub:"自分でRを入れる・全サイズ",R:{}}};
+let RB_REV=false;try{RB_REV=localStorage.getItem("pbm_rbrev")==="1"}catch(e){}   // RB-147W：逆曲げ（逆曲げ用アダプタを付けて使う）
 let BENDER="ta515",MYR={};try{const b=localStorage.getItem("pbm_bender");if(BENDERS[b])BENDER=b;MYR=JSON.parse(localStorage.getItem("pbm_myR")||"{}")||{}}catch(e){}
 const isStr=D=>{const z=SIZES.find(x=>x[1]===D);return !!z&&z[2]<=4000};   // 4m直管のサイズ（7分〜）
 const benOn=D=>BENDER==="my"||(BENDERS[BENDER].S||[]).includes(D);   // ベンダーごとの対応サイズだけ。対応外は標準（外径×4）
@@ -1158,10 +1159,20 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
      add(new THREE.BoxGeometry(Dl*1.6,Dl*0.5,Dl*0.25),metal,xw+k*sx,Dl*1.8,Dl*1.15)});                                 // 蝶ナット
     add(new THREE.BoxGeometry(sx*2+Dl*2.6,Dl*0.5,Dl*1.2),metal,xw,-Dl*1.0,Dl*1.15);                                     // シューバー
     const L5=Math.max(R*5,280);
-    [1,-1].forEach(k=>add(new THREE.BoxGeometry(Dl*0.3,Dl*0.5,R+Dl*1.2),dark,xw+k*(R*0.9),-Dl*1.0,-R/2+Dl*0.6));        // シューバーと本体をつなぐ板
-    add(new THREE.BoxGeometry(R*1.1,Dl*1.4,R*1.6),dark,xw,0,-R*1.9);                                                    // ピストン
-    add(new THREE.BoxGeometry(R*1.3,Dl*1.8,L5),blk,xw,0,-R*2.7-L5/2);                                                   // 本体（ハンドル）
-    add(new THREE.BoxGeometry(R*0.5,Dl*0.3,R*1.2),metal,xw,Dl*0.95,-R*2.9);                                             // 目盛ライン・矢印
+    [1,-1].forEach(k=>add(new THREE.BoxGeometry(Dl*0.3,Dl*0.5,R+Dl*1.2),dark,xw+k*(R*0.9),-Dl*1.0,-R/2+Dl*0.6));        // シューバーとホイール側をつなぐ板
+    if(!RB_REV){
+     add(new THREE.BoxGeometry(R*1.1,Dl*1.4,R*1.6),dark,xw,0,-R*1.9);                                                   // ピストン（シューの後ろ＝曲がる側）
+     add(new THREE.BoxGeometry(R*1.3,Dl*1.8,L5),blk,xw,0,-R*2.7-L5/2);                                                  // 本体（ハンドル）
+     add(new THREE.BoxGeometry(R*0.5,Dl*0.3,R*1.2),metal,xw,Dl*0.95,-R*2.9);                                            // 目盛ライン・矢印
+    }else{
+     /* 逆曲げ：本体はシューバーの外側（曲がるのと反対側）。逆曲げ用ホイールアダプタ（コの字の枠）でシューを配管の内側に持ってきて、本体の方へ引いて曲げる */
+     const z0=Dl*1.15+Dl*0.6;
+     add(new THREE.BoxGeometry(R*1.4,Dl*0.6,R*0.35),dark,xw,0,-R*1.2);                                                 // アダプタ（シューの後ろの受け）
+     [1,-1].forEach(k=>add(new THREE.BoxGeometry(Dl*0.4,Dl*0.6,R*1.2+z0+R*0.6),dark,xw+k*R*0.75,-Dl*1.6,(-R*1.2+z0+R*0.6)/2)); // アダプタの腕（配管の下をくぐる）
+     add(new THREE.BoxGeometry(R*1.1,Dl*1.4,R*1.2),dark,xw,0,z0+R*0.6);                                                 // ピストン（外側）
+     add(new THREE.BoxGeometry(R*1.3,Dl*1.8,L5),blk,xw,0,z0+R*1.2+L5/2);                                                // 本体（ハンドル）
+     add(new THREE.BoxGeometry(R*0.5,Dl*0.3,R*1.2),metal,xw,Dl*0.95,z0+R*1.5);                                          // 目盛ライン・矢印
+    }
    }else if(BMOD==="rat"){
    /* ラチェットベンダー TA512AX：金色の半円シュー、黒い本体（ラチェットレバー）、反対側にローラーのガイド枠。手に持って使う */
     const gd=new THREE.MeshStandardMaterial({color:0xc8a24a,metalness:.6,roughness:.3});
@@ -1620,7 +1631,7 @@ function showGuideStep(){
   (C45?`${from}から <b>${fmt(rows[i].l)}</b>mm に印 → 印を<br><b class="bk">${mk}</b>にぴったり合わせる<br><small>45°曲げはシューの真ん中で使う（前寸法・後寸法どちらでも同じ）。曲げると、${from}から次の管の中心まで ${fmt(rows[i].l)}mm</small>`
    :LM?`${from}から <b>${fmt(rows[i].l)}</b>mm に印 → 印を<br><b class="${rv2?"fw":"bk"}">${mk}</b>にぴったり合わせる<br><small>${rv2?"後寸法：寸法をとった側を<b>"+MK.bs+"</b>に置く":"前寸法：寸法をとった側を<b>"+MK.fs+"</b>に置く"}。90°曲げると、${from}から次の管の中心まで ${fmt(rows[i].l)}mm${i>0?"。前の管の外側から測る時は、外径の半分（"+fmt(Dg/2)+"mm）を足し引き":""}</small>`
    :`${from}から <b>${fmt(rows[i].l)}</b>mm に印 → 印を <b class="${rv2?"fw":"bk"}">${mk}</b> に合わせる<br><small>${MK.f}・${MK.b}は90°用。${aa}°だと寸法が少しずれるので、曲げた後に測って確かめる</small>`)+
-  (BD.rat?(aa===90?`<br>ピストンの目盛ライン（正曲げ【（ 】／逆曲げ【 ）】）と本体の矢印が揃うまでハンドルを動かす＝<b>90°</b> <small>（目盛は目安。管によって変わるので少し様子を見ながら）</small>`:`<br>ピストンの目盛は90°だけ。<b>${aa}°${aa>=180?"（返し）":""}</b>は角度を見ながら曲げる`)
+  (BD.rat?(aa===90?`<br>${RB_REV?"<b>逆曲げ</b>：逆曲げ用ホイールアダプタ・シューバーアダプタを付ける。ピストンの<b>【 ）】</b>（逆曲げの目盛ライン）":"<b>正曲げ</b>：ピストンの<b>【（ 】</b>（正曲げの目盛ライン）"}と本体の矢印が揃うまでハンドルを動かす＝<b>90°</b> <small>（目盛は目安。管によって変わるので少し様子を見ながら）</small>`:`<br>ピストンの目盛は90°だけ。<b>${aa}°${aa>=180?"（返し）":""}</b>は角度を見ながら曲げる`)
    :`<br>ホイールの<b>0</b>をシューの0に合わせてから、ハンドルを目盛り <b>${aa}°${aa>=180?"（返し）":""}</b>まで <small>（戻り分 1〜2°多めに）</small>`)+
   (BD.rat?`<small style="color:#9a3412">⚠️ なまし銅管だけ（1/2H・直管は不可）。管のくせは内側に向ける（外側だとへこみ・シワ）。ピストンを最後まで出さない（故障の元）。壁ぎわ・奥は逆曲げアダプタで</small>`:"")+
   `<span class="big">${how}</span>`;
@@ -1629,7 +1640,8 @@ function showGuideStep(){
   `<br>曲げ角度 <b>${aa}°${aa>=180?"（返し）":""}</b> <small>（戻り分 1〜2°多めに）</small><span class="big">${how}</span><small style="color:#94a3b8">シュー位置で印をつける時：前の印から ${fmt(c.shoe)}（端から ${fmt(c.cum)}）</small>`;
  $("#gdBen").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:20px;height:20px;vertical-align:-5px;margin-right:4px">ベンダー：${benOn(Dg)?BENDERS[BENDER].n+"（"+bRtxt(Dg)+"）":"⚠️ "+BENDERS[BENDER].n+"は "+szName(Dg)+" 非対応（標準 外径×4で表示）"} ▸`;
  $("#gdDie").textContent="ダイスの位置：後ろから見て "+(DIE_R?"右 ▶（タップで左）":"◀ 左（タップで右）");
- $("#gdDie").style.display=LEV?"none":"";   // レバー式・ラチェット式にはダイスが無いので出さない
+ $("#gdDie").style.display=LEV&&!BD.rat?"none":"";   // レバー式にはダイスが無いので出さない。RB-147W は「正曲げ／逆曲げ」の切りかえに使う
+ if(LEV&&BD.rat)$("#gdDie").textContent=RB_REV?"曲げ方：逆曲げ（アダプタ）▸ タップで正曲げ":"曲げ方：正曲げ ▸ タップで逆曲げ（壁ぎわ）";
  const rv=!!GUIDE.rev[i],gb=$("#gdRev");gb.classList.toggle("on",rv);gb.textContent=C45?"（45°はシューの真ん中・前後どちらでも同じ）":LEV?(rv?"🔄 後寸法："+MK.b+"（ON）":"🔄 後寸法にする（"+MK.b+"）"):rv?"🔄 逆向きで曲げる（ON）":"🔄 逆向きにする（反対から差す）";
  $("#gdH").value=uVal(GUIDE_H);
  const H=GUIDE_H,rr=G.rad||0,hitN=G.minN<-H+rr,hitR=G.minR<-H+rr,w=$("#gdWarn");
@@ -1722,7 +1734,7 @@ function openBenSheet(){renderBenSheet();$("#benOv").classList.add("on")}
 $("#gdBen").onclick=openBenSheet;
 $("#closeBen").onclick=()=>$("#benOv").classList.remove("on");
 $("#benOv").addEventListener("click",e=>{if(e.target.id==="benOv")$("#benOv").classList.remove("on")});
-$("#gdDie").onclick=()=>{DIE_R=!DIE_R;try{localStorage.setItem("pbm_die",DIE_R?"R":"L")}catch(e){}showGuideStep()};
+$("#gdDie").onclick=()=>{if(BENDERS[BENDER].rat){RB_REV=!RB_REV;try{localStorage.setItem("pbm_rbrev",RB_REV?"1":"0")}catch(e){}showGuideStep();return}DIE_R=!DIE_R;try{localStorage.setItem("pbm_die",DIE_R?"R":"L")}catch(e){}showGuideStep()};
 /* 3Dの配管を2回タップ → 吹き出しメニュー */
 function pickLeg(cx,cy){
  if(!T||!T.segs||!T.segs.length||!T.w)return null;

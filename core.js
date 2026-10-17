@@ -1094,10 +1094,16 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    const rowsAt=aa=>rows.map((r,j)=>j<i?r:j===i?{...r,a:aa}:{...r,a:0});
    /* ラチェット式 RB-147W：シューが円弧のまん中にあるので、曲げるにつれて配管をシューの方へ寄せる（曲げ終わりで円弧の中心＝シューの中心） */
    const BK=benFor(L.D)||BENDER,rbOff=(BENDERS[BK].rat&&benOn(L.D))?(Tn-R*row.a*Math.PI/360)*(rev?1:-1):0,rbS=(P,k)=>{if(rbOff)P.pos.x+=rbOff*k;return P};
+   /* ラチェット式：シューが押し上がり、配管は真ん中から左右対称（V字）に曲がる。
+      曲げ角 aCur の半分 θ だけ配管を回して左右対称にし、シューの押し上げ量 dz だけ押し出す
+      （両側のシューブロックの所を足が通る：シューの中心から足までの距離＝R になる位置） */
+   const RAT=!!(BENDERS[BK].rat&&benOn(L.D)),RSX=R*1.35+L.D*1.2,rbTh=aCur=>Math.min(80,aCur/2)*Math.PI/180,rbDz=aCur=>{const t=rbTh(aCur);return RSX*Math.tan(t)-R/Math.cos(t)+R};
+   const rbV=(P,aCur)=>{if(!RAT||!(aCur>0))return P;const t=rbTh(aCur),k=aCur/row.a,Cs=new V(-Tn+rbOff*k,0,-R*sg),qy=new THREE.Quaternion().setFromAxisAngle(new V(0,1,0),-t*sg);
+    P.q=qy.clone().multiply(P.q);P.pos=P.pos.clone().sub(Cs).applyQuaternion(qy).add(Cs).add(new V(0,0,rbDz(aCur)*sg));return P};
    const toW=(p,P)=>p.clone().applyQuaternion(P.q).add(P.pos);
    // 曲げた後の形（うすいオレンジ）：ベンダーに対する最後の置き方で表示
    try{if(!(GUIDE.prog>0)){
-    const tg=traceR(rowsAt(row.a)),PF=rbS(poseOf(row.a,rev),1);
+    const tg=traceR(rowsAt(row.a)),PF=rbV(rbS(poseOf(row.a,rev),1),row.a);
     const gm=new THREE.MeshBasicMaterial({color:0xf97316,transparent:true,opacity:.35,depthWrite:false});
     tg.P.forEach(p=>{const mv=rev?(p.row>=0&&p.row<=i)||(p.arc>=0&&p.arc<=i):(p.row>i||p.arc===i);if(!mv)return;
      const A=toW(p.a,PF),B=toW(p.b,PF),len=A.distanceTo(B);if(len<1e-6)return;
@@ -1152,27 +1158,28 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
       シューの位置：曲げ終わりの円弧のまん中（印から、寸法をとった側へ Tn−R×角度/2 ずれた所）。
       シューの左右に寸法出しライン：前寸法＝右ライン、後寸法＝左ライン（どちらも印の所） */
     const off=Tn-R*row.a*Math.PI/360,xw=-Tn+(rev?off:-off),TAS=BK==="rat",wh=new THREE.MeshStandardMaterial({color:TAS?0xc8a24a:0x9aa3ad,metalness:.6,roughness:.3}),blk=new THREE.MeshStandardMaterial({color:TAS?0x7f1d1d:0x1f2937,metalness:.3,roughness:.5});   // BBK＝銀のシュー・黒、TASCO＝金のシュー・えんじ
-    const sh=add(new THREE.CylinderGeometry(R,R,Dl*1.25,40,1,false,-Math.PI/2,Math.PI),wh,xw,0,-R);                // シュー（半円の丸い側が配管）
+    const aNow=row.a*Math.min(1,GUIDE.prog||0),dzW=RAT?rbDz(aNow):0,thW=RAT?rbTh(aNow):0;   // 曲げている途中：シューの押し上げ量・足の角度
+    const sh=add(new THREE.CylinderGeometry(R,R,Dl*1.25,40,1,false,-Math.PI/2,Math.PI),wh,xw,0,-R+dzW);                // シュー（半円の丸い側が配管）
     if(sg<0)sh.rotation.y=Math.PI;
     const ln=new THREE.MeshStandardMaterial({color:0x111827});
-    [1,-1].forEach(k=>{const dx=Math.min(off,R*0.95)*k;add(new THREE.BoxGeometry(Math.max(Dl*0.22,2),Dl*1.32,R*0.3),ln,xw+dx,0.5,-R+Math.sqrt(R*R-dx*dx)*0.88)});
-    add(new THREE.BoxGeometry(Math.max(Dl*0.22,2),Dl*1.32,R*0.3),red,xw,0.5,-R+R*0.88);                               // 真ん中の線（45°用）   // 右ライン・左ライン（シューの上の線）
+    [1,-1].forEach(k=>{const dx=Math.min(off,R*0.95)*k;add(new THREE.BoxGeometry(Math.max(Dl*0.22,2),Dl*1.32,R*0.3),ln,xw+dx,0.5,-R+dzW+Math.sqrt(R*R-dx*dx)*0.88)});
+    add(new THREE.BoxGeometry(Math.max(Dl*0.22,2),Dl*1.32,R*0.3),red,xw,0.5,-R+dzW+R*0.88);                               // 真ん中の線（45°用）   // 右ライン・左ライン（シューの上の線）
     const sx=R*1.35+Dl*1.2;
-    [1,-1].forEach(k=>{add(new THREE.BoxGeometry(Dl*2.2,Dl*1.4,Dl*1.4),blk,xw+k*sx,0,Dl*1.15);                        // シューブロック（配管の外側）
+    [1,-1].forEach(k=>{const b1=add(new THREE.BoxGeometry(Dl*2.2,Dl*1.4,Dl*1.4),blk,xw+k*sx,0,Dl*1.15);b1.rotation.y=k*thW*sg;   // シューブロック（配管の外側・足に合わせて回る）
      add(new THREE.CylinderGeometry(Dl*0.25,Dl*0.25,Dl*1.2,10),metal,xw+k*sx,Dl*1.2,Dl*1.15);                          // 蝶ナットの軸
-     add(new THREE.BoxGeometry(Dl*1.6,Dl*0.5,Dl*0.25),metal,xw+k*sx,Dl*1.8,Dl*1.15)});                                 // 蝶ナット
+     const b2=add(new THREE.BoxGeometry(Dl*1.6,Dl*0.5,Dl*0.25),metal,xw+k*sx,Dl*1.8,Dl*1.15);b2.rotation.y=k*thW*sg});   // 蝶ナット
     add(new THREE.BoxGeometry(sx*2+Dl*2.6,Dl*0.5,Dl*1.2),metal,xw,-Dl*1.0,Dl*1.15);                                     // シューバー
     const L5=Math.max(R*5,280);
     [1,-1].forEach(k=>add(new THREE.BoxGeometry(Dl*0.3,Dl*0.5,R+Dl*1.2),dark,xw+k*(R*0.9),-Dl*1.0,-R/2+Dl*0.6));        // シューバーとホイール側をつなぐ板
     if(!RB_REV){
-     add(new THREE.BoxGeometry(R*1.1,Dl*1.4,R*1.6),dark,xw,0,-R*1.9);                                                   // ピストン（シューの後ろ＝曲がる側）
+     add(new THREE.BoxGeometry(R*1.1,Dl*1.4,R*1.6+dzW),dark,xw,0,-R*1.9+dzW/2);                                         // ピストン（シューの後ろ＝曲がる側・押すと伸びる）
      add(new THREE.BoxGeometry(R*1.3,Dl*1.8,L5),blk,xw,0,-R*2.7-L5/2);                                                  // 本体（ハンドル）
      add(new THREE.BoxGeometry(R*0.5,Dl*0.3,R*1.2),metal,xw,Dl*0.95,-R*2.9);                                            // 目盛ライン・矢印
     }else{
      /* 逆曲げ：本体はシューバーの外側（曲がるのと反対側）。逆曲げ用ホイールアダプタ（コの字の枠）でシューを配管の内側に持ってきて、本体の方へ引いて曲げる */
      const z0=Dl*1.15+Dl*0.6;
-     add(new THREE.BoxGeometry(R*1.4,Dl*0.6,R*0.35),dark,xw,0,-R*1.2);                                                 // アダプタ（シューの後ろの受け）
-     [1,-1].forEach(k=>add(new THREE.BoxGeometry(Dl*0.4,Dl*0.6,R*1.2+z0+R*0.6),dark,xw+k*R*0.75,-Dl*1.6,(-R*1.2+z0+R*0.6)/2)); // アダプタの腕（配管の下をくぐる）
+     add(new THREE.BoxGeometry(R*1.4,Dl*0.6,R*0.35),dark,xw,0,-R*1.2+dzW);                                             // アダプタ（シューの後ろの受け・シューと一緒に引かれる）
+     [1,-1].forEach(k=>add(new THREE.BoxGeometry(Dl*0.4,Dl*0.6,R*1.2+z0+R*0.6),dark,xw+k*R*0.75,-Dl*1.6,(-R*1.2+z0+R*0.6)/2+dzW)); // アダプタの腕（配管の下をくぐる）
      add(new THREE.BoxGeometry(R*1.1,Dl*1.4,R*1.2),dark,xw,0,z0+R*0.6);                                                 // ピストン（外側）
      add(new THREE.BoxGeometry(R*1.3,Dl*1.8,L5),blk,xw,0,z0+R*1.2+L5/2);                                                // 本体（ハンドル）
      add(new THREE.BoxGeometry(R*0.5,Dl*0.3,R*1.2),metal,xw,Dl*0.95,z0+R*1.5);                                          // 目盛ライン・矢印
@@ -1251,7 +1258,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    const BD3=BENDERS[BK],LEV3=benOn(Dl)&&!!BD3.lev,MK3=BD3.mk||{f:"Lマーク",b:"Rマーク"};
    try{
     (T.bgrp||T.grp).add(bg);
-    const P0=rbS(poseOf(row.a*Math.min(1,GUIDE.prog||0),rev),Math.min(1,GUIDE.prog||0));T.grp.quaternion.copy(P0.q);T.grp.position.copy(P0.pos);
+    const P0=rbV(rbS(poseOf(row.a*Math.min(1,GUIDE.prog||0),rev),Math.min(1,GUIDE.prog||0)),row.a*Math.min(1,GUIDE.prog||0));T.grp.quaternion.copy(P0.q);T.grp.position.copy(P0.pos);
     // 床（ベンダーの台の高さから下）
     const H=GUIDE_H,fl=new THREE.Mesh(new THREE.PlaneGeometry(R*120,R*120),new THREE.MeshBasicMaterial({color:(rev?minR:minN)<-H+L.rad?0xef4444:0x94a3b8,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
     fl.rotation.x=-Math.PI/2;fl.position.set(0,-H,0);T.bgrp.add(fl);

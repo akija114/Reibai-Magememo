@@ -1246,11 +1246,14 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
     const sgp=new THREE.Group();sgp.position.set(-Tn,0,-R*sg);sgp.rotation.y=aNow*Math.PI/180*sg;bg.add(sgp);   // シュー（曲げに合わせて回る）
     const sm=new THREE.MeshStandardMaterial({color:0xaeb6be,metalness:.45,roughness:.35}),sm2=new THREE.MeshStandardMaterial({color:0x8c959e,metalness:.4,roughness:.4});
     const ad=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z*sg);sgp.add(o);return o};
-    ad(new THREE.CylinderGeometry(R+Dl*0.55,R+Dl*0.55,Dl*1.5,48),sm,0,0,0);                                          // シュー（配管の溝の外）
-    ad(new THREE.CylinderGeometry(R*0.98,R*0.98,Dl*0.12,48),sm2,0,Dl*0.8,0);                                         // 上の面
+    /* シューは半円：ゼロ点（配管が当たり始める所）から、曲げで巻き取る側の半分。回すと丸い所に配管が巻き付く */
+    const hs=(r,h,y,m)=>{const o=ad(new THREE.CylinderGeometry(r,r,h,40,1,false,Math.PI,Math.PI),m,0,y,0);if(sg<0)o.scale.z=-1;return o};
+    hs(R+Dl*0.55,Dl*1.5,0,sm);                                                                                        // シュー（半円・配管の溝の外）
+    hs(R*0.98,Dl*0.12,Dl*0.8,sm2);                                                                                    // 上の面
+    ad(new THREE.BoxGeometry(Dl*0.6,Dl*1.5,(R+Dl*0.55)*2),sm2,-Dl*0.3,0,0);                                           // まっすぐな辺
     ad(new THREE.BoxGeometry(R*0.42,Dl*0.4,R*0.42),dark,0,Dl*0.95,0);                                                // 四角い軸
-    for(let k=0;k<6;k++){const t=k*Math.PI/3,o=ad(new THREE.BoxGeometry(R*0.08,Dl*0.2,R*0.7),sm2,Math.sin(t)*R*0.55,Dl*0.9,Math.cos(t)*R*0.55);o.rotation.y=t*sg}  // スポーク
-    ad(new THREE.BoxGeometry(Math.max(Dl*0.18,2),Dl*0.25,R*0.55+Dl*0.5),red,0,Dl*0.95,R*0.72+Dl*0.25);              // ゼロ点の印（赤）
+    for(let k=1;k<6;k++){const t=Math.PI+k*Math.PI/6,o=ad(new THREE.BoxGeometry(R*0.08,Dl*0.2,R*0.7),sm2,Math.sin(t)*R*0.55,Dl*0.9,Math.cos(t)*R*0.55);o.rotation.y=t*sg}  // スポーク
+    ad(new THREE.BoxGeometry(Math.max(Dl*0.22,2.5),Dl*0.25,R*0.55+Dl*0.5),red,-Dl*0.15,Dl*0.95,R*0.72+Dl*0.25);              // ゼロ点の印（赤・半円の端）
     const gw=Dl*1.5,GL=R*1.7,gz=Dl*0.5+gw/2+cl*Dl*3,gx=-Tn-GI-GL/2;
     const brs=new THREE.MeshStandardMaterial({color:0xc58b3c,metalness:.55,roughness:.35});
     add(new THREE.BoxGeometry(GL,Dl*1.4,gw),brs,gx,0,gz);                                                             // ガイド（真ちゅう）

@@ -1654,6 +1654,14 @@ function showGuideStep(){
  else{w.className="gdwarn";w.textContent=""}
  if(!benOn(Dg)){const t0=(hitN||hitR)?" "+w.textContent:"";w.className="gdwarn on bad";w.textContent="⚠️ "+szName(Dg)+" に使えるベンダーが登録されていません（計算は標準 外径×4）。"+t0}
  const hitNow=rv?hitR:hitN;
+ /* 床に当たる時：3Dの上に「逆曲げにしますか？」の吹き出し（逆にすれば当たらない時だけボタン） */
+ {let hb=$("#gdHit");if(!hb){hb=document.createElement("div");hb.id="gdHit";hb.style.cssText="position:absolute;left:50%;transform:translateX(-50%);top:70px;z-index:7;max-width:92%;background:#fff;border:2.5px solid #dc2626;border-radius:16px;padding:10px 12px;box-shadow:0 6px 18px #0003;font-weight:800;font-size:14px;color:#991b1b;text-align:center";$("#stage").appendChild(hb)}
+  const other=rv?hitN:hitR,nm2=LM?(rv?"前寸法（"+MK.f+"）":"後寸法（"+MK.b+"）"):"逆曲げ";
+  if(!hitNow){hb.style.display="none"}
+  else{hb.style.display="";hb.innerHTML=other?"⚠️ 曲げると配管が床に当たります<br><small style='font-weight:600'>逆にしても当たります。台を高くするか、置き方を工夫してください</small>":
+   "⚠️ 曲げると配管が床に当たります<br><button id='gdHitGo' style='margin-top:8px;height:42px;padding:0 16px;border-radius:12px;background:#ea580c;color:#fff;font-weight:800;font-size:15px;border:0'>🔄 "+nm2+"にしますか？</button> <button id='gdHitNo' style='margin-top:8px;height:42px;padding:0 12px;border-radius:12px;background:#f1f5f9;color:#475569;font-weight:700;font-size:13px;border:0'>このまま</button>";
+   const g=$("#gdHitGo");if(g)g.onclick=()=>{if(!GUIDE||gdBusy)return;GUIDE.rev[GUIDE.i]=!GUIDE.rev[GUIDE.i];showGuideStep()};
+   const n2=$("#gdHitNo");if(n2)n2.onclick=()=>{hb.style.display="none"}}}
  $("#gdMini").innerHTML=`<span>${nm(i)} 曲げ寸法 ${fmt(rows[i].l)}</span>${LM?`<span class="${rv?"fw":"bk"}">${rv?MK.b:MK.f}に印</span>`:LEV?`<span class="${rv&&!C45?"fw":"bk"}">${mk}に印</span>`:`<span class="${rv?"fw":"bk"}">${rv?"前に出す":"バック"} ${fmt(rv?fwd:back)}</span>`}<span>${rows[i].a}°${rows[i].a>=180?"返し":""}</span>${hitNow?'<span class="warn">⚠️床</span>':""}<button class="more" id="gdMore">詳細 ▲</button>`;
  $("#gdMore").onclick=()=>setGdMini(false);
  $("#gdPrev").disabled=GUIDE.k===0;$("#gdNext").textContent=GUIDE.k>=N-1?"✅ 終わり":"次の曲げ ▶";if(!gdBusy)$("#gdNext").disabled=false;
@@ -1685,7 +1693,7 @@ function setGdMini(m){$("#gdBot").classList.toggle("mini",m)}
  bot.addEventListener("touchend",e=>{if(bot._y==null)return;const dy=e.changedTouches[0].clientY-bot._y;bot._y=null;if(dy>60)setGdMini(true);else if(dy<-60)setGdMini(false)},{passive:true});
 })();
 function closeGuide(){
- if(!GUIDE)return;const c=GUIDE.cam,wf=GUIDE.wasFull;GUIDE=null;gdBusy=false;["#gdPrev","#gdNext"].forEach(q=>{const b=$(q);if(b)b.disabled=false});
+ if(!GUIDE)return;{const hb=$("#gdHit");if(hb)hb.style.display="none"}const c=GUIDE.cam,wf=GUIDE.wasFull;GUIDE=null;gdBusy=false;["#gdPrev","#gdNext"].forEach(q=>{const b=$(q);if(b)b.disabled=false});
  $("#gdOv").classList.remove("on");$("#stage").classList.remove("guidemode");
  build3D();T.th=c.th;T.ph=c.ph;T.dist=c.dist;T.tg.copy(c.tg);fitT(true);
  if(!wf)setFull(false);render();

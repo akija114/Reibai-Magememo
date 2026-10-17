@@ -170,22 +170,26 @@ let GUIDE_H=750;try{GUIDE_H=+localStorage.getItem("pbm_bh")||750}catch(e){}   //
 /* 使うベンダー：曲げ半径R（配管の中心）をサイズごとに持つ。表にないサイズは R=外径×4（4D）。バック＝R×角度/90 */
 const BENDERS={
  ta515:{n:"ギアベンダー TA515",sub:"TASCO 青い本体・クランク・三脚・7分〜44（R=4D）",R:{},S:[22.22,25.4,28.58,31.75,38.1,44.45]},
- g4d:{n:"ラチェット式",sub:"TASCO ギア式直管ベンダー・三脚・7/8・1・1-1/8（R=4D）",R:{},S:[22.22,25.4,28.58]},
+ g4d:{n:"ギア式 直管ベンダー（ラチェットハンドル）",sub:"TASCO ギア式直管ベンダー・三脚・7/8・1・1-1/8（R=4D）",R:{},S:[22.22,25.4,28.58]},
  ek:{n:"電動 TA515EK-N",sub:"TASCO 電動・三脚・7/8〜1-1/2（ダイスの刻印R）",R:{"22.22":98,"25.4":101,"28.58":102},S:[22.22,25.4,28.58,31.75,38.1]},
  mb:{n:"手動ミニ TA515MB",sub:"TASCO 直管ミニベンダー・1/2〜1-1/4（R=4D）",R:{},S:[12.7,15.88,19.05,22.22,25.4,28.58,31.75]},
  lev:{n:"レバー式 TA540G",sub:"TASCO 2段式クイックアクションカラーベンダー・3分〜6分（メーカーR）",lev:1,R:{"9.52":23.8,"12.7":38,"15.88":57.2,"19.05":76.2},S:[9.52,12.7,15.88,19.05]},
  levb:{n:"レバー式 TA540B",sub:"TASCO 2段式クイックアクション（青）・4分〜7分・R未確認（仮に外径×4）",lev:1,R:{},S:[12.7,15.88,19.05,22.22],unk:1},
  rb147:{n:"ラチェットベンダー BBK RB-147W",sub:"BBK ラチェット式チューブベンダー（真ん中のシューで押す・正曲げ／逆曲げ）・2分〜6分・なまし銅管専用・寸法出しライン・90°目盛・R未確認（仮に外径×4）",lev:1,rat:1,mk:{f:"ホイールの右ライン",b:"ホイールの左ライン",c:"シューの真ん中の線",fs:"前",bs:"後ろ"},R:{},S:[6.35,9.52,12.7,15.88,19.05],unk:1},
  bbk:{n:"レバー式 BBK",sub:"BBK チューブベンダー（レバータイプ）・2分〜6分・Lマーク／Rマーク・R未確認（仮に外径×4）",lev:1,R:{},S:[6.35,9.52,12.7,15.88,19.05],unk:1},
- rat:{n:"TASCO TA512AX（ラチェット）",sub:"TASCO ラチェットベンダーセット・2分〜7分・R未確認（仮に外径×4）",R:{},S:[6.35,9.52,12.7,15.88,19.05,22.22],unk:1},
+ rat:{n:"ラチェットベンダー TASCO TA512AX",sub:"TASCO ラチェットベンダーセット（真ん中のシューで押す・正曲げ／逆曲げ）・2分〜7分・寸法出しライン・R未確認（仮に外径×4）",lev:1,rat:1,mk:{f:"ホイールの右ライン",b:"ホイールの左ライン",c:"シューの真ん中の線",fs:"前",bs:"後ろ"},R:{},S:[6.35,9.52,12.7,15.88,19.05,22.22],unk:1},
  my:{n:"マイベンダー",sub:"自分でRを入れる・全サイズ",R:{}}};
 let RB_REV=false;try{RB_REV=localStorage.getItem("pbm_rbrev")==="1"}catch(e){}   // RB-147W：逆曲げ（逆曲げ用アダプタを付けて使う）
 let BENDER="ta515",MYR={};try{const b=localStorage.getItem("pbm_bender");if(BENDERS[b])BENDER=b;MYR=JSON.parse(localStorage.getItem("pbm_myR")||"{}")||{}}catch(e){}
 const isStr=D=>{const z=SIZES.find(x=>x[1]===D);return !!z&&z[2]<=4000};   // 4m直管のサイズ（7分〜）
-const benOn=D=>BENDER==="my"||(BENDERS[BENDER].S||[]).includes(D);   // ベンダーごとの対応サイズだけ。対応外は標準（外径×4）
+/* 持っているベンダー（設定で登録）。サイズごとに「メイン → 持っている物を上から順」で、そのサイズに使える物を選ぶ */
+let BOWN=null;try{BOWN=JSON.parse(localStorage.getItem("pbm_bown")||"null")}catch(e){}if(!Array.isArray(BOWN))BOWN=Object.keys(BENDERS);
+const benFits=(k,D)=>k==="my"||(BENDERS[k].S||[]).includes(D);
+const benFor=D=>{if(benFits(BENDER,D))return BENDER;return Object.keys(BENDERS).find(k=>k!==BENDER&&BOWN.includes(k)&&benFits(k,D))||null};
+const benOn=D=>!!benFor(D);   // 使えるベンダーが無いサイズは標準（外径×4）
 const szName=D=>(SIZES.find(x=>x[1]===D)||[""])[0];
-const bR=D=>{if(!benOn(D))return 4*D;const t=BENDER==="my"?MYR:BENDERS[BENDER].R,v=+t[String(D)];return v>0?v:4*D};
-const bRtxt=D=>{if(!benOn(D))return "外径×4";if(BENDERS[BENDER].unk)return "R未確認・仮に外径×4";const t=BENDER==="my"?MYR:BENDERS[BENDER].R;return +t[String(D)]>0?"R"+fmt(bR(D)):"外径×4"};
+const bR=D=>{const k=benFor(D);if(!k)return 4*D;const t=k==="my"?MYR:BENDERS[k].R,v=+t[String(D)];return v>0?v:4*D};
+const bRtxt=D=>{const k=benFor(D);if(!k)return "外径×4";if(BENDERS[k].unk)return "R未確認・仮に外径×4";const t=k==="my"?MYR:BENDERS[k].R;return +t[String(D)]>0?"R"+fmt(bR(D)):"外径×4"};
 let DIE_R=false;try{DIE_R=localStorage.getItem("pbm_die")==="R"}catch(e){}   // ダイスが後ろから見て右側
 const legObj=g=>st.bl.find(l=>l.id===g);
 const legRows=g=>g==="m"?st.rows:(legObj(g)||{rows:st.rows}).rows;
@@ -1089,7 +1093,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    };
    const rowsAt=aa=>rows.map((r,j)=>j<i?r:j===i?{...r,a:aa}:{...r,a:0});
    /* ラチェット式 RB-147W：シューが円弧のまん中にあるので、曲げるにつれて配管をシューの方へ寄せる（曲げ終わりで円弧の中心＝シューの中心） */
-   const rbOff=(BENDER==="rb147"&&benOn(L.D))?(Tn-R*row.a*Math.PI/360)*(rev?1:-1):0,rbS=(P,k)=>{if(rbOff)P.pos.x+=rbOff*k;return P};
+   const BK=benFor(L.D)||BENDER,rbOff=(BENDERS[BK].rat&&benOn(L.D))?(Tn-R*row.a*Math.PI/360)*(rev?1:-1):0,rbS=(P,k)=>{if(rbOff)P.pos.x+=rbOff*k;return P};
    const toW=(p,P)=>p.clone().applyQuaternion(P.q).add(P.pos);
    // 曲げた後の形（うすいオレンジ）：ベンダーに対する最後の置き方で表示
    try{if(!(GUIDE.prog>0)){
@@ -1109,7 +1113,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    /* TA515のような形：青い本体（左右に長い）の上に、左にシュー（半円）、右にガイド。右端にハンドル、下に三脚。
       配管は前後（x）に通り、シューとガイドの間にはさむ。シューは配管の左（ダイス側）、ハンドルは右。 */
    const lg0=new THREE.MeshStandardMaterial({color:0x1f2937,roughness:.6});
-   const BMOD=BENDER==="bbk"?"lev":BENDER==="rb147"?"rb147":["g4d","ek","mb","lev","levb","rat"].includes(BENDER)?BENDER:"std";   // 選んだベンダーの模型（対応外サイズでも形は見せる）
+   const BMOD=BK==="bbk"?"lev":BENDERS[BK].rat?"rb147":["g4d","ek","mb","lev","levb"].includes(BK)?BK:"std";   // 選んだベンダーの模型（対応外サイズでも形は見せる）
    const blk=new THREE.MeshStandardMaterial({color:0x1f2937,metalness:.3,roughness:.5});
    const legTo=(x0,y0,z0,x1,z1,rr,mat)=>{const p0=new V(x0,y0,z0*sg),p1=new V(x1,-GUIDE_H,z1*sg),l=new THREE.Mesh(new THREE.CylinderGeometry(rr,rr,p0.distanceTo(p1),8),mat);l.position.copy(p0).add(p1).multiplyScalar(.5);l.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());bg.add(l)};
    const rod=(x0,y0,z0,x1,y1,z1,rr,mat)=>{const p0=new V(x0,y0,z0*sg),p1=new V(x1,y1,z1*sg),l=new THREE.Mesh(new THREE.CylinderGeometry(rr,rr,p0.distanceTo(p1),10),mat);l.position.copy(p0).add(p1).multiplyScalar(.5);l.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());bg.add(l)};
@@ -1147,7 +1151,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
       ピストンでシューを押して曲げる（3点曲げ）。本体（ピストン・ハンドル）はシューの後ろ（曲がる側）へ伸びる。
       シューの位置：曲げ終わりの円弧のまん中（印から、寸法をとった側へ Tn−R×角度/2 ずれた所）。
       シューの左右に寸法出しライン：前寸法＝右ライン、後寸法＝左ライン（どちらも印の所） */
-    const off=Tn-R*row.a*Math.PI/360,xw=-Tn+(rev?off:-off),wh=new THREE.MeshStandardMaterial({color:0x9aa3ad,metalness:.6,roughness:.3});
+    const off=Tn-R*row.a*Math.PI/360,xw=-Tn+(rev?off:-off),TAS=BK==="rat",wh=new THREE.MeshStandardMaterial({color:TAS?0xc8a24a:0x9aa3ad,metalness:.6,roughness:.3}),blk=new THREE.MeshStandardMaterial({color:TAS?0x7f1d1d:0x1f2937,metalness:.3,roughness:.5});   // BBK＝銀のシュー・黒、TASCO＝金のシュー・えんじ
     const sh=add(new THREE.CylinderGeometry(R,R,Dl*1.25,40,1,false,-Math.PI/2,Math.PI),wh,xw,0,-R);                // シュー（半円の丸い側が配管）
     if(sg<0)sh.rotation.y=Math.PI;
     const ln=new THREE.MeshStandardMaterial({color:0x111827});
@@ -1244,7 +1248,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
     leg.position.copy(p0).add(p1).multiplyScalar(0.5);leg.quaternion.setFromUnitVectors(Y,p1.clone().sub(p0).normalize());bg.add(leg)});
    }
    const mk=add(new THREE.TorusGeometry(Dl*0.8,Dl*0.2,10,24),red,-Tn,0,0);mk.rotation.y=Math.PI/2;   // 印の所（レバー式・ラチェット式は、ここをマーク／ラインに合わせる）
-   const BD3=BENDERS[BENDER],LEV3=benOn(Dl)&&!!BD3.lev,MK3=BD3.mk||{f:"Lマーク",b:"Rマーク"};
+   const BD3=BENDERS[BK],LEV3=benOn(Dl)&&!!BD3.lev,MK3=BD3.mk||{f:"Lマーク",b:"Rマーク"};
    try{
     (T.bgrp||T.grp).add(bg);
     const P0=rbS(poseOf(row.a*Math.min(1,GUIDE.prog||0),rev),Math.min(1,GUIDE.prog||0));T.grp.quaternion.copy(P0.q);T.grp.position.copy(P0.pos);
@@ -1613,7 +1617,7 @@ function showGuideStep(){
  T.cam.near=Math.max(1,R*0.03);T.cam.far=Math.max(T.ext*60,R*400);T.cam.updateProjectionMatrix();T.dirty=true;
  const rows=LR(),i=GUIDE.i,c=calc(GUIDE.g).out[i],N=GUIDE.steps.length;
  $("#gdTop").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:22px;height:22px;vertical-align:-5px;margin-right:4px">曲げ手順 ${GUIDE.k+1}／${N}：${brOn()?legName(GUIDE.g)+" の ":""}${nm(i)} の曲げ`;
- $("#gdLeg").textContent=(BENDERS[BENDER].lev&&benOn(SIZES[legSize(GUIDE.g)][1]))?"赤い輪＝印をつける所（ここをマーク／ラインに合わせる）、うすいオレンジ＝曲げた後の形":(DIE_R?"シューが右・ガイドが左・ハンドルが左端":"シューが左・ガイドが右・ハンドルが右端")+"（台が水平）。赤い輪＝赤いライン（シューの0）、うすいオレンジ＝曲げた後の形";
+ $("#gdLeg").textContent=(benOn(SIZES[legSize(GUIDE.g)][1])&&BENDERS[benFor(SIZES[legSize(GUIDE.g)][1])].lev)?"赤い輪＝印をつける所（ここをマーク／ラインに合わせる）、うすいオレンジ＝曲げた後の形":(DIE_R?"シューが右・ガイドが左・ハンドルが左端":"シューが左・ガイドが右・ハンドルが右端")+"（台が水平）。赤い輪＝赤いライン（シューの0）、うすいオレンジ＝曲げた後の形";
  drawGuideFront();
  const p=G.prev;let how;
  if(!p)how="1つ目の曲げ：向きは自由。台に置いて曲げるだけ";
@@ -1626,7 +1630,7 @@ function showGuideStep(){
     前寸法（寸法をとった側が前）＝ Lマーク／ホイールの右ライン、後寸法（寸法をとった側が後ろ）＝ Rマーク／ホイールの左ライン。
     角度：レバー式＝ホイールの0点と目盛り。ラチェット式＝ピストンの目盛ライン（90°だけ）と本体の矢印。
     90°以外はマークが合わないので、今までどおりシューの0にバックで合わせる */
- const BD=BENDERS[BENDER],LEV=benOn(Dg)&&!!BD.lev,LM=LEV&&aa===90,MK=BD.mk||{f:"Lマーク",b:"Rマーク",fs:"フック側（前）",bs:"ホイール側（後ろ）"},C45=LEV&&!!MK.c&&aa===45,mk=C45?MK.c:rv2?MK.b:MK.f,from=i>0?"前の管の中心":"管の端";
+ const BK=benFor(Dg)||BENDER,BD=BENDERS[BK],LEV=benOn(Dg)&&!!BD.lev,LM=LEV&&aa===90,MK=BD.mk||{f:"Lマーク",b:"Rマーク",fs:"フック側（前）",bs:"ホイール側（後ろ）"},C45=LEV&&!!MK.c&&aa===45,mk=C45?MK.c:rv2?MK.b:MK.f,from=i>0?"前の管の中心":"管の端";
  if(LEV)$("#gdTxt").innerHTML=`曲げ寸法 <b>${fmt(rows[i].l)}</b>mm<br><small>（${i>0?"前の曲げの角（前の管の中心）から":"端から"}、この曲げの角まで）</small><br>`+
   (C45?`${from}から <b>${fmt(rows[i].l)}</b>mm に印 → 印を<br><b class="bk">${mk}</b>にぴったり合わせる<br><small>45°曲げはシューの真ん中で使う（前寸法・後寸法どちらでも同じ）。曲げると、${from}から次の管の中心まで ${fmt(rows[i].l)}mm</small>`
    :LM?`${from}から <b>${fmt(rows[i].l)}</b>mm に印 → 印を<br><b class="${rv2?"fw":"bk"}">${mk}</b>にぴったり合わせる<br><small>${rv2?"後寸法：寸法をとった側を<b>"+MK.bs+"</b>に置く":"前寸法：寸法をとった側を<b>"+MK.fs+"</b>に置く"}。90°曲げると、${from}から次の管の中心まで ${fmt(rows[i].l)}mm${i>0?"。前の管の外側から測る時は、外径の半分（"+fmt(Dg/2)+"mm）を足し引き":""}</small>`
@@ -1638,7 +1642,7 @@ function showGuideStep(){
  else $("#gdTxt").innerHTML=`曲げ寸法 <b>${fmt(rows[i].l)}</b>mm<br><small>（${i>0?"前の曲げの角から":"端から"}、この曲げの角まで）</small><br>`+
   `印を赤いライン（シューの0）に合わせて<br>`+(rv2?`<b class="fw">前に出す ${fmt(fwd)}mm</b><small>（逆向き：${bRtxt(Dg)}÷2${aa!==90?"×"+aa+"/90":""}）</small>`:`<b class="bk">バック ${fmt(back)}mm</b><small>（${bRtxt(Dg)}${aa!==90?"×"+aa+"/90":""}）</small>`)+
   `<br>曲げ角度 <b>${aa}°${aa>=180?"（返し）":""}</b> <small>（戻り分 1〜2°多めに）</small><span class="big">${how}</span><small style="color:#94a3b8">シュー位置で印をつける時：前の印から ${fmt(c.shoe)}（端から ${fmt(c.cum)}）</small>`;
- $("#gdBen").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:20px;height:20px;vertical-align:-5px;margin-right:4px">ベンダー：${benOn(Dg)?BENDERS[BENDER].n+"（"+bRtxt(Dg)+"）":"⚠️ "+BENDERS[BENDER].n+"は "+szName(Dg)+" 非対応（標準 外径×4で表示）"} ▸`;
+ $("#gdBen").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:20px;height:20px;vertical-align:-5px;margin-right:4px">ベンダー：${benOn(Dg)?BD.n+"（"+bRtxt(Dg)+"）":"⚠️ "+szName(Dg)+"に使えるベンダーが登録されていません"+" 非対応（標準 外径×4で表示）"} ▸`;
  $("#gdDie").textContent="ダイスの位置：後ろから見て "+(DIE_R?"右 ▶（タップで左）":"◀ 左（タップで右）");
  $("#gdDie").style.display=LEV&&!BD.rat?"none":"";   // レバー式にはダイスが無いので出さない。RB-147W は「正曲げ／逆曲げ」の切りかえに使う
  if(LEV&&BD.rat)$("#gdDie").textContent=RB_REV?"曲げ方：逆曲げ（アダプタ）▸ タップで正曲げ":"曲げ方：正曲げ ▸ タップで逆曲げ（壁ぎわ）";
@@ -1648,7 +1652,7 @@ function showGuideStep(){
  if(hitN||hitR){w.className="gdwarn on "+((rv?hitR:hitN)?"bad":"ok");
   w.textContent=(rv?hitR:hitN)?("⚠️ このままだと床に当たります（約"+fmt(-H+rr-(rv?G.minR:G.minN))+"mm）"+((rv?hitN:hitR)?"。逆にしても当たるので、置き方を工夫してください":"。「🔄 "+(rv?"逆向きをやめる":"逆向き")+"」なら当たりません")):("✅ この置き方なら床に当たりません"+(rv?"（逆向き）":""));}
  else{w.className="gdwarn";w.textContent=""}
- if(!benOn(Dg)){const t0=(hitN||hitR)?" "+w.textContent:"";w.className="gdwarn on bad";w.textContent="⚠️ "+BENDERS[BENDER].n+"は "+szName(Dg)+" に対応していません（計算は標準 外径×4）。"+t0}
+ if(!benOn(Dg)){const t0=(hitN||hitR)?" "+w.textContent:"";w.className="gdwarn on bad";w.textContent="⚠️ "+szName(Dg)+" に使えるベンダーが登録されていません（計算は標準 外径×4）。"+t0}
  const hitNow=rv?hitR:hitN;
  $("#gdMini").innerHTML=`<span>${nm(i)} 曲げ寸法 ${fmt(rows[i].l)}</span>${LM?`<span class="${rv?"fw":"bk"}">${rv?MK.b:MK.f}に印</span>`:LEV?`<span class="${rv&&!C45?"fw":"bk"}">${mk}に印</span>`:`<span class="${rv?"fw":"bk"}">${rv?"前に出す":"バック"} ${fmt(rv?fwd:back)}</span>`}<span>${rows[i].a}°${rows[i].a>=180?"返し":""}</span>${hitNow?'<span class="warn">⚠️床</span>':""}<button class="more" id="gdMore">詳細 ▲</button>`;
  $("#gdMore").onclick=()=>setGdMini(false);
@@ -1715,18 +1719,23 @@ $("#gdEnd").onclick=closeGuide;
 $("#gdRev").onclick=()=>{if(!GUIDE||gdBusy)return;GUIDE.rev[GUIDE.i]=!GUIDE.rev[GUIDE.i];showGuideStep()};
 $("#gdH").onfocus=e=>e.target.select();
 $("#gdH").onchange=()=>{const v=uParse($("#gdH").value);if(v>0){GUIDE_H=Math.min(3000,v);try{localStorage.setItem("pbm_bh",String(GUIDE_H))}catch(e){}if(GUIDE)showGuideStep()}};
-function benChanged(){try{localStorage.setItem("pbm_bender",BENDER);localStorage.setItem("pbm_myR",JSON.stringify(MYR))}catch(e){}try{upd()}catch(e){}if(T){try{build3D();T.dirty=true}catch(e){}}if(GUIDE)showGuideStep()}
+function benChanged(){try{localStorage.setItem("pbm_bender",BENDER);localStorage.setItem("pbm_bown",JSON.stringify(BOWN));localStorage.setItem("pbm_myR",JSON.stringify(MYR))}catch(e){}try{upd()}catch(e){}if(T){try{build3D();T.dirty=true}catch(e){}}if(GUIDE)showGuideStep()}
 function renderBenSheet(){
  $("#benTtl").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:26px;height:26px;vertical-align:-7px;margin-right:6px">使うベンダー`;
- const L=$("#benList");L.innerHTML="";
- Object.keys(BENDERS).forEach(k=>{const b=BENDERS[k],e=document.createElement("button");e.className="ubtn";
-  e.style.cssText="width:100%;height:54px;margin-bottom:6px;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 14px;font-size:14.5px"+(BENDER===k?";background:#2563eb;color:#fff;border-color:#2563eb":"");
-  e.innerHTML=b.n+'<small style="font-weight:600;opacity:.8">'+b.sub+'</small>';e.onclick=()=>{BENDER=k;benChanged();renderBenSheet()};L.appendChild(e)});
- const T2=$("#benTbl");let h='<div class="ctitle" style="margin-top:10px">サイズごとの曲げ半径R・90°のバック（mm）</div><table style="width:100%;border-collapse:collapse;font-size:14px">';
- h+='<tr style="color:#64748b;font-size:12px"><td>サイズ</td><td>R</td><td style="text-align:right">バック90°</td><td style="text-align:right">45°</td></tr>';
- SIZES.forEach(([n,D])=>{const r=bR(D),my=BENDER==="my";
-  if(!my&&!benOn(D)){h+=`<tr style="border-top:1px solid #e2e8f0;color:#94a3b8"><td style="padding:7px 0">${n}</td><td colspan="3" style="font-size:12px">対応外（このベンダーでは曲げられない）</td></tr>`;return}
-  h+=`<tr style="border-top:1px solid #e2e8f0"><td style="padding:7px 0">${n}</td><td>${my?`<input data-d="${D}" inputmode="decimal" value="${MYR[String(D)]||""}" placeholder="${fmt(4*D)}" style="width:76px;height:34px;border:1.5px solid #cbd5e1;border-radius:9px;padding:0 8px;font-size:15px">`:fmt(r)+(BENDERS[BENDER].R[String(D)]?"":'<small style="color:#94a3b8">（4D）</small>')}</td><td style="text-align:right;font-weight:800">${fmt(r)}</td><td style="text-align:right">${fmt(r/2)}</td></tr>`});
+ const L=$("#benList");L.innerHTML='<div style="font-size:13px;color:#475569;margin:0 0 8px">名前をタップ＝<b>メイン</b>（いちばん先に使う）。右の「持っている」を外すと、そのベンダーは使いません。配管のサイズごとに、<b>メイン → 持っている物を上から順</b>で、そのサイズに使える物を選びます。</div>';
+ Object.keys(BENDERS).forEach(k=>{const b=BENDERS[k],own=BOWN.includes(k)||k===BENDER,row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-bottom:6px;align-items:stretch";
+  const e=document.createElement("button");e.className="ubtn";
+  e.style.cssText="flex:1;height:auto;min-height:54px;margin:0;flex-direction:column;align-items:flex-start;justify-content:center;padding:4px 12px;font-size:14.5px;text-align:left"+(BENDER===k?";background:#2563eb;color:#fff;border-color:#2563eb":own?"":";opacity:.45");
+  e.innerHTML=(BENDER===k?"⭐ メイン：":"")+b.n+'<small style="font-weight:600;opacity:.8">'+b.sub+'</small>';e.onclick=()=>{BENDER=k;if(!BOWN.includes(k))BOWN.push(k);benChanged();renderBenSheet()};
+  const o=document.createElement("button");o.className="ubtn";o.style.cssText="width:74px;height:auto;margin:0;font-size:12.5px;padding:0 4px;flex-direction:column;justify-content:center"+(own?";background:#dcfce7;border-color:#16a34a;color:#166534":"");
+  o.innerHTML=(own?"✅":"⬜")+"<small>持っている</small>";o.disabled=k===BENDER;o.onclick=()=>{BOWN=own?BOWN.filter(x=>x!==k):BOWN.concat([k]);benChanged();renderBenSheet()};
+  row.appendChild(e);row.appendChild(o);L.appendChild(row)});
+ const T2=$("#benTbl");let h='<div class="ctitle" style="margin-top:10px">サイズごとに使うベンダー</div><table style="width:100%;border-collapse:collapse;font-size:14px">';
+ h+='<tr style="color:#64748b;font-size:12px"><td>サイズ</td><td>ベンダー</td><td>R</td><td style="text-align:right">印の合わせ方</td></tr>';
+ SIZES.forEach(([n,D])=>{const k=benFor(D);
+  if(!k){h+=`<tr style="border-top:1px solid #e2e8f0;color:#94a3b8"><td style="padding:7px 0">${n}</td><td colspan="3" style="font-size:12px">使えるベンダーなし（持っている物を増やしてください）</td></tr>`;return}
+  const b=BENDERS[k],r=bR(D),my=k==="my";
+  h+=`<tr style="border-top:1px solid #e2e8f0"><td style="padding:7px 0">${n}</td><td style="font-size:12px;font-weight:700">${b.n}</td><td>${my?`<input data-d="${D}" inputmode="decimal" value="${MYR[String(D)]||""}" placeholder="${fmt(4*D)}" style="width:70px;height:34px;border:1.5px solid #cbd5e1;border-radius:9px;padding:0 8px;font-size:15px">`:fmt(r)+(b.R[String(D)]?"":'<small style="color:#94a3b8">（4D）</small>')}</td><td style="text-align:right;font-size:12.5px;font-weight:800">${b.lev?(b.mk?"右／左ライン":"L／Rマーク"):"バック "+fmt(r)}</td></tr>`});
  T2.innerHTML=h+'</table>';
  T2.querySelectorAll("input").forEach(i=>{i.onfocus=()=>i.select();i.onchange=()=>{const v=parseFloat(i.value);if(v>0)MYR[i.dataset.d]=Math.min(2000,v);else delete MYR[i.dataset.d];benChanged();renderBenSheet()}});
 }
@@ -1734,7 +1743,7 @@ function openBenSheet(){renderBenSheet();$("#benOv").classList.add("on")}
 $("#gdBen").onclick=openBenSheet;
 $("#closeBen").onclick=()=>$("#benOv").classList.remove("on");
 $("#benOv").addEventListener("click",e=>{if(e.target.id==="benOv")$("#benOv").classList.remove("on")});
-$("#gdDie").onclick=()=>{if(BENDERS[BENDER].rat){RB_REV=!RB_REV;try{localStorage.setItem("pbm_rbrev",RB_REV?"1":"0")}catch(e){}showGuideStep();return}DIE_R=!DIE_R;try{localStorage.setItem("pbm_die",DIE_R?"R":"L")}catch(e){}showGuideStep()};
+$("#gdDie").onclick=()=>{const Dk=GUIDE?benFor(SIZES[legSize(GUIDE.g)][1]):null;if(Dk&&BENDERS[Dk].rat){RB_REV=!RB_REV;try{localStorage.setItem("pbm_rbrev",RB_REV?"1":"0")}catch(e){}showGuideStep();return}DIE_R=!DIE_R;try{localStorage.setItem("pbm_die",DIE_R?"R":"L")}catch(e){}showGuideStep()};
 /* 3Dの配管を2回タップ → 吹き出しメニュー */
 function pickLeg(cx,cy){
  if(!T||!T.segs||!T.segs.length||!T.w)return null;
@@ -1792,7 +1801,7 @@ ${APP==="zumen"?`  <div class="pt pt2" style="margin-top:10px;font-size:13px">�
   <button class="pm" data-a="scan">${typeof SCAN!=="undefined"&&SCAN&&SCAN.obj?"📡 部屋のスキャン（位置合わせ・表示）":"📡 部屋のスキャンを読み込む"}</button>${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}
   <button class="pm" data-a="route">🧭 ルートおまかせ（始点と終点から）</button>
   <button class="pm" data-a="plan"><img alt="" src="${NICO.plan}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">図面を読み込む・なぞる</button>${typeof PLAN!=="undefined"&&PLAN&&(PLAN.map||(PLAN.img&&PLAN.mmpp&&PLAN.org))?`<button class="pm${PLAN.show?" red":""}" data-a="plan3d">${PLAN.show?"🙈 図面と壁を3Dで隠す":"👁 図面と壁を3Dで表示"}</button>${PLAN.show?`<button class="pm" data-a="planop">🌫 図面の濃さ：${Math.round((PLAN.planOp!=null?PLAN.planOp:.4)*100)}%（変える）</button>`:""}`:""}
-`:`${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}`}  <button class="pm" data-a="ben"><img alt="" src="${icoSrc("bender")}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">ベンダー：${BENDERS[BENDER].n}</button>
+`:`${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}`}  <button class="pm" data-a="ben"><img alt="" src="${icoSrc("bender")}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">ベンダー：${(()=>{const D0=SIZES[st.s]?SIZES[st.s][1]:0,k=benFor(D0);return k?BENDERS[k].n:"⚠️ "+szName(D0)+"に使える物なし"})()}</button>
   <button class="pm${LABC.neko!==false?" red":""}" data-a="neko">${LABC.neko!==false?"🙈 ネコの高さを隠す":NI("neko")+"ネコ（吊り金具）の高さを表示"}</button>`+ALLROW,cx,cy,a=>{
   if(a==="tbl"){openTable();return}
   if(a==="unit"){st.units.on=!on;save();unitRefresh();toast(st.units.on?"機器の模型を表示しました":"機器の模型を隠しました")}

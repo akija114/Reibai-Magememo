@@ -2250,9 +2250,9 @@ function runAR(onlyUnit){
  }catch(e){console.warn(e);toast("ARの準備に失敗しました")}
 }
 /* ===== 建物（壁・柱・梁・障害物）：3Dに箱で置く。位置は起点（配管の始まり）からのmm、高さは床から ===== */
-const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"},door:{n:"扉",c:0xb45309,i:"🚪"},ceil:{n:"天井高の範囲",c:0x0ea5e9,i:"📐"},rack:{n:"電気ラック",c:0x94a3b8,i:"⚡"},win:{n:"窓",c:0x38bdf8,i:"🪟"},ins:{n:"点検口",c:0x0d9488,i:"🔲"},eq:{n:"機器",c:0x94a3b8,i:"📦"}};
+const f0=v=>fmt(Math.round(v));const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"},door:{n:"扉",c:0xb45309,i:"🚪"},ceil:{n:"天井高の範囲",c:0x0ea5e9,i:"📐"},rack:{n:"電気ラック",c:0x94a3b8,i:"⚡"},win:{n:"窓",c:0x38bdf8,i:"🪟"},ins:{n:"点検口",c:0x0d9488,i:"🔲"},eq:{n:"機器",c:0x94a3b8,i:"📦"}};
 function normBld(a){const n=v=>Math.round(+v||0);return(Array.isArray(a)?a:[]).slice(0,1500).filter(o=>o&&typeof o==="object").map(o=>{const k=BLDK[o.k]?o.k:"box";
- return{...((k==="ceil"||k==="eq")&&o.n?{n:String(o.n).slice(0,30)}:{}),...(o.auto?{auto:String(o.auto).slice(0,8)}:{}),...(k==="wall"&&o.m==="lgs"?{st:Math.max(30,Math.min(200,n(o.st)||65)),bl:Math.max(0,Math.min(4,n(o.bl)||0)),br:Math.max(0,Math.min(4,n(o.br)||0))}:{}),k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):k==="door"?(o.m==="swing"?"swing":"slide"):k==="col"?(o.m==="h"?"h":""):k==="wall"?(o.m==="lgs"?"lgs":""):""}})}
+ return{...((k==="ceil"||k==="eq")&&o.n?{n:String(o.n).slice(0,30)}:{}),...(o.auto?{auto:String(o.auto).slice(0,8)}:{}),...(k==="wall"&&o.m==="lgs"?{st:Math.max(30,Math.min(200,n(o.st)||65)),bl:Math.max(0,Math.min(4,n(o.bl)||0)),br:Math.max(0,Math.min(4,n(o.br)||0))}:{}),k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):k==="door"?(o.m==="swing"?"swing":"slide"):k==="col"?(o.m==="h"?"h":""):k==="wall"?(o.m==="lgs"?"lgs":""):k==="eq"?(typeof VENTM!=="undefined"&&VENTM[o.m]?o.m:""):""}})}
 st.bld=normBld(st.bld);
 const bldCH=()=>T&&T.CHh?T.CHh:st.gnd.ch;
 /* 天井高の範囲（📐）の中なら、その範囲（いちばん小さいもの） */
@@ -2314,6 +2314,22 @@ function addBld3D(GY,CH,ext){
    g.position.set(o.x,yc,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(c=>{c.userData.bld=i+1});T.grp.add(g);
    T.bldM.push({i,k:"ins",c:new THREE.Vector3(o.x,yc-5,o.z),hw:o.w/2+20,hd:o.d/2+20,hh:10,r:o.r,y0:yc-10,h:10});
    const s0=label("🔲 点検口 "+(o.w===o.d?fmt(o.w)+"角":fmt(o.w)+"×"+fmt(o.d)),ext*0.028,"#ccfbf1f2","#115e59","bld");s0.position.set(o.x,yc-80,o.z);s0.userData.cat="bld";pxl(s0,15);T.grp.add(s0);return}
+  if(o.k==="eq"&&typeof VENTM!=="undefined"&&VENTM[o.m]){const V=VENTM[o.m],g=new THREE.Group(),A=V.A,B=V.B,C=V.C,y0e=GY+o.y;
+   /* 本体（A＝ダクトの並ぶ左右、B＝奥行）。o.w/o.d は向きを回した後の大きさなので、ここでは機種の寸法で作り o.r で回す */
+   const body=new THREE.Mesh(new THREE.BoxGeometry(A,C,B),new THREE.MeshStandardMaterial({color:0xe5e7eb,roughness:.6,metalness:.15}));body.position.y=C/2;g.add(body);
+   try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(body.geometry),new THREE.LineBasicMaterial({color:0x475569}));e.position.copy(body.position);g.add(e)}catch(err){}
+   /* メンテナンスカバー（点検口側＝手前）と天吊金具・全ねじ */
+   const cv=new THREE.Mesh(new THREE.BoxGeometry(A*0.45,8,B*0.12),new THREE.MeshStandardMaterial({color:0x94a3b8}));cv.position.set(0,-4,B/2-B*0.06);g.add(cv);
+   [-1,1].forEach(sx=>[-1,1].forEach(sz=>{const k2=new THREE.Mesh(new THREE.BoxGeometry(40,6,V.F),new THREE.MeshStandardMaterial({color:0x64748b}));k2.position.set(sx*V.D/2,C-3,sz*(B/2+V.F/2-10));g.add(k2);
+    const bt=new THREE.Mesh(new THREE.CylinderGeometry(5,5,Math.max(50,o.br||300),8),new THREE.MeshStandardMaterial({color:0x8b5cf6}));bt.position.set(sx*V.D/2,C+Math.max(50,o.br||300)/2,sz*(V.E/2));g.add(bt)}));
+   /* ダクトの差し込み口：左 EA（奥）・OA（手前）、右 RA（奥）・SA（手前）。高さ＝下から P */
+   const dz=[-B/2+V.L,-B/2+V.L+V.K],sp=new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.35,metalness:.6});
+   [["EA",-1,0,0xdc2626],["OA",-1,1,0x16a34a],["RA",1,0,0xea580c],["SA",1,1,0x2563eb]].forEach(([nm,sx,j,col])=>{const m2=new THREE.Mesh(new THREE.CylinderGeometry(V.d/2,V.d/2,V.J,20),sp);m2.rotation.z=Math.PI/2;m2.position.set(sx*(A/2+V.J/2),V.P,dz[j]);g.add(m2);
+    const rg=new THREE.Mesh(new THREE.TorusGeometry(V.d/2+4,5,6,20),new THREE.MeshBasicMaterial({color:col}));rg.rotation.y=Math.PI/2;rg.position.set(sx*(A/2+V.J),V.P,dz[j]);g.add(rg);
+    const lb=label(nm,ext*0.022,"#ffffffee","#"+col.toString(16).padStart(6,"0"),"bld");lb.position.set(sx*(A/2+V.J+60),V.P+V.d/2+40,dz[j]);lb.userData.cat="bld";pxl(lb,13);g.add(lb)});
+   g.position.set(o.x,y0e,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(q=>{if(!q.isSprite)q.userData.bld=i+1});T.grp.add(g);
+   const hw=(o.r%180?B:A)/2+V.J,hd=(o.r%180?A:B)/2;T.bldM.push({i,k:"eq",c:new THREE.Vector3(o.x,y0e+C/2,o.z),hw:A/2+V.J,hd:B/2,hh:C/2,r:o.r,y0:y0e,h:C});
+   const s0=label("🌀 ロスナイ "+V.n+"（"+f0(A)+"×"+f0(B)+"×"+f0(C)+" 下端FL+"+f0(o.y)+"）",ext*0.028,"#f1f5f9f2","#334155","bld");s0.position.set(o.x,y0e+C+80,o.z);s0.userData.cat="bld";pxl(s0,15);T.grp.add(s0);return}
   if(o.k==="hole"){const g=new THREE.Group(),L=o.d+30,cy=new THREE.Mesh(new THREE.CylinderGeometry(o.w/2,o.w/2,L,28),new THREE.MeshBasicMaterial({color:0x111827}));cy.rotation.x=Math.PI/2;g.add(cy);
    [-1,1].forEach(sg=>{const t=new THREE.Mesh(new THREE.TorusGeometry(o.w/2,Math.max(4,o.w*.07),8,28),new THREE.MeshBasicMaterial({color:0xfacc15}));t.position.z=sg*(o.d/2+16);g.add(t)});
    g.position.set(o.x,GY+o.y,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;T.grp.add(g);

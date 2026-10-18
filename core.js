@@ -229,7 +229,7 @@ function updUndoUI(){const u=$("#undoBtn"),r=$("#redoBtn");if(!u||!r)return;u.di
 function histGo(d){
  if(!hist)return;const n=hi+d;if(n<0||n>=hist.length)return;
  hi=n;const o=JSON.parse(hist[hi]);
- st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null};
+ st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null,bhid:o.bhid&&typeof o.bhid==="object"?o.bhid:null};
  if(!legIds().includes(leg))leg="m";
  try{localStorage.setItem("pbm1",JSON.stringify(st))}catch(e){}
  histT=0;sel=0;render();if(T)fitT(true);updUndoUI();
@@ -2266,25 +2266,39 @@ function bldNew(k,p){const CH=bldCH();
  const o=k==="col"?{w:600,d:600,h:CH,y:0,full:true}:k==="wall"?{w:3000,d:150,h:CH,y:0,full:true}:k==="beam"?{w:4000,d:400,h:700,y:CH+300,full:false}:k==="ind"?{w:840,d:840,h:300,y:0,full:false,m:CAS2M[RP.im]?RP.im:"56"}:k==="hole"?{w:65,d:150,h:65,y:2200,full:false}:k==="door"?{w:800,d:150,h:2000,y:0,full:false,m:"slide"}:k==="ins"?{w:450,d:450,h:10,y:0,full:false}:{w:500,d:500,h:300,y:CH+100,full:false};
  return normBld([{k,x:p?p.x:0,z:p?p.z:0,r:0,...o}])[0]}
 /* 図面の配管・ダクト（冷媒・ドレン・ダクト・衛生）：図面から取り出した線を、その高さで3Dに出す。種類ごとに表示・非表示 */
-const DLK=[["ref","冷媒","#c026d3"],["drain","ドレン","#ea580c"],["duct","ダクト","#0d9488"],["eisei","衛生","#16a34a"]];
-const dlOnOf=k=>{const o=st.dlOn||{};return o[k]!==undefined?!!o[k]:(k==="ref"||k==="drain")};
+/* 図面のダクト・衛生配管（DXFから）：丸ダクト・角ダクト・配管を立体で、外形だけの線は細い線で出す。冷媒・ドレンはアプリで作るので出さない */
+const DLK=[["duct","ダクト","#64748b"],["eisei","衛生","#16a34a"]];
+const DL_SUB=[0x3b82f6,0x92400e,0x9ca3af,0x16a34a];   // 衛生：給水・給湯／汚水・排水／通気／その他
+const dlOnOf=k=>{const o=st.dlOn||{};return o[k]!==undefined?!!o[k]:true};
+/* 障害物（建物の物）の種類ごとの表示・非表示（室内機・穴は配管とつながるので常に表示） */
+const BLD_TG=[["wall","壁"],["col","柱"],["beam","梁"],["box","障害物"],["door","扉"],["win","窓"],["ins","点検口"],["ceil","天井"],["rack","ラック"],["out","室外機"],["spot","置場"]];
+const bldHid=k=>!!(st.bhid&&st.bhid[k]);
 function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
- DLK.forEach(([k,n,col])=>{const L=D[k];if(!Array.isArray(L)||!L.length||!dlOnOf(k))return;
-  if((k==="ref"||k==="drain")&&L.length<1500){const mt=new THREE.MeshBasicMaterial({color:col}),r=Math.max(6,ext*0.0016);
-   L.forEach(s=>{const a=new THREE.Vector3(s[0],GY+s[4],s[1]),b=new THREE.Vector3(s[2],GY+s[4],s[3]),len=a.distanceTo(b);if(len<1)return;const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,6,1),mt);
-    m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize());m.userData.dl=k;T.grp.add(m)});return}
+ const sMat={duct:new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.35,metalness:.55})},eMat=DL_SUB.map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.5,metalness:.1}));
+ DLK.forEach(([k,n,col])=>{if(!dlOnOf(k))return;
+  const S=D[k+"S"];if(Array.isArray(S))S.forEach(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,a=new THREE.Vector3(x1,GY+h,z1),b=new THREE.Vector3(x2,GY+h,z2),len=a.distanceTo(b);if(len<5)return;
+   const mt=k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;
+   if(sh===1){m=new THREE.Mesh(new THREE.BoxGeometry(w,hh,len),mt);m.position.copy(a).add(b).multiplyScalar(.5);m.rotation.y=Math.atan2(x2-x1,z2-z1)}
+   else{m=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,len,k==="duct"?20:12,1),mt);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize())}
+   m.userData.dl=k;T.grp.add(m);
+   try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry,30),new THREE.LineBasicMaterial({color:k==="duct"?0x475569:0x14532d,transparent:true,opacity:.5}));e.position.copy(m.position);e.quaternion.copy(m.quaternion);e.rotation.copy(m.rotation);T.grp.add(e)}catch(err){}});
+  const L=D[k];if(!Array.isArray(L)||!L.length)return;
   const P=[];L.forEach(s=>{P.push(s[0],GY+s[4],s[1],s[2],GY+s[4],s[3])});const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(P,3));
-  const ls=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.9}));ls.userData.dl=k;T.grp.add(ls)})}
-/* 3Dの下の「図面の配管」切りかえボタン */
-function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=st.dln,has=D&&DLK.some(([k])=>D[k]&&D[k].length);
- if(!has){if(b)b.remove();return}
- if(!b){b=document.createElement("div");b.id="dlBar";b.style.cssText="position:absolute;left:62px;right:8px;bottom:12px;z-index:6;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;pointer-events:auto";stg.appendChild(b)}
- b.innerHTML=DLK.filter(([k])=>D[k]&&D[k].length).map(([k,n,col])=>{const on=dlOnOf(k);return `<button data-dl="${k}" style="flex:none;height:32px;padding:0 9px;border-radius:16px;font-weight:800;font-size:12.5px;border:2px solid ${col};background:${on?col:"#ffffffe6"};color:${on?"#fff":col}">${on?"✓":"－"}${n}</button>`}).join("");
- b.querySelectorAll("[data-dl]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.dl;st.dlOn={...(st.dlOn||{}),[k]:!dlOnOf(k)};save();if(T){build3D();T.dirty=true}else dlBar()})}
+  const ls=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.55}));ls.userData.dl=k;T.grp.add(ls)})}
+/* 3Dの下の切りかえボタン：図面のダクト・衛生と、障害物の種類 */
+function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=st.dln;
+ const dk=DLK.filter(([k])=>D&&((D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))),bk=(st.bld&&st.bld.length&&!st.bldHide)?BLD_TG.filter(([k])=>st.bld.some(o=>o.k===k)):[];
+ if(!dk.length&&!bk.length){if(b)b.remove();return}
+ if(!b){b=document.createElement("div");b.id="dlBar";b.style.cssText="position:absolute;left:62px;right:8px;bottom:12px;z-index:6;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;scrollbar-width:none";stg.appendChild(b)}
+ const sl=b.scrollLeft,btn=(a,k,n,col,on)=>`<button data-${a}="${k}" style="flex:none;height:32px;padding:0 9px;border-radius:16px;font-weight:800;font-size:12.5px;border:2px solid ${col};background:${on?col:"#ffffffe6"};color:${on?"#fff":col}">${on?"✓":"－"}${n}</button>`;
+ b.innerHTML=dk.map(([k,n,col])=>btn("dl",k,n,col,dlOnOf(k))).join("")+bk.map(([k,n])=>btn("bh",k,n,"#475569",!bldHid(k))).join("");b.scrollLeft=sl;
+ const redo=()=>{save();if(T){build3D();T.dirty=true}else dlBar()};
+ b.querySelectorAll("[data-dl]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.dl;st.dlOn={...(st.dlOn||{}),[k]:!dlOnOf(k)};redo()});
+ b.querySelectorAll("[data-bh]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.bh;st.bhid={...(st.bhid||{}),[k]:!bldHid(k)};redo()})}
 /* 3Dに描く（build3Dから呼ぶ。GY＝床の高さ） */
 function addBld3D(GY,CH,ext){
  T.bldM=[];if(!st.bld||!st.bld.length||st.bldHide)return;
- st.bld.forEach((o,i)=>{const K=BLDK[o.k],h=o.full?bldFullH(o,CH):o.h,y0=GY+(o.full?0:o.y);
+ const draw1=(o,i)=>{const K=BLDK[o.k],h=o.full?bldFullH(o,CH):o.h,y0=GY+(o.full?0:o.y);
   if(o.k==="ind"){const zc=ceilAt(o.x,o.z),CYd=GY+(zc?zc.h:CH),ib=indMesh(o,CYd);T.grp.add(ib.g);ib.g.userData.bld=i+1;
    T.bldM.push({i,k:"ind",c:new THREE.Vector3(ib.cx,ib.y0+ib.h/2,ib.cz),hw:ib.hw,hd:ib.hd,hh:ib.h/2,r:o.r,y0:ib.y0,h:ib.h,port:ib.port});
    const nm=o.m?(CAS2M[o.m]?CAS2M[o.m].n:"室内機"):fmt(o.w)+"×"+fmt(o.d);
@@ -2350,7 +2364,9 @@ function addBld3D(GY,CH,ext){
   try{if(THREE.EdgesGeometry){const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:isW?0x334155:K.c}));e.position.copy(m.position);e.rotation.y=m.rotation.y;e.userData.bld=i+1;T.grp.add(e)}}catch(err){}
   T.bldM.push({i,k:o.k,c:new THREE.Vector3(o.x,y0+h/2,o.z),hw:o.w/2,hd:o.d/2,hh:h/2,r:o.r,y0,h});
   const t=K.i+" "+K.n+" "+(o.k==="out"?(OUTM[o.m]?OUTM[o.m].n:"")+" "+fmt(o.w)+"×"+fmt(o.d):o.k==="spot"?fmt(o.w)+"×"+fmt(o.d):o.k==="beam"?fmt(o.d)+"×"+fmt(o.h)+" 梁下"+fmt(o.y):o.k==="box"?fmt(o.w)+"×"+fmt(o.d)+"×"+fmt(o.h)+" 下面"+fmt(o.y):o.k==="wall"?"厚"+fmt(o.d)+" 長"+fmt(o.w):fmt(o.w)+"×"+fmt(o.d));
-  const s=label(t,ext*0.03,"#f1f5f9f2","#334155","bld");s.position.set(o.x,y0+h+40,o.z);s.userData.cat="bld";pxl(s,17);T.grp.add(s)});
+  const s=label(t,ext*0.03,"#f1f5f9f2","#334155","bld");s.position.set(o.x,y0+h+40,o.z);s.userData.cat="bld";pxl(s,17);T.grp.add(s)};
+ /* 種類ごとに隠した物は描くが見せない（配管が当たっているかの判定には使う） */
+ st.bld.forEach((o,i)=>{const n0=T.grp.children.length;draw1(o,i);if(bldHid(o.k))for(let j=n0;j<T.grp.children.length;j++)T.grp.children[j].visible=false});
  try{indDims(ext)}catch(e){console.warn("indDims",e)}
  try{pipeHits(ext)}catch(e){console.warn("hits",e)}
 }
@@ -2607,7 +2623,7 @@ let LOCAL=false;const SITES_KEY="pbm_sites";
 function loadSites(){try{const a=JSON.parse(localStorage.getItem(SITES_KEY));return Array.isArray(a)?a:[]}catch(e){return[]}}
 function storeSites(a){localStorage.setItem(SITES_KEY,JSON.stringify(a))}
 function restoreSt(o){
- st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null};
+ st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null,bhid:o.bhid&&typeof o.bhid==="object"?o.bhid:null};
  leg="m";sel=0;save();$("#sz").value=st.s;render();if(T)fitT(true);
 }
 function openPlan(p){

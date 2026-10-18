@@ -160,7 +160,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
   h=`<p style="margin-bottom:6px">追加したいものを選んでください。終わったら「3Dで見る」。</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${WZ_ADD.map(([k,i,t])=>`<button data-add="${k}" style="min-height:56px;padding:6px;border-radius:12px;font-weight:800;font-size:14px;background:#fff;border:1.5px solid #cbd5e1;text-align:left;line-height:1.25"><span style="font-size:20px">${i}</span> ${t}${c[k]?`<br><span style="font-size:11.5px;color:#16a34a">置いた数：${c[k]}</span>`:""}</button>`).join("")}</div>
    ${wzBtn("wzPipeGo","🔧 室内機から配管を自動で引く（穴を通して室外機へ）","#0f766e","#fff","width:100%;margin-top:8px")}
    <div style="display:flex;gap:6px;margin-top:8px">${wzBtn("wzAutoGo","✨ 図面から自動で読み込む","#7c3aed","#fff","flex:1")}${wzBtn("wzDelGo","🗑 間違いを消す","#dc2626","#fff","flex:1")}</div>
-   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${st.bld.length?wzBtn("wzClearAll","🧹 置いた物を全部消す"):""}${wzBtn("wzDL","🧩 図面の配管・ダクトを3Dに")}${wzBtn("wzList","📋 墨出しリスト")}${wzBtn("wzRedo","📐 縮尺・原点をやり直す")}${wzBtn("wzClassic","🔧 細かい道具（なぞる等）")}</div>`}
+   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${st.bld.length?wzBtn("wzClearAll","🧹 置いた物を全部消す"):""}${wzBtn("wzDL","🧩 図面のダクト・衛生配管を3Dに")}${wzBtn("wzList","📋 墨出しリスト")}${wzBtn("wzRedo","📐 縮尺・原点をやり直す")}${wzBtn("wzClassic","🔧 細かい道具（なぞる等）")}</div>`}
  else if(s==="t:auto"){title="✨ 図面から自動で読み込む";nxT="✅ 終わり ▶";const R=W.autoRes;
   const ck=(k,l,v)=>`<label style="display:inline-flex;align-items:center;gap:6px;margin:2px 12px 2px 0;font-weight:800"><input type="checkbox" data-ak="${k}" ${v!==false?"checked":""} style="width:22px;height:22px">${l}</label>`;
   h=`<p>図面の線から、<b>壁・柱・室内機</b>を自動で見つけて置きます。間違っていたら、あとで「🗑 間違いを消す」で消せます。</p><div>${ck("aw","🧱 壁",W.aw)}${ck("ac","🏛 柱",W.ac)}${ck("ai","❄️ 室内機",W.ai)}</div>`+wzInp("wh","壁の高さ（0＝天井まで）")+
@@ -237,8 +237,8 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
  bl.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const k=b.dataset.add;if(k==="read"){planReadAll();return}if(k==="auto"){planAutoAll();return}wzGo("t:"+k)});
  on("wzAutoGo",()=>wzGo("t:auto"));
  on("wzDL",()=>{const P=PLAN;if(!P||!P.org){toast("先に原点を決めてください");return}let D=null;try{D=planDrawLines()}catch(e){console.warn(e)}
-  const n=D?DL_KINDS.filter(([k])=>D[k]&&D[k].length):[];if(!n.length){toast("図面に冷媒・ドレン・ダクト・衛生の線が見つかりませんでした（DXFは画層の名前、PDFは赤紫＝冷媒・オレンジ＝ドレンで見分けます）");return}
-  st.dln=D;save();try{if(T){build3D();T.dirty=true}}catch(e){}toast("図面の配管を3Dに出しました："+n.map(([k,nm])=>nm+" "+D[k].length+"本").join("・")+"。3Dの下のボタンで表示・非表示")});on("wzPipeGo",()=>wzGo("t:pipe"));
+  const n=D?DL_KINDS.filter(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)):[];if(!n.length){toast(P.dxf?"図面にダクト・衛生配管の画層が見つかりませんでした":"PDFではダクト・衛生配管を見分けられません（DXFなら画層の名前で出せます）");return}
+  st.dln=D;save();try{if(T){build3D();T.dirty=true}}catch(e){}toast("図面の"+n.map(([k,nm])=>nm).join("・")+"を3Dに出しました（丸ダクト・角ダクト・配管）。3Dの下のボタンで表示・非表示")});on("wzPipeGo",()=>wzGo("t:pipe"));
  on("wzClearAll",()=>sheetMsg(`<b style="font-size:17px">🧹 置いた物を全部消しますか？</b><p>壁・柱・室内機・室外機など ${st.bld.length}個を消します。</p>`,[["全部消す",()=>{st.bld=[];st.bldXf=null;st.bldKey="";BT.stack=[];bldChanged();wzRender();planDraw();toast("全部消しました")},"#dc2626","#fff"],["やめる"]]));
  on("wzPipeBox",()=>{const e=$("#wzPipeM");const v=e&&e.value;if(!v){toast("機種を選んでください");return}const o=st.bld[W.pi];if(o){o.m=v;st.bld=normBld(st.bld);bldChanged();W.psub="hole";BT.tool="pipehole";wzRender()}});
  on("wzPipeNoHole",()=>{W.psub="out";BT.tool="pipeout";wzRender()});on("wzPipeHoleOk",()=>{W.psub="out";BT.tool="pipeout";wzRender()});
@@ -1782,9 +1782,9 @@ let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.war
  try{if(r&&typeof kzDoors==="function")nd=kzDoors(true)}catch(e){console.warn("doors",e)}try{if(r&&typeof kzWindows==="function")nwn=kzWindows(true)}catch(e){console.warn("win",e)}
  /* 点検口（室内機の近くの、機器の色の 300〜600角の四角）と、図面の配管・ダクト（3Dに出して種類ごとに表示・非表示） */
  let ni=0,ndl="";if(r){try{ni=planAutoIns(I)}catch(e){console.warn("ins",e)}
-  try{const D=planDrawLines&&planDrawLines();if(D){st.dln=D;ndl=DL_KINDS.filter(([k])=>D[k]&&D[k].length).map(([k,n])=>n).join("・");save()}}catch(e){console.warn("dl",e)}
+  try{const D=planDrawLines&&planDrawLines();const hk=D?DL_KINDS.filter(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)):[];if(hk.length){st.dln=D;ndl=hk.map(([k,n])=>n).join("・");save()}}catch(e){console.warn("dl",e)}
   try{if(T){build3D();T.dirty=true}else if(typeof dlBar==="function")dlBar()}catch(e){}}
- if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+(ni?"・点検口 "+ni+"個":"")+(ndl?"・図面の配管（"+ndl+"）":"")+"。違う所は図面画面で直せます"),400)}
+ if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+(ni?"・点検口 "+ni+"個":"")+(ndl?"・図面の"+ndl:"")+"。違う所は図面画面で直せます"),400)}
  return r}
 
 /* 読み込み終わったら、建物・図面・スキャンを3Dに出し直す */

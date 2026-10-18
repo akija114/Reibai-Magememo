@@ -812,6 +812,7 @@ function planGestures(){
  const setAim=f=>{const q=[f[0],f[1]-OFF],ip=toImg(q),sn=PV.mode==="col"?ip:planSnap(ip);aim={f,s:q,snap:sn,snapped:Math.hypot(sn[0]-ip[0],sn[1]-ip[1])>0.01};redraw()};
  /* 指の操作はタッチイベントで直接扱う（iPhoneで一番安定）。マウスはポインターで扱う */
  const place=p=>{if(!PLAN)return;
+  if(window.DXF_PICK&&PLAN.dxf)return;   // 線を消すタップ中は置かない
   if(PV.mode==="cal"){if(PV.cal.length>=2)PV.cal[1]=p;else PV.cal.push(p);planDraw();
    if(W.on){wzRender();return}
    if(PV.cal.length===2)askNum("この2点の実際の長さ（mm）は？",1000,v=>{if(!calApply(v)){PV.cal=[];planDraw()}else PV.md("trace")},()=>{PV.cal=[];planDraw()})}
@@ -835,6 +836,12 @@ function planGestures(){
   // 指が減った：残りの指の今の位置から取り直す（位置が飛ばない）。2本→1本のあとは狙いを出さない
   if(ts.length===1){const a=tp(ts[0]);G={n:1,p:a,ox:PV.ox,oy:PV.oy,aimOk:false};aim=null;redraw()}else startG(ts)};
  cv.addEventListener("touchend",tend,{passive:false});cv.addEventListener("touchcancel",tend,{passive:false});
+ /* DXF「線をタップで消す」：指1本（マウスも）の短いタップで、いちばん近い線の種類を隠す */
+ let pk0=null;const pkGo=(x,y)=>{if(!window.DXF_PICK||!PLAN||!PLAN.dxf||!window.dxfPickHide)return;const r=cv.getBoundingClientRect();dxfPickHide([(x-r.left-PV.ox)/PV.z,(y-r.top-PV.oy)/PV.z],16/PV.z)};
+ cv.addEventListener("touchstart",e=>{pk0=e.touches.length===1?{x:e.touches[0].clientX,y:e.touches[0].clientY,t:Date.now()}:null},{passive:true});
+ cv.addEventListener("touchend",e=>{const c=e.changedTouches&&e.changedTouches[0];if(pk0&&c&&e.touches.length===0&&Math.hypot(c.clientX-pk0.x,c.clientY-pk0.y)<12&&Date.now()-pk0.t<700)pkGo(c.clientX,c.clientY);pk0=null},{passive:true});
+ cv.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse")pk0={x:e.clientX,y:e.clientY,t:Date.now()}});
+ cv.addEventListener("pointerup",e=>{if(e.pointerType!=="mouse"||!pk0)return;if(Math.hypot(e.clientX-pk0.x,e.clientY-pk0.y)<6)pkGo(e.clientX,e.clientY);pk0=null});
  /* マウス（パソコン） */
  cv.addEventListener("pointerdown",e=>{if(e.pointerType!=="mouse")return;cv.setPointerCapture(e.pointerId);const p=rel(e);st0={p,ox:PV.ox,oy:PV.oy};moved=false;if(PV.mode!=="move"&&PLAN)setAim(p)});
  cv.addEventListener("pointermove",e=>{if(e.pointerType!=="mouse"||!st0)return;const p=rel(e);if(aim){setAim(p);return}if(PV.mode==="move"){PV.ox=st0.ox+p[0]-st0.p[0];PV.oy=st0.oy+p[1]-st0.p[1];redraw()}});
@@ -1739,6 +1746,11 @@ function planScaleByUnit(I){const P=PLAN,m=CAS2M[I.k],meas=Math.max(I.c.w,I.c.h)
  toast("室内機の大きさから、縮尺を 1/"+cand.d+" に直しました");return true}
 function planCanAuto(){const P=PLAN;if(!P)return false;const key=P.mmpp+"|"+(P.segs||[]).length;if(P._ca&&P._ca.k===key)return P._ca.v;let v=false;try{v=!!(P&&P.segs&&P.segs.length>50&&P.mmpp&&P.segs.some(s2=>isMag(s2[4]))&&planFindInd())}catch(e){}P._ca={k:key,v};return v}
 function planAutoAll(){const P=PLAN;
+ /* DXF：表示している種類・線だけで読む。空調を出していない時は、ダクト・衛生だけ3Dに出す */
+ if(P&&P.dxf&&!P._flt&&window.dxfFilterRun){const vis=dxfVisible(P);if(!P.segs.some(s=>vis(s[5])&&dxfGrp(s[5])==="ac")){let D=null;try{if(P.org)D=planDrawLines()}catch(e){console.warn(e)}
+   const hk=D?DL_KINDS.filter(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)):[];if(!P.org){toast("先に原点を決めてください");return null}
+   if(hk.length){st.dln=D;save();try{if(T){build3D();T.dirty=true}}catch(e){}toast("表示している "+hk.map(([k,n])=>n).join("・")+" だけを3Dに出しました")}else toast("空調・ダクト・衛生のどれかを表示してから押してください");return null}
+  return dxfFilterRun(planAutoAll)}
  if(!P||!P.segs||P.segs.length<50){toast("線のデータがある図面（CADのPDF）で使えます。写真の図面は、縮尺と原点を手で決めてください");return}
  if(!P.mmpp){toast("縮尺が分かりませんでした。縮尺を選ぶか「縮尺を2点で」で合わせてから、もう一度押してください");try{wzGo("scale")}catch(e){}return}
  let I=planFindInd();if(!I){toast("室内機が見つかりませんでした（青い四角の記号が必要です）");return}

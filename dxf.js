@@ -10,10 +10,11 @@ const ACI=(()=>{const t=["#000000","#ff0000","#ffff00","#00ff00","#00ffff","#000
 /* 画層の名前 → 種類 */
 /* 線の名前（画層）ごとに、人が決めた種類（図面の会社ごとに名前が違うので）：ref 冷媒・drain ドレン・acq 空調機器・duct・eisei・elec 電気・arch 建築・anno 寸法文字 */
 let DXMAP=null;const dxMap=()=>{if(!DXMAP){try{DXMAP=JSON.parse(localStorage.getItem("pbm_dxfmap")||"{}")||{}}catch(e){DXMAP={}}}return DXMAP};
-const ELEC_RE=/電気|電灯|動力|弱電|照明|コンセント|ｺﾝｾﾝﾄ|ケーブル|ｹｰﾌﾞﾙ|ラック|ﾗｯｸ|幹線|分電|配電|火報|自火報|感知器|放送|ＬＡＮ|LAN|電話|接地|配線|ELEC|ELE-|^E-?\d*電/i;
+const ELEC_RE=/電気|電灯|動力|弱電|照明|コンセント|ｺﾝｾﾝﾄ|ケーブル|ｹｰﾌﾞﾙ|ラック|ﾗｯｸ|幹線|分電|配電|火報|自火報|感知器|放送|ＬＡＮ|LAN|電話|接地|配線|ELEC|ELE-|^E-?\d*電|LITE|LIGHT|POWR|POWER|CABLE|TRAY|ECLAIR|COURANT/i;
 function dxfCat(L){L=L||"";const m=dxMap()[L];if(m)return["ref","drain","duct","eisei","elec"].includes(m)?m:"";
- if(/冷媒/.test(L))return"ref";if(/ドレン|ﾄﾞﾚﾝ/.test(L))return"drain";if(/ダクト|ﾀﾞｸﾄ/.test(L))return"duct";
- if(/給水|給湯|汚水|雑排|排水|通気|消火|衛生|ガス管|ｶﾞｽ|上水|中水|雨水/.test(L))return"eisei";if(ELEC_RE.test(L))return"elec";return""}
+ /* 英語（M-REFR・M-HVAC-DUCT・P-DOMW・E-LITE など）・フランス語（GAINE・PLOMBERIE など）の名前も */
+ if(/冷媒|REFR|REFRIG|FRIGO/i.test(L))return"ref";if(/ドレン|ﾄﾞﾚﾝ|CONDENSATE|DRAIN|\bDRN\b/i.test(L))return"drain";if(/ダクト|ﾀﾞｸﾄ|DUCT|GAINE/i.test(L))return"duct";
+ if(/給水|給湯|汚水|雑排|排水|通気|消火|衛生|ガス管|ｶﾞｽ|上水|中水|雨水|PLUMB|PLOMB|SANR|SANIT|DOMW|SEWER|WATER|SPRINK|EAU/i.test(L))return"eisei";if(ELEC_RE.test(L))return"elec";return""}
 /* 画層の名前 → 自動読み込み用の色（PDFの空調図と同じ色にそろえる：機器＝青、冷媒＝赤紫、ドレン＝オレンジ、建築＝グレー） */
 function dxfAnaCol(L){L=L||"";const mp=dxMap()[L];if(mp==="acq")return"#0000ff";if(mp==="arch")return"#c0c0c0";if(mp==="anno")return"#000000";const c=dxfCat(L);
  if(c==="ref")return"#ff00ff";if(c==="drain")return"#ff7f00";if(c)return"#2a9d8f";
@@ -98,7 +99,7 @@ window.dxfToPlan=function(G,f){const S=G.segs.filter(s=>Math.hypot(s[2]-s[0],s[3
  const P={img:c,W,H0:H,segs,segAll,arcs,texts:tAna,textsAll:texts,mmpp,ptpx:0,den:0,dxf:1,dS,route:[],walls:[],show:true,fkey:f.name+"|"+f.size};dxfRender(P);return P};
 /* 図面の線を「何の図か」で分ける：空調（冷媒・ドレン・機器）／ダクト／衛生／建築／寸法・文字 */
 function dxfGrp(L){L=L||"";const mp=dxMap()[L];if(mp)return mp==="ref"||mp==="drain"||mp==="acq"?"ac":mp;const k=dxfCat(L);if(k==="ref"||k==="drain")return"ac";if(k)return k;
- if(/機器|ｽﾘｰﾌﾞ|スリーブ|メンテ|室内機|室外機|空調|冷媒|PAC|基準線/.test(L))return"ac";
+ if(/機器|ｽﾘｰﾌﾞ|スリーブ|メンテ|室内機|室外機|空調|冷媒|PAC|基準線|HVAC|EQPM|EQUIP|AIRCON|CLIM/i.test(L))return"ac";
  if(/寸法|文字|符号|枠|凡例|方位|補助線|表/.test(L))return"anno";return"arch"}
 const DXV=[["ac","空調","#2563eb"],["duct","ダクト","#0d9488"],["eisei","衛生","#16a34a"],["elec","電気","#ca8a04"],["arch","建築","#64748b"],["anno","寸法・文字","#a16207"]];
 const DXOPT=[["ref","冷媒"],["drain","ドレン"],["acq","空調機器"],["duct","ダクト"],["eisei","衛生"],["elec","電気"],["arch","建築"],["anno","寸法・文字"]];

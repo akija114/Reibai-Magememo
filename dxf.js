@@ -102,7 +102,8 @@ window.dxfToPlan=function(G,f){const S=G.segs.filter(s=>Math.hypot(s[2]-s[0],s[3
    ・高さ：同じ種類の近くの「FL+3200」などの文字。無ければ天井の少し下（ダクトは天井の上） */
 const DL_KINDS=[["ref","冷媒"],["drain","ドレン"],["duct","ダクト"],["eisei","衛生"]];
 window.DL_KINDS=DL_KINDS;
-function segCat(s){if(s[5]!==undefined)return dxfCat(s[5]);const c=(s[4]||"").toLowerCase();return c==="#ff00ff"?"ref":c==="#ff7f00"?"drain":""}
+function segCat(s){if(s[5]!==undefined)return dxfCat(s[5]);const c=s[4]||"";if(c.length<7)return"";const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
+ return r>200&&g<80&&b>200?"ref":r>200&&g>90&&g<170&&b<60?"drain":""}   // PDF：赤紫＝冷媒、オレンジ＝ドレン（#ff7f00・#ff7e00 など少し違っても）
 function txtCat(t){return t.lay!==undefined?dxfCat(t.lay):""}
 window.planViews=planViews;function planViews(P){const lab=(P.textsAll||P.texts||[]).map(t=>{const m=String(t.s).trim().replace(/[ＸＹ０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).match(/^([XY])\s*(\d{1,2})$/);return m?{n:m[1]+m[2],ax:m[1],x:t.x,y:t.y}:null}).filter(Boolean);
  /* X の記号は同じ高さに横並び、Y の記号は同じ位置に縦並び。並びの中で同じ名前が出たら別の図 */

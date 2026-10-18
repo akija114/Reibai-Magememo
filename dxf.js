@@ -83,18 +83,40 @@ window.dxfToPlan=function(G,f){const S=G.segs.filter(s=>Math.hypot(s[2]-s[0],s[3
  const q=(A,p)=>A[Math.min(A.length-1,Math.max(0,Math.round(p*(A.length-1))))],x0=q(xs,0),x1=q(xs,1),y0=q(ys,0),y1=q(ys,1),pad=Math.max(x1-x0,y1-y0)*0.01;
  const X0=x0-pad,Y1=y1+pad,Wm=x1-x0+2*pad,Hm=y1-y0+2*pad,mmpp=Math.max(Wm/3600,Hm/3600,Math.sqrt(Wm*Hm/7e6));
  const W=Math.round(Wm/mmpp),H=Math.round(Hm/mmpp),px=(x,y)=>[(x-X0)/mmpp,(Y1-y)/mmpp];
- const c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,W,H);g.lineWidth=1;g.lineCap="round";
- const disp=col=>{const r=parseInt(col.slice(1,3),16),gg=parseInt(col.slice(3,5),16),b=parseInt(col.slice(5,7),16);return r>230&&gg>230&&b>230?"#000000":r>200&&gg>200&&b<80?"#b8a000":col};
- const by={};S.forEach(s=>{(by[s[5]]=by[s[5]]||[]).push(s)});
- Object.keys(by).forEach(col=>{g.strokeStyle=disp(col);g.beginPath();by[col].forEach(s=>{const a=px(s[0],s[1]),b=px(s[2],s[3]);g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1])});g.stroke()});
- const texts=[];G.texts.forEach(t=>{const p=px(t.x,t.y),h=Math.max(1,t.h/mmpp);texts.push({s:t.s,x:p[0],y:p[1],w:h*0.9*t.s.length,h,lay:t.lay});
-  if(h>=2){g.save();g.translate(p[0],p[1]);g.rotate(-(t.r||0)*Math.PI/180);g.fillStyle=disp(t.col||"#000000");g.font=Math.round(h)+"px sans-serif";g.fillText(t.s,0,0);g.restore()}});
+ const c=document.createElement("canvas");c.width=W;c.height=H;
+ const texts=[];G.texts.forEach(t=>{const p=px(t.x,t.y),h=Math.max(1,t.h/mmpp);texts.push({s:t.s,x:p[0],y:p[1],w:h*0.9*t.s.length,h,lay:t.lay,r:t.r||0,col:t.col})});
+ /* 画面に描く線（種類ごとに出し分けるので、px にして取っておく） */
+ const dS=S.map(s=>{const a=px(s[0],s[1]),b=px(s[2],s[3]);return[a[0],a[1],b[0],b[1],s[5],dxfGrp(s[4])]});
  const segs=S.map(s=>{const a=px(s[0],s[1]),b=px(s[2],s[3]);return[a[0],a[1],b[0],b[1],dxfAnaCol(s[4]),s[4]]}).filter((s,i)=>s[4]&&!S[i][6]&&Math.hypot(s[2]-s[0],s[3]-s[1])>0.3);
  const arcs=G.arcs.filter(o=>dxfAnaCol(o.lay)).map(o=>({a:px(o.a[0],o.a[1]),m:px(o.m[0],o.m[1]),b:px(o.b[0],o.b[1]),col:dxfAnaCol(o.lay),lay:o.lay}));
  /* 自動読み込みに使う文字は、空調（冷媒・ドレン・機器）と建築だけ（ダクト・衛生の「FL+3900」などを配管の高さと間違えないように） */
  const tAna=texts.filter(t=>{const k=dxfCat(t.lay);return k!=="duct"&&k!=="eisei"});
  const segAll=S.map(s=>{const a=px(s[0],s[1]),b=px(s[2],s[3]);return[a[0],a[1],b[0],b[1],"",s[4]]}).filter(s=>dxfCat(s[5]));
- return{img:c,W,H0:H,segs,segAll,arcs,texts:tAna,textsAll:texts,mmpp,ptpx:0,den:0,dxf:1,route:[],walls:[],show:true,fkey:f.name+"|"+f.size}};
+ const P={img:c,W,H0:H,segs,segAll,arcs,texts:tAna,textsAll:texts,mmpp,ptpx:0,den:0,dxf:1,dS,route:[],walls:[],show:true,fkey:f.name+"|"+f.size};dxfRender(P);return P};
+/* 図面の線を「何の図か」で分ける：空調（冷媒・ドレン・機器）／ダクト／衛生／建築／寸法・文字 */
+function dxfGrp(L){L=L||"";const k=dxfCat(L);if(k==="ref"||k==="drain")return"ac";if(k)return k;
+ if(/機器|ｽﾘｰﾌﾞ|スリーブ|メンテ|室内機|室外機|空調|冷媒|PAC|基準線/.test(L))return"ac";
+ if(/寸法|文字|符号|枠|凡例|方位|補助線|表/.test(L))return"anno";return"arch"}
+const DXV=[["ac","空調","#2563eb"],["duct","ダクト","#0d9488"],["eisei","衛生","#16a34a"],["arch","建築","#64748b"],["anno","寸法・文字","#a16207"]];
+const dxvOn=()=>{let o={};try{o=JSON.parse(localStorage.getItem("pbm_dxfv")||"{}")||{}}catch(e){}return k=>o[k]!==undefined?!!o[k]:(k!=="duct"&&k!=="eisei")};
+function dxfRender(P){if(!P||!P.dS)return;const on=dxvOn(),c=P.img,g=c.getContext("2d");g.setTransform(1,0,0,1,0,0);g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.lineWidth=1;g.lineCap="round";
+ const disp=col=>{const r=parseInt(col.slice(1,3),16),gg=parseInt(col.slice(3,5),16),b=parseInt(col.slice(5,7),16);return r>230&&gg>230&&b>230?"#000000":r>200&&gg>200&&b<80?"#b8a000":col};
+ /* 出している種類が少ない時は、建築を薄く（主役の線が見やすいように） */
+ const by={};P.dS.forEach(s=>{if(!on(s[5]))return;const k=s[4]+"|"+(s[5]==="arch"&&(on("duct")||on("eisei")||on("ac"))?1:0);(by[k]=by[k]||[]).push(s)});
+ Object.keys(by).forEach(k=>{const[col,fade]=k.split("|");g.globalAlpha=fade==="1"?0.45:1;g.strokeStyle=disp(col);g.beginPath();by[k].forEach(s=>{g.moveTo(s[0],s[1]);g.lineTo(s[2],s[3])});g.stroke()});g.globalAlpha=1;
+ (P.textsAll||[]).forEach(t=>{const gr=dxfGrp(t.lay);if(!on(gr==="arch"?"anno":gr))return;if(t.h<2)return;g.save();g.translate(t.x,t.y);g.rotate(-(t.r||0)*Math.PI/180);g.fillStyle=disp(t.col||"#000000");g.font=Math.round(t.h)+"px sans-serif";g.fillText(t.s,0,0);g.restore()});
+ P._tex=(P._tex||0)+1}
+window.dxfRender=dxfRender;
+/* 図面画面の下の切りかえボタン（DXFの時だけ） */
+window.dxfChips=function(){const wr=document.getElementById("plWrap");let el=document.getElementById("dxfChips");const P=typeof PLAN!=="undefined"?PLAN:null;
+ if(!wr||!P||!P.dxf){if(el)el.remove();return}
+ if(!el){el=document.createElement("div");el.id="dxfChips";el.style.cssText="position:absolute;left:8px;right:8px;bottom:8px;z-index:5;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none";wr.appendChild(el)}
+ if(el.dataset.k===P.fkey+"|"+(P._tex||0))return;el.dataset.k=P.fkey+"|"+(P._tex||0);
+ const on=dxvOn(),has=new Set(P.dS.map(s=>s[5]));
+ el.innerHTML=DXV.filter(([k])=>has.has(k)).map(([k,n,col])=>{const o=on(k);return `<button data-dv="${k}" style="flex:none;height:34px;padding:0 10px;border-radius:17px;font-weight:800;font-size:13px;border:2px solid ${col};background:${o?col:"#ffffffee"};color:${o?"#fff":col}">${o?"✓":"－"}${n}</button>`}).join("");
+ el.querySelectorAll("[data-dv]").forEach(b=>b.onclick=e=>{e.stopPropagation();const k=b.dataset.dv;let o={};try{o=JSON.parse(localStorage.getItem("pbm_dxfv")||"{}")||{}}catch(err){}o[k]=!dvOn(k);try{localStorage.setItem("pbm_dxfv",JSON.stringify(o))}catch(err){}
+  dxfRender(P);if(P.tex)P.tex.needsUpdate=true;dxfChips();try{planDraw()}catch(err){}try{if(typeof T!=="undefined"&&T)T.dirty=true}catch(err){}});
+ function dvOn(k){return dxvOn()(k)}};
 
 /* ===== 図面の配管・ダクトを3D用に取り出す（冷媒・ドレン・ダクト・衛生）=====
    ・図面に「平面図」「天井伏図」など何枚も描いてある時は、通り芯の記号（X1・Y2…）で図をわけ、原点のある図に合わせる

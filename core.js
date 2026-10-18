@@ -2288,12 +2288,14 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
 /* 3Dの下の切りかえボタン：図面のダクト・衛生と、障害物の種類 */
 function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=st.dln;
  const dk=DLK.filter(([k])=>D&&((D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))),bk=(st.bld&&st.bld.length&&!st.bldHide)?BLD_TG.filter(([k])=>st.bld.some(o=>o.k===k)):[];
- if(!dk.length&&!bk.length){if(b)b.remove();return}
+ const PLf=typeof PLAN!=="undefined"&&PLAN&&PLAN.img&&PLAN.mmpp&&PLAN.org?PLAN:null;   // 床に映す図面（図面のページだけ）
+ if(!dk.length&&!bk.length&&!PLf){if(b)b.remove();return}
  if(!b){b=document.createElement("div");b.id="dlBar";b.style.cssText="position:absolute;left:62px;right:8px;bottom:12px;z-index:6;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;scrollbar-width:none";stg.appendChild(b)}
  const sl=b.scrollLeft,btn=(a,k,n,col,on)=>`<button data-${a}="${k}" style="flex:none;height:32px;padding:0 9px;border-radius:16px;font-weight:800;font-size:12.5px;border:2px solid ${col};background:${on?col:"#ffffffe6"};color:${on?"#fff":col}">${on?"✓":"－"}${n}</button>`;
- b.innerHTML=dk.map(([k,n,col])=>btn("dl",k,n,col,dlOnOf(k))).join("")+bk.map(([k,n])=>btn("bh",k,n,"#475569",!bldHid(k))).join("");b.scrollLeft=sl;
+ b.innerHTML=(PLf?btn("fl","1","床の図面","#a16207",!!PLf.show):"")+dk.map(([k,n,col])=>btn("dl",k,n,col,dlOnOf(k))).join("")+bk.map(([k,n])=>btn("bh",k,n,"#475569",!bldHid(k))).join("");b.scrollLeft=sl;
  const redo=()=>{save();if(T){build3D();T.dirty=true}else dlBar()};
  b.querySelectorAll("[data-dl]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.dl;st.dlOn={...(st.dlOn||{}),[k]:!dlOnOf(k)};redo()});
+ b.querySelectorAll("[data-fl]").forEach(x=>x.onclick=e=>{e.stopPropagation();PLf.show=!PLf.show;try{if(window.zUpFloor)zUpFloor()}catch(err){}redo()});
  b.querySelectorAll("[data-bh]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.bh;st.bhid={...(st.bhid||{}),[k]:!bldHid(k)};redo()})}
 /* 3Dに描く（build3Dから呼ぶ。GY＝床の高さ） */
 function addBld3D(GY,CH,ext){

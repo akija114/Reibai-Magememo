@@ -752,7 +752,7 @@ function planInfo(){const P=PLAN,el=$("#plInfo");if(!el)return;try{planSteps()}c
  $("#plH").value=P.H||"";$("#plCH").value=P.CH||"";
 }
 function planDraw(){
- const cv=$("#plCv");if(!cv)return;try{wzSync()}catch(e){}planInfo();const wr=$("#plWrap"),dpr=window.devicePixelRatio||1,W=wr.clientWidth,H=wr.clientHeight;
+ const cv=$("#plCv");if(!cv)return;try{wzSync()}catch(e){}try{if(window.dxfChips)dxfChips()}catch(e){}planInfo();const wr=$("#plWrap"),dpr=window.devicePixelRatio||1,W=wr.clientWidth,H=wr.clientHeight;
  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
  const x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
  const P=PLAN;if(!P||!P.img)return;

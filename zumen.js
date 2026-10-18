@@ -841,7 +841,7 @@ function planGestures(){
  cv.addEventListener("pointerup",e=>{if(e.pointerType!=="mouse")return;st0=null;if(aim){const p=aim.snap;aim=null;place(p)}});
  cv.addEventListener("wheel",e=>{e.preventDefault();const r=cv.getBoundingClientRect(),cx=e.clientX-r.left,cy=e.clientY-r.top,z=Math.max(0.03,Math.min(30,PV.z*Math.exp(-e.deltaY*0.0015)));PV.ox=cx-(cx-PV.ox)*z/PV.z;PV.oy=cy-(cy-PV.oy)*z/PV.z;PV.z=z;redraw()},{passive:false});
  /* iPhoneの画面ごとの拡大（ピンチ・ダブルタップ）を止める：これが「違う所が拡大される」原因 */
- const ov=$("#planOv");["touchstart","touchmove"].forEach(t=>wr.addEventListener(t,e=>{if(e.target&&e.target.closest&&e.target.closest("#wzBal,#plFloat"))return;if(e.cancelable)e.preventDefault()},{passive:false}));
+ const ov=$("#planOv");["touchstart","touchmove"].forEach(t=>wr.addEventListener(t,e=>{if(e.target&&e.target.closest&&e.target.closest("#wzBal,#plFloat,#dxfChips"))return;if(e.cancelable)e.preventDefault()},{passive:false}));
  ["gesturestart","gesturechange","gestureend"].forEach(t=>ov.addEventListener(t,e=>e.preventDefault(),{passive:false}));
  window.addEventListener("resize",()=>{if(ov.style.display!=="none")planDraw()});
 }

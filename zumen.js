@@ -1747,8 +1747,11 @@ function planScaleByUnit(I){const P=PLAN,m=CAS2M[I.k],meas=Math.max(I.c.w,I.c.h)
 function planCanAuto(){const P=PLAN;if(!P)return false;const key=P.mmpp+"|"+(P.segs||[]).length;if(P._ca&&P._ca.k===key)return P._ca.v;let v=false;try{v=!!(P&&P.segs&&P.segs.length>50&&P.mmpp&&P.segs.some(s2=>isMag(s2[4]))&&planFindInd())}catch(e){}P._ca={k:key,v};return v}
 function planAutoAll(){const P=PLAN;
  /* DXF：表示している種類・線だけで読む。空調を出していない時は、ダクト・衛生だけ3Dに出す */
- if(P&&P.dxf&&!P._flt&&window.dxfFilterRun){const vis=dxfVisible(P);if(!P.segs.some(s=>vis(s[5])&&dxfGrp(s[5])==="ac")){let D=null;try{if(P.org)D=planDrawLines()}catch(e){console.warn(e)}
-   const hk=D?DL_KINDS.filter(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)):[];if(!P.org){toast("先に原点を決めてください");return null}
+ if(P&&P.dxf&&!P._flt&&window.dxfFilterRun){const vis=dxfVisible(P);if(!P.segs.some(s=>vis(s[5])&&dxfGrp(s[5])==="ac")){
+   /* 原点がまだ無い時は、図面ぜんぶ（隠している線も）から室内機を探して、その真ん中を原点にする */
+   if(!P.org){let I=null;try{I=planFindInd()}catch(e){}if(I){P.org=[Math.round(I.c.cx),Math.round(I.c.cy)];try{wzSave()}catch(e){}}else{toast("原点が決まっていません。「③ 原点」で基準の点をタップしてください");try{wzGo("org")}catch(e){}return null}}
+   let D=null;try{D=planDrawLines()}catch(e){console.warn(e)}
+   const hk=D?DL_KINDS.filter(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)):[];
    if(hk.length){st.dln=D;save();try{if(T){build3D();T.dirty=true}}catch(e){}toast("表示している "+hk.map(([k,n])=>n).join("・")+" だけを3Dに出しました")}else toast("空調・ダクト・衛生のどれかを表示してから押してください");return null}
   return dxfFilterRun(planAutoAll)}
  if(!P||!P.segs||P.segs.length<50){toast("線のデータがある図面（CADのPDF）で使えます。写真の図面は、縮尺と原点を手で決めてください");return}

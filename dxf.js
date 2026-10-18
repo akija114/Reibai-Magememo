@@ -8,11 +8,14 @@ const ACI=(()=>{const t=["#000000","#ff0000","#ffff00","#00ff00","#00ffff","#000
   const f=n=>{const q=(n+h/60)%6;return v-v*s*Math.max(0,Math.min(q,4-q,1))};t[i]="#"+[f(5),f(3),f(1)].map(x=>("0"+Math.round(x*255).toString(16)).slice(-2)).join("")}
  [51,91,132,173,214,255].forEach((g,j)=>{const x=("0"+g.toString(16)).slice(-2);t[250+j]="#"+x+x+x});return t})();
 /* 画層の名前 → 種類 */
-function dxfCat(L){L=L||"";
+/* 線の名前（画層）ごとに、人が決めた種類（図面の会社ごとに名前が違うので）：ref 冷媒・drain ドレン・acq 空調機器・duct・eisei・elec 電気・arch 建築・anno 寸法文字 */
+let DXMAP=null;const dxMap=()=>{if(!DXMAP){try{DXMAP=JSON.parse(localStorage.getItem("pbm_dxfmap")||"{}")||{}}catch(e){DXMAP={}}}return DXMAP};
+const ELEC_RE=/電気|電灯|動力|弱電|照明|コンセント|ｺﾝｾﾝﾄ|ケーブル|ｹｰﾌﾞﾙ|ラック|ﾗｯｸ|幹線|分電|配電|火報|自火報|感知器|放送|ＬＡＮ|LAN|電話|接地|配線|ELEC|ELE-|^E-?\d*電/i;
+function dxfCat(L){L=L||"";const m=dxMap()[L];if(m)return["ref","drain","duct","eisei","elec"].includes(m)?m:"";
  if(/冷媒/.test(L))return"ref";if(/ドレン|ﾄﾞﾚﾝ/.test(L))return"drain";if(/ダクト|ﾀﾞｸﾄ/.test(L))return"duct";
- if(/給水|給湯|汚水|雑排|排水|通気|消火|衛生|ガス管|ｶﾞｽ|上水|中水|雨水/.test(L))return"eisei";return""}
+ if(/給水|給湯|汚水|雑排|排水|通気|消火|衛生|ガス管|ｶﾞｽ|上水|中水|雨水/.test(L))return"eisei";if(ELEC_RE.test(L))return"elec";return""}
 /* 画層の名前 → 自動読み込み用の色（PDFの空調図と同じ色にそろえる：機器＝青、冷媒＝赤紫、ドレン＝オレンジ、建築＝グレー） */
-function dxfAnaCol(L){L=L||"";const c=dxfCat(L);
+function dxfAnaCol(L){L=L||"";const mp=dxMap()[L];if(mp==="acq")return"#0000ff";if(mp==="arch")return"#c0c0c0";if(mp==="anno")return"#000000";const c=dxfCat(L);
  if(c==="ref")return"#ff00ff";if(c==="drain")return"#ff7f00";if(c)return"#2a9d8f";
  if(/詳細図形/.test(L))return null;   // 機器の「詳細図形」は線が多く、PDFの空調図にも出ない（簡略図形だけ使う）
  if(/基準線|中心線|ｾﾝﾀｰ|センター/.test(L))return"#ff0000";
@@ -94,10 +97,36 @@ window.dxfToPlan=function(G,f){const S=G.segs.filter(s=>Math.hypot(s[2]-s[0],s[3
  const segAll=S.map(s=>{const a=px(s[0],s[1]),b=px(s[2],s[3]);return[a[0],a[1],b[0],b[1],"",s[4]]}).filter(s=>dxfCat(s[5]));
  const P={img:c,W,H0:H,segs,segAll,arcs,texts:tAna,textsAll:texts,mmpp,ptpx:0,den:0,dxf:1,dS,route:[],walls:[],show:true,fkey:f.name+"|"+f.size};dxfRender(P);return P};
 /* 図面の線を「何の図か」で分ける：空調（冷媒・ドレン・機器）／ダクト／衛生／建築／寸法・文字 */
-function dxfGrp(L){L=L||"";const k=dxfCat(L);if(k==="ref"||k==="drain")return"ac";if(k)return k;
+function dxfGrp(L){L=L||"";const mp=dxMap()[L];if(mp)return mp==="ref"||mp==="drain"||mp==="acq"?"ac":mp;const k=dxfCat(L);if(k==="ref"||k==="drain")return"ac";if(k)return k;
  if(/機器|ｽﾘｰﾌﾞ|スリーブ|メンテ|室内機|室外機|空調|冷媒|PAC|基準線/.test(L))return"ac";
  if(/寸法|文字|符号|枠|凡例|方位|補助線|表/.test(L))return"anno";return"arch"}
-const DXV=[["ac","空調","#2563eb"],["duct","ダクト","#0d9488"],["eisei","衛生","#16a34a"],["arch","建築","#64748b"],["anno","寸法・文字","#a16207"]];
+const DXV=[["ac","空調","#2563eb"],["duct","ダクト","#0d9488"],["eisei","衛生","#16a34a"],["elec","電気","#ca8a04"],["arch","建築","#64748b"],["anno","寸法・文字","#a16207"]];
+const DXOPT=[["ref","冷媒"],["drain","ドレン"],["acq","空調機器"],["duct","ダクト"],["eisei","衛生"],["elec","電気"],["arch","建築"],["anno","寸法・文字"]];
+/* 種類を変えた時：線の色（自動読み込み用）・種類・3D用の線を作り直す */
+function dxfRegroup(P){if(!P||!P.dS)return;P.dS.forEach(s=>{s[5]=dxfGrp(s[6])});P.segs.forEach(s=>{const c=dxfAnaCol(s[5]);if(c)s[4]=c});(P.arcs||[]).forEach(o=>{const c=dxfAnaCol(o.lay);if(c)o.col=c});
+ P.segAll=P.dS.filter(s=>dxfCat(s[6])).map(s=>[s[0],s[1],s[2],s[3],"",s[6]]);P.rects=null;P._ca=null;try{planAnalyze()}catch(e){}}
+/* 線の名前の一覧（表示・非表示と、何の線かを選ぶ） */
+window.dxfLayerSheet=function(){const P=typeof PLAN!=="undefined"?PLAN:null;if(!P||!P.dS)return;let ov=document.getElementById("dxfLay");if(ov)ov.remove();
+ ov=document.createElement("div");ov.id="dxfLay";ov.style.cssText="position:fixed;inset:0;z-index:9000;background:rgba(15,23,42,.5);display:flex;align-items:flex-end;justify-content:center";
+ const draw=()=>{const cnt={};P.dS.forEach(s=>{cnt[s[6]]=(cnt[s[6]]||0)+1});const hid=dxHid(),on=dxvOn(),mp=dxMap();
+  const L=Object.keys(cnt).map(n=>({n,c:cnt[n],g:dxfGrp(n),v:mp[n]||(()=>{const k=dxfCat(n);if(k)return k;const g=dxfGrp(n);return g==="ac"?"acq":g})()}));
+  const gOrd=DXV.map(x=>x[0]);L.sort((a,b)=>gOrd.indexOf(a.g)-gOrd.indexOf(b.g)||b.c-a.c);
+  const esc=t=>String(t).replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+  let h=`<div style="background:#fff;color:#0f172a;width:100%;max-width:560px;max-height:82vh;border-radius:18px 18px 0 0;display:flex;flex-direction:column">
+   <div style="display:flex;align-items:center;gap:8px;padding:14px 14px 8px"><b style="font-size:17px;flex:1">📋 線の名前ごと</b><button id="dxlClose" style="height:38px;padding:0 14px;border-radius:10px;font-weight:800;background:#e2e8f0;border:0">閉じる</button></div>
+   <div style="font-size:12.5px;color:#475569;padding:0 14px 8px">CADの図面は、線ごとに名前（画層）が付いています。名前は会社・図面ごとに違うので、<b>何の線か</b>を選び直せます。左のボタンで1つずつ表示・非表示。自動読み込みも、表示している線だけを使います。</div>
+   <div style="overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 10px calc(env(safe-area-inset-bottom,0px) + 12px)">`;
+  let lg="";L.forEach(o=>{if(o.g!==lg){lg=o.g;const D=DXV.find(x=>x[0]===o.g)||["","その他","#475569"];h+=`<div style="margin:10px 4px 4px;font-weight:800;color:${D[2]}">${D[1]}${on(o.g)?"":"（今は非表示）"}</div>`}
+   const vis=!hid.has(o.n);h+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #e2e8f0">
+    <button data-lv="${esc(o.n)}" style="flex:none;width:40px;height:34px;border-radius:9px;font-weight:800;border:2px solid #475569;background:${vis?"#475569":"#fff"};color:${vis?"#fff":"#475569"}">${vis?"✓":"－"}</button>
+    <div style="flex:1;min-width:0;font-size:13.5px;word-break:break-all">${esc(o.n)}<span style="color:#94a3b8;font-size:12px">（${o.c}本）</span></div>
+    <select data-lg="${esc(o.n)}" style="flex:none;height:34px;border-radius:9px;font-size:13px;font-weight:700;max-width:110px">${DXOPT.map(([k,t])=>`<option value="${k}"${k===o.v?" selected":""}>${t}</option>`).join("")}</select></div>`});
+  h+=`</div></div>`;ov.innerHTML=h;
+  ov.querySelector("#dxlClose").onclick=()=>ov.remove();
+  ov.querySelectorAll("[data-lv]").forEach(b=>b.onclick=()=>{const n=b.dataset.lv,H=dxHid();if(H.has(n))H.delete(n);else H.add(n);try{localStorage.setItem("pbm_dxfhide",JSON.stringify([...H]))}catch(e){}apply();draw()});
+  ov.querySelectorAll("[data-lg]").forEach(sl=>sl.onchange=()=>{const n=sl.dataset.lg,M=dxMap();M[n]=sl.value;try{localStorage.setItem("pbm_dxfmap",JSON.stringify(M))}catch(e){}dxfRegroup(P);apply();draw()})};
+ const apply=()=>{dxfRender(P);if(P.tex)P.tex.needsUpdate=true;const el=document.getElementById("dxfChips");if(el)el.dataset.k="";dxfChips();try{planDraw()}catch(e){}};
+ ov.addEventListener("click",e=>{if(e.target===ov)ov.remove()});document.body.appendChild(ov);draw()};
 const dxHid=()=>{let a=[];try{a=JSON.parse(localStorage.getItem("pbm_dxfhide")||"[]")||[]}catch(e){}return new Set(a)};
 window.dxHid=dxHid;
 const dxvOn=()=>{let o={};try{o=JSON.parse(localStorage.getItem("pbm_dxfv")||"{}")||{}}catch(e){}return k=>o[k]!==undefined?!!o[k]:(k!=="duct"&&k!=="eisei")};
@@ -118,7 +147,8 @@ window.dxfPickHide=function(p,tolPx){const P=PLAN;if(!P||!P.dS)return false;cons
 /* 表示している線だけで自動読み込み：見えていない種類・消した線を、一時的に読み込みの材料から外す */
 window.dxfVisible=function(P){const on=dxvOn(),hid=dxHid();return lay=>{if(hid.has(lay))return false;return on(dxfGrp(lay))}};
 window.dxfFilterRun=function(fn){const P=PLAN;const vis=dxfVisible(P),bk={segs:P.segs,texts:P.texts,arcs:P.arcs,rects:P.rects};
- P.segs=P.segs.filter(s=>vis(s[5]));P.texts=P.texts.filter(t=>vis(t.lay));P.arcs=(P.arcs||[]).filter(o=>vis(o.lay));P.rects=null;P._ca=null;P._flt=1;
+ P.segs=P.segs.filter(s=>vis(s[5]));   // 文字（品番・高さ）は隠していても使う
+ P.arcs=(P.arcs||[]).filter(o=>vis(o.lay));P.rects=null;P._ca=null;P._flt=1;
  try{try{planAnalyze()}catch(e){}return fn()}finally{P.segs=bk.segs;P.texts=bk.texts;P.arcs=bk.arcs;P.rects=null;P._ca=null;P._flt=0;try{planAnalyze()}catch(e){}}};
 /* 図面画面の下の切りかえボタン（DXFの時だけ） */
 window.dxfChips=function(){const wr=document.getElementById("plWrap");let el=document.getElementById("dxfChips");const P=typeof PLAN!=="undefined"?PLAN:null;
@@ -128,7 +158,8 @@ window.dxfChips=function(){const wr=document.getElementById("plWrap");let el=doc
  const on=dxvOn(),has=new Set(P.dS.map(s=>s[5]));
  const nh=dxHid().size,pk=!!window.DXF_PICK,cs="flex:none;height:34px;padding:0 10px;border-radius:17px;font-weight:800;font-size:13px;";
  el.innerHTML=DXV.filter(([k])=>has.has(k)).map(([k,n,col])=>{const o=on(k);return `<button data-dv="${k}" style="${cs}border:2px solid ${col};background:${o?col:"#ffffffee"};color:${o?"#fff":col}">${o?"✓":"－"}${n}</button>`}).join("")+
-  `<button data-dp="1" style="${cs}border:2px solid #dc2626;background:${pk?"#dc2626":"#ffffffee"};color:${pk?"#fff":"#dc2626"}">✋ ${pk?"消したい線をタップ":"線をタップで消す"}</button>`+(nh?`<button data-dr="1" style="${cs}border:2px solid #475569;background:#ffffffee;color:#475569">↩ 消した線を戻す（${nh}）</button>`:"");
+  `<button data-dl2="1" style="${cs}border:2px solid #0f172a;background:#ffffffee;color:#0f172a">📋 名前ごと</button>`+`<button data-dp="1" style="${cs}border:2px solid #dc2626;background:${pk?"#dc2626":"#ffffffee"};color:${pk?"#fff":"#dc2626"}">✋ ${pk?"消したい線をタップ":"線をタップで消す"}</button>`+(nh?`<button data-dr="1" style="${cs}border:2px solid #475569;background:#ffffffee;color:#475569">↩ 消した線を戻す（${nh}）</button>`:"");
+ el.querySelector("[data-dl2]").onclick=e=>{e.stopPropagation();dxfLayerSheet()};
  el.querySelector("[data-dp]").onclick=e=>{e.stopPropagation();window.DXF_PICK=!window.DXF_PICK;if(window.DXF_PICK&&window.toast)toast("消したい線（網目など）を1本タップしてください。同じ種類の線をまとめて消します");dxfChips()};
  {const r=el.querySelector("[data-dr]");if(r)r.onclick=e=>{e.stopPropagation();try{localStorage.removeItem("pbm_dxfhide")}catch(err){}dxfRender(P);if(P.tex)P.tex.needsUpdate=true;dxfChips();try{planDraw()}catch(err){}if(window.toast)toast("消した線を全部戻しました")}}
  el.querySelectorAll("[data-dv]").forEach(b=>b.onclick=e=>{e.stopPropagation();const k=b.dataset.dv;let o={};try{o=JSON.parse(localStorage.getItem("pbm_dxfv")||"{}")||{}}catch(err){}o[k]=!dvOn(k);try{localStorage.setItem("pbm_dxfv",JSON.stringify(o))}catch(err){}

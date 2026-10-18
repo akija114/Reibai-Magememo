@@ -312,6 +312,23 @@ function planAutoIns(I){const P=PLAN;if(!P.rects){try{planAnalyze()}catch(e){}}c
  const blue=col=>{const[r,g,b]=rgbOf(col);return b>150&&r<90&&g<90};
  const C=R.filter(r=>{const a=(r.x1-r.x0)*mm,b=(r.y1-r.y0)*mm,cx=(r.x0+r.x1)/2,cy=(r.y0+r.y1)/2;return blue(r.col)&&Math.max(a,b)<=650&&Math.min(a,b)>=300&&Math.max(a,b)/Math.min(a,b)<1.15&&Math.hypot(cx-c.cx,cy-c.cy)*mm<6000&&!(cx>c.x0&&cx<c.x1&&cy>c.y0&&cy<c.y1)});
  const L=insFromRects(C);if(L.length)btAdd(L);return L.length}
+/* 全部自動で読む：室内機のほかの機器（ロスナイ・全熱交換器など）を箱で置く。
+   品番（LGH-N15RXW3 など）の文字の近く（60cm以内）に「FL+3080下端」「FL+3370上端」があり、品番が機器の色の四角の中にある物 */
+function planAutoEquip(r){const P=PLAN,mm=P.mmpp,T2=P.textsAll||P.texts||[],nm=t=>normTx(t.s).trim(),R=P.rects||[],out=[];
+ const blue=col=>{const[a,g,b]=rgbOf(col);return b>150&&a<90&&g<90};
+ T2.forEach(t=>{const s=nm(t);if(!/^[A-Z]{2,5}[-‐−][A-Z0-9]{3,}/.test(s)||(r&&r.ind&&s.includes(r.ind)))return;
+  const near=re=>T2.find(u=>re.test(nm(u))&&Math.hypot(u.x-t.x,u.y-t.y)*mm<700);const lo=near(/FL\s*[+＋]\s*\d{3,4}\s*下端/),hi=near(/FL\s*[+＋]\s*\d{3,4}\s*上端/);if(!lo)return;
+  const y0=+(nm(lo).match(/(\d{3,4})/)||[])[1],y1=hi?+(nm(hi).match(/(\d{3,4})/)||[])[1]:y0+300;if(!(y1>y0))return;
+  const cx=t.x+(t.w||0)/2,cy=t.y-(t.h||0)/2;let rc=null,ba=1e18;
+  R.forEach(q=>{if(!blue(q.col))return;const a=(q.x1-q.x0)*mm,b=(q.y1-q.y0)*mm;if(Math.max(a,b)<300||Math.max(a,b)>3500||Math.min(a,b)<200)return;if(cx<q.x0-2||cx>q.x1+2||cy<q.y0-2||cy>q.y1+2)return;const ar=a*b;if(ar<ba){ba=ar;rc=q}});
+  /* 四角が閉じていない時（フランジの出っ張りなど）：近くの青い線をつながりごとにまとめて、品番を囲むかたまりの外形 */
+  if(!rc){const lim=2200/mm,B=P.segs.filter(s=>blue(s[4])&&Math.hypot((s[0]+s[2])/2-cx,(s[1]+s[3])/2-cy)<lim),par=B.map((_,i)=>i),fd=i=>par[i]===i?i:(par[i]=fd(par[i])),tol=25/mm;
+   for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){const a=B[i],b=B[j];if([[a[0],a[1]],[a[2],a[3]]].some(p=>[[b[0],b[1]],[b[2],b[3]]].some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<tol)))par[fd(i)]=fd(j)}
+   const G={};B.forEach((s,i)=>{const k=fd(i);const g=G[k]=G[k]||{x0:1e9,y0:1e9,x1:-1e9,y1:-1e9,n:0};g.x0=Math.min(g.x0,s[0],s[2]);g.x1=Math.max(g.x1,s[0],s[2]);g.y0=Math.min(g.y0,s[1],s[3]);g.y1=Math.max(g.y1,s[1],s[3]);g.n++});
+   Object.values(G).forEach(q=>{const a=(q.x1-q.x0)*mm,b=(q.y1-q.y0)*mm;if(q.n<4||Math.max(a,b)<300||Math.max(a,b)>3500||Math.min(a,b)<200)return;if(cx<q.x0||cx>q.x1||cy<q.y0||cy>q.y1)return;if(a*b<ba){ba=a*b;rc=q}})}
+  if(!rc)return;const c=btW([(rc.x0+rc.x1)/2,(rc.y0+rc.y1)/2]);if(st.bld.some(o=>o.k==="eq"&&Math.hypot(o.x-c[0],o.z-c[1])<300))return;
+  const o=normBld([{k:"eq",x:c[0],z:c[1],w:Math.round((rc.x1-rc.x0)*mm/10)*10,d:Math.round((rc.y1-rc.y0)*mm/10)*10,h:y1-y0,y:y0,r:0,n:(/^LGH|^LGF/.test(s)?"ロスナイ ":"")+s}])[0];btAdd([o]);out.push(o.n)});
+ return out}
 function insFromRects(list){const P=PLAN,L=[],have=st.bld.filter(o=>o.k==="ins");
  list.forEach(r=>{if(!r)return;const q=btW([(r.x0+r.x1)/2,(r.y0+r.y1)/2]);if(have.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<200)||L.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<200))return;
   const o=bldNew("ins",{x:q[0],z:q[1]});o.w=insSnap((r.x1-r.x0)*P.mmpp);o.d=insSnap((r.y1-r.y0)*P.mmpp);L.push(normBld([o])[0])});return L}
@@ -1796,10 +1813,10 @@ let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.war
  let nc=0;try{if(r&&typeof kzCeilAuto==="function"){nc=kzCeilAuto();if(typeof kzFixMainCH==="function")kzFixMainCH()}}catch(e){console.warn("ceil",e)}
  try{if(r&&typeof kzDoors==="function")nd=kzDoors(true)}catch(e){console.warn("doors",e)}try{if(r&&typeof kzWindows==="function")nwn=kzWindows(true)}catch(e){console.warn("win",e)}
  /* 点検口（室内機の近くの、機器の色の 300〜600角の四角）と、図面の配管・ダクト（3Dに出して種類ごとに表示・非表示） */
- let ni=0,ndl="";if(r){try{ni=planAutoIns(I)}catch(e){console.warn("ins",e)}
+ let ni=0,ndl="",neq=[];if(r){try{ni=planAutoIns(I)}catch(e){console.warn("ins",e)}try{neq=planAutoEquip(r)}catch(e){console.warn("eq",e)}
   try{const D=planDrawLines&&planDrawLines();const hk=D?DL_KINDS.filter(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)):[];if(hk.length){st.dln=D;ndl=hk.map(([k,n])=>n).join("・");save()}}catch(e){console.warn("dl",e)}
   try{if(T){build3D();T.dirty=true}else if(typeof dlBar==="function")dlBar()}catch(e){}}
- if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+(ni?"・点検口 "+ni+"個":"")+(ndl?"・図面の"+ndl:"")+"。違う所は図面画面で直せます"),400)}
+ if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+(ni?"・点検口 "+ni+"個":"")+(neq.length?"・機器 "+neq.join("・"):"")+(ndl?"・図面の"+ndl:"")+"。違う所は図面画面で直せます"),400)}
  return r}
 
 /* 読み込み終わったら、建物・図面・スキャンを3Dに出し直す */

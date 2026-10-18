@@ -174,6 +174,42 @@ window.dxfChips=function(){const wr=document.getElementById("plWrap");let el=doc
  {const r=el.querySelector("[data-dr]");if(r)r.onclick=e=>{e.stopPropagation();try{localStorage.setItem("pbm_dxfhide","[]")}catch(err){}dxfRender(P);if(P.tex)P.tex.needsUpdate=true;dxfChips();try{planDraw()}catch(err){}if(window.toast)toast("全部の線を表示しました")}}
  function dvOn(k){return dxvOn()(k)}};
 
+/* ===== 立体のダクト・配管をつなげて整える =====
+   ① 同じ向き・同じ太さで一直線に並ぶ物は1本につなぐ（フランジ・ダンパー・文字などで線が切れていても）
+   ② 向きの違う物の端どうしが近ければ、芯の交わる所までのばして曲がり（エルボ）を付ける。途中にぶつかる時は分岐（チーズ）
+   ③ つながった物は同じ高さにそろえる（近くの「FL+3700」などの多い方）
+   ④ どこにもつながらない短い物（記号のかけら）は捨てる */
+function dlTidy(S0,k){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,L=Math.hypot(x2-x1,z2-z1);return{a:[x1,z1],b:[x2,z2],h,sh,w,hh,sub,L,u:[(x2-x1)/L,(z2-z1)/L],id:0,cn:0}}).filter(o=>o.L>1);
+ const par=S.map((_,i)=>i),fd=i=>par[i]===i?i:(par[i]=fd(par[i])),un=(i,j)=>{par[fd(i)]=fd(j)};
+ const cr=(u,v)=>u[0]*v[1]-u[1]*v[0],dt=(u,v)=>u[0]*v[0]+u[1]*v[1],sub=(p,q)=>[p[0]-q[0],p[1]-q[1]];
+ /* ① 一直線につなぐ */
+ let ch=true,guard=0;while(ch&&guard++<20){ch=false;
+  for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++){const A=S[i],B=S[j];if(!A||!B||A.sh!==B.sh||A.sub!==B.sub)continue;if(Math.abs(cr(A.u,B.u))>0.035)continue;
+   const W=Math.max(A.w,B.w);if(Math.abs(A.w-B.w)>0.2*W)continue;const lat=Math.abs(cr(A.u,sub(B.a,A.a))),lat2=Math.abs(cr(A.u,sub(B.b,A.a)));if(Math.max(lat,lat2)>0.35*W+10)continue;
+   const t1=dt(sub(B.a,A.a),A.u),t2=dt(sub(B.b,A.a),A.u),lo=Math.min(t1,t2),hi=Math.max(t1,t2),gap=Math.max(lo-A.L,0-hi,0);if(gap>Math.max(800,4*W))continue;
+   const n0=Math.min(0,lo),n1=Math.max(A.L,hi),off=(lat+lat2)/4*Math.sign(cr(A.u,sub(B.a,A.a))||1);
+   const ox=-A.u[1]*off,oz=A.u[0]*off;A.a=[A.a[0]+A.u[0]*n0+ox,A.a[1]+A.u[1]*n0+oz];A.b=[A.a[0]+A.u[0]*(n1-n0),A.a[1]+A.u[1]*(n1-n0)];
+   A.h=A.L>=B.L?A.h:B.h;A.L=n1-n0;A.w=Math.max(A.w,B.w);A.hh=Math.max(A.hh,B.hh);S[j]=null;ch=true}
+  S=S.filter(Boolean)}
+ const P=S.map((_,i)=>i);P.forEach(i=>par[i]=i);
+ /* ② 曲がり・分岐 */
+ const J=[];
+ for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++){const A=S[i],B=S[j];const c=cr(A.u,B.u);if(Math.abs(c)<0.5)continue;   // 30°以上ちがう向き
+  const t=cr(sub(B.a,A.a),B.u)/c,X=[A.a[0]+A.u[0]*t,A.a[1]+A.u[1]*t],tb=dt(sub(X,B.a),B.u),R=Math.max(A.w,B.w)*1.5+250;
+  const dA=t<0?-t:t>A.L?t-A.L:0,dB=tb<0?-tb:tb>B.L?tb-B.L:0;if(dA>R||dB>R)continue;
+  const endA=t<R||A.L-t<R,endB=tb<R||B.L-tb<R;if(!endA&&!endB)continue;   // 交わる所がどちらの端にも近くない＝ただ横切っているだけ
+  const ext=(o,tt)=>{if(tt<o.L/2){o.a=[o.a[0]+o.u[0]*Math.min(tt,0)+(tt>0&&tt<R?o.u[0]*tt:0),o.a[1]+o.u[1]*Math.min(tt,0)+(tt>0&&tt<R?o.u[1]*tt:0)]}else{const e=Math.max(tt,o.L)-(tt<o.L&&o.L-tt<R?o.L-tt:0);o.b=[o.a[0]+o.u[0]*(tt>o.L?tt:o.L),o.a[1]+o.u[1]*(tt>o.L?tt:o.L)]}};
+  if(endA){if(t<A.L/2)A.a=[X[0],X[1]];else A.b=[X[0],X[1]];}
+  if(endB){if(tb<B.L/2)B.a=[X[0],X[1]];else B.b=[X[0],X[1]];}
+  [A,B].forEach(o=>{o.L=Math.hypot(o.b[0]-o.a[0],o.b[1]-o.a[1]);o.cn++});un(i,j);J.push({p:X,i,j})}
+ /* ③ 高さをそろえる */
+ const grp={};S.forEach((o,i)=>{const r=fd(i);(grp[r]=grp[r]||[]).push(o)});
+ Object.values(grp).forEach(G=>{const v={};G.forEach(o=>{const hk=Math.round(o.h/10)*10;v[hk]=(v[hk]||0)+o.L});const hb=+Object.keys(v).sort((a,b)=>v[b]-v[a])[0];G.forEach(o=>o.h=hb)});
+ /* ④ 短いかけらを捨てる */
+ const keep=S.map(o=>o.cn>0||o.L>=Math.max(300,2*o.w));
+ const outS=[],outJ=[];S.forEach((o,i)=>{if(!keep[i]||o.L<5)return;outS.push([Math.round(o.a[0]),Math.round(o.a[1]),Math.round(o.b[0]),Math.round(o.b[1]),Math.round(o.h),o.sh,Math.round(o.w),Math.round(o.hh),o.sub])});
+ J.forEach(q=>{const A=S[q.i],B=S[q.j];if(!keep[q.i]||!keep[q.j])return;if(outJ.some(o=>Math.hypot(o[0]-q.p[0],o[1]-q.p[1])<Math.max(A.w,B.w)*0.6))return;outJ.push([Math.round(q.p[0]),Math.round(q.p[1]),Math.round(A.h),A.sh,Math.round(Math.max(A.w,B.w)),Math.round(Math.max(A.hh,B.hh)),A.sub])});
+ return{S:outS,J:outJ}}
 /* ===== 図面の配管・ダクトを3D用に取り出す（冷媒・ドレン・ダクト・衛生）=====
    ・図面に「平面図」「天井伏図」など何枚も描いてある時は、通り芯の記号（X1・Y2…）で図をわけ、原点のある図に合わせる
    ・原点のある図に無い種類（例：衛生配管は平面図だけ）は、ほかの図から通り芯でずらして持ってくる
@@ -226,7 +262,7 @@ if(!by[k])return;if(P.dxf&&!dxfVisible(P)(s[5]))return;const v=main?own((s[0]+s[
      ・近くに「200φ」「300×150」などがあれば、その太さに合う組を選ぶ。無ければ、間の線が真ん中（中心線）だけの、いちばん外側の組
      ・同じ太さの区間はつなげる（継ぎ目・フランジで線が切れていても1本に） */
   const mm=P.mmpp,wMax=(k==="duct"?1300:260)/mm,wFree=(k==="duct"?700:200)/mm,wMin=(k==="duct"?70:12)/mm;   // wFree：大きさの文字が無い時の最大の太さ
-  const items=L.slice(0,9000).map(q=>{const s=q.s,dx=s[2]-s[0],dy=s[3]-s[1],l=Math.hypot(dx,dy);if(l*mm<8)return null;let deg=Math.round(Math.atan2(dy,dx)*180/Math.PI);deg=((deg%180)+180)%180;const th=deg*Math.PI/180;
+  const items=L.slice(0,9000).map(q=>{const s=q.s,dx=s[2]-s[0],dy=s[3]-s[1],l=Math.hypot(dx,dy);if(l*mm<8)return null;let deg=Math.atan2(dy,dx)*180/Math.PI;deg=((deg%180)+180)%180;deg=deg<=3||deg>=177?0:Math.abs(deg-90)<=3?90:(Math.round(deg/2)*2)%180;const th=deg*Math.PI/180;   // ほぼ縦・横（±3°）はそろえる
    const ux=Math.cos(th),uy=Math.sin(th),t0=s[0]*ux+s[1]*uy,t1=s[2]*ux+s[3]*uy;return{q,deg,ux,uy,d:-s[0]*uy+s[1]*ux,lo:Math.min(t0,t1),hi:Math.max(t0,t1),l,used:0}}).filter(Boolean);
   const grp={};items.forEach(it=>{const key=(it.q.lay||"")+"|"+it.deg;(grp[key]=grp[key]||[]).push(it)});
   const solids=[],lines=[],hAt=(x,y)=>{const t=near(x,y);return t?t.h:defH[k]},W=(x,y)=>btWx([x,y]);
@@ -243,10 +279,10 @@ if(!by[k])return;if(P.dxf&&!dxfVisible(P)(s[5]))return;const v=main?own((s[0]+s[
      if(pick<0){i++;continue}
      pcs.push({dl:di,dr:A2[pick].d,ta,tb,tw});for(let m=i;m<=pick;m++)A2[m].used=1;i=pick+1}}
    /* となりの区間で同じ太さならつなげる */
-   pcs.sort((a,b)=>a.dl-b.dl||a.dr-b.dr||a.ta-b.ta);const M=[];
+   pcs.sort((a,b)=>Math.round(a.dl)-Math.round(b.dl)||Math.round(a.dr)-Math.round(b.dr)||a.ta-b.ta);   /* 位置は1px単位でそろえて並べる（小数の差で別物にしない） */const M=[];
    pcs.forEach(p=>{const l=M[M.length-1];if(l&&Math.abs(l.dl-p.dl)<1&&Math.abs(l.dr-p.dr)<1&&p.ta-l.tb<=150/mm){l.tb=Math.max(l.tb,p.tb);l.tw=l.tw||p.tw}else M.push({...p})});
    /* 短すぎる物（器具・掃除口などの記号の線）は捨てる：長さが太さの（ダクト0.8倍・配管2倍）未満、または10cm未満 */
-   M.forEach(p=>{const lm=(p.tb-p.ta)*mm,wm0=(p.dr-p.dl)*mm;if(lm<100||lm<wm0*(k==="duct"?0.8:2))return;const dc=(p.dl+p.dr)/2,p1=xy(p.ta,dc),p2=xy(p.tb,dc),wm=(p.dr-p.dl)*mm,cm=xy((p.ta+p.tb)/2,dc);
+   M.forEach(p=>{const lm=(p.tb-p.ta)*mm,wm0=(p.dr-p.dl)*mm;if(k==="duct"?(lm<100||lm<wm0*0.8):(lm<40||lm<wm0*0.8))return;   /* 短い物も一度残して、あとでつなげてから捨てる */const dc=(p.dl+p.dr)/2,p1=xy(p.ta,dc),p2=xy(p.tb,dc),wm=(p.dr-p.dl)*mm,cm=xy((p.ta+p.tb)/2,dc);
     const src=G[0].q.o?null:cm;   // ほかの図から持ってきた物は、高さの文字を元の図で探す
     const so=G[0].q.o?[cm[0]+(G[0].q.o[0]-G[0].q.s[0]),cm[1]+(G[0].q.o[1]-G[0].q.s[1])]:cm;
     const tz=p.tw&&p.tw.t;let sh=k==="duct"?(wm<=330?0:1):0,hh=wm;
@@ -255,6 +291,6 @@ if(!by[k])return;if(P.dxf&&!dxfVisible(P)(s[5]))return;const v=main?own((s[0]+s[
     const a=W(p1[0],p1[1]),b=W(p2[0],p2[1]);solids.push([Math.round(a[0]),Math.round(a[1]),Math.round(b[0]),Math.round(b[1]),Math.round(hAt(so[0],so[1])),sh,Math.round(wm),Math.round(hh),sub(G[0].q.lay)])})});
   /* 組にならなかった線（曲がり・継手・記号など）は細い線で */
   items.forEach(m=>{if(m.used||m.l*mm<40)return;const s=m.q.s,src=m.q.o||s,a=W(s[0],s[1]),b=W(s[2],s[3]);lines.push([Math.round(a[0]),Math.round(a[1]),Math.round(b[0]),Math.round(b[1]),Math.round(hAt((src[0]+src[2])/2,(src[1]+src[3])/2))])});
-  out[k]=lines;out[k+"S"]=solids});
+  const T=dlTidy(solids,k);out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});
  return out};
 })();

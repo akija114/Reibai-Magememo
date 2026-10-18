@@ -2250,9 +2250,9 @@ function runAR(onlyUnit){
  }catch(e){console.warn(e);toast("ARの準備に失敗しました")}
 }
 /* ===== 建物（壁・柱・梁・障害物）：3Dに箱で置く。位置は起点（配管の始まり）からのmm、高さは床から ===== */
-const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"},door:{n:"扉",c:0xb45309,i:"🚪"},ceil:{n:"天井高の範囲",c:0x0ea5e9,i:"📐"},rack:{n:"電気ラック",c:0x94a3b8,i:"⚡"},win:{n:"窓",c:0x38bdf8,i:"🪟"},ins:{n:"点検口",c:0x0d9488,i:"🔲"}};
+const BLDK={col:{n:"柱",c:0x64748b,i:"🏛"},wall:{n:"壁",c:0x94a3b8,i:"🧱"},beam:{n:"梁",c:0xa16207,i:"🟫"},box:{n:"障害物",c:0xf97316,i:"📦"},ind:{n:"室内機",c:0x2563eb,i:"❄️"},hole:{n:"穴",c:0x111827,i:"🕳️"},out:{n:"室外機",c:0x94a3b8,i:"🌀"},spot:{n:"室外機置場",c:0x22c55e,i:"🟩"},door:{n:"扉",c:0xb45309,i:"🚪"},ceil:{n:"天井高の範囲",c:0x0ea5e9,i:"📐"},rack:{n:"電気ラック",c:0x94a3b8,i:"⚡"},win:{n:"窓",c:0x38bdf8,i:"🪟"},ins:{n:"点検口",c:0x0d9488,i:"🔲"},eq:{n:"機器",c:0x94a3b8,i:"📦"}};
 function normBld(a){const n=v=>Math.round(+v||0);return(Array.isArray(a)?a:[]).slice(0,1500).filter(o=>o&&typeof o==="object").map(o=>{const k=BLDK[o.k]?o.k:"box";
- return{...(k==="ceil"&&o.n?{n:String(o.n).slice(0,20)}:{}),...(o.auto?{auto:String(o.auto).slice(0,8)}:{}),...(k==="wall"&&o.m==="lgs"?{st:Math.max(30,Math.min(200,n(o.st)||65)),bl:Math.max(0,Math.min(4,n(o.bl)||0)),br:Math.max(0,Math.min(4,n(o.br)||0))}:{}),k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):k==="door"?(o.m==="swing"?"swing":"slide"):k==="col"?(o.m==="h"?"h":""):k==="wall"?(o.m==="lgs"?"lgs":""):""}})}
+ return{...((k==="ceil"||k==="eq")&&o.n?{n:String(o.n).slice(0,30)}:{}),...(o.auto?{auto:String(o.auto).slice(0,8)}:{}),...(k==="wall"&&o.m==="lgs"?{st:Math.max(30,Math.min(200,n(o.st)||65)),bl:Math.max(0,Math.min(4,n(o.bl)||0)),br:Math.max(0,Math.min(4,n(o.br)||0))}:{}),k,x:n(o.x),z:n(o.z),w:Math.max(10,n(o.w)||600),d:Math.max(10,n(o.d)||600),h:Math.max(10,n(o.h)||600),y:n(o.y),r:normT(o.r||0),full:k==="col"||k==="wall"?o.full!==false:false,m:k==="ind"?(CAS2M[o.m]?o.m:(o.m===""?"":"56")):k==="out"?(OUTM[o.m]?o.m:"p40"):k==="door"?(o.m==="swing"?"swing":"slide"):k==="col"?(o.m==="h"?"h":""):k==="wall"?(o.m==="lgs"?"lgs":""):""}})}
 st.bld=normBld(st.bld);
 const bldCH=()=>T&&T.CHh?T.CHh:st.gnd.ch;
 /* 天井高の範囲（📐）の中なら、その範囲（いちばん小さいもの） */
@@ -2271,7 +2271,7 @@ const DLK=[["duct","ダクト","#64748b"],["eisei","衛生","#16a34a"]];
 const DL_SUB=[0x3b82f6,0x92400e,0x9ca3af,0x16a34a];   // 衛生：給水・給湯／汚水・排水／通気／その他
 const dlOnOf=k=>{const o=st.dlOn||{};return o[k]!==undefined?!!o[k]:true};
 /* 障害物（建物の物）の種類ごとの表示・非表示（室内機・穴は配管とつながるので常に表示） */
-const BLD_TG=[["wall","壁"],["col","柱"],["beam","梁"],["box","障害物"],["door","扉"],["win","窓"],["ins","点検口"],["ceil","天井"],["rack","ラック"],["out","室外機"],["spot","置場"]];
+const BLD_TG=[["wall","壁"],["col","柱"],["beam","梁"],["box","障害物"],["door","扉"],["win","窓"],["ins","点検口"],["eq","機器"],["ceil","天井"],["rack","ラック"],["out","室外機"],["spot","置場"]];
 const bldHid=k=>!!(st.bhid&&st.bhid[k]);
 function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
  const sMat={duct:new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.35,metalness:.55})},eMat=DL_SUB.map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.5,metalness:.1}));
@@ -2282,6 +2282,9 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
    else{m=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,len,k==="duct"?20:12,1),mt);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize())}
    m.userData.dl=k;T.grp.add(m);
    try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry,30),new THREE.LineBasicMaterial({color:k==="duct"?0x475569:0x14532d,transparent:true,opacity:.5}));e.position.copy(m.position);e.quaternion.copy(m.quaternion);e.rotation.copy(m.rotation);T.grp.add(e)}catch(err){}});
+  /* 曲がり・分岐の継手 */
+  const Jt=D[k+"J"];if(Array.isArray(Jt))Jt.forEach(q=>{const[x,z,h,sh,w,hh,sub]=q,mt=k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];
+   const m=sh===1?new THREE.Mesh(new THREE.BoxGeometry(w,hh,w),mt):new THREE.Mesh(new THREE.SphereGeometry(w/2,k==="duct"?20:12,k==="duct"?14:8),mt);m.position.set(x,GY+h,z);m.userData.dl=k;T.grp.add(m)});
   const L=D[k];if(!Array.isArray(L)||!L.length)return;
   const P=[];L.forEach(s=>{P.push(s[0],GY+s[4],s[1],s[2],GY+s[4],s[3])});const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(P,3));
   const ls=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.55}));ls.userData.dl=k;T.grp.add(ls)})}
@@ -2361,11 +2364,11 @@ function addBld3D(GY,CH,ext){
    T.bldM.push({i,k:"col",c:new THREE.Vector3(o.x,y0+h/2,o.z),hw:o.w/2,hd:o.d/2,hh:h/2,r:o.r,y0,h});
    const s7=label("🏛 H鋼 "+fmt(Dh)+"×"+fmt(Bf),ext*0.028,"#f1f5f9f2","#334155","bld");s7.position.set(o.x,y0+Math.min(h,2400)+40,o.z);s7.userData.cat="bld";pxl(s7,15);T.grp.add(s7);return}
   const isW=o.k==="wall";
-  const m=new THREE.Mesh(new THREE.BoxGeometry(o.w,h,o.d),new THREE.MeshStandardMaterial({color:isW?0xe2e8f0:K.c,transparent:true,opacity:o.k==="box"||o.k==="out"?.7:o.k==="spot"?.3:isW?.22:.45,depthWrite:false,roughness:.8}));
+  const m=new THREE.Mesh(new THREE.BoxGeometry(o.w,h,o.d),new THREE.MeshStandardMaterial({color:isW?0xe2e8f0:K.c,transparent:true,opacity:o.k==="box"||o.k==="out"||o.k==="eq"?.85:o.k==="spot"?.3:isW?.22:.45,depthWrite:false,roughness:.8}));
   m.position.set(o.x,y0+h/2,o.z);m.rotation.y=-o.r*Math.PI/180;m.renderOrder=-1;m.userData.bld=i+1;T.grp.add(m);
   try{if(THREE.EdgesGeometry){const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:isW?0x334155:K.c}));e.position.copy(m.position);e.rotation.y=m.rotation.y;e.userData.bld=i+1;T.grp.add(e)}}catch(err){}
   T.bldM.push({i,k:o.k,c:new THREE.Vector3(o.x,y0+h/2,o.z),hw:o.w/2,hd:o.d/2,hh:h/2,r:o.r,y0,h});
-  const t=K.i+" "+K.n+" "+(o.k==="out"?(OUTM[o.m]?OUTM[o.m].n:"")+" "+fmt(o.w)+"×"+fmt(o.d):o.k==="spot"?fmt(o.w)+"×"+fmt(o.d):o.k==="beam"?fmt(o.d)+"×"+fmt(o.h)+" 梁下"+fmt(o.y):o.k==="box"?fmt(o.w)+"×"+fmt(o.d)+"×"+fmt(o.h)+" 下面"+fmt(o.y):o.k==="wall"?"厚"+fmt(o.d)+" 長"+fmt(o.w):fmt(o.w)+"×"+fmt(o.d));
+  const t=K.i+" "+K.n+" "+(o.k==="out"?(OUTM[o.m]?OUTM[o.m].n:"")+" "+fmt(o.w)+"×"+fmt(o.d):o.k==="spot"?fmt(o.w)+"×"+fmt(o.d):o.k==="beam"?fmt(o.d)+"×"+fmt(o.h)+" 梁下"+fmt(o.y):o.k==="box"?fmt(o.w)+"×"+fmt(o.d)+"×"+fmt(o.h)+" 下面"+fmt(o.y):o.k==="eq"?(o.n||"")+" "+fmt(o.w)+"×"+fmt(o.d)+"×"+fmt(o.h)+" 下端FL+"+fmt(o.y):o.k==="wall"?"厚"+fmt(o.d)+" 長"+fmt(o.w):fmt(o.w)+"×"+fmt(o.d));
   const s=label(t,ext*0.03,"#f1f5f9f2","#334155","bld");s.position.set(o.x,y0+h+40,o.z);s.userData.cat="bld";pxl(s,17);T.grp.add(s)};
  /* 種類ごとに隠した物は描くが見せない（配管が当たっているかの判定には使う） */
  st.bld.forEach((o,i)=>{const n0=T.grp.children.length;draw1(o,i);if(bldHid(o.k))for(let j=n0;j<T.grp.children.length;j++)T.grp.children[j].visible=false});
@@ -2375,7 +2378,7 @@ function addBld3D(GY,CH,ext){
 /* 配管が壁・柱・梁・障害物・機器に当たっていないか調べて、当たっていたら ⚠️ を出す（穴の所は通ってOK） */
 let HIT_SIG="";
 function pipeHits(ext){T.hits=[];if(!T.segs||!T.segs.length||!T.bldM||!T.bldM.length)return;
- const solid=T.bldM.filter(m=>["wall","col","beam","box","out","ind","rack"].includes(m.k)),holes=T.bldM.filter(m=>m.k==="hole"||m.k==="door"||m.k==="win");
+ const solid=T.bldM.filter(m=>["wall","col","beam","box","out","ind","rack","eq"].includes(m.k)),holes=T.bldM.filter(m=>m.k==="hole"||m.k==="door"||m.k==="win");
  const inBox=(m,p,mg)=>{const th=m.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=p.x-m.c.x,dz=p.z-m.c.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;
   return Math.abs(lx)<m.hw+mg&&Math.abs(lz)<m.hd+mg&&Math.abs(p.y-m.c.y)<m.hh+mg};
  const inHole=p=>holes.some(hm=>{const o=st.bld[hm.i];if(!o)return false;if(hm.k==="door")return inBox(hm,p,0);const th=hm.r*Math.PI/180,co=Math.cos(th),si=Math.sin(th),dx=p.x-hm.c.x,dz=p.z-hm.c.z,lx=dx*co+dz*si,lz=-dx*si+dz*co;
@@ -2835,8 +2838,8 @@ function bldSummary(){const B=st.bld||[];if(!B.length)return "";
  const pos=o=>"（原点から 横"+fmt(o.x)+"・縦"+fmt(o.z)+"）",MAXK=8;
  const fm={wall:o=>"長さ"+fmt(o.w)+" 厚"+fmt(o.d)+(o.full?" 天井まで":" 高さ"+fmt(o.h)),col:o=>fmt(o.w)+"×"+fmt(o.d),beam:o=>"長さ"+fmt(o.w)+" 幅"+fmt(o.d)+"×せい"+fmt(o.h)+" 梁下"+fmt(o.y),
   box:o=>fmt(o.w)+"×"+fmt(o.d)+"×高さ"+fmt(o.h)+" 下面"+fmt(o.y),ind:o=>(o.m&&CAS2M[o.m]?CAS2M[o.m].n:fmt(o.w)+"×"+fmt(o.d)),hole:o=>"φ"+fmt(o.w)+" 中心の高さ"+fmt(o.y),
-  out:o=>(OUTM[o.m]?OUTM[o.m].n:"")+" "+fmt(o.w)+"×"+fmt(o.d),spot:o=>fmt(o.w)+"×"+fmt(o.d),door:o=>(o.m==="swing"?"開き戸":"引き戸")+" 幅"+fmt(o.w)+"×高さ"+fmt(o.h),ins:o=>o.w===o.d?fmt(o.w)+"角":fmt(o.w)+"×"+fmt(o.d)};
- const out=[];["ind","ins","wall","door","col","beam","box","hole","out","spot"].forEach(k=>{const L=B.filter(o=>o.k===k);if(!L.length)return;const K=BLDK[k];
+  out:o=>(OUTM[o.m]?OUTM[o.m].n:"")+" "+fmt(o.w)+"×"+fmt(o.d),spot:o=>fmt(o.w)+"×"+fmt(o.d),door:o=>(o.m==="swing"?"開き戸":"引き戸")+" 幅"+fmt(o.w)+"×高さ"+fmt(o.h),ins:o=>o.w===o.d?fmt(o.w)+"角":fmt(o.w)+"×"+fmt(o.d),eq:o=>(o.n||"")+" "+fmt(o.w)+"×"+fmt(o.d)+"×"+fmt(o.h)+" 下端FL+"+fmt(o.y)};
+ const out=[];["ind","eq","ins","wall","door","col","beam","box","hole","out","spot"].forEach(k=>{const L=B.filter(o=>o.k===k);if(!L.length)return;const K=BLDK[k];
   out.push(K.i+" "+K.n+" "+L.length+"個");L.slice(0,MAXK).forEach(o=>out.push("　・"+fm[k](o)+pos(o)));if(L.length>MAXK)out.push("　…ほか"+(L.length-MAXK)+"個")});
  return "\n"+out.join("\n")}
 const nowStr=()=>{const d=new Date(),p=n=>("0"+n).slice(-2);return d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()+"（"+"日月火水木金土"[d.getDay()]+"） "+d.getHours()+":"+p(d.getMinutes())};

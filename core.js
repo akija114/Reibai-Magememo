@@ -2315,20 +2315,36 @@ function addBld3D(GY,CH,ext){
    T.bldM.push({i,k:"ins",c:new THREE.Vector3(o.x,yc-5,o.z),hw:o.w/2+20,hd:o.d/2+20,hh:10,r:o.r,y0:yc-10,h:10});
    const s0=label("🔲 点検口 "+(o.w===o.d?fmt(o.w)+"角":fmt(o.w)+"×"+fmt(o.d)),ext*0.028,"#ccfbf1f2","#115e59","bld");s0.position.set(o.x,yc-80,o.z);s0.userData.cat="bld";pxl(s0,15);T.grp.add(s0);return}
   if(o.k==="eq"&&typeof VENTM!=="undefined"&&VENTM[o.m]){const V=VENTM[o.m],g=new THREE.Group(),A=V.A,B=V.B,C=V.C,y0e=GY+o.y;
-   /* 本体（A＝ダクトの並ぶ左右、B＝奥行）。o.w/o.d は向きを回した後の大きさなので、ここでは機種の寸法で作り o.r で回す */
-   const body=new THREE.Mesh(new THREE.BoxGeometry(A,C,B),new THREE.MeshStandardMaterial({color:0xe5e7eb,roughness:.6,metalness:.15}));body.position.y=C/2;g.add(body);
-   try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(body.geometry),new THREE.LineBasicMaterial({color:0x475569}));e.position.copy(body.position);g.add(e)}catch(err){}
-   /* メンテナンスカバー（点検口側＝手前）と天吊金具・全ねじ */
-   const cv=new THREE.Mesh(new THREE.BoxGeometry(A*0.45,8,B*0.12),new THREE.MeshStandardMaterial({color:0x94a3b8}));cv.position.set(0,-4,B/2-B*0.06);g.add(cv);
-   [-1,1].forEach(sx=>[-1,1].forEach(sz=>{const k2=new THREE.Mesh(new THREE.BoxGeometry(40,6,V.F),new THREE.MeshStandardMaterial({color:0x64748b}));k2.position.set(sx*V.D/2,C-3,sz*(B/2+V.F/2-10));g.add(k2);
-    const bt=new THREE.Mesh(new THREE.CylinderGeometry(5,5,Math.max(50,o.br||300),8),new THREE.MeshStandardMaterial({color:0x8b5cf6}));bt.position.set(sx*V.D/2,C+Math.max(50,o.br||300)/2,sz*(V.E/2));g.add(bt)}));
-   /* ダクトの差し込み口：左 EA（奥）・OA（手前）、右 RA（奥）・SA（手前）。高さ＝下から P */
-   const dz=[-B/2+V.L,-B/2+V.L+V.K],sp=new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.35,metalness:.6});
-   [["EA",-1,0,0xdc2626],["OA",-1,1,0x16a34a],["RA",1,0,0xea580c],["SA",1,1,0x2563eb]].forEach(([nm,sx,j,col])=>{const m2=new THREE.Mesh(new THREE.CylinderGeometry(V.d/2,V.d/2,V.J,20),sp);m2.rotation.z=Math.PI/2;m2.position.set(sx*(A/2+V.J/2),V.P,dz[j]);g.add(m2);
-    const rg=new THREE.Mesh(new THREE.TorusGeometry(V.d/2+4,5,6,20),new THREE.MeshBasicMaterial({color:col}));rg.rotation.y=Math.PI/2;rg.position.set(sx*(A/2+V.J),V.P,dz[j]);g.add(rg);
-    const lb=label(nm,ext*0.022,"#ffffffee","#"+col.toString(16).padStart(6,"0"),"bld");lb.position.set(sx*(A/2+V.J+60),V.P+V.d/2+40,dz[j]);lb.userData.cat="bld";pxl(lb,13);g.add(lb)});
+   /* メーカー外形図（LGH-N15RXW3 の DXF）から読んだ形：本体は外形寸法より左右 14 小さい箱、ダクト口は奥行の中心から ±K/2、
+      高さは上から 195／289、側面に制御箱（RA・SA 側）とメンテナンスカバー（OA・SA 側＝手前）、四隅に天吊金具。他の機種は同じ割合で */
+   const MT=(c,o2)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.55,metalness:.15},o2||{}));
+   const bx=(w,h,d,x,y,z,m,ed)=>{const mm=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mm.position.set(x,y,z);g.add(mm);
+    if(ed){try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(mm.geometry),new THREE.LineBasicMaterial({color:ed}));e.position.copy(mm.position);g.add(e)}catch(err){}}return mm};
+   const a=A-14,b=B-14,dy=C*(94/289),jl=V.J+7,steel=MT(0xd1d5db,{metalness:.55,roughness:.35});
+   bx(a,C,b,0,C/2,0,MT(0xeef0f2),0x475569);                                   // 本体
+   bx(a-8,3,b-8,0,C+1.5,0,MT(0xe2e5e9));bx(a-8,3,b-8,0,-1.5,0,MT(0xe2e5e9));   // 上下の板
+   [-1,1].forEach(sx=>{bx(4,C-16,b-20,sx*(a/2+2),C/2,0,MT(0xe5e7eb))});        // 両端の板（ダクト側）
+   const cw=Math.min(310,a*0.4);bx(cw,C-4,15,0,C/2,b/2+7.5,MT(0xcbd5e1),0x64748b);      // メンテナンスカバー（手前）
+   [-1,1].forEach(sx=>bx(26,30,10,sx*(cw/2-30),C/2,b/2+20,MT(0x475569)));              // カバーの取っ手
+   const cbL=Math.min(175,a*0.23),cbx=a/2-28-cbL/2;bx(cbL,Math.min(259,C-30),113,cbx,C/2+4,b/2+56.5,MT(0xdfe3e8),0x64748b);   // 制御箱（RA・SA 側の手前）
+   [0,1,2].forEach(q=>{const ko=new THREE.Mesh(new THREE.CylinderGeometry(11,11,4,14),MT(0x94a3b8));ko.rotation.z=Math.PI/2;ko.position.set(cbx+cbL/2+2,C*0.72-q*48,b/2+56.5);g.add(ko)});   // 配線の穴
+   [-1,1].forEach(sx=>[-1,1].forEach(sz=>{const xx=sx*(V.D/2+6),zz=sz*(b/2);   // 天吊金具：側面の板＋穴あきの耳
+    bx(36,110,4,xx-sx*4,C-75,zz+sz*2,steel);bx(36,5,V.F+12,xx,C-65,zz+sz*(V.F+12)/2,steel);
+    const ho=new THREE.Mesh(new THREE.CylinderGeometry(7,7,7,12),MT(0x1f2937));ho.position.set(xx,C-65,sz*V.E/2);g.add(ho);
+    const bl=Math.max(50,o.br||300),bt=new THREE.Mesh(new THREE.CylinderGeometry(5,5,bl+70,8),MT(0x8b5cf6));bt.position.set(xx,C-65+(bl+70)/2-20,sz*V.E/2);g.add(bt);
+    [-1,1].forEach(q=>{const nt=new THREE.Mesh(new THREE.CylinderGeometry(10,10,8,6),MT(0x6b7280,{metalness:.6}));nt.position.set(xx,C-65+q*9,sz*V.E/2);g.add(nt)})}));
+   /* ダクトの差し込み口：左 EA（奥）・OA（手前）、右 RA（奥）・SA（手前）。座の板＋フランジ＋筒（外φH・内φG） */
+   const sp=MT(0xcbd5e1,{roughness:.3,metalness:.65});
+   [["EA",-1,-1,0xdc2626],["OA",-1,1,0x16a34a],["RA",1,-1,0xea580c],["SA",1,1,0x2563eb]].forEach(([nm,sx,sz,col])=>{const zc=sz*V.K/2,R=V.H/2;
+    const pl=bx(5,R*2+26,R*2+26,sx*(a/2+2.5),dy,zc,MT(0xd4d8dd),0x64748b);
+    const fl=new THREE.Mesh(new THREE.CylinderGeometry(R+12.5,R+12.5,6,28),sp);fl.rotation.z=Math.PI/2;fl.position.set(sx*(a/2+8),dy,zc);g.add(fl);
+    const tb=new THREE.Mesh(new THREE.CylinderGeometry(R,R*1.04,jl,28,1,true),sp);tb.rotation.z=Math.PI/2;tb.position.set(sx*(a/2+jl/2),dy,zc);g.add(tb);
+    const ins=new THREE.Mesh(new THREE.CircleGeometry(V.G/2,24),new THREE.MeshBasicMaterial({color:0x1f2937,side:THREE.DoubleSide}));ins.rotation.y=Math.PI/2;ins.position.set(sx*(a/2+jl-6),dy,zc);g.add(ins);
+    [0,1,2,3].forEach(q=>{const t2=q*Math.PI/2+Math.PI/4,sc=new THREE.Mesh(new THREE.SphereGeometry(4,6,4),MT(0x334155));sc.position.set(sx*(a/2+11),dy+Math.sin(t2)*(R+7),zc+Math.cos(t2)*(R+7));g.add(sc)});
+    const rg=new THREE.Mesh(new THREE.TorusGeometry(R+3,4,6,24),new THREE.MeshBasicMaterial({color:col}));rg.rotation.y=Math.PI/2;rg.position.set(sx*(a/2+jl),dy,zc);g.add(rg);
+    const lb=label(nm,ext*0.022,"#ffffffee","#"+col.toString(16).padStart(6,"0"),"bld");lb.position.set(sx*(a/2+jl+60),dy+R+40,zc);lb.userData.cat="bld";pxl(lb,13);g.add(lb)});
    g.position.set(o.x,y0e,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(q=>{if(!q.isSprite)q.userData.bld=i+1});T.grp.add(g);
-   const hw=(o.r%180?B:A)/2+V.J,hd=(o.r%180?A:B)/2;T.bldM.push({i,k:"eq",c:new THREE.Vector3(o.x,y0e+C/2,o.z),hw:A/2+V.J,hd:B/2,hh:C/2,r:o.r,y0:y0e,h:C});
+   const hw=(o.r%180?B:A)/2+V.J,hd=(o.r%180?A:B)/2;T.bldM.push({i,k:"eq",c:new THREE.Vector3(o.x,y0e+C/2,o.z),hw:A/2+V.J,hd:B/2+110,hh:C/2,r:o.r,y0:y0e,h:C});
    const s0=label("🌀 ロスナイ "+V.n+"（"+f0(A)+"×"+f0(B)+"×"+f0(C)+" 下端FL+"+f0(o.y)+"）",ext*0.028,"#f1f5f9f2","#334155","bld");s0.position.set(o.x,y0e+C+80,o.z);s0.userData.cat="bld";pxl(s0,15);T.grp.add(s0);return}
   if(o.k==="hole"){const g=new THREE.Group(),L=o.d+30,cy=new THREE.Mesh(new THREE.CylinderGeometry(o.w/2,o.w/2,L,28),new THREE.MeshBasicMaterial({color:0x111827}));cy.rotation.x=Math.PI/2;g.add(cy);
    [-1,1].forEach(sg=>{const t=new THREE.Mesh(new THREE.TorusGeometry(o.w/2,Math.max(4,o.w*.07),8,28),new THREE.MeshBasicMaterial({color:0xfacc15}));t.position.z=sg*(o.d/2+16);g.add(t)});

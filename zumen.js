@@ -46,7 +46,7 @@ function openDraw(){
   ov.style.cssText="position:fixed;inset:0;z-index:80;background:#0f172a;display:flex;flex-direction:column;color:#fff;font-family:-apple-system,'Hiragino Sans',sans-serif";
   const bt=(id,t,st2)=>`<button id="${id}" style="height:40px;padding:0 10px;border-radius:12px;font-weight:800;font-size:13px;background:#ffffffee;color:#0f172a;flex:none;${st2||""}">${t}</button>`;
   ov.innerHTML=`<div style="display:flex;gap:6px;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 8px) 8px 6px;overflow-x:auto">
-   <label style="height:40px;padding:0 12px;border-radius:12px;font-weight:800;font-size:13px;background:#2563eb;display:flex;align-items:center;flex:none">📄 図面を開く<input id="plFile" type="file" accept="application/pdf,image/*" style="display:none"></label>
+   <label style="height:40px;padding:0 12px;border-radius:12px;font-weight:800;font-size:13px;background:#2563eb;display:flex;align-items:center;flex:none">📄 図面を開く<input id="plFile" type="file" accept="application/pdf,image/*,.dxf,application/dxf,image/vnd.dxf,application/octet-stream" style="display:none"></label>
    ${bt("plPrev","◀")}<span id="plPg" style="font-size:13px;flex:none"></span>${bt("plNext","▶")}<span style="flex:1"></span>${bt("plHelp","❓ 使い方","background:#fbbf24")}${bt("plClose","✕ 閉じる")}</div>
    <div id="plSteps" style="display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 8px 6px;flex:none"></div>
    <div id="plInfo" style="padding:0 10px 4px;font-size:12px;line-height:1.4;color:#cbd5e1;max-height:2.9em;overflow:hidden;flex:none"></div>
@@ -139,11 +139,11 @@ function wzBtn(id,t,bg,fg,ex){return`<button id="${id}" style="min-height:44px;p
 function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.step;let h="",title="",bk=true,nx=true,nxT="次へ ▶";
  const cnt=k=>st.bld.filter(o=>o.k===k).length,sess=()=>{let n=0;for(let i=W.s0;i<BT.stack.length;i++)n+=BT.stack[i];return n};
  if(s==="open"){title="① 図面を開く";bk=false;nx=false;
-  h=(PL_LAST?`<div style="background:#ecfdf5;border-radius:12px;padding:8px;margin-bottom:8px">${wzBtn("wzResume","↩ 前の図面の続きから","#16a34a","#fff","width:100%")}<div style="font-size:12.5px;color:#166534;margin-top:4px">${PL_LAST.name.replace(/[<>&]/g,"")}（${new Date(PL_LAST.t).toLocaleDateString("ja-JP")}に開いた図面）。置いた物・縮尺・原点もそのまま続けて編集できます。</div></div><p style="font-size:13px;color:#475569;margin-bottom:4px">ちがう図面を開く時はこちら：</p>`:"")+`<p>図面のPDFを開きます。<b>CADから書き出したPDF</b>がいちばん正確です（写真の図面も開けます）。</p>${wzBtn("wzOpen","📄 図面を開く（ファイルを選ぶ）","#2563eb","#fff","width:100%")}<p style="font-size:12.5px;color:#64748b;margin-top:6px">iPhoneの「ファイル」が開くので、保存してあるPDFを選んでください。</p>`}
+  h=(PL_LAST?`<div style="background:#ecfdf5;border-radius:12px;padding:8px;margin-bottom:8px">${wzBtn("wzResume","↩ 前の図面の続きから","#16a34a","#fff","width:100%")}<div style="font-size:12.5px;color:#166534;margin-top:4px">${PL_LAST.name.replace(/[<>&]/g,"")}（${new Date(PL_LAST.t).toLocaleDateString("ja-JP")}に開いた図面）。置いた物・縮尺・原点もそのまま続けて編集できます。</div></div><p style="font-size:13px;color:#475569;margin-bottom:4px">ちがう図面を開く時はこちら：</p>`:"")+`<p>図面のPDFかDXFを開きます。<b>CADのDXF</b>がいちばん正確です（実寸なので縮尺合わせもいりません）。CADから書き出したPDF・写真の図面も開けます。</p>${wzBtn("wzOpen","📄 図面を開く（ファイルを選ぶ）","#2563eb","#fff","width:100%")}<p style="font-size:12.5px;color:#64748b;margin-top:6px">iPhoneの「ファイル」が開くので、保存してあるPDFを選んでください。</p>`}
  else if(s==="scale"){title="② 縮尺を決める";nx=!!(P&&P.mmpp);
   const den=P&&P.den,canDen=P&&P.ptpx;
   h=`<p>図面の<b>1mmが実際の何mmか</b>を決めます。ここがズレると、壁も室内機も全部ズレます。</p>`+
-   (P&&P.mmpp?`<div style="background:#ecfdf5;border-radius:10px;padding:8px;margin-bottom:8px">いまの縮尺：<b>${den?"1/"+den:"2点で合わせ済み"}</b>${P.autoScale?"（通り芯の寸法と一致）":den&&P.denTxt?"（図面の表記から）":""}</div>${wzBtn("wzOkScale",planCanAuto()?"✅ この縮尺でOK → ⚡ 残りは全部自動":"✅ この縮尺でOK（次へ）","#16a34a","#fff","width:100%;margin-bottom:6px")+(planCanAuto()?`<div style="font-size:12.5px;color:#475569;margin:-2px 0 8px">縮尺だけ確かめてください。OKを押すと、原点・壁・室内機・室外機・配管・穴を自動で作ります。</div>`:"")}`:`<div style="background:#fef2f2;border-radius:10px;padding:8px;margin-bottom:8px;color:#b91c1c">縮尺がまだ決まっていません</div>`)+
+   (P&&P.mmpp?`<div style="background:#ecfdf5;border-radius:10px;padding:8px;margin-bottom:8px">いまの縮尺：<b>${den?"1/"+den:P.dxf?"DXF（実寸）":"2点で合わせ済み"}</b>${P.autoScale?"（通り芯の寸法と一致）":den&&P.denTxt?"（図面の表記から）":""}</div>${wzBtn("wzOkScale",planCanAuto()?"✅ この縮尺でOK → ⚡ 残りは全部自動":"✅ この縮尺でOK（次へ）","#16a34a","#fff","width:100%;margin-bottom:6px")+(planCanAuto()?`<div style="font-size:12.5px;color:#475569;margin:-2px 0 8px">縮尺だけ確かめてください。OKを押すと、原点・壁・室内機・室外機・配管・穴を自動で作ります。</div>`:"")}`:`<div style="background:#fef2f2;border-radius:10px;padding:8px;margin-bottom:8px;color:#b91c1c">縮尺がまだ決まっていません</div>`)+
    (canDen?`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px"><span style="font-size:13px">縮尺を選ぶ：</span>${[30,50,60,100,150,200].map(d=>`<button data-den="${d}" style="height:40px;padding:0 10px;border-radius:10px;font-weight:800;border:1.5px solid #cbd5e1;background:${den===d?"#fbbf24":"#fff"}">1/${d}</button>`).join("")}</div>`:"")+
    wzBtn("wzCal","📏 長さの分かる2点で合わせる（いちばん確実）","#2563eb","#fff","width:100%;margin-top:4px")}
  else if(s==="cal"){title="② 縮尺：2点で合わせる";nx=false;
@@ -160,7 +160,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
   h=`<p style="margin-bottom:6px">追加したいものを選んでください。終わったら「3Dで見る」。</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${WZ_ADD.map(([k,i,t])=>`<button data-add="${k}" style="min-height:56px;padding:6px;border-radius:12px;font-weight:800;font-size:14px;background:#fff;border:1.5px solid #cbd5e1;text-align:left;line-height:1.25"><span style="font-size:20px">${i}</span> ${t}${c[k]?`<br><span style="font-size:11.5px;color:#16a34a">置いた数：${c[k]}</span>`:""}</button>`).join("")}</div>
    ${wzBtn("wzPipeGo","🔧 室内機から配管を自動で引く（穴を通して室外機へ）","#0f766e","#fff","width:100%;margin-top:8px")}
    <div style="display:flex;gap:6px;margin-top:8px">${wzBtn("wzAutoGo","✨ 図面から自動で読み込む","#7c3aed","#fff","flex:1")}${wzBtn("wzDelGo","🗑 間違いを消す","#dc2626","#fff","flex:1")}</div>
-   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${st.bld.length?wzBtn("wzClearAll","🧹 置いた物を全部消す"):""}${wzBtn("wzList","📋 墨出しリスト")}${wzBtn("wzRedo","📐 縮尺・原点をやり直す")}${wzBtn("wzClassic","🔧 細かい道具（なぞる等）")}</div>`}
+   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${st.bld.length?wzBtn("wzClearAll","🧹 置いた物を全部消す"):""}${wzBtn("wzDL","🧩 図面の配管・ダクトを3Dに")}${wzBtn("wzList","📋 墨出しリスト")}${wzBtn("wzRedo","📐 縮尺・原点をやり直す")}${wzBtn("wzClassic","🔧 細かい道具（なぞる等）")}</div>`}
  else if(s==="t:auto"){title="✨ 図面から自動で読み込む";nxT="✅ 終わり ▶";const R=W.autoRes;
   const ck=(k,l,v)=>`<label style="display:inline-flex;align-items:center;gap:6px;margin:2px 12px 2px 0;font-weight:800"><input type="checkbox" data-ak="${k}" ${v!==false?"checked":""} style="width:22px;height:22px">${l}</label>`;
   h=`<p>図面の線から、<b>壁・柱・室内機</b>を自動で見つけて置きます。間違っていたら、あとで「🗑 間違いを消す」で消せます。</p><div>${ck("aw","🧱 壁",W.aw)}${ck("ac","🏛 柱",W.ac)}${ck("ai","❄️ 室内機",W.ai)}</div>`+wzInp("wh","壁の高さ（0＝天井まで）")+
@@ -235,7 +235,10 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
  bl.querySelectorAll("[data-den]").forEach(b=>b.onclick=()=>{const d=+b.dataset.den;if(P&&P.ptpx){P.den=d;P.autoScale=0;P.mmpp=25.4/72/P.ptpx*d;try{$("#plDen").value=d}catch(e){}try{planWalls()}catch(e){}wzRender();planDraw();toast("縮尺を1/"+d+"にしました")}});
  on("wzOldOrg",()=>{const m=wzMem()[wzKey()];if(m&&m.org){P.org=m.org.slice();wzRender();planDraw()}});
  bl.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const k=b.dataset.add;if(k==="read"){planReadAll();return}if(k==="auto"){planAutoAll();return}wzGo("t:"+k)});
- on("wzAutoGo",()=>wzGo("t:auto"));on("wzPipeGo",()=>wzGo("t:pipe"));
+ on("wzAutoGo",()=>wzGo("t:auto"));
+ on("wzDL",()=>{const P=PLAN;if(!P||!P.org){toast("先に原点を決めてください");return}let D=null;try{D=planDrawLines()}catch(e){console.warn(e)}
+  const n=D?DL_KINDS.filter(([k])=>D[k]&&D[k].length):[];if(!n.length){toast("図面に冷媒・ドレン・ダクト・衛生の線が見つかりませんでした（DXFは画層の名前、PDFは赤紫＝冷媒・オレンジ＝ドレンで見分けます）");return}
+  st.dln=D;save();try{if(T){build3D();T.dirty=true}}catch(e){}toast("図面の配管を3Dに出しました："+n.map(([k,nm])=>nm+" "+D[k].length+"本").join("・")+"。3Dの下のボタンで表示・非表示")});on("wzPipeGo",()=>wzGo("t:pipe"));
  on("wzClearAll",()=>sheetMsg(`<b style="font-size:17px">🧹 置いた物を全部消しますか？</b><p>壁・柱・室内機・室外機など ${st.bld.length}個を消します。</p>`,[["全部消す",()=>{st.bld=[];st.bldXf=null;st.bldKey="";BT.stack=[];bldChanged();wzRender();planDraw();toast("全部消しました")},"#dc2626","#fff"],["やめる"]]));
  on("wzPipeBox",()=>{const e=$("#wzPipeM");const v=e&&e.value;if(!v){toast("機種を選んでください");return}const o=st.bld[W.pi];if(o){o.m=v;st.bld=normBld(st.bld);bldChanged();W.psub="hole";BT.tool="pipehole";wzRender()}});
  on("wzPipeNoHole",()=>{W.psub="out";BT.tool="pipeout";wzRender()});on("wzPipeHoleOk",()=>{W.psub="out";BT.tool="pipeout";wzRender()});
@@ -304,9 +307,15 @@ function wzPickIns(p){const P=PLAN;if(!P.rects){try{planAnalyze()}catch(e){}}con
  const w0=(r.x1-r.x0),h0=(r.y1-r.y0),tl=Math.max(2,25/P.mmpp),same=q=>q.col===r.col&&((Math.abs((q.x1-q.x0)-w0)<tl&&Math.abs((q.y1-q.y0)-h0)<tl)||(Math.abs((q.x1-q.x0)-h0)<tl&&Math.abs((q.y1-q.y0)-w0)<tl));
  const g=[],tol2=200/P.mmpp;R.filter(same).forEach(q=>{const cx=(q.x0+q.x1)/2,cy=(q.y0+q.y1)/2;if(!g.some(z=>Math.hypot((z.x0+z.x1)/2-cx,(z.y0+z.y1)/2-cy)<tol2))g.push(q)});
  W.pick=r;W.cand=g;W.sub="confirm";wzRender();planDraw()}
-function wzPlaceIns(list){const P=PLAN,L=[],have=st.bld.filter(o=>o.k==="ins");
+/* 全部自動で読む：室内機のまわり（6m以内）の、機器の色（青）の 300〜650角の四角を点検口として置く */
+function planAutoIns(I){const P=PLAN;if(!P.rects){try{planAnalyze()}catch(e){}}const R=P.rects||[],mm=P.mmpp,c=I&&I.c;if(!c)return 0;
+ const blue=col=>{const[r,g,b]=rgbOf(col);return b>150&&r<90&&g<90};
+ const C=R.filter(r=>{const a=(r.x1-r.x0)*mm,b=(r.y1-r.y0)*mm,cx=(r.x0+r.x1)/2,cy=(r.y0+r.y1)/2;return blue(r.col)&&Math.max(a,b)<=650&&Math.min(a,b)>=300&&Math.max(a,b)/Math.min(a,b)<1.15&&Math.hypot(cx-c.cx,cy-c.cy)*mm<6000&&!(cx>c.x0&&cx<c.x1&&cy>c.y0&&cy<c.y1)});
+ const L=insFromRects(C);if(L.length)btAdd(L);return L.length}
+function insFromRects(list){const P=PLAN,L=[],have=st.bld.filter(o=>o.k==="ins");
  list.forEach(r=>{if(!r)return;const q=btW([(r.x0+r.x1)/2,(r.y0+r.y1)/2]);if(have.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<200)||L.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<200))return;
-  const o=bldNew("ins",{x:q[0],z:q[1]});o.w=insSnap((r.x1-r.x0)*P.mmpp);o.d=insSnap((r.y1-r.y0)*P.mmpp);L.push(normBld([o])[0])});
+  const o=bldNew("ins",{x:q[0],z:q[1]});o.w=insSnap((r.x1-r.x0)*P.mmpp);o.d=insSnap((r.y1-r.y0)*P.mmpp);L.push(normBld([o])[0])});return L}
+function wzPlaceIns(list){const L=insFromRects(list);
  if(!L.length){toast("もう置いてあります");return}
  btAdd(L);W.sub="pick";W.cand=null;W.pick=null;BT.tool="inspick";wzRender();planDraw();
  toast("点検口を"+L.length+"個置きました。ほかの大きさもあればタップ、終わったら「✅ 終わり」")}
@@ -652,7 +661,16 @@ plLastInfo();
 async function planLoad(f,resume){
  try{
   if(!resume){W.resume=false;plSaveLast(f)}
-  if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){
+  if(/\.dxf$/i.test(f.name)){
+   toast("DXFを読み込んでいます…");const G=await dxfRead(f),Q=dxfToPlan(G,f);
+   PLAN={...Q,H:(PLAN&&PLAN.H)||2400,CH:(PLAN&&PLAN.CH)||0};const P=PLAN;
+   const all=P.texts.map(t=>t.s).join(" ").replace(/[０-９]/g,c2=>String.fromCharCode(c2.charCodeAt(0)-65248)).replace(/[＝：]/g,"=");
+   const ch={};(all.match(/C\.?\s?H\s*=?\s*([1-6][0-9]{3})/gi)||[]).concat(all.match(/天井高\D{0,4}([1-6][0-9]{3})/g)||[]).forEach(x=>{const v=+(x.match(/([1-6][0-9]{3})/)||[])[1];if(v)ch[v]=(ch[v]||0)+1});
+   const best=Object.keys(ch).sort((a,b)=>ch[b]-ch[a]||b-a)[0];if(best)P.CH=+best;P.chList=Object.keys(ch);
+   try{$("#plPg").textContent="DXF";$("#plDen").value=""}catch(e){}
+   try{planAnalyze()}catch(e){console.warn("analyze",e)}planWalls();planFit();PV.md("trace");planDraw();
+   toast("DXFを読み込みました（実寸なので縮尺合わせはいりません）");
+  }else if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){
    toast("図面を読み込んでいます…");const lib=await loadPdfJs(),buf=await f.arrayBuffer();
    const pdf=await lib.getDocument({data:buf,cMapUrl:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/",cMapPacked:true}).promise;
    PLAN={pdf,page:1,route:[],walls:[],segs:[],texts:[],H:(PLAN&&PLAN.H)||2400,CH:(PLAN&&PLAN.CH)||0,show:true,fkey:f.name+"|"+f.size};await planPage(resume&&W.resumePage&&W.resumePage>1?Math.min(W.resumePage,pdf.numPages):1);
@@ -1193,7 +1211,7 @@ function planAnalyze(){
  if(rs.length>=2){let med=0,ok=0;rs.forEach(r=>{const c=rs.filter(q=>Math.abs(q/r-1)<0.015);if(c.length>ok){ok=c.length;med=c.reduce((x,y)=>x+y,0)/c.length}});
   /* 図面に書いてある縮尺（1/50など）や、よくある縮尺とかけ離れた結果は採用しない */
   const base=25.4/72/(P.ptpx||1),est=med/base,STD=[20,25,30,40,50,60,75,100,150,200,250,300,500],near=STD.some(d=>Math.abs(est/d-1)<0.07),agree=P.denTxt&&P.den?Math.abs(med/P.mmpp-1)<0.08:near;
-  if(ok>=2&&agree){P.mmpp=med;P.den=0;P.denTxt=0;P.autoScale=ok}}
+  if(ok>=2&&agree&&!P.dxf){P.mmpp=med;P.den=0;P.denTxt=0;P.autoScale=ok}}
  /* 四角（閉じた長方形）を線から探す */
  const H=[],V=[];P.segs.forEach(s2=>{if(Math.abs(s2[1]-s2[3])<0.6&&Math.abs(s2[2]-s2[0])>4)H.push([Math.min(s2[0],s2[2]),Math.max(s2[0],s2[2]),s2[1],s2[4]]);else if(Math.abs(s2[0]-s2[2])<0.6&&Math.abs(s2[3]-s2[1])>4)V.push([Math.min(s2[1],s2[3]),Math.max(s2[1],s2[3]),s2[0],s2[4]])});
  const vx={};V.forEach(v=>{const k=Math.round(v[2]*2);(vx[k]=vx[k]||[]).push(v)});
@@ -1318,14 +1336,13 @@ function planClusters(test){const P=PLAN,S=P.segs.filter(s=>test(s[4])),n=S.leng
 /* マゼンタの2本線（ガス管・液管）→ 真ん中の1本のルート（図面の点の並び） */
 function planPipeRoute(start){const P=PLAN,mm=P.mmpp;
  const L=P.segs.filter(s=>isMag(s[4])).map(s=>{const dx=s[2]-s[0],dy=s[3]-s[1],l=Math.hypot(dx,dy);return{s,l,h:Math.abs(dy)<=Math.max(1,l*0.03),v:Math.abs(dx)<=Math.max(1,l*0.03)}}).filter(o=>o.l*mm>=120&&(o.h||o.v));
- const used=new Set(),mids=[];
- L.forEach((A,i)=>{if(used.has(i))return;let best=-1,bd=1e9;
-  L.forEach((B,j)=>{if(j===i||used.has(j)||A.h!==B.h)return;const d=A.h?Math.abs((B.s[1]+B.s[3])/2-(A.s[1]+A.s[3])/2):Math.abs((B.s[0]+B.s[2])/2-(A.s[0]+A.s[2])/2);if(d*mm>180||d<0.5)return;
-   const a0=A.h?Math.min(A.s[0],A.s[2]):Math.min(A.s[1],A.s[3]),a1=A.h?Math.max(A.s[0],A.s[2]):Math.max(A.s[1],A.s[3]),b0=A.h?Math.min(B.s[0],B.s[2]):Math.min(B.s[1],B.s[3]),b1=A.h?Math.max(B.s[0],B.s[2]):Math.max(B.s[1],B.s[3]);
-   if(Math.min(a1,b1)-Math.max(a0,b0)<Math.min(a1-a0,b1-b0)*0.5)return;if(d<bd){bd=d;best=j}});
-  used.add(i);let lo,hi,c;const B=best>=0?L[best]:null;if(B)used.add(best);
-  if(A.h){lo=Math.min(A.s[0],A.s[2],...(B?[B.s[0],B.s[2]]:[]));hi=Math.max(A.s[0],A.s[2],...(B?[B.s[0],B.s[2]]:[]));c=B?((A.s[1]+A.s[3])/2+(B.s[1]+B.s[3])/2)/2:(A.s[1]+A.s[3])/2;mids.push({h:1,a:[lo,c],b:[hi,c]})}
-  else{lo=Math.min(A.s[1],A.s[3],...(B?[B.s[1],B.s[3]]:[]));hi=Math.max(A.s[1],A.s[3],...(B?[B.s[1],B.s[3]]:[]));c=B?((A.s[0]+A.s[2])/2+(B.s[0]+B.s[2])/2)/2:(A.s[0]+A.s[2])/2;mids.push({h:0,a:[c,lo],b:[c,hi]})}});
+ /* 平行な線をまとめて1本の配管にする（2本の外形線、液管・ガス管が並んだ3本線など）。真ん中＝いちばん外側の2本の間 */
+ const used=new Set(),mids=[],pos=o=>o.h?(o.s[1]+o.s[3])/2:(o.s[0]+o.s[2])/2,rng=o=>o.h?[Math.min(o.s[0],o.s[2]),Math.max(o.s[0],o.s[2])]:[Math.min(o.s[1],o.s[3]),Math.max(o.s[1],o.s[3])];
+ L.forEach((A,i)=>{if(used.has(i))return;used.add(i);const C=[A];
+  for(let k=0;k<C.length;k++){const Q=C[k],qr=rng(Q);L.forEach((B,j)=>{if(used.has(j)||B.h!==A.h)return;const d=Math.abs(pos(B)-pos(Q));if(d*mm>180||d<0.5)return;const br=rng(B);
+   if(Math.min(qr[1],br[1])-Math.max(qr[0],br[0])<Math.min(qr[1]-qr[0],br[1]-br[0])*0.5)return;used.add(j);C.push(B)})}
+  const ps=C.map(pos),c=(Math.min(...ps)+Math.max(...ps))/2,lo=Math.min(...C.map(o=>rng(o)[0])),hi=Math.max(...C.map(o=>rng(o)[1]));
+  mids.push(A.h?{h:1,a:[lo,c],b:[hi,c]}:{h:0,a:[c,lo],b:[c,hi]})});
  if(!mids.length)return null;
  const dist=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1]);let bi=0,bend=0,bd=1e18;
  mids.forEach((m2,i)=>[m2.a,m2.b].forEach((p,e)=>{const d=dist(p,start);if(d<bd){bd=d;bi=i;bend=e}}));
@@ -1763,7 +1780,11 @@ let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.war
  /* 天井高の範囲：メインと違う「CH=2400」などの部屋に自動で置く（範囲の中の壁・ボード・スタッドはその高さで止まる） */
  let nc=0;try{if(r&&typeof kzCeilAuto==="function"){nc=kzCeilAuto();if(typeof kzFixMainCH==="function")kzFixMainCH()}}catch(e){console.warn("ceil",e)}
  try{if(r&&typeof kzDoors==="function")nd=kzDoors(true)}catch(e){console.warn("doors",e)}try{if(r&&typeof kzWindows==="function")nwn=kzWindows(true)}catch(e){console.warn("win",e)}
- if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+"。違う所は図面画面で直せます"),400)}
+ /* 点検口（室内機の近くの、機器の色の 300〜600角の四角）と、図面の配管・ダクト（3Dに出して種類ごとに表示・非表示） */
+ let ni=0,ndl="";if(r){try{ni=planAutoIns(I)}catch(e){console.warn("ins",e)}
+  try{const D=planDrawLines&&planDrawLines();if(D){st.dln=D;ndl=DL_KINDS.filter(([k])=>D[k]&&D[k].length).map(([k,n])=>n).join("・");save()}}catch(e){console.warn("dl",e)}
+  try{if(T){build3D();T.dirty=true}else if(typeof dlBar==="function")dlBar()}catch(e){}}
+ if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+(ni?"・点検口 "+ni+"個":"")+(ndl?"・図面の配管（"+ndl+"）":"")+"。違う所は図面画面で直せます"),400)}
  return r}
 
 /* 読み込み終わったら、建物・図面・スキャンを3Dに出し直す */

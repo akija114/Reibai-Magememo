@@ -233,10 +233,10 @@ function dlTidy(S0,k,EQ,LB){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub,lay
  const reL=o=>{o.L=Math.hypot(o.b[0]-o.a[0],o.b[1]-o.a[1]);if(o.L>0.5)o.u=[(o.b[0]-o.a[0])/o.L,(o.b[1]-o.a[1])/o.L]};
  const mkPort=(i,en,T,dir,y,d)=>{const o=S[i];   // T：口の先、dir：口から外向き、o の端 en を口につなぐ
   const far=en==="a"?o.b:o.a,len=dt(sub(far,T),dir);if(len<20)return;
-  if(len<=260){if(en==="a")o.a=T.slice();else o.b=T.slice();reL(o);o.fh=y;if(d&&Math.abs(d-o.w)>10)o.tp={e:en,w:d};usedE.add(i+en);o.cn++;return}
+  if(len<=260){if(en==="a")o.a=T.slice();else o.b=T.slice();reL(o);o.fh=y;o.pd=d;if(d&&Math.abs(d-o.w)>10)o.tp={e:en,w:d};usedE.add(i+en);o.cn++;return}
   const LP=160,X=[T[0]+dir[0]*LP,T[1]+dir[1]*LP],tx=dt(sub(X,o.a),o.u),Xo=[o.a[0]+o.u[0]*tx,o.a[1]+o.u[1]*tx];
   if(en==="a")o.a=Xo;else o.b=Xo;reL(o);
-  const N={a:T.slice(),b:Xo.slice(),h:y,sh:o.sh,w:o.w,hh:o.hh,sub:o.sub,lay:o.lay,L:0,u:dir.slice(),id:0,cn:1,fh:y};reL(N);if(d&&Math.abs(d-o.w)>10)N.tp={e:"a",w:d};
+  const N={a:T.slice(),b:Xo.slice(),h:y,sh:o.sh,w:o.w,hh:o.hh,sub:o.sub,lay:o.lay,L:0,u:dir.slice(),id:0,cn:1,fh:y,pd:d};reL(N);if(d&&Math.abs(d-o.w)>10)N.tp={e:"a",w:d};
   S.push(N);par.push(S.length-1);const n=S.length-1;usedE.add(n+"a");addLink(n,"b",i,en,Xo)};
  EQ.forEach(e=>{
   if(e.P&&e.P.length){e.P.forEach(pt=>{let best=null,bd=300;
@@ -282,6 +282,11 @@ function dlTidy(S0,k,EQ,LB){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub,lay
  const endKey=(o,p)=>Math.hypot(o.a[0]-p[0],o.a[1]-p[1])<=Math.hypot(o.b[0]-p[0],o.b[1]-p[1])?"a":"b";
  const far=(o,e)=>e==="a"?o.b:o.a;
  const use={};J.forEach(q=>{if(!keep[q.i]||!keep[q.j])return;[[q.i,S[q.i]],[q.j,S[q.j]]].forEach(([n,o])=>{const kk=n+endKey(o,q.p);use[kk]=(use[kk]||0)+1})});
+ /* ④' 機器の口につながるダクトは、口の太さ（ロスナイ N15 なら φ100）にそろえる。
+    口から同じ太さで続く所まで（図面の文字で太さが変わる所＝OA 200φ などから先はそのまま）。途中の箱・チャンバー（文字の無い太い物）は通りぬける */
+ S.forEach((o,i)=>{if(!o.pd||o.sh!==0)return;const nb=adjT[i].map(([j])=>S[j]).find(q=>q.sh===0&&!q.pd),w0=nb?(nb.lsz?nb.lsz.a:nb.w):o.w,d=o.pd;/* 続くダクトの太さ（図面の文字）を基準に */o.tp=null;o.w=o.hh=d;const seen=new Set([i]),qq=[i];
+  while(qq.length){const c=qq.shift();adjT[c].forEach(([j])=>{if(seen.has(j))return;seen.add(j);const q=S[j];if(q.sh!==0||q.pd)return;
+   if(Math.abs(q.w-w0)<=0.15*w0){q.w=q.hh=d;qq.push(j)}else if(!q.lsz)qq.push(j)})}});
  /* ⑤ 高さのちがうつなぎ目（曲がり・一直線）：その場所で上げ下げする。丸い物は「曲がり → たて管 → 曲がり」、角は たての箱
     ・ほんの少し（太さの1/4 以下）しかちがわない時は、口の管をダクトの高さに合わせるだけ */
  const VJ=[],VS=[];

@@ -105,7 +105,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .pat svg{width:40px;height:22px}
 .rnote{font-size:12px;color:var(--muted);line-height:1.5}
 .rerr{font-size:12px;color:var(--danger);font-weight:600}
-.hlbar{position:absolute;left:8px;right:8px;top:8px;background:var(--panel);border:1.5px solid var(--snap);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:6px;display:flex;align-items:center;gap:6px;z-index:3}
+.hlbar{flex-wrap:wrap;position:absolute;left:8px;right:8px;top:8px;background:var(--panel);border:1.5px solid var(--snap);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:6px;display:flex;align-items:center;gap:6px;z-index:3}
 .hlbar .grow{flex:1;min-width:0}
 .hlbar .t1{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hlbar .t2{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1171,13 +1171,47 @@ function routeBuild(){
 function cmdRoute(changes, ghosts, label, info = {}){
   const prev = changes.map(c => [c.sid, S.ov.has(c.sid) ? S.ov.get(c.sid) : null]);
   const routes = info.routes || [];
-  return {kind:'route', label, log:{label:'ルート変更', detail:info.detail || '', layers:[...new Set(changes.map(c => G.L[G.shapes[c.sid].li].name))], routes, ghosts:ghosts.map(g => ({...g})), box:boxOf(routes.flat().concat(ghosts.flatMap(g => [[g.x1,g.y1],[g.x2,g.y2]])))}, do(){ changes.forEach(c => S.ov.set(c.sid, {verts:c.verts, closed:c.closed})); S.ghosts = S.ghosts.concat(ghosts); },
+  return {kind:'route', label, log:{label:'ルート変更', prev:prev.map(([sid, o]) => [sid, o ? o.verts : null, o ? o.closed : false]), detail:info.detail || '', layers:[...new Set(changes.map(c => G.L[G.shapes[c.sid].li].name))], routes, ghosts:ghosts.map(g => ({...g})), box:boxOf(routes.flat().concat(ghosts.flatMap(g => [[g.x1,g.y1],[g.x2,g.y2]])))}, do(){ changes.forEach(c => S.ov.set(c.sid, {verts:c.verts, closed:c.closed})); S.ghosts = S.ghosts.concat(ghosts); },
     undo(){ prev.forEach(([sid, o]) => o ? S.ov.set(sid, o) : S.ov.delete(sid)); S.ghosts = S.ghosts.filter(g => !ghosts.includes(g)); }};
 }
 function cmdRouteReset(sid){
   const o = S.ov.get(sid), gs = S.ghosts.filter(g => g.sid === sid); const sh = G.shapes[sid];
   const f = polyFlat(sh.verts, sh.closed).f, orig = []; for (let i = 0; i < f.length; i += 2) orig.push([f[i], f[i+1]]);
-  return {kind:'route', label:'図面の通りに戻す', log:{label:'図面の通りに戻した', detail:G.L[sh.li].name, routes:[orig], ghosts:[], box:boxOf(orig)}, do(){ S.ov.delete(sid); S.ghosts = S.ghosts.filter(g => !gs.includes(g)); }, undo(){ S.ov.set(sid, o); S.ghosts = S.ghosts.concat(gs); }};
+  return {kind:'route', label:'図面の通りに戻す', log:{label:'図面の通りに戻した', restore:[sid, o.verts, o.closed], detail:G.L[sh.li].name, routes:[orig], ghosts:gs.map(g => ({...g})), box:boxOf(orig)}, do(){ S.ov.delete(sid); S.ghosts = S.ghosts.filter(g => !gs.includes(g)); }, undo(){ S.ov.set(sid, o); S.ghosts = S.ghosts.concat(gs); }};
+}
+/* ---- take back one past change from the log, leaving everything after it alone ---- */
+const sameSeg = (a, b) => (Math.abs(a.x1-b.x1) < 1e-6 && Math.abs(a.y1-b.y1) < 1e-6 && Math.abs(a.x2-b.x2) < 1e-6 && Math.abs(a.y2-b.y2) < 1e-6) || (Math.abs(a.x1-b.x2) < 1e-6 && Math.abs(a.y1-b.y2) < 1e-6 && Math.abs(a.x2-b.x1) < 1e-6 && Math.abs(a.y2-b.y1) < 1e-6);
+function cmdAddDims(recs){ const ds = recs.map((r, i) => ({id:'r' + Date.now().toString(36) + i, x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:r.n || 1})); return {kind:'dim', label:'寸法を戻す', do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }}; }
+function cmdSetRoutes(list, ghostsAdd, ghostsDel){ // list: [sid, verts|null, closed]
+  const before = list.map(([sid]) => [sid, S.ov.has(sid) ? S.ov.get(sid) : null]); let removed = [];
+  return {kind:'route', label:'ルートを戻す',
+    do(){ list.forEach(([sid, v, c]) => v ? S.ov.set(sid, {verts:v, closed:!!c}) : S.ov.delete(sid)); removed = S.ghosts.filter(g => ghostsDel.some(x => sameSeg(g, x))); S.ghosts = S.ghosts.filter(g => !removed.includes(g)).concat(ghostsAdd); },
+    undo(){ before.forEach(([sid, o]) => o ? S.ov.set(sid, o) : S.ov.delete(sid)); S.ghosts = S.ghosts.filter(g => !ghostsAdd.includes(g)).concat(removed); }};
+}
+function inverseOf(e){
+  if (!G || e.undone || e.reverted || e.revertOf) return null;
+  if (e.kind === 'layer' && e.layers){ const live = e.layers.filter(n => G.L.some(l => l.name === n)); return /削除/.test(e.label) ? cmdRestoreLayers(live) : cmdDelLayers(live); }
+  if (e.kind === 'dim' && e.dims){
+    if (e.label === '寸法を削除') return cmdAddDims(e.dims);
+    const d = S.dims.find(x => sameSeg(x, e.dims[0])); if (!d) return null;
+    if (e.label === '寸法を追加') return cmdDelDims([d]);
+    return cmdDiv(d, e.prevN || 1);
+  }
+  if (e.kind === 'route'){
+    if (e.prev) return cmdSetRoutes(e.prev, [], e.ghosts || []);
+    if (e.restore) return cmdSetRoutes([e.restore], (e.ghosts || []).map(g => ({...g})), []);
+    return null;
+  }
+  if (e.kind === 'obj' && e.eids){ const op = {'部品を非表示':'show', '部品を削除':'restore', '部品を表示に戻した':'hide', '部品を戻した':'del'}[e.label]; return op ? cmdObjs(e.eids, op) : null; }
+  return null;
+}
+function revertEntry(e){
+  const inner = inverseOf(e); if (!inner){ toast('この変更は取り消せません'); return; }
+  const later = e.kind === 'route' && e.prev ? S.log.filter(x => x.t > e.t && !x.undone && !x.reverted && x.kind === 'route' && x.prev && x.prev.some(([sid]) => e.prev.some(([s2]) => s2 === sid))).length : 0;
+  exec({kind:inner.kind, label:'取り消し：' + e.label, log:{label:'取り消し：' + e.label, detail:e.detail, revertOf:e.id, layers:e.layers, dims:e.dims, eids:e.eids, routes:e.routes, ghosts:e.ghosts, box:e.box, gone:true},
+    do(){ inner.do(); e.reverted = true; }, undo(){ inner.undo(); e.reverted = false; }});
+  toast(`「${e.label}」だけ取り消しました${later ? '（あとで同じ配管にした変更も一緒に戻りました）' : ''}・↶でやり直せます`);
+  if (HL && HL.e === e){ renderHlBar(); drawOverlay(); }
 }
 function nearRoute(p){
   const r = routeBuild(); if (!r || !r.routes.length) return false;
@@ -1313,7 +1347,7 @@ function cmdVis(names, on){
 }
 function cmdAddDim(d){ return {kind:'dim', label:'寸法追加', log:{label:'寸法を追加', detail:fmt(Math.hypot(d.x2-d.x1, d.y2-d.y1)) + ' mm', dims:[dimRec(d)], box:boxOf([[d.x1,d.y1],[d.x2,d.y2]])}, do(){ S.dims.push(d); }, undo(){ S.dims = S.dims.filter(x => x !== d); }}; }
 function cmdDelDims(ds){ const before = S.dims.slice(); return {kind:'dim', label:`寸法削除（${ds.length}）`, log:{label:'寸法を削除', detail:ds.length === 1 ? fmt(Math.hypot(ds[0].x2-ds[0].x1, ds[0].y2-ds[0].y1)) + ' mm' : ds.length + ' 本', dims:ds.map(dimRec), gone:true, box:boxOf(ds.flatMap(d => [[d.x1,d.y1],[d.x2,d.y2]]))}, do(){ S.dims = S.dims.filter(x => !ds.includes(x)); }, undo(){ S.dims = before.slice(); }}; }
-function cmdDiv(d, n){ const o = d.n || 1; const L = Math.hypot(d.x2-d.x1, d.y2-d.y1); return {kind:'dim', label: n === 1 ? '分割なし' : `${n}等分`, log:{label: n === 1 ? '分割をやめた' : (n === 2 ? '中心（2等分）' : `${n}等分`), detail: n === 1 ? fmt(L) + ' mm' : `${fmt(L)} → ${fmt(L/n)} ずつ`, dims:[{...dimRec(d), n}], box:boxOf([[d.x1,d.y1],[d.x2,d.y2]])}, do(){ d.n = n; }, undo(){ d.n = o; }}; }
+function cmdDiv(d, n){ const o = d.n || 1; const L = Math.hypot(d.x2-d.x1, d.y2-d.y1); return {kind:'dim', label: n === 1 ? '分割なし' : `${n}等分`, log:{label: n === 1 ? '分割をやめた' : (n === 2 ? '中心（2等分）' : `${n}等分`), detail: n === 1 ? fmt(L) + ' mm' : `${fmt(L)} → ${fmt(L/n)} ずつ`, dims:[{...dimRec(d), n}], prevN:o, box:boxOf([[d.x1,d.y1],[d.x2,d.y2]])}, do(){ d.n = n; }, undo(){ d.n = o; }}; }
 
 /* ============ UI ============ */
 function updateUi(){
@@ -1573,13 +1607,16 @@ function openLogSheet(tab){
         const d = new Date(e.t), day = `${d.getMonth()+1}/${d.getDate()}`;
         if (day !== lastDay){ h += `<div class="grp">${day}</div>`; lastDay = day; }
         const tag = {layer:'層', dim:'寸', route:'管', obj:'品'}[e.kind] || '・';
-        h += `<div class="row ${e.undone ? 'undone' : ''}" data-log="${esc(e.id)}"><i class="lk ${e.kind}">${tag}</i><div class="grow"><div class="nm">${esc(e.label)}${e.detail ? ` <span style="color:var(--muted);font-size:12px">${esc(e.detail)}</span>` : ''}</div><div class="sub">${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}${e.undone ? ' ・ 取り消し済み' : ''}</div></div><button class="btn" data-log="${esc(e.id)}">見る</button></div>`;
+        const canRev = !!inverseOf(e);
+        h += `<div class="row ${e.undone || e.reverted ? 'undone' : ''}" data-log="${esc(e.id)}"><i class="lk ${e.kind}">${tag}</i><div class="grow"><div class="nm">${esc(e.label)}${e.detail ? ` <span style="color:var(--muted);font-size:12px">${esc(e.detail)}</span>` : ''}</div><div class="sub">${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}${e.undone || e.reverted ? ' ・ 取り消し済み' : ''}</div></div>${canRev ? `<button class="btn del" data-rev="${esc(e.id)}">取り消す</button>` : ''}<button class="btn" data-log="${esc(e.id)}">見る</button></div>`;
       }
       h += `<span class="confirm" id="logClr"><button class="btn" data-a="clr">記録を消す（図面はそのまま）</button></span>`;
       body.innerHTML = h;
     }
     body.onclick = e => {
       const t = e.target.closest('[data-tab]'); if (t){ logTab = t.dataset.tab; refreshOpenSheet(); return; }
+      const rv = e.target.closest('[data-rev]');
+      if (rv){ const en = S.log.find(x => x.id === rv.dataset.rev); if (!en) return; if (!rv.dataset.ok){ rv.dataset.ok = '1'; rv.textContent = 'これだけ戻す'; return; } revertEntry(en); refreshOpenSheet(); return; }
       const b = e.target.closest('[data-log],[data-a]'); if (!b) return;
       if (b.dataset.log){ const en = S.log.find(x => x.id === b.dataset.log); if (en){ closeSheet(); showLog(en); } }
       else if (b.dataset.a === 'clr'){ $('#logClr').innerHTML = '<button class="btn del" data-a="clr2">記録を全部消す</button>'; }
@@ -1605,10 +1642,11 @@ function renderHlBar(){
   const e = HL.e, i = S.log.indexOf(e), d = new Date(e.t);
   bar.hidden = false;
   bar.innerHTML = `<button class="btn" data-a="prev" ${i > 0 ? '' : 'disabled'} aria-label="前の変更">◀</button><i class="lk ${e.kind}">${{layer:'層', dim:'寸', route:'管', obj:'品'}[e.kind] || '・'}</i>
-    <div class="grow"><div class="t1">${esc(e.label)}${e.undone ? '（取り消し済み）' : ''}</div><div class="t2">${esc(e.detail || '')} ・ ${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ・ ${i+1}/${S.log.length}</div></div>
-    <button class="btn" data-a="next" ${i < S.log.length-1 ? '' : 'disabled'} aria-label="次の変更">▶</button><button class="btn" data-a="close" aria-label="閉じる">✕</button>`;
+    <div class="grow"><div class="t1">${esc(e.label)}${e.undone || e.reverted ? '（取り消し済み）' : ''}</div><div class="t2">${esc(e.detail || '')} ・ ${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ・ ${i+1}/${S.log.length}</div></div>
+    <button class="btn" data-a="next" ${i < S.log.length-1 ? '' : 'disabled'} aria-label="次の変更">▶</button><button class="btn" data-a="close" aria-label="閉じる">✕</button>${inverseOf(e) ? '<button class="btn del" data-a="rev" style="flex-basis:100%">この変更だけ取り消す（あとの変更はそのまま）</button>' : ''}`;
   bar.onclick = ev => {
-    const a = ev.target.closest('[data-a]')?.dataset.a; if (!a) return;
+    const btn = ev.target.closest('[data-a]'); const a = btn?.dataset.a; if (!a) return;
+    if (a === 'rev'){ if (!btn.dataset.ok){ btn.dataset.ok = '1'; btn.textContent = 'もう一度押すと取り消します'; return; } revertEntry(e); return; }
     if (a === 'close'){ HL = null; renderHlBar(); updateHint(); drawOverlay(); }
     else if (a === 'prev' && i > 0) showLog(S.log[i-1]);
     else if (a === 'next' && i < S.log.length-1) showLog(S.log[i+1]);

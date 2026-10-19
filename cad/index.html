@@ -22,7 +22,7 @@
 :root{
   --bg:#E9EDF0; --panel:#FFFFFF; --panel2:#F3F6F8; --ink:#17212A; --muted:#5A6774; --line:#D2DAE0;
   --paper:#FCFDFD; --accent:#B86400; --accent-soft:#F7E6CF; --accent-ink:#FFFFFF;
-  --danger:#C2372B; --danger-soft:#F8DEDA; --snap:#0A74B8; --dimmed:#B8C2CA;
+  --danger:#C2372B; --danger-soft:#F8DEDA; --snap:#0A74B8; --dimmed:#B8C2CA; --note:#6A4BD1;
   --font-ui:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Noto Sans JP",sans-serif;
   --font-num:"Barlow Condensed","Arial Narrow",var(--font-ui);
   --r:10px;
@@ -30,11 +30,11 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#11161B; --panel:#192027; --panel2:#202932; --ink:#E5EBF0; --muted:#8F9DAA; --line:#2B353F;
   --paper:#0C1014; --accent:#F0A43C; --accent-soft:#3A2A14; --accent-ink:#1B1206;
-  --danger:#FF6E61; --danger-soft:#3D1D1A; --snap:#52B9FF; --dimmed:#3A4550; color-scheme:dark}}
+  --danger:#FF6E61; --danger-soft:#3D1D1A; --snap:#52B9FF; --dimmed:#3A4550; --note:#A993FF; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#11161B; --panel:#192027; --panel2:#202932; --ink:#E5EBF0; --muted:#8F9DAA; --line:#2B353F;
   --paper:#0C1014; --accent:#F0A43C; --accent-soft:#3A2A14; --accent-ink:#1B1206;
-  --danger:#FF6E61; --danger-soft:#3D1D1A; --snap:#52B9FF; --dimmed:#3A4550; color-scheme:dark}
+  --danger:#FF6E61; --danger-soft:#3D1D1A; --snap:#52B9FF; --dimmed:#3A4550; --note:#A993FF; color-scheme:dark}
 html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation}
@@ -111,7 +111,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .hlbar .t2{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hlbar .btn{height:36px;padding:0 10px}
 .lk{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;font-size:11px;font-weight:800;color:#fff}
-.lk.layer{background:#8893A0}.lk.obj{background:#7C5CD6}.lk.dim{background:var(--accent)}.lk.route{background:var(--snap)}
+.lk.layer{background:#8893A0}.lk.note{background:var(--note)}.lk.obj{background:#7C5CD6}.lk.dim{background:var(--accent)}.lk.route{background:var(--snap)}
 .row.undone .nm{text-decoration:line-through;opacity:.55}
 .seg2{display:flex;gap:6px}
 .seg2 .btn{flex:1}
@@ -151,7 +151,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .bigbtn{height:52px;border-radius:12px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px}
 .bigbtn.pri{background:var(--accent);color:var(--accent-ink)}
 .bigbtn.sec{background:var(--panel2)}
-.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 112px);transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:999px;font-size:13px;z-index:40;max-width:90%;text-align:center;pointer-events:none}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 168px);transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:14px;line-height:1.5;font-size:13px;z-index:40;max-width:90%;text-align:center;pointer-events:none}
 .loading{position:absolute;inset:0;display:grid;place-items:center;background:var(--paper);font-size:14px;color:var(--muted);z-index:5}
 .confirm{display:flex;gap:6px;align-items:center}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(30px);opacity:.5}}}
@@ -178,7 +178,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <canvas id="loupe" hidden></canvas>
     <div class="pill" id="pill" hidden></div>
     <div class="hlbar" id="hlBar" hidden></div>
-    <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bCancelPt" hidden>始点を取消</button></div></div>
+    <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bHint2" hidden></button><button id="bCancelPt" hidden>始点を取消</button></div></div>
     <div class="float" id="layerBar" hidden></div>
     <div class="float" id="dimPanel" hidden></div>
     <div class="float" id="routePanel" hidden></div>
@@ -192,7 +192,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <div class="sep"></div>
     <button class="tb mode" id="mBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="3 2.5"/><path d="M14 13l6 6M14 13h4M14 13v4"/></svg>範囲</button>
     <button class="tb" id="tOrtho"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 4v15h15"/><path d="M5 12h6v7" stroke-dasharray="2 2"/></svg>縦横</button>
-    <button class="tb" id="tChain"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 12h20M2 9v6M9 9v6M15 9v6M22 9v6"/></svg>連続</button>
+    <button class="tb mode" id="mNote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 5h16v11H10l-4 4v-4H4z"/><path d="M8 9h8M8 12h5"/></svg>メモ</button>
     <button class="tb" id="tSnap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="8" height="8"/><path d="M3 12h5M16 12h5M12 3v5M12 16v5"/></svg>吸着</button>
     <div class="sep"></div>
     <button class="tb" id="bFit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>全体</button>
@@ -207,6 +207,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 /* ============ constants & state ============ */
 const DIM_LAYER = '追加寸法';
 const GHOST_LAYER = '変更前ルート';
+const NOTE_LAYER = 'メモ';
 const SS = 8, PS = 6; // stride of segs (x1,y1,x2,y2,layer,kind,shape,part) / pts (x,y,layer,type,shape,part)
 const META = 'WADA_ZUMEN:';
 const PDFSRC = 'PDF_SOURCE:';
@@ -234,7 +235,7 @@ const S = {
   text:'', eol:'\r\n', srcName:'', name:'', fileId:'', projectId:null,
   units:'mm', geo:null, layers:[], dims:[], selDim:null,
   mode:'pan', ortho:true, chain:false, snapOn:true, tab:null, group:null, pick:null,
-  undo:[], redo:[], textH:150, views:[], viewId:null, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(),
+  undo:[], redo:[], textH:150, notes:[], views:[], viewId:null, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(),
 };
 let view = {s:1, tx:0, ty:0}, bview = {s:1, tx:0, ty:0};
 let cw = 0, ch = 0, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -247,7 +248,7 @@ let tok = {};
 function readTokens(){
   const cs = getComputedStyle(document.documentElement);
   const g = n => cs.getPropertyValue(n).trim();
-  tok = {paper:g('--paper'), ink:g('--ink'), accent:g('--accent'), snap:g('--snap'), dimmed:g('--dimmed'), panel:g('--panel'), muted:g('--muted'), danger:g('--danger')};
+  tok = {paper:g('--paper'), ink:g('--ink'), accent:g('--accent'), snap:g('--snap'), dimmed:g('--dimmed'), panel:g('--panel'), muted:g('--muted'), danger:g('--danger'), note:g('--note') || '#6A4BD1'};
   const p = tok.paper.replace('#','');
   tok.dark = p.length >= 6 && (parseInt(p.slice(0,2),16) + parseInt(p.slice(2,4),16) + parseInt(p.slice(4,6),16)) < 300;
   colorCache.clear();
@@ -409,7 +410,7 @@ function flatten(doc){
       if (o[67] !== undefined && parseInt(o[67]) === 1) continue;
       let ln = (o[8] || '0').trim();
       if (ln === '0' && inhL != null) ln = inhL;
-      if (skipDim && ln === DIM_LAYER){ if (T === 'POLYLINE') while (k+1 < ents.length && ents[k+1].type !== 'SEQEND') k++; continue; }
+      if (skipDim && (ln === DIM_LAYER || ln === NOTE_LAYER)){ if (T === 'POLYLINE') while (k+1 < ents.length && ents[k+1].type !== 'SEQEND') k++; continue; }
       const li = lay(ln);
       if (depth === 0){ curEid = k; const TN = {LINE:'線', ARC:'円弧', CIRCLE:'円', ELLIPSE:'だ円', LWPOLYLINE:'ポリライン', POLYLINE:'ポリライン', TEXT:'文字', MTEXT:'文字', HATCH:'塗り', SOLID:'塗り', SPLINE:'曲線', DIMENSION:'寸法'};
         parts[k] = {name: T === 'INSERT' ? (o[2] || '').trim() : (T === 'TEXT' || T === 'MTEXT') ? '文字「' + cleanMtext(o[1] || '').slice(0, 14) + '」' : (TN[T] || T), h:o[5] ? o[5].trim() : null, inv: parseInt(o[60]) === 1, li}; }
@@ -800,6 +801,7 @@ function drawOverlay(){
   drawPick(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) drawDim(octx, d, d === S.selDim);
+  drawNotes(octx);
   drawHL(octx);
   const M = MS;
   if (S.mode === 'dim'){
@@ -895,7 +897,7 @@ function endPtr(e, cancel){
     gest = null; $('#pill').hidden = true; updateRoutePanel();
   } else if (gest.type === 'pan' && ptrs.size === 0){
     if (gest.lt) clearTimeout(gest.lt);
-    if (!gest.long && !gest.moved && !cancel && performance.now() - gest.t < 500){ if (S.mode === 'route' && RS.step === 'pick') routePick(gest.start); else tapSelect(gest.start); }
+    if (!gest.long && !gest.moved && !cancel && performance.now() - gest.t < 500){ if (S.mode === 'route' && RS.step === 'pick') routePick(gest.start); else if (S.mode === 'route'){} else tapSelect(gest.start); }
     gest = null;
   } else if (gest.type === 'pinch'){
     if (ptrs.size === 0) gest = null; else gest = {type:'none'};
@@ -929,6 +931,8 @@ function placePoint(pt){
   drawOverlay(); updateHint(); updatePill(); updateDimPanel();
 }
 function tapSelect(p){
+  const hitN = noteAt(p); if (hitN){ openNoteEditor(hitN); return; }
+  if (S.mode === 'note'){ openNoteEditor(null, s2w(p[0], p[1])); return; }
   let best = null, bd = 22;
   for (const d of S.dims){
     const [ax, ay] = w2s(d.x1, d.y1), [bx, by] = w2s(d.x2, d.y2); const c = closestOnSeg(p[0], p[1], ax, ay, bx, by);
@@ -960,6 +964,51 @@ function hitsAt(p){
   }
   const sort = m => [...m.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
   return {layers:sort(L), parts:sort(E), routes:[...RSd]};
+}
+/* ---- notes (メモ) pinned on the drawing ---- */
+let NOTE_HITS = [];
+function noteAt(p){ for (let i = NOTE_HITS.length - 1; i >= 0; i--){ const h = NOTE_HITS[i]; if (p[0] >= h.x0 && p[0] <= h.x1 && p[1] >= h.y0 && p[1] <= h.y1) return h.n; } return null; }
+const noteRec = n => ({id:n.id, x:n.x, y:n.y, text:n.text, t:n.t});
+const noteBox = n => { const r = S.textH*8; return [n.x - r, n.y - r, n.x + r*3, n.y + r]; };
+function cmdNote(op, n, newText){
+  const old = op === 'edit' ? n.text : null;
+  const lab = {add:'メモを追加', edit:'メモを変更', del:'メモを削除'}[op];
+  return {kind:'note', label:lab, log:{label:lab, detail:(op === 'edit' ? newText : n.text).slice(0, 30), notes:[noteRec(n)], noteOld:old, box:noteBox(n), gone:op === 'del'},
+    do(){ if (op === 'add') S.notes.push(n); else if (op === 'del') S.notes = S.notes.filter(x => x !== n); else n.text = newText; },
+    undo(){ if (op === 'add') S.notes = S.notes.filter(x => x !== n); else if (op === 'del') S.notes.push(n); else n.text = old; }};
+}
+function openNoteEditor(n, at){
+  const isNew = !n;
+  openSheet(isNew ? 'メモを置く' : 'メモ', body => {
+    body.innerHTML = `<textarea id="noteTx" rows="4" style="width:100%;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:10px 12px;font:16px/1.5 var(--font-ui);color:var(--ink);resize:vertical;-webkit-user-select:text;user-select:text" placeholder="例：梁下 有効200。ここは迂回でルート変更／天井点検口から確認">${n ? esc(n.text) : ''}</textarea>
+      ${n ? `<div class="note">${new Date(n.t).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})} に書いたメモ</div>` : ''}
+      <div class="frow"><button class="btn pri" data-a="ok" style="flex:2;height:46px">${isNew ? 'ここに置く' : '直す'}</button>${n ? '<span class="confirm" style="flex:1;display:flex"><button class="btn del" data-a="del" style="flex:1;height:46px">削除</button></span>' : ''}</div>`;
+    const ta = body.querySelector('#noteTx'); setTimeout(() => { try { ta.focus(); } catch(e){} }, 60);
+    body.onclick = e => {
+      const b = e.target.closest('[data-a]'); if (!b) return; const a = b.dataset.a;
+      if (a === 'ok'){ const tx = ta.value.trim(); if (!tx){ toast('メモを書いてください'); return; }
+        if (isNew){ const nn = {id:'n' + Date.now().toString(36), x:at[0], y:at[1], text:tx, t:Date.now()}; exec(cmdNote('add', nn)); toast('メモを置きました'); }
+        else if (tx !== n.text){ exec(cmdNote('edit', n, tx)); toast('メモを直しました'); }
+        closeSheet(); }
+      else if (a === 'del'){ if (!b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '本当に削除'; return; } exec(cmdNote('del', n)); closeSheet(); toast('メモを削除しました（↶で戻せます）'); }
+    };
+  });
+}
+function drawNotes(c){
+  NOTE_HITS = [];
+  if (!S.notes.length) return;
+  c.save(); c.font = `600 12px ${FONT}`; c.textBaseline = 'middle';
+  for (const n of S.notes){
+    const [x, y] = w2s(n.x, n.y); if (x < -300 || y < -40 || x > cw + 40 || y > ch + 40) continue;
+    const first = n.text.split('\n')[0]; const label = first.length > 14 ? first.slice(0, 14) + '…' : first;
+    const w = c.measureText(label).width + 16, bx = x + 10, by = y - 26;
+    c.fillStyle = tok.note; c.beginPath(); c.arc(x, y, 5, 0, Math.PI*2); c.fill();
+    c.strokeStyle = tok.note; c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y); c.lineTo(bx + 4, by + 20); c.stroke();
+    c.beginPath(); c.roundRect ? c.roundRect(bx, by, w, 22, 6) : c.rect(bx, by, w, 22); c.fill();
+    c.fillStyle = '#fff'; c.fillText(label, bx + 8, by + 11.5);
+    NOTE_HITS.push({n, x0:x - 14, y0:by - 4, x1:bx + w + 4, y1:y + 14});
+  }
+  c.restore();
 }
 /* drag a box: pick every part inside it (or touching it) */
 let boxCross = false; try { boxCross = localStorage.getItem('zumen-boxcross') === '1'; } catch(e){}
@@ -1273,6 +1322,13 @@ function inverseOf(e){
     if (e.restore) return cmdSetRoutes([e.restore], (e.ghosts || []).map(g => ({...g})), []);
     return null;
   }
+  if (e.kind === 'note' && e.notes){
+    const r = e.notes[0], cur = S.notes.find(n => n.id === r.id);
+    if (e.label === 'メモを追加') return cur ? cmdNote('del', cur) : null;
+    if (e.label === 'メモを削除') return cur ? null : cmdNote('add', {...r});
+    if (e.label === 'メモを変更') return cur && e.noteOld != null ? cmdNote('edit', cur, e.noteOld) : null;
+    return null;
+  }
   if (e.kind === 'obj' && e.eids){ const op = {'部品を非表示':'show', '部品を削除':'restore', '部品を表示に戻した':'hide', '部品を戻した':'del'}[e.label]; return op ? cmdObjs(e.eids, op) : null; }
   return null;
 }
@@ -1413,6 +1469,7 @@ function changed(kind){
   if (kind === 'layer'){ buildIndex(); renderBase(); renderTabs(); }
   if (kind === 'route'){ refreshGeom(); buildIndex(); renderBase(); if (S.mode === 'route'){ routeReset(); } }
   if (kind === 'obj'){ refreshGeom(); buildIndex(); renderBase(); }
+  if (kind === 'note'){ /* overlay only */ }
   if (kind === 'view'){ refreshGeom(); buildIndex(); renderBase(); renderTabs(); }
   if (S.selDim && !S.dims.includes(S.selDim)) S.selDim = null;
   drawOverlay(); updateUi(); refreshOpenSheet(); autosave(true);
@@ -1441,7 +1498,7 @@ function updateUi(){
   $('#fname').textContent = S.name || '—';
   if (G){ const live = G.L.filter(l => !l.deleted).length, del = G.L.length - live; $('#fsub').textContent = `レイヤー ${live}${del ? `（削除 ${del}）` : ''} ・ 寸法 ${S.dims.length} ・ ${S.units}`; }
   $('#mPan').classList.toggle('on', S.mode === 'pan'); $('#mDim').classList.toggle('on', S.mode === 'dim'); $('#mRoute').classList.toggle('on', S.mode === 'route'); $('#mBox').classList.toggle('on', S.mode === 'box');
-  $('#tOrtho').classList.toggle('on', S.ortho); $('#tChain').classList.toggle('on', S.chain); $('#tSnap').classList.toggle('on', S.snapOn);
+  $('#tOrtho').classList.toggle('on', S.ortho); $('#mNote').classList.toggle('on', S.mode === 'note'); $('#tSnap').classList.toggle('on', S.snapOn);
   updateHint(); updateLayerBar(); updateDimPanel(); updateRoutePanel();
 }
 function sortedLayers(){ return G.L.filter(l => l.count > 0).slice().sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ja')); }
@@ -1529,7 +1586,9 @@ function updateLayerBar(){
 }
 function updateHint(){
   const h = $('#hint');
+  $('#bHint2').hidden = true;
   if (HL){ h.hidden = true; return; }
+  if (S.mode === 'note'){ h.hidden = false; $('#hintTxt').textContent = 'メモを置きたい所をタップ（置いたメモはタップで直せます）'; $('#bCancelPt').hidden = true; return; }
   if (S.mode === 'box'){
     h.hidden = false; $('#hintTxt').textContent = '指でなぞって四角で囲む（2本指で移動）';
     $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = boxCross ? '✓ かかっている物も' : 'かかっている物も'; return;
@@ -1545,6 +1604,7 @@ function updateHint(){
   if (S.mode !== 'dim' || MS.dragging){ h.hidden = true; return; }
   h.hidden = false;
   $('#hintTxt').textContent = MS.p1 ? (S.chain ? '連続：次の点までドラッグ' : '終点までドラッグして指を離す') : '始点までドラッグして指を離す';
+  $('#bHint2').hidden = false; $('#bHint2').textContent = S.chain ? '✓ 連続' : '連続';
   $('#bCancelPt').hidden = !MS.p1;
 }
 $('#bCancelPt').onclick = () => { if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
@@ -1590,7 +1650,8 @@ $('#mDim').onclick = () => { S.mode = 'dim'; S.selDim = null; routeReset(); draw
 $('#mBox').onclick = () => { S.mode = 'box'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#mRoute').onclick = () => { S.mode = 'route'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#tOrtho').onclick = () => { S.ortho = !S.ortho; updateUi(); toast(S.ortho ? '縦横まっすぐ：オン' : '縦横まっすぐ：オフ'); };
-$('#tChain').onclick = () => { S.chain = !S.chain; if (!S.chain && MS.p1 && S.mode === 'dim'){} updateUi(); toast(S.chain ? '連続寸法：オン（終点が次の始点に）' : '連続寸法：オフ'); };
+$('#bHint2').onclick = () => { if (S.mode !== 'dim') return; S.chain = !S.chain; updateUi(); toast(S.chain ? '連続寸法：オン（終点が次の始点に）' : '連続寸法：オフ'); };
+$('#mNote').onclick = () => { S.mode = 'note'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#tSnap').onclick = () => { S.snapOn = !S.snapOn; updateUi(); toast(S.snapOn ? '吸着：オン' : '吸着：オフ'); };
 $('#bFit').onclick = fit;
 $('#bUndo').onclick = undo; $('#bRedo').onclick = redo;
@@ -1736,7 +1797,17 @@ function openLogSheet(tab){
   if (tab) logTab = tab;
   openSheet('記録・寸法', body => {
     const live = S.log.filter(e => !e.undone).length;
-    const top = `<div class="seg2"><button class="btn ${logTab === 'log' ? 'sel' : ''}" data-tab="log">変更の記録（${live}）</button><button class="btn ${logTab === 'dims' ? 'sel' : ''}" data-tab="dims">寸法一覧（${S.dims.length}）</button></div>`;
+    const top = `<div class="seg2"><button class="btn ${logTab === 'log' ? 'sel' : ''}" data-tab="log">変更の記録（${live}）</button><button class="btn ${logTab === 'dims' ? 'sel' : ''}" data-tab="dims">寸法（${S.dims.length}）</button><button class="btn ${logTab === 'notes' ? 'sel' : ''}" data-tab="notes">メモ（${S.notes.length}）</button></div>`;
+    if (logTab === 'notes'){
+      body.innerHTML = top + (S.notes.length ? S.notes.slice().sort((a, b) => b.t - a.t).map(n => `<div class="row"><i class="lk note">メ</i><div class="grow" data-nv="${n.id}"><div class="nm" style="white-space:normal">${esc(n.text)}</div><div class="sub">${new Date(n.t).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}</div></div><button class="btn" data-nv="${n.id}">見る</button><button class="btn" data-ne="${n.id}">直す</button></div>`).join('') : '<div class="empty">まだメモはありません。下の「メモ」を押して、図面の上をタップすると置けます。</div>');
+      body.onclick = e => {
+        const t = e.target.closest('[data-tab]'); if (t){ logTab = t.dataset.tab; refreshOpenSheet(); return; }
+        const v = e.target.closest('[data-nv]'), ed = e.target.closest('[data-ne]');
+        if (v){ const n = S.notes.find(x => x.id === v.dataset.nv); if (n){ closeSheet(); showLog({kind:'note', label:'メモ', detail:n.text.slice(0, 30), t:n.t, notes:[noteRec(n)], box:noteBox(n)}); } }
+        else if (ed){ const n = S.notes.find(x => x.id === ed.dataset.ne); if (n) openNoteEditor(n); }
+      };
+      return;
+    }
     if (logTab === 'dims'){
       const box = document.createElement('div'); box.style.cssText = 'display:flex;flex-direction:column;gap:10px'; renderDimsInto(box);
       body.innerHTML = top; body.appendChild(box);
@@ -1749,7 +1820,7 @@ function openLogSheet(tab){
       for (const e of S.log.slice().reverse()){
         const d = new Date(e.t), day = `${d.getMonth()+1}/${d.getDate()}`;
         if (day !== lastDay){ h += `<div class="grp">${day}</div>`; lastDay = day; }
-        const tag = {layer:'層', dim:'寸', route:'管', obj:'品'}[e.kind] || '・';
+        const tag = {layer:'層', dim:'寸', route:'管', obj:'品', note:'メ'}[e.kind] || '・';
         const canRev = !!inverseOf(e);
         h += `<div class="row ${e.undone || e.reverted ? 'undone' : ''}" data-log="${esc(e.id)}"><i class="lk ${e.kind}">${tag}</i><div class="grow"><div class="nm">${esc(e.label)}${e.detail ? ` <span style="color:var(--muted);font-size:12px">${esc(e.detail)}</span>` : ''}</div><div class="sub">${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}${e.undone || e.reverted ? ' ・ 取り消し済み' : ''}</div></div>${canRev ? `<button class="btn del" data-rev="${esc(e.id)}">取り消す</button>` : ''}<button class="btn" data-log="${esc(e.id)}">見る</button></div>`;
       }
@@ -1784,7 +1855,7 @@ function renderHlBar(){
   const bar = $('#hlBar'); if (!HL){ bar.hidden = true; return; }
   const e = HL.e, i = S.log.indexOf(e), d = new Date(e.t);
   bar.hidden = false;
-  bar.innerHTML = `<button class="btn" data-a="prev" ${i > 0 ? '' : 'disabled'} aria-label="前の変更">◀</button><i class="lk ${e.kind}">${{layer:'層', dim:'寸', route:'管', obj:'品'}[e.kind] || '・'}</i>
+  bar.innerHTML = `<button class="btn" data-a="prev" ${i > 0 ? '' : 'disabled'} aria-label="前の変更">◀</button><i class="lk ${e.kind}">${{layer:'層', dim:'寸', route:'管', obj:'品', note:'メ'}[e.kind] || '・'}</i>
     <div class="grow"><div class="t1">${esc(e.label)}${e.undone || e.reverted ? '（取り消し済み）' : ''}</div><div class="t2">${esc(e.detail || '')} ・ ${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ・ ${i+1}/${S.log.length}</div></div>
     <button class="btn" data-a="next" ${i < S.log.length-1 ? '' : 'disabled'} aria-label="次の変更">▶</button><button class="btn" data-a="close" aria-label="閉じる">✕</button>${inverseOf(e) ? '<button class="btn del" data-a="rev" style="flex-basis:100%">この変更だけ取り消す（あとの変更はそのまま）</button>' : ''}`;
   bar.onclick = ev => {
@@ -1815,6 +1886,7 @@ function drawHL(c){
     for (const id of e.eids) for (const pl of G.eidPolys.get(id) || []){ const a = pl.a; let q = w2s(a[0], a[1]); c.moveTo(q[0], q[1]); for (let i = 2; i < a.length; i += 2){ q = w2s(a[i], a[i+1]); c.lineTo(q[0], q[1]); } }
     c.stroke();
   }
+  if (e.kind === 'note' && e.notes){ for (const n of e.notes){ const q = w2s(n.x, n.y); c.strokeStyle = e.gone ? tok.danger : tok.note; c.lineWidth = 3; c.setLineDash(e.gone ? [5,4] : []); c.beginPath(); c.arc(q[0], q[1], 18 + 6*pulse, 0, Math.PI*2); c.stroke(); } }
   if (e.kind === 'route'){ for (const g of e.ghosts || []) poly([[g.x1,g.y1],[g.x2,g.y2]], tok.danger, 3, [6,5]); for (const r of e.routes || []) poly(r, tok.snap, 5); }
   c.restore();
 }
@@ -1838,7 +1910,7 @@ const dbGet = (s, k) => dbOp(s, 'readonly', st => st.get(k));
 const dbPut = (s, v) => dbOp(s, 'readwrite', st => st.put(v));
 const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
-function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, views:{n:G.shapes.length, list:S.views}}; }
+function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
 let autoT = 0;
 function autosave(dirty = true){
   if (dirty && G) S.dirty = true;
@@ -1859,8 +1931,8 @@ async function openText(text, srcName, opts = {}){
     S.fileId = opts.fileId || hashText(text);
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat);
-    const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views} : null);
-    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; routeReset();
+    const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views, notes:doc.meta.notes} : null);
+    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; routeReset();
     for (const [k, t] of Object.entries(G.parts)) if (t.inv) S.hideObj.add(+k);
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){
@@ -1868,6 +1940,7 @@ async function openText(text, srcName, opts = {}){
       G.L.forEach(l => { if (del.has(l.name)) l.deleted = true; if (hid.has(l.name)) l.on = false; const gg = st.groups && st.groups[l.name]; if (gg && GROUPS.some(g => g.id === gg)) l.g = gg; });
       S.dims = (st.dims || []).map((d, i) => ({id:'d' + i + Date.now().toString(36), x1:+d.x1, y1:+d.y1, x2:+d.x2, y2:+d.y2, n:+d.n || 1}));
       S.log = Array.isArray(st.log) ? st.log : [];
+      S.notes = Array.isArray(st.notes) ? st.notes.map(n => ({...n})) : [];
       if (st.views && Array.isArray(st.views.list)){
         if (st.views.n === G.shapes.length) S.views = st.views.list;
         else if (st.views.byHandle){ const hmap = new Map(); for (const [k, t] of Object.entries(G.parts)) if (t.h) hmap.set(t.h, +k); S.views = st.views.list.map(v => ({...v, hide:(v.hideH || []).map(h => hmap.get(h)).filter(x => x !== undefined)})); }
@@ -1995,7 +2068,7 @@ function openSaveSheet(){
 }
 function buildExport(name, opt = {}){
   const {codes, vals, n} = toPairs(S.text);
-  const del = new Set(G.L.filter(l => l.deleted).map(l => l.name)); del.add(DIM_LAYER);
+  const del = new Set(G.L.filter(l => l.deleted).map(l => l.name)); del.add(DIM_LAYER); del.add(NOTE_LAYER);
   // pre-scan
   let seed = 0, layerTbl = null, msHandle = null, plotStyle = null, inTable = null, dimLayerExists = false; const exLayers = new Set();
   for (let i = 0; i < n; i++){
@@ -2055,7 +2128,11 @@ function buildExport(name, opt = {}){
   }
   for (const g of S.ghosts) newEnts.push(ent('LINE', 'AcDbLine', [...P(10,num(g.x1)), ...P(20,num(g.y1)), ...P(30,'0.0'), ...P(11,num(g.x2)), ...P(21,num(g.y2)), ...P(31,'0.0')], GHOST_LAYER));
   let layerRec = [];
-  const needLayers = [[DIM_LAYER, 1]]; if (S.ghosts.length) needLayers.push([GHOST_LAYER, 8]);
+  for (const nt of S.notes){
+    newEnts.push(ent('CIRCLE', 'AcDbCircle', [...P(10,num(nt.x)), ...P(20,num(nt.y)), ...P(30,'0.0'), ...P(40,num(th*0.4))], NOTE_LAYER));
+    nt.text.split('\n').forEach((ln, li) => { let a = ent('TEXT', 'AcDbText', [...P(10,num(nt.x + th)), ...P(20,num(nt.y - li*th*1.6)), ...P(30,'0.0'), ...P(40,num(th)), ...P(1,ln)], NOTE_LAYER); if (modern) a = a.concat(P(100, 'AcDbText')); newEnts.push(a); });
+  }
+  const needLayers = [[DIM_LAYER, 1]]; if (S.ghosts.length) needLayers.push([GHOST_LAYER, 8]); if (S.notes.length) needLayers.push([NOTE_LAYER, 6]);
   for (const [lname, lcol] of needLayers){
     if (exLayers.has(lname)) continue;
     let r = P(0, 'LAYER');
@@ -2064,7 +2141,7 @@ function buildExport(name, opt = {}){
     if (modern){ r = r.concat(P(370, -3)); if (plotStyle) r = r.concat(P(390, plotStyle)); }
     layerRec = layerRec.concat(r);
   }
-  const meta = {v:1, name, dims:stateRecord().dims, groups:stateRecord().groups, log:S.log, views:{byHandle:true, list:S.views.map(v => ({id:v.id, name:v.name, on:v.on, t:v.t, hideH:v.hide.map(e => G.parts[e] && G.parts[e].h).filter(Boolean)}))}, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
+  const meta = {v:1, name, notes:S.notes.map(noteRec), dims:stateRecord().dims, groups:stateRecord().groups, log:S.log, views:{byHandle:true, list:S.views.map(v => ({id:v.id, name:v.name, on:v.on, t:v.t, hideH:v.hide.map(e => G.parts[e] && G.parts[e].h).filter(Boolean)}))}, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
   const out = [...P(999, META + JSON.stringify(meta))];
   let section = null, table = null, dropSeq = false, curBlock = null;
   let i = 0;
@@ -2296,6 +2373,11 @@ async function buildPdf(){
     if (n === 1) lab((ax+bx)/2, (ay+by)/2, ang, fmt(Lw), false, true);
     else { for (let i = 0; i < n; i++) lab(ax + (bx-ax)*(i+.5)/n, ay + (by-ay)*(i+.5)/n, ang, fmt(Lw/n), false, false); lab((ax+bx)/2, (ay+by)/2, ang, '計 ' + fmt(Lw), true, true); }
   }
+  const noteC = mono ? [0,0,0] : [0.42, 0.29, 0.82];
+  for (const nt of S.notes){
+    const x = PX(nt.x), y = PY(nt.y);
+    add(noteC, () => { g.save(); g.beginPath(); g.arc(x, y, 0.9*pxmm, 0, Math.PI*2); g.fill(); const hp = 2.6*pxmm; g.font = `600 ${hp.toFixed(1)}px ${FONT}`; g.textBaseline = 'top'; nt.text.split('\n').forEach((ln, i) => g.fillText(ln, x + 1.6*pxmm, y - 1.2*pxmm + i*hp*1.35)); g.restore(); });
+  }
   // title strip
   const today = new Date(); const ds = `${today.getFullYear()}/${today.getMonth()+1}/${today.getDate()}`;
   const scaleTxt = PDF_OPT.scale ? niceScaleText(PDF_OPT.scale) : '約' + niceScaleText(Lo.fitScale);
@@ -2426,7 +2508,7 @@ async function pdfToDxf(bytes, pageNo){
   const hexOf = c => typeof c === 'string' ? c.toLowerCase() : (c && c.length >= 3 ? '#' + [c[0],c[1],c[2]].map(x => (x|0).toString(16).padStart(2,'0')).join('') : '#000000');
   const ocColor = new Map();
   const key = (hex, dash) => { if (curOC){ if (!ocColor.has(curOC)) ocColor.set(curOC, hex); return 'oc|' + curOC; } return hex + (dash ? '|d' : ''); };
-  const addLine = (k2, a, b) => { if (Math.hypot(a[0]-b[0], a[1]-b[1]) < 1e-3) return; const id = [a[0], a[1], b[0], b[1]].map(v => Math.round(v*10)).join(','), id2 = [b[0], b[1], a[0], a[1]].map(v => Math.round(v*10)).join(','); if (lines.has(id) || lines.has(id2)) return; lines.set(id, [a[0], a[1], b[0], b[1], k2]); layerInfo.set(k2, (layerInfo.get(k2) || 0) + 1); };
+  const addLine = (k2, a, b, cv) => { if (Math.hypot(a[0]-b[0], a[1]-b[1]) < 1e-3) return; const id = [a[0], a[1], b[0], b[1]].map(v => Math.round(v*10)).join(','), id2 = [b[0], b[1], a[0], a[1]].map(v => Math.round(v*10)).join(','); if (lines.has(id) || lines.has(id2)) return; lines.set(id, [a[0], a[1], b[0], b[1], k2, cv ? 1 : 0]); layerInfo.set(k2, (layerInfo.get(k2) || 0) + 1); };
   const STROKE = new Set([OPS.stroke, OPS.closeStroke, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
   const FILL = new Set([OPS.fill, OPS.eoFill, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
   function subpaths(d){
@@ -2437,18 +2519,38 @@ async function pdfToDxf(bytes, pageNo){
       if (c === 0){ lx = d[i]; ly = d[i+1]; i += 2; sp = [T(lx, ly)]; sp.ux = lx; sp.uy = ly; subs.push(sp); }
       else if (c === 1){ lx = d[i]; ly = d[i+1]; i += 2; if (!sp){ sp = [T(lx, ly)]; subs.push(sp); } else sp.push(T(lx, ly)); }
       else if (c === 2){ const [x1, y1, x2, y2, x3, y3] = [d[i], d[i+1], d[i+2], d[i+3], d[i+4], d[i+5]]; i += 6; if (!sp){ sp = [T(lx, ly)]; subs.push(sp); }
-        for (let q = 1; q <= 8; q++){ const t = q/8, u = 1 - t; sp.push(T(u*u*u*lx + 3*u*u*t*x1 + 3*u*t*t*x2 + t*t*t*x3, u*u*u*ly + 3*u*u*t*y1 + 3*u*t*t*y2 + t*t*t*y3)); } lx = x3; ly = y3; }
+        for (let q = 1; q <= 8; q++){ const t = q/8, u = 1 - t; (sp.cv || (sp.cv = new Set())).add(sp.length); sp.push(T(u*u*u*lx + 3*u*u*t*x1 + 3*u*t*t*x2 + t*t*t*x3, u*u*u*ly + 3*u*u*t*y1 + 3*u*t*t*y2 + t*t*t*y3)); } lx = x3; ly = y3; }
       else if (c === 3){ const [x1, y1, x2, y2] = [d[i], d[i+1], d[i+2], d[i+3]]; i += 4; if (!sp){ sp = [T(lx, ly)]; subs.push(sp); }
-        for (let q = 1; q <= 6; q++){ const t = q/6, u = 1 - t; sp.push(T(u*u*lx + 2*u*t*x1 + t*t*x2, u*u*ly + 2*u*t*y1 + t*t*y2)); } lx = x2; ly = y2; }
+        for (let q = 1; q <= 6; q++){ const t = q/6, u = 1 - t; (sp.cv || (sp.cv = new Set())).add(sp.length); sp.push(T(u*u*lx + 2*u*t*x1 + t*t*x2, u*u*ly + 2*u*t*y1 + t*t*y2)); } lx = x2; ly = y2; }
       else if (c === 4){ if (sp && sp.length > 1){ sp.closed = true; } }
       else break;
     }
     return subs;
   }
-  const fa = opl.fnArray, aa = opl.argsArray;
+  const fa = opl.fnArray, aa = opl.argsArray; const opTexts = [];
+  const tx = {tm:[1,0,0,1,0,0], tlm:[1,0,0,1,0,0], size:1, hs:1, cs:0, ws:0, lead:0};
   for (let i = 0; i < fa.length; i++){
     const fn = fa[i], a = aa[i];
-    if (fn === OPS.save) stack.push({ctm:ctm.slice(), gs:{...gs}});
+    if (fn === OPS.beginText){ tx.tm = [1,0,0,1,0,0]; tx.tlm = [1,0,0,1,0,0]; }
+    else if (fn === OPS.setFont){ tx.size = +a[1] || 1; }
+    else if (fn === OPS.setTextMatrix){ tx.tm = Array.from(a.length === 1 ? a[0] : a); tx.tlm = tx.tm.slice(); }
+    else if (fn === OPS.moveText || fn === OPS.setLeadingMoveText){ tx.tlm = mul(tx.tlm, [1,0,0,1,+a[0],+a[1]]); tx.tm = tx.tlm.slice(); if (fn === OPS.setLeadingMoveText) tx.lead = -a[1]; }
+    else if (fn === OPS.setLeading){ tx.lead = +a[0]; }
+    else if (fn === OPS.nextLine){ tx.tlm = mul(tx.tlm, [1,0,0,1,0,-tx.lead]); tx.tm = tx.tlm.slice(); }
+    else if (fn === OPS.setHScale){ tx.hs = (+a[0] || 100)/100; }
+    else if (fn === OPS.setCharSpacing){ tx.cs = +a[0] || 0; }
+    else if (fn === OPS.setWordSpacing){ tx.ws = +a[0] || 0; }
+    else if (fn === OPS.showText || fn === OPS.showSpacedText){
+      const glyphs = a[0] || []; let str = '', adv = 0;
+      for (const gl of glyphs){ if (typeof gl === 'number'){ adv -= gl/1000*tx.size*tx.hs; continue; } if (!gl) continue; str += gl.unicode || ''; adv += ((gl.width || 0)/1000*tx.size + tx.cs + (gl.isSpace ? tx.ws : 0))*tx.hs; }
+      if (str.trim()){
+        const m = mul(ctm, mul(tx.tm, [tx.size*tx.hs, 0, 0, tx.size, 0, 0]));
+        const [x, y] = W(m[4], m[5]); const dx = VT[0]*m[0] + VT[2]*m[1], dy = VT[1]*m[0] + VT[3]*m[1];
+        opTexts.push([x, y, Math.hypot(m[2], m[3])*k*0.78, Math.atan2(-dy, dx)*180/Math.PI, str.replace(/[\r\n]/g, ' '), gs.fill]);
+      }
+      tx.tm = mul(tx.tm, [1,0,0,1,adv,0]);
+    }
+    else if (fn === OPS.save) stack.push({ctm:ctm.slice(), gs:{...gs}});
     else if (fn === OPS.restore){ const t = stack.pop(); if (t){ ctm = t.ctm; gs = t.gs; } }
     else if (fn === OPS.transform) ctm = mul(ctm, a);
     else if (fn === OPS.paintFormXObjectBegin){ stack.push({ctm:ctm.slice(), gs:{...gs}}); if (a && a[0]) ctm = mul(ctm, Array.from(a[0])); }
@@ -2463,8 +2565,9 @@ async function pdfToDxf(bytes, pageNo){
     else if (fn === OPS.constructPath){
       const op = a[0], d = a[1] && a[1][0]; if (!d || typeof d.length !== 'number') continue;
       const subs = subpaths(d);
-      if (STROKE.has(op)){ const k2 = key(gs.stroke, gs.dash); for (const sp of subs){ for (let q = 1; q < sp.length; q++) addLine(k2, sp[q-1], sp[q]); if ((sp.closed || op === OPS.closeStroke || op === OPS.closeFillStroke) && sp.length > 2) addLine(k2, sp[sp.length-1], sp[0]); } }
-      else if (FILL.has(op)){
+      const isWhite = h => /^#f[a-f0-9]f[a-f0-9]f[a-f0-9]$/i.test(h) || h === '#ffffff';
+      if (STROKE.has(op) && !isWhite(gs.stroke)){ const k2 = key(gs.stroke, gs.dash); for (const sp of subs){ for (let q = 1; q < sp.length; q++) addLine(k2, sp[q-1], sp[q], sp.cv && sp.cv.has(q)); if ((sp.closed || op === OPS.closeStroke || op === OPS.closeFillStroke) && sp.length > 2) addLine(k2, sp[sp.length-1], sp[0]); } }
+      else if (FILL.has(op) && !isWhite(gs.fill)){
         const k2 = key(gs.fill, false);
         for (const sp of subs){
           let pts = sp.slice(); if (pts.length > 1 && Math.hypot(pts[0][0]-pts[pts.length-1][0], pts[0][1]-pts[pts.length-1][1]) < 1e-6) pts.pop();
@@ -2481,8 +2584,9 @@ async function pdfToDxf(bytes, pageNo){
     const [hex, dsh] = k2.split('|'); const w = colorWord(hex); const base = w + (dsh ? '・点線' : '') + (ROLE[w] || '');
     const n = (used.get(base) || 0) + 1; used.set(base, n); names.set(k2, n > 1 ? `${base}${n}` : base);
   }
-  // texts
+  // texts (from the text layer; if that came back empty, from the drawing commands)
   const texts = [];
+  if (!tc.items.some(it => (it.str || '').trim())) for (const t of opTexts) texts.push(t.slice(0, 5));
   for (const it of tc.items){
     const str = (it.str || '').trim(); if (!str) continue; const t = it.transform; if (!t) continue;
     const [x, y] = W(t[4], t[5]); const dx = VT[0]*t[0] + VT[2]*t[1], dy = VT[1]*t[0] + VT[3]*t[1];
@@ -2505,15 +2609,35 @@ async function pdfToDxf(bytes, pageNo){
   const L2 = [...lines.values()], par = L2.map((_, i) => i);
   const find = i => { while (par[i] !== i){ par[i] = par[par[i]]; i = par[i]; } return i; };
   const ends = new Map();
-  L2.forEach((ln, i) => { for (const [x, y] of [[ln[0], ln[1]], [ln[2], ln[3]]]){ const kk = ln[4] + '@' + Math.round(x*2) + ',' + Math.round(y*2); const j = ends.get(kk); if (j === undefined) ends.set(kk, i); else par[find(i)] = find(j); } });
+  const cls = ln => { if (ln[5]) return 'c'; const dx = Math.abs(ln[2]-ln[0]), dy = Math.abs(ln[3]-ln[1]), L = Math.hypot(dx, dy) || 1; return (dx/L < 0.03 || dy/L < 0.03) ? 'o' : 'd'; };
+  L2.forEach((ln, i) => { for (const [x, y] of [[ln[0], ln[1]], [ln[2], ln[3]]]){ const kk = ln[4] + '@' + Math.round(x*2) + ',' + Math.round(y*2); let a2 = ends.get(kk); if (!a2){ a2 = []; ends.set(kk, a2); } a2.push(i); } });
+  for (const a2 of ends.values()){
+    if (a2.length < 2) continue;
+    const cs = a2.map(i => cls(L2[i]));
+    if (a2.length === 2){ if (cs[0] === cs[1] || cs[0] === 'c' || cs[1] === 'c') par[find(a2[0])] = find(a2[1]); continue; }
+    const byC = new Map(); a2.forEach((i, j) => { const c = cs[j]; if (byC.has(c)) par[find(i)] = find(byC.get(c)); else byC.set(c, i); });
+    if (byC.has('c')) for (const i of byC.values()) par[find(i)] = find(byC.get('c'));
+  }
+  // hatching (網・斜線): short diagonal lines of the same length whose ends come close become one part, separate from the frame
+  { const hl = (i) => Math.hypot(L2[i][2]-L2[i][0], L2[i][3]-L2[i][1]); const grid = new Map(), CELL = 30;
+    L2.forEach((ln, i) => { if (cls(ln) !== 'd') return; for (const [x, y] of [[ln[0], ln[1]], [ln[2], ln[3]]]){ const kk = ln[4] + '@' + Math.floor(x/CELL) + ',' + Math.floor(y/CELL); let a2 = grid.get(kk); if (!a2){ a2 = []; grid.set(kk, a2); } a2.push([i, x, y]); } });
+    L2.forEach((ln, i) => { if (cls(ln) !== 'd') return; const li = hl(i); for (const [x, y] of [[ln[0], ln[1]], [ln[2], ln[3]]]){ const cx = Math.floor(x/CELL), cy = Math.floor(y/CELL);
+      for (let ax = cx-1; ax <= cx+1; ax++) for (let ay = cy-1; ay <= cy+1; ay++){ const a2 = grid.get(ln[4] + '@' + ax + ',' + ay); if (!a2) continue;
+        for (const [j, qx, qy] of a2){ if (j === i) continue; const lj = hl(j); if (Math.abs(lj/li - 1) > 0.15) continue; if (Math.hypot(qx-x, qy-y) < Math.min(0.15*Math.min(li, lj), CELL)) par[find(i)] = find(j); } } } });
+    // the two directions of a cross-hatch (X X X) cross each other in the middle: join them too
+    const mid = new Map(); L2.forEach((ln, i) => { if (cls(ln) !== 'd') return; const kk = ln[4] + '@' + Math.floor((ln[0]+ln[2])/2/CELL) + ',' + Math.floor((ln[1]+ln[3])/2/CELL); let a2 = mid.get(kk); if (!a2){ a2 = []; mid.set(kk, a2); } a2.push(i); });
+    const crosses = (A, B) => { const d = (A[2]-A[0])*(B[3]-B[1]) - (A[3]-A[1])*(B[2]-B[0]); if (Math.abs(d) < 1e-9) return false; const t = ((B[0]-A[0])*(B[3]-B[1]) - (B[1]-A[1])*(B[2]-B[0]))/d, u = ((B[0]-A[0])*(A[3]-A[1]) - (B[1]-A[1])*(A[2]-A[0]))/d; return t > 0.05 && t < 0.95 && u > 0.05 && u < 0.95; };
+    L2.forEach((ln, i) => { if (cls(ln) !== 'd') return; const li = hl(i), cx = Math.floor((ln[0]+ln[2])/2/CELL), cy = Math.floor((ln[1]+ln[3])/2/CELL);
+      for (let ax = cx-1; ax <= cx+1; ax++) for (let ay = cy-1; ay <= cy+1; ay++){ const a2 = mid.get(ln[4] + '@' + ax + ',' + ay); if (!a2) continue; for (const j of a2){ if (j <= i) continue; if (Math.abs(hl(j)/li - 1) > 0.15) continue; if (crosses(ln, L2[j])) par[find(i)] = find(j); } } }); }
   const comps = new Map(); L2.forEach((ln, i) => { const r = find(i); if (!comps.has(r)) comps.set(r, []); comps.get(r).push(ln); });
   const groups = [], singles = []; for (const c of comps.values()) (c.length > 1 ? groups : singles).push(c);
   const lineEnt = (ln, layer) => { P(0,'LINE'); P(5, H()); P(8, layer || names.get(ln[4])); P(10, f3(ln[0])); P(20, f3(ln[1])); P(30, 0); P(11, f3(ln[2])); P(21, f3(ln[3])); P(31, 0); };
   const blockNames = []; const perLayer = new Map();
   P(0,'SECTION'); P(2,'BLOCKS');
   for (const c of groups){
-    const ln0 = names.get(c[0][4]); const n = (perLayer.get(ln0) || 0) + 1; perLayer.set(ln0, n);
-    const bn = `${ln0}-${n}`; blockNames.push([bn, ln0]);
+    const ln0 = names.get(c[0][4]); const hatch = c.length >= 6 && c.every(l => cls(l) === 'd');
+    const bkey = ln0 + (hatch ? '網' : ''); const n = (perLayer.get(bkey) || 0) + 1; perLayer.set(bkey, n);
+    const bn = hatch ? `網・斜線（${ln0}）-${n}` : `${ln0}-${n}`; blockNames.push([bn, ln0]);
     P(0,'BLOCK'); P(5, H()); P(8, ln0); P(2, bn); P(70, 0); P(10, 0); P(20, 0); P(30, 0); P(3, bn); P(1, '');
     for (const ln of c) lineEnt(ln);
     P(0,'ENDBLK'); P(5, H()); P(8, ln0);
@@ -2555,6 +2679,7 @@ function scaleState(st, r){
   const sg = g => ({...g, x1:g.x1*r, y1:g.y1*r, x2:g.x2*r, y2:g.y2*r});
   st.dims = (st.dims || []).map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r}));
   if (st.routes){ st.routes.ov = (st.routes.ov || []).map(([k, v, c]) => [k, sv(v), c]); st.routes.ghosts = (st.routes.ghosts || []).map(sg); }
+  st.notes = (st.notes || []).map(n => ({...n, x:n.x*r, y:n.y*r}));
   st.log = (st.log || []).map(e => ({...e, box:sp(e.box), dims:e.dims && e.dims.map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r})), routes:e.routes && e.routes.map(W => W.map(q => [q[0]*r, q[1]*r])), ghosts:e.ghosts && e.ghosts.map(sg), prev:e.prev && e.prev.map(([k, v, c]) => [k, sv(v), c]), restore:e.restore && [e.restore[0], sv(e.restore[1]), e.restore[2]]}));
   return st;
 }

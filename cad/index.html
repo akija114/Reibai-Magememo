@@ -235,7 +235,7 @@ const S = {
   text:'', eol:'\r\n', srcName:'', name:'', fileId:'', projectId:null,
   units:'mm', geo:null, layers:[], dims:[], selDim:null,
   mode:'pan', ortho:true, chain:false, snapOn:true, tab:null, group:null, pick:null,
-  undo:[], redo:[], textH:150, notes:[], views:[], viewId:null, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(),
+  undo:[], redo:[], textH:150, notes:[], dimGroups:[], curDG:null, views:[], viewId:null, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(),
 };
 let view = {s:1, tx:0, ty:0}, bview = {s:1, tx:0, ty:0};
 let cw = 0, ch = 0, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -410,7 +410,7 @@ function flatten(doc){
       if (o[67] !== undefined && parseInt(o[67]) === 1) continue;
       let ln = (o[8] || '0').trim();
       if (ln === '0' && inhL != null) ln = inhL;
-      if (skipDim && (ln === DIM_LAYER || ln === NOTE_LAYER)){ if (T === 'POLYLINE') while (k+1 < ents.length && ents[k+1].type !== 'SEQEND') k++; continue; }
+      if (skipDim && (ln === DIM_LAYER || ln.startsWith(DIM_LAYER + '_') || ln === NOTE_LAYER)){ if (T === 'POLYLINE') while (k+1 < ents.length && ents[k+1].type !== 'SEQEND') k++; continue; }
       const li = lay(ln);
       if (depth === 0){ curEid = k; const TN = {LINE:'線', ARC:'円弧', CIRCLE:'円', ELLIPSE:'だ円', LWPOLYLINE:'ポリライン', POLYLINE:'ポリライン', TEXT:'文字', MTEXT:'文字', HATCH:'塗り', SOLID:'塗り', SPLINE:'曲線', DIMENSION:'寸法'};
         parts[k] = {name: T === 'INSERT' ? (o[2] || '').trim() : (T === 'TEXT' || T === 'MTEXT') ? '文字「' + cleanMtext(o[1] || '').slice(0, 14) + '」' : (TN[T] || T), h:o[5] ? o[5].trim() : null, inv: parseInt(o[60]) === 1, li}; }
@@ -800,7 +800,7 @@ function drawOverlay(){
   drawRoute(octx);
   drawPick(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
-  for (const d of S.dims) drawDim(octx, d, d === S.selDim);
+  for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
   drawNotes(octx);
   drawHL(octx);
   const M = MS;
@@ -924,7 +924,7 @@ function moveCursor(p){
 function placePoint(pt){
   if (!MS.p1){ MS.p1 = {x:pt.x, y:pt.y}; MS.cur = null; }
   else {
-    const d = {id:Date.now().toString(36) + Math.random().toString(36).slice(2,6), x1:MS.p1.x, y1:MS.p1.y, x2:pt.x, y2:pt.y, n:1};
+    const d = {id:Date.now().toString(36) + Math.random().toString(36).slice(2,6), x1:MS.p1.x, y1:MS.p1.y, x2:pt.x, y2:pt.y, n:1, g:curDG().id};
     if (Math.hypot(d.x2-d.x1, d.y2-d.y1) > 1e-6){ exec(cmdAddDim(d)); S.selDim = S.chain ? null : d; }
     MS.p1 = S.chain ? {x:pt.x, y:pt.y} : null; MS.cur = null;
   }
@@ -935,6 +935,7 @@ function tapSelect(p){
   if (S.mode === 'note'){ openNoteEditor(null, s2w(p[0], p[1])); return; }
   let best = null, bd = 22;
   for (const d of S.dims){
+    if (!dimVisible(d)) continue;
     const [ax, ay] = w2s(d.x1, d.y1), [bx, by] = w2s(d.x2, d.y2); const c = closestOnSeg(p[0], p[1], ax, ay, bx, by);
     const dd = Math.hypot(c[0]-p[0], c[1]-p[1]); if (dd < bd){ bd = dd; best = d; }
   }
@@ -1301,7 +1302,42 @@ function cmdRouteReset(sid){
 }
 /* ---- take back one past change from the log, leaving everything after it alone ---- */
 const sameSeg = (a, b) => (Math.abs(a.x1-b.x1) < 1e-6 && Math.abs(a.y1-b.y1) < 1e-6 && Math.abs(a.x2-b.x2) < 1e-6 && Math.abs(a.y2-b.y2) < 1e-6) || (Math.abs(a.x1-b.x2) < 1e-6 && Math.abs(a.y1-b.y2) < 1e-6 && Math.abs(a.x2-b.x1) < 1e-6 && Math.abs(a.y2-b.y1) < 1e-6);
-function cmdAddDims(recs){ const ds = recs.map((r, i) => ({id:'r' + Date.now().toString(36) + i, x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:r.n || 1})); return {kind:'dim', label:'寸法を戻す', do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }}; }
+/* ---- dimension groups: each group becomes its own layer when saved ---- */
+const todayName = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const dgOf = d => S.dimGroups.find(g => g.id === d.g);
+const dimVisible = d => { const g = dgOf(d); return !g || g.on !== false; };
+const dgLayer = g => DIM_LAYER + '_' + String(g ? g.name : '').replace(/[<>\/\\":;?*|=`]/g, '_');
+function makeDG(name){ const nm = (name || '').trim() || todayName(); let g = S.dimGroups.find(x => x.name === nm); if (!g){ g = {id:'g' + Date.now().toString(36) + Math.random().toString(36).slice(2,5), name:nm, on:true}; S.dimGroups.push(g); } S.curDG = g.id; autosave(); return g; }
+function curDG(){ return S.dimGroups.find(g => g.id === S.curDG) || makeDG(''); }
+function cmdMoveDim(d, gid){ const o = d.g; return {kind:'dim', label:'寸法のグループを変える', do(){ d.g = gid; }, undo(){ d.g = o; }}; }
+function openDimGroupSheet(){
+  openSheet('寸法のグループ', body => {
+    const cur = S.dimGroups.find(g => g.id === S.curDG);
+    let h = `<div class="note">寸法はグループごとに別のレイヤー（「${DIM_LAYER}_グループ名」）で保存されます。名前を入れずに作ると今日の日付（${todayName()}）になります。今から足す寸法は「使う」にしたグループに入ります。</div>
+      <div class="frow"><input id="dgName" style="flex:1;min-width:0;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 12px;font-size:16px;color:var(--ink);-webkit-user-select:text;user-select:text" placeholder="例：梁下確認・2階天井内" enterkeyhint="done"><button class="btn pri" data-a="new" style="height:44px">グループを作る</button></div>`;
+    if (!S.dimGroups.length) h += '<div class="empty">まだグループはありません。寸法を足すと、今日の日付のグループが自動でできます。</div>';
+    for (const g of S.dimGroups){
+      const n = S.dims.filter(d => d.g === g.id).length, isCur = cur && cur.id === g.id;
+      h += `<div class="row"><button class="eye ${g.on !== false ? '' : 'off'}" data-eye="${g.id}" aria-label="表示切替">${EYE(g.on !== false)}</button><div class="grow"><div class="nm">${isCur ? '● ' : ''}${esc(g.name)}</div><div class="sub">寸法 ${n} 本${isCur ? ' ・ 今ここに足す' : ''}</div></div>
+        ${isCur ? '' : `<button class="btn pri" data-use="${g.id}">使う</button>`}<span class="confirm"><button class="btn" data-more="${g.id}">…</button></span></div>`;
+    }
+    body.innerHTML = h;
+    const inp = body.querySelector('#dgName');
+    body.onclick = e => {
+      const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
+      if (d.a === 'new'){ const g = makeDG(inp.value); refreshOpenSheet(); updateHint(); toast(`グループ「${g.name}」を使います`); return; }
+      if (d.use){ S.curDG = d.use; autosave(); refreshOpenSheet(); updateHint(); return; }
+      if (d.eye){ const g = S.dimGroups.find(x => x.id === d.eye); g.on = g.on === false; if (S.selDim && !dimVisible(S.selDim)) S.selDim = null; autosave(); drawOverlay(); updateDimPanel(); refreshOpenSheet(); return; }
+      if (d.more){ b.parentElement.innerHTML = `<button class="btn" data-ren="${d.more}">名前</button><button class="btn del" data-delg="${d.more}">削除</button>`; return; }
+      if (d.ren){ const g = S.dimGroups.find(x => x.id === d.ren); inp.value = g.name; inp.focus(); b.parentElement.innerHTML = `<button class="btn pri" data-ren2="${g.id}">この名前にする</button>`; return; }
+      if (d.ren2){ const g = S.dimGroups.find(x => x.id === d.ren2); const nm = inp.value.trim(); if (nm && !S.dimGroups.some(x => x !== g && x.name === nm)){ g.name = nm; autosave(); } else if (nm) toast('同じ名前のグループがあります'); refreshOpenSheet(); updateHint(); return; }
+      if (d.delg){ const g = S.dimGroups.find(x => x.id === d.delg); const ds = S.dims.filter(x => x.g === g.id);
+        if (!d.ok){ b.dataset.ok = '1'; b.textContent = ds.length ? `寸法${ds.length}本ごと削除` : '本当に削除'; return; }
+        if (ds.length) exec(cmdDelDims(ds)); S.dimGroups = S.dimGroups.filter(x => x !== g); if (S.curDG === g.id) S.curDG = null; autosave(); refreshOpenSheet(); updateHint(); toast(`グループ「${g.name}」を削除しました${ds.length ? '（寸法は↶で戻せます）' : ''}`); }
+    };
+  });
+}
+function cmdAddDims(recs){ const ds = recs.map((r, i) => ({id:'r' + Date.now().toString(36) + i, x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:r.n || 1, g:(r.g && S.dimGroups.some(x => x.id === r.g)) ? r.g : curDG().id})); return {kind:'dim', label:'寸法を戻す', do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }}; }
 function cmdSetRoutes(list, ghostsAdd, ghostsDel){ // list: [sid, verts|null, closed]
   const before = list.map(([sid]) => [sid, S.ov.has(sid) ? S.ov.get(sid) : null]); let removed = [];
   return {kind:'route', label:'ルートを戻す',
@@ -1464,7 +1500,7 @@ function redo(){ const c = S.redo.pop(); if (!c) return; c.do(); if (c.entry) c.
 function boxOf(pts){ let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of pts){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return isFinite(x0) ? [x0, y0, x1, y1] : null; }
 function layersBox(names){ const set = new Set(names.map(n => G.L.findIndex(l => l.name === n))); const pts = []; for (const p of G.polys){ if (!set.has(p.li)) continue; const a = p.a; for (let i = 0; i < a.length; i += 2) pts.push([a[i], a[i+1]]); } return boxOf(pts); }
 const short = names => names.slice(0, 3).join('、') + (names.length > 3 ? ` ほか${names.length - 3}` : '');
-const dimRec = d => ({x1:d.x1, y1:d.y1, x2:d.x2, y2:d.y2, n:d.n || 1});
+const dimRec = d => ({x1:d.x1, y1:d.y1, x2:d.x2, y2:d.y2, n:d.n || 1, g:d.g});
 function changed(kind){
   if (kind === 'layer'){ buildIndex(); renderBase(); renderTabs(); }
   if (kind === 'route'){ refreshGeom(); buildIndex(); renderBase(); if (S.mode === 'route'){ routeReset(); } }
@@ -1605,12 +1641,15 @@ function updateHint(){
   h.hidden = false;
   $('#hintTxt').textContent = MS.p1 ? (S.chain ? '連続：次の点までドラッグ' : '終点までドラッグして指を離す') : '始点までドラッグして指を離す';
   $('#bHint2').hidden = false; $('#bHint2').textContent = S.chain ? '✓ 連続' : '連続';
+  $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = MS.p1 ? '始点を取消' : `▾ ${(S.dimGroups.find(g => g.id === S.curDG) || {name:todayName()}).name}`;
+  return;
   $('#bCancelPt').hidden = !MS.p1;
 }
-$('#bCancelPt').onclick = () => { if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
+$('#bCancelPt').onclick = () => { if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
 
 function updateDimPanel(){
   const p = $('#dimPanel'); const d = S.selDim;
+  p.onchange = e => { if (e.target.id === 'dimGrp' && d && e.target.value !== d.g){ exec(cmdMoveDim(d, e.target.value)); toast('寸法のグループを変えました'); } };
   if (!d){ p.hidden = true; updateLayerBarVisibility(); return; }
   p.hidden = false; $('#layerBar').hidden = true;
   const L = Math.hypot(d.x2-d.x1, d.y2-d.y1), n = d.n || 1;
@@ -1622,7 +1661,7 @@ function updateDimPanel(){
     ${segs ? `<div class="segline">${segs}</div>` : ''}
     <div class="divs"><button class="btn ${n === 1 ? 'sel' : ''}" data-n="1">分割なし</button><button class="btn ${n === 2 ? 'sel' : ''}" data-n="2">中心（2等分）</button>${pick.slice(1).map(k => `<button class="btn ${n === k ? 'sel' : ''}" data-n="${k}">${k}等分</button>`).join('')}
     <button class="btn" data-a="minus" aria-label="分割を減らす">−</button><button class="btn" data-a="plus" aria-label="分割を増やす">＋</button></div>
-    <div class="frow"><button class="btn" data-a="zoom" style="flex:1">ここを拡大</button><button class="btn del" data-a="del" style="flex:1">この寸法を削除</button></div>
+    <div class="frow"><select class="gsel" id="dimGrp" style="height:40px;max-width:120px" aria-label="寸法のグループ">${S.dimGroups.map(g => `<option value="${g.id}" ${g.id === d.g ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select><button class="btn" data-a="zoom" style="flex:1">ここを拡大</button><button class="btn del" data-a="del" style="flex:1">この寸法を削除</button></div>
     ${S.pdfInfo ? `<div class="frow" id="calRow"><button class="btn" data-a="cal" style="flex:1">この寸法で縮尺を合わせる（今 1/${fmt(S.pdfInfo.scale)}）</button></div>` : ''}`;
   p.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -1777,13 +1816,17 @@ function openLayerSheet(trashFirst){
 function renderDimsInto(body){ {
     if (!S.dims.length){ body.innerHTML = '<div class="empty">まだ寸法がありません。下の「寸法」を押して、始点→終点の順にドラッグして指を離すと追加されます。</div>'; return; }
     const tot = S.dims.reduce((a, d) => a + Math.hypot(d.x2-d.x1, d.y2-d.y1), 0);
-    body.innerHTML = `<div class="note">寸法 ${S.dims.length} 本 ・ 全部の合計 ${fmt(tot)} ${S.units}</div>` + S.dims.map((d, i) => {
+    const order = S.dims.map((d, i) => [d, i]).sort((p, q) => S.dimGroups.indexOf(dgOf(p[0])) - S.dimGroups.indexOf(dgOf(q[0])));
+    let lastG = undefined;
+    body.innerHTML = `<div class="note">寸法 ${S.dims.length} 本 ・ 全部の合計 ${fmt(tot)} ${S.units}</div><button class="btn" data-a="groups">寸法のグループ（${S.dimGroups.length}）を管理</button>` + order.map(([d, i]) => {
       const L = Math.hypot(d.x2-d.x1, d.y2-d.y1), n = d.n || 1;
-      return `<div class="row"><div class="grow" data-go="${i}"><div class="num">${fmt(L)}</div><div class="sub">#${i+1}${n > 1 ? ` ・ ${n}等分 ＝ ${fmt(L/n)} ずつ` : ''}</div></div><button class="btn" data-go="${i}">表示</button><button class="btn del" data-del="${i}">削除</button></div>`;
+      const g = dgOf(d); let head = ''; if (g !== lastG){ lastG = g; head = `<div class="ghead"><b>${esc(g ? g.name : 'グループなし')} <span class="ct">${S.dims.filter(x => x.g === (g && g.id)).length}本${g && g.on === false ? '・非表示' : ''}</span></b></div>`; }
+      return head + `<div class="row"><div class="grow" data-go="${i}"><div class="num">${fmt(L)}</div><div class="sub">#${i+1}${n > 1 ? ` ・ ${n}等分 ＝ ${fmt(L/n)} ずつ` : ''}</div></div><button class="btn" data-go="${i}">表示</button><button class="btn del" data-del="${i}">削除</button></div>`;
     }).join('') + `<span class="confirm" id="delAllWrap"><button class="btn del" data-a="delall">寸法を全部削除</button></span>`;
     body.onclick = e => {
       const b = e.target.closest('[data-go],[data-del],[data-a]'); if (!b) return;
-      if (b.dataset.go !== undefined){ const d = S.dims[+b.dataset.go]; closeSheet(); S.selDim = d; zoomTo(d); updateDimPanel(); }
+      if (b.dataset.a === 'groups'){ openDimGroupSheet(); return; }
+      if (b.dataset.go !== undefined){ const d = S.dims[+b.dataset.go]; closeSheet(); if (!dimVisible(d)){ dgOf(d).on = true; } S.selDim = d; zoomTo(d); updateDimPanel(); }
       else if (b.dataset.del !== undefined){ exec(cmdDelDims([S.dims[+b.dataset.del]])); }
       else if (b.dataset.a === 'delall'){ $('#delAllWrap').innerHTML = `本当に全部消しますか？ <button class="btn del" data-a="delall2">消す</button>`; }
       else if (b.dataset.a === 'delall2'){ exec(cmdDelDims(S.dims.slice())); toast('全部削除（↶で戻せます）'); }
@@ -1910,7 +1953,7 @@ const dbGet = (s, k) => dbOp(s, 'readonly', st => st.get(k));
 const dbPut = (s, v) => dbOp(s, 'readwrite', st => st.put(v));
 const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
-function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
+function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n,g}) => ({x1,y1,x2,y2,n:n||1,g})), dimGroups:S.dimGroups, curDG:S.curDG, routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
 let autoT = 0;
 function autosave(dirty = true){
   if (dirty && G) S.dirty = true;
@@ -1931,14 +1974,16 @@ async function openText(text, srcName, opts = {}){
     S.fileId = opts.fileId || hashText(text);
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat);
-    const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views, notes:doc.meta.notes} : null);
-    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; routeReset();
+    const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], dimGroups:doc.meta.dimGroups, curDG:doc.meta.curDG, groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views, notes:doc.meta.notes} : null);
+    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; S.dimGroups = []; S.curDG = null; routeReset();
     for (const [k, t] of Object.entries(G.parts)) if (t.inv) S.hideObj.add(+k);
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){
       const del = new Set(st.deleted || []), hid = new Set(st.hidden || []);
       G.L.forEach(l => { if (del.has(l.name)) l.deleted = true; if (hid.has(l.name)) l.on = false; const gg = st.groups && st.groups[l.name]; if (gg && GROUPS.some(g => g.id === gg)) l.g = gg; });
-      S.dims = (st.dims || []).map((d, i) => ({id:'d' + i + Date.now().toString(36), x1:+d.x1, y1:+d.y1, x2:+d.x2, y2:+d.y2, n:+d.n || 1}));
+      S.dimGroups = Array.isArray(st.dimGroups) ? st.dimGroups.map(g => ({...g})) : []; S.curDG = st.curDG || null;
+      S.dims = (st.dims || []).map((d, i) => ({id:'d' + i + Date.now().toString(36), x1:+d.x1, y1:+d.y1, x2:+d.x2, y2:+d.y2, n:+d.n || 1, g:d.g}));
+      if (S.dims.some(d => !d.g || !S.dimGroups.some(g => g.id === d.g))){ let og = S.dimGroups.find(g => g.name === 'これまでの寸法'); if (!og){ og = {id:'g0' + Date.now().toString(36), name:'これまでの寸法', on:true}; S.dimGroups.unshift(og); } S.dims.forEach(d => { if (!d.g || !S.dimGroups.some(g => g.id === d.g)) d.g = og.id; }); }
       S.log = Array.isArray(st.log) ? st.log : [];
       S.notes = Array.isArray(st.notes) ? st.notes.map(n => ({...n})) : [];
       if (st.views && Array.isArray(st.views.list)){
@@ -2088,13 +2133,15 @@ function buildExport(name, opt = {}){
     if (modern) a = a.concat(P(100, sub));
     return a.concat(body);
   }
-  const line = (x1, y1, x2, y2) => ent('LINE', 'AcDbLine', [...P(10,num(x1)), ...P(20,num(y1)), ...P(30,'0.0'), ...P(11,num(x2)), ...P(21,num(y2)), ...P(31,'0.0')]);
+  let DL = DIM_LAYER;
+  const line = (x1, y1, x2, y2) => ent('LINE', 'AcDbLine', [...P(10,num(x1)), ...P(20,num(y1)), ...P(30,'0.0'), ...P(11,num(x2)), ...P(21,num(y2)), ...P(31,'0.0')], DL);
   const text = (x, y, h, angDeg, s, va) => { // centered, va: 1 bottom / 3 top
-    let a = ent('TEXT', 'AcDbText', [...P(10,num(x)), ...P(20,num(y)), ...P(30,'0.0'), ...P(40,num(h)), ...P(1,s), ...P(50,num(angDeg)), ...P(72,1), ...P(11,num(x)), ...P(21,num(y)), ...P(31,'0.0')]);
+    let a = ent('TEXT', 'AcDbText', [...P(10,num(x)), ...P(20,num(y)), ...P(30,'0.0'), ...P(40,num(h)), ...P(1,s), ...P(50,num(angDeg)), ...P(72,1), ...P(11,num(x)), ...P(21,num(y)), ...P(31,'0.0')], DL);
     if (modern) a = a.concat(P(100, 'AcDbText')); return a.concat(P(73, va));
   };
   const th = S.textH, newEnts = [];
   for (const d of S.dims){
+    DL = dgOf(d) ? dgLayer(dgOf(d)) : DIM_LAYER;
     const L = Math.hypot(d.x2-d.x1, d.y2-d.y1); if (L <= 0) continue; const nn = d.n || 1;
     const ux = (d.x2-d.x1)/L, uy = (d.y2-d.y1)/L;
     const ra = readableAngle(ux, uy), nx = -Math.sin(ra), ny = Math.cos(ra), deg = ra*180/Math.PI;
@@ -2132,7 +2179,8 @@ function buildExport(name, opt = {}){
     newEnts.push(ent('CIRCLE', 'AcDbCircle', [...P(10,num(nt.x)), ...P(20,num(nt.y)), ...P(30,'0.0'), ...P(40,num(th*0.4))], NOTE_LAYER));
     nt.text.split('\n').forEach((ln, li) => { let a = ent('TEXT', 'AcDbText', [...P(10,num(nt.x + th)), ...P(20,num(nt.y - li*th*1.6)), ...P(30,'0.0'), ...P(40,num(th)), ...P(1,ln)], NOTE_LAYER); if (modern) a = a.concat(P(100, 'AcDbText')); newEnts.push(a); });
   }
-  const needLayers = [[DIM_LAYER, 1]]; if (S.ghosts.length) needLayers.push([GHOST_LAYER, 8]); if (S.notes.length) needLayers.push([NOTE_LAYER, 6]);
+  const needLayers = S.dimGroups.filter(g => S.dims.some(d => d.g === g.id)).map(g => [dgLayer(g), g.on === false ? -1 : 1]);
+  if (S.dims.some(d => !dgOf(d))) needLayers.push([DIM_LAYER, 1]); if (S.ghosts.length) needLayers.push([GHOST_LAYER, 8]); if (S.notes.length) needLayers.push([NOTE_LAYER, 6]);
   for (const [lname, lcol] of needLayers){
     if (exLayers.has(lname)) continue;
     let r = P(0, 'LAYER');
@@ -2141,7 +2189,7 @@ function buildExport(name, opt = {}){
     if (modern){ r = r.concat(P(370, -3)); if (plotStyle) r = r.concat(P(390, plotStyle)); }
     layerRec = layerRec.concat(r);
   }
-  const meta = {v:1, name, notes:S.notes.map(noteRec), dims:stateRecord().dims, groups:stateRecord().groups, log:S.log, views:{byHandle:true, list:S.views.map(v => ({id:v.id, name:v.name, on:v.on, t:v.t, hideH:v.hide.map(e => G.parts[e] && G.parts[e].h).filter(Boolean)}))}, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
+  const meta = {v:1, name, notes:S.notes.map(noteRec), dimGroups:S.dimGroups, curDG:S.curDG, dims:stateRecord().dims, groups:stateRecord().groups, log:S.log, views:{byHandle:true, list:S.views.map(v => ({id:v.id, name:v.name, on:v.on, t:v.t, hideH:v.hide.map(e => G.parts[e] && G.parts[e].h).filter(Boolean)}))}, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
   const out = [...P(999, META + JSON.stringify(meta))];
   let section = null, table = null, dropSeq = false, curBlock = null;
   let i = 0;
@@ -2162,7 +2210,7 @@ function buildExport(name, opt = {}){
         let drop = hdl !== null && ovHandles.has(hdl) && (t === 'LINE' || t === 'LWPOLYLINE');
         if (section === 'ENTITIES' && hdl !== null && delH.has(hdl) && !dropSeq){ drop = true; if (t === 'POLYLINE' || (t === 'INSERT' && attFollow)) dropSeq = true; }
         if (dropSeq && (t === 'VERTEX' || t === 'ATTRIB' || t === 'SEQEND')){ drop = true; if (t === 'SEQEND') dropSeq = false; }
-        else { dropSeq = false; if (!drop && layer !== null && del.has(layer)){ drop = true; if (t === 'POLYLINE' || (t === 'INSERT' && attFollow)) dropSeq = true; } }
+        else { dropSeq = false; if (!drop && layer !== null && (del.has(layer) || layer.startsWith(DIM_LAYER + '_'))){ drop = true; if (t === 'POLYLINE' || (t === 'INSERT' && attFollow)) dropSeq = true; } }
         if (!drop){
           const inv = section === 'ENTITIES' && hdl !== null && hideH.has(hdl);
           let put60 = false;
@@ -2332,6 +2380,7 @@ async function buildPdf(){
   out.push(`${dimC.map(f2).join(' ')} RG ${f2(0.25*PT)} w`);
   const tk = 1.2 * PT; // tick half-length in pt
   for (const d of S.dims){
+    if (!dimVisible(d)) continue;
     const ax = X(d.x1), ay = Y(d.y1), bx = X(d.x2), by = Y(d.y2), L = Math.hypot(bx-ax, by-ay); if (!L) continue;
     const ux = (bx-ax)/L, uy = (by-ay)/L, nx = -uy, ny = ux, n = d.n || 1;
     out.push(`${f2(ax)} ${f2(ay)} m ${f2(bx)} ${f2(by)} l S`);
@@ -2368,6 +2417,7 @@ async function buildPdf(){
     g.textAlign = 'center'; g.textBaseline = below ? 'top' : 'bottom'; g.fillText(text, 0, below ? hp*.25 : -hp*.25); g.restore();
   });
   for (const d of S.dims){
+    if (!dimVisible(d)) continue;
     const ax = PX(d.x1), ay = PY(d.y1), bx = PX(d.x2), by = PY(d.y2); const Lw = Math.hypot(d.x2-d.x1, d.y2-d.y1), n = d.n || 1; if (!Lw) continue;
     const ang = readableAngle(bx-ax, by-ay);
     if (n === 1) lab((ax+bx)/2, (ay+by)/2, ang, fmt(Lw), false, true);

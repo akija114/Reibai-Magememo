@@ -2325,7 +2325,7 @@ function addBld3D(GY,CH,ext){
    T.bldM.push({i,k:"ins",c:new THREE.Vector3(o.x,yc-5,o.z),hw:o.w/2+20,hd:o.d/2+20,hh:10,r:o.r,y0:yc-10,h:10});
    const s0=label("🔲 点検口 "+(o.w===o.d?fmt(o.w)+"角":fmt(o.w)+"×"+fmt(o.d)),ext*0.028,"#ccfbf1f2","#115e59","bld");s0.position.set(o.x,yc-80,o.z);s0.userData.cat="bld";pxl(s0,15);T.grp.add(s0);return}
   if(o.k==="eq"&&typeof VENTM!=="undefined"&&VENTM[o.m]){const V=VENTM[o.m],g=new THREE.Group(),A=V.A,B=V.B,C=V.C,y0e=GY+o.y;
-   /* メーカー外形図（LGH-N15RXW3 の DXF）から読んだ形：本体は外形寸法より左右 14 小さい箱、ダクト口は奥行の中心から ±K/2、
+   /* メーカー外形図（LGH-N15RXW3 の DXF）から読んだ形：本体は外形寸法より左右 14 小さい箱、ダクト口は奥行の端から L と L＋K（EA・RA が L、OA・SA が L＋K）、
       高さは上から 195／289、側面に制御箱（RA・SA 側）とメンテナンスカバー（OA・SA 側＝手前）、四隅に天吊金具。他の機種は同じ割合で */
    const MT=(c,o2)=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.55,metalness:.15},o2||{}));
    const bx=(w,h,d,x,y,z,m,ed)=>{const mm=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mm.position.set(x,y,z);g.add(mm);
@@ -2345,7 +2345,7 @@ function addBld3D(GY,CH,ext){
     [-1,1].forEach(q=>{const nt=new THREE.Mesh(new THREE.CylinderGeometry(10,10,8,6),MT(0x6b7280,{metalness:.6}));nt.position.set(xx,C-65+q*9,sz*V.E/2);g.add(nt)})}));
    /* ダクトの差し込み口：左 EA（奥）・OA（手前）、右 RA（奥）・SA（手前）。座の板＋フランジ＋筒（外φH・内φG） */
    const sp=MT(0xcbd5e1,{roughness:.3,metalness:.65});
-   [["EA",-1,-1,0xdc2626],["OA",-1,1,0x16a34a],["RA",1,-1,0xea580c],["SA",1,1,0x2563eb]].forEach(([nm,sx,sz,col])=>{const zc=sz*V.K/2,R=V.H/2;
+   [["EA",-1,-1,0xdc2626],["OA",-1,1,0x16a34a],["RA",1,-1,0xea580c],["SA",1,1,0x2563eb]].forEach(([nm,sx,sz,col])=>{const zc=-B/2+V.L+(sz>0?V.K:0),R=V.H/2;   /* 奥行の端から L・L＋K */
     const pl=bx(5,R*2+26,R*2+26,sx*(a/2+2.5),dy,zc,MT(0xd4d8dd),0x64748b);
     const fl=new THREE.Mesh(new THREE.CylinderGeometry(R+12.5,R+12.5,6,28),sp);fl.rotation.z=Math.PI/2;fl.position.set(sx*(a/2+8),dy,zc);g.add(fl);
     const tb=new THREE.Mesh(new THREE.CylinderGeometry(R,R*1.04,jl,28,1,true),sp);tb.rotation.z=Math.PI/2;tb.position.set(sx*(a/2+jl/2),dy,zc);g.add(tb);

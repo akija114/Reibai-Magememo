@@ -101,6 +101,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .big small{font-size:15px;color:var(--muted);margin-left:2px;font-weight:600}
 .divs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 .divs::-webkit-scrollbar{display:none}
+.pat{flex-direction:column;height:auto;padding:6px 10px;gap:2px;font-size:11px;min-width:76px}
+.pat svg{width:40px;height:22px}
+.rnote{font-size:12px;color:var(--muted);line-height:1.5}
+.rerr{font-size:12px;color:var(--danger);font-weight:600}
 .segline{font-family:var(--font-num);font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow-x:auto}
 
 /* toolbar */
@@ -147,6 +151,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   <div class="top">
     <button class="ib" id="bOpen" aria-label="ファイルを開く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
     <div class="ttl"><b id="fname">—</b><span id="fsub"></span></div>
+    <button class="ib" id="bDims" aria-label="寸法一覧"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h1M3 12h1M3 18h1"/></svg></button>
     <button class="ib" id="bUndo" aria-label="元に戻す" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
     <button class="ib" id="bRedo" aria-label="やり直し" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
     <button class="save" id="bSave">保存</button>
@@ -164,18 +169,19 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bCancelPt" hidden>始点を取消</button></div></div>
     <div class="float" id="layerBar" hidden></div>
     <div class="float" id="dimPanel" hidden></div>
+    <div class="float" id="routePanel" hidden></div>
     <div class="loading" id="loading">読み込み中…</div>
   </div>
   <div class="tool">
     <button class="tb mode" id="mPan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"/><path d="m9 6 3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>移動・選択</button>
     <button class="tb mode" id="mDim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8v8M21 8v8M3 12h18"/><path d="m6 9-3 3 3 3M18 9l3 3-3 3"/></svg>寸法</button>
+    <button class="tb mode" id="mRoute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16h5V8h10v8h5"/><path d="M7 16h10" stroke-dasharray="2 2.5" opacity=".55"/></svg>ルート</button>
     <div class="sep"></div>
     <button class="tb" id="tOrtho"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 4v15h15"/><path d="M5 12h6v7" stroke-dasharray="2 2"/></svg>縦横</button>
     <button class="tb" id="tChain"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 12h20M2 9v6M9 9v6M15 9v6M22 9v6"/></svg>連続</button>
     <button class="tb" id="tSnap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="8" height="8"/><path d="M3 12h5M16 12h5M12 3v5M12 16v5"/></svg>吸着</button>
     <div class="sep"></div>
     <button class="tb" id="bFit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>全体</button>
-    <button class="tb" id="bDims"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h1M3 12h1M3 18h1"/></svg>寸法一覧</button>
   </div>
 </div>
 <input type="file" id="fileIn" hidden>
@@ -186,6 +192,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 "use strict";
 /* ============ constants & state ============ */
 const DIM_LAYER = '追加寸法';
+const GHOST_LAYER = '変更前ルート';
+const SS = 7, PS = 5; // stride of segs (x1,y1,x2,y2,layer,kind,shape) / pts (x,y,layer,type,shape)
 const META = 'WADA_ZUMEN:';
 const SAMPLE_NAME = '受け取った図面_261016.dxf';
 const MAGE_BASE = 'https://akija114.github.io/Reibai-Magememo/';
@@ -211,7 +219,7 @@ const S = {
   text:'', eol:'\r\n', srcName:'', name:'', fileId:'', projectId:null,
   units:'mm', geo:null, layers:[], dims:[], selDim:null,
   mode:'pan', ortho:true, chain:false, snapOn:true, tab:null, group:null,
-  undo:[], redo:[], textH:150,
+  undo:[], redo:[], textH:150, ov:new Map(), ghosts:[],
 };
 let view = {s:1, tx:0, ty:0}, bview = {s:1, tx:0, ty:0};
 let cw = 0, ch = 0, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -308,9 +316,25 @@ function cleanMtext(s){
     .replace(/\\S([^;]*);/g,(m,a)=>a.replace(/[\^#]/,'/')).replace(/[{}]/g,'').replace(/\\~/g,' ').replace(/\\\\/g,'\\');
 }
 
+function polyFlat(v, closed){ // v: x,y,bulge (stride 3) -> tessellated points + per-segment kind (0 straight / 1 arc)
+  const nv = v.length/3; const f = [v[0], v[1]], kinds = [];
+  const segN = closed ? nv : nv - 1;
+  for (let s = 0; s < segN; s++){
+    const x1 = v[3*s], y1 = v[3*s+1], b = v[3*s+2], j = (s+1) % nv, x2 = v[3*j], y2 = v[3*j+1];
+    if (Math.abs(b) < 1e-9){ f.push(x2, y2); kinds.push(0); }
+    else {
+      const dx = x2-x1, dy = y2-y1, cf = (1 - b*b)/(4*b);
+      const cx = (x1+x2)/2 - dy*cf, cy = (y1+y2)/2 + dx*cf, r = Math.hypot(x1-cx, y1-cy);
+      const tmp = arcFlat(cx, cy, r, Math.atan2(y1-cy, x1-cx), 4*Math.atan(b), []);
+      for (let q = 2; q < tmp.length; q += 2){ f.push(tmp[q], tmp[q+1]); kinds.push(1); }
+      f[f.length-2] = x2; f[f.length-1] = y2;
+    }
+  }
+  return {f, kinds};
+}
 function flatten(doc){
   const L = [], LM = new Map();
-  const segs = [], pts = [], polys = [], fills = [], texts = [];
+  const segs = [], pts = [], polys = [], fills = [], texts = [], shapes = [];
   const skipDim = !!doc.meta;
   function lay(name){
     let i = LM.get(name);
@@ -323,22 +347,34 @@ function flatten(doc){
   }
   const rgbKey = v => '#' + (v & 0xFFFFFF).toString(16).padStart(6,'0');
   const ap = (M, x, y) => [M[0]*x + M[2]*y + M[4], M[1]*x + M[3]*y + M[5]];
-  function addPoly(M, flat, closed, li, ck, kinds){
+  function addPoly(M, flat, closed, li, ck, kinds, sid = -1){
     // flat: local coords; kinds: per segment 0 straight /1 curve (or single number)
     const w = new Array(flat.length);
     for (let k = 0; k < flat.length; k += 2){ w[k] = M[0]*flat[k] + M[2]*flat[k+1] + M[4]; w[k+1] = M[1]*flat[k] + M[3]*flat[k+1] + M[5]; }
     if (closed && w.length >= 4) w.push(w[0], w[1]);
-    polys.push({li, ck, a:w});
+    polys.push({li, ck, a:w, sid});
     const ns = w.length/2 - 1;
     for (let s = 0; s < ns; s++){
       const kd = typeof kinds === 'number' ? kinds : (kinds[s] || 0);
       const x1 = w[2*s], y1 = w[2*s+1], x2 = w[2*s+2], y2 = w[2*s+3];
       if (x1 === x2 && y1 === y2) continue;
-      segs.push(x1, y1, x2, y2, li, kd);
-      if (kd === 0) pts.push((x1+x2)/2, (y1+y2)/2, li, 1);
+      segs.push(x1, y1, x2, y2, li, kd, sid);
+      if (kd === 0) pts.push((x1+x2)/2, (y1+y2)/2, li, 1, sid);
     }
   }
-  function endPt(M, x, y, li, type){ const p = ap(M, x, y); pts.push(p[0], p[1], li, type); }
+  function endPt(M, x, y, li, type, sid = -1){ const p = ap(M, x, y); pts.push(p[0], p[1], li, type, sid); }
+  // shapes = lines / polylines that the route tool may rewrite. Inside a block only when every block on the way is used once (so editing the block edits just this place)
+  const uses = new Map(); const countIns = es => { for (const e of es) if (e.type === 'INSERT'){ const o = fo(e.g); const nm = (o[2]||'').trim(); uses.set(nm, (uses.get(nm) || 0) + 1); } };
+  countIns(doc.entities); for (const b of doc.blocks.values()) countIns(b.ents);
+  const isSim = M => Math.abs((M[0]*M[0] + M[1]*M[1]) - (M[2]*M[2] + M[3]*M[3])) < 1e-6 * (M[0]*M[0] + M[1]*M[1] + 1e-12) && Math.abs(M[0]*M[2] + M[1]*M[3]) < 1e-6 * (M[0]*M[0] + M[1]*M[1] + 1e-12);
+  const newShape = (o, li, ck, M, lv, closed, ctx) => {
+    if (!ctx.ok || !isSim(M)) return -1;
+    const det = M[0]*M[3] - M[1]*M[2], wv = [];
+    for (let q = 0; q < lv.length; q += 3){ const pp = ap(M, lv[q], lv[q+1]); wv.push(pp[0], pp[1], det < 0 ? -lv[q+2] : lv[q+2]); }
+    const sid = shapes.length;
+    shapes.push({sid, h:o[5] ? o[5].trim() : null, owner:o[330] ? o[330].trim() : null, blk:ctx.blk, M:M.slice(), rawLayer:(o[8] || '0').trim(), li, ck, verts:wv, closed:!!closed, raw:{6:o[6], 62:o[62], 370:o[370], 420:o[420], 48:o[48]}});
+    return sid;
+  };
   function addText(M, x, y, h, angDeg, wf, str, ha, va, li, ck){
     if (!str) return;
     const p = ap(M, x, y), a = (angDeg || 0) * Math.PI/180;
@@ -347,7 +383,7 @@ function flatten(doc){
     const sx = Math.hypot(dx, dy), sy = Math.hypot(hx, hy) || 1;
     texts.push({li, ck, x:p[0], y:p[1], h:h*sy, a:Math.atan2(dy, dx), wf:(wf || 1)*sx/sy, lines:String(str).split('\n'), ha, va});
   }
-  function walk(ents, M, inhL, inhC, depth){
+  function walk(ents, M, inhL, inhC, depth, ctx){
     if (depth > 12) return;
     for (let k = 0; k < ents.length; k++){
       const e = ents[k], T = e.type;
@@ -370,7 +406,8 @@ function flatten(doc){
       switch (T){
         case 'LINE': {
           const x1=+o[10], y1=+o[20], x2=+o[11], y2=+o[21];
-          addPoly(M, [x1,y1,x2,y2], false, li, ck, 0); endPt(M,x1,y1,li,0); endPt(M,x2,y2,li,0); break;
+          const sid = newShape(o, li, ck, M, [x1,y1,0,x2,y2,0], false, ctx);
+          addPoly(M, [x1,y1,x2,y2], false, li, ck, 0, sid); endPt(M,x1,y1,li,0,sid); endPt(M,x2,y2,li,0,sid); break;
         }
         case 'ARC': case 'CIRCLE': {
           const cx=+o[10], cy=+o[20], r=+o[40]; if (!(r > 0)) break;
@@ -401,22 +438,10 @@ function flatten(doc){
           const closed = (parseInt(o[70]) || 0) & 1;
           const Mp = (T === 'POLYLINE' && ((parseInt(o[70])||0) & 8)) ? M : Mo;
           const nv = v.length/3; if (nv < 2) break;
-          const f = [v[0], v[1]], kinds = [];
-          const segN = closed ? nv : nv - 1;
-          for (let s = 0; s < segN; s++){
-            const x1 = v[3*s], y1 = v[3*s+1], b = v[3*s+2], j = (s+1) % nv, x2 = v[3*j], y2 = v[3*j+1];
-            if (Math.abs(b) < 1e-9){ f.push(x2, y2); kinds.push(0); }
-            else {
-              const dx = x2-x1, dy = y2-y1, cf = (1 - b*b)/(4*b);
-              const cx = (x1+x2)/2 - dy*cf, cy = (y1+y2)/2 + dx*cf, r = Math.hypot(x1-cx, y1-cy);
-              const a0 = Math.atan2(y1-cy, x1-cx), sw = 4*Math.atan(b);
-              const tmp = arcFlat(cx, cy, r, a0, sw, []);
-              for (let q = 2; q < tmp.length; q += 2){ f.push(tmp[q], tmp[q+1]); kinds.push(1); }
-              f[f.length-2] = x2; f[f.length-1] = y2;
-            }
-          }
-          addPoly(Mp, f, false, li, ck, kinds);
-          for (let s = 0; s < nv; s++) endPt(Mp, v[3*s], v[3*s+1], li, 0);
+          const {f, kinds} = polyFlat(v, closed);
+          const sid = (T === 'LWPOLYLINE' && z >= 0) ? newShape(o, li, ck, Mp, v, closed, ctx) : -1;
+          addPoly(Mp, f, false, li, ck, kinds, sid);
+          for (let s = 0; s < nv; s++) endPt(Mp, v[3*s], v[3*s+1], li, 0, sid);
           break;
         }
         case 'SOLID': case 'TRACE': case '3DFACE': {
@@ -465,20 +490,20 @@ function flatten(doc){
             const ox = cc*csp, oy = rr*rsp;
             const px = +o[10] + c*ox - s*oy, py = +o[20] + s*ox + c*oy;
             const Mi = mul(Mo, [c*sx, s*sx, -s*sy, c*sy, px, py]);
-            walk(b.ents, mul(Mi, [1,0,0,1,-b.bx,-b.by]), ln, ck, depth+1);
+            walk(b.ents, mul(Mi, [1,0,0,1,-b.bx,-b.by]), ln, ck, depth+1, {blk:b.name, ok:ctx.ok && uses.get(b.name) === 1 && rows*cols === 1});
           }
           endPt(Mo, +o[10], +o[20], li, 4);
           break;
         }
         case 'DIMENSION': {
-          const b = doc.blocks.get((o[2]||'').trim()); if (b) walk(b.ents, M, ln, ck, depth+1);
+          const b = doc.blocks.get((o[2]||'').trim()); if (b) walk(b.ents, M, ln, ck, depth+1, {blk:b.name, ok:false});
           break;
         }
       }
     }
   }
-  walk(doc.entities, I, null, null, 0);
-  return {L, segs, pts, polys, fills, texts};
+  walk(doc.entities, I, null, null, 0, {blk:null, ok:true});
+  return {L, segs, pts, polys, fills, texts, shapes};
 }
 function parseHatch(g){
   // returns rings (flat arrays, OCS)
@@ -520,10 +545,6 @@ let G = null; // {L, paths: [Map(ck->Path2D)], fillsP, textsBy, bounds, segs Flo
 function prepare(flat){
   const L = flat.L;
   const paths = L.map(() => new Map()), fillP = L.map(() => new Map()), textsBy = L.map(() => []);
-  for (const p of flat.polys){
-    let P = paths[p.li].get(p.ck); if (!P){ P = new Path2D(); paths[p.li].set(p.ck, P); }
-    const a = p.a; P.moveTo(a[0], a[1]); for (let k = 2; k < a.length; k += 2) P.lineTo(a[k], a[k+1]);
-  }
   for (const f of flat.fills){
     let P = fillP[f.li].get(f.ck); if (!P){ P = new Path2D(); fillP[f.li].set(f.ck, P); }
     for (const r of f.rings){ P.moveTo(r[0], r[1]); for (let k = 2; k < r.length; k += 2) P.lineTo(r[k], r[k+1]); P.closePath(); }
@@ -531,8 +552,8 @@ function prepare(flat){
   for (const t of flat.texts) textsBy[t.li].push(t);
   const segs = Float64Array.from(flat.segs), pts = Float64Array.from(flat.pts);
   // robust bounds
-  const xs = [], ys = []; const step = Math.max(1, Math.floor(segs.length/6/4000));
-  for (let k = 0; k < segs.length; k += 6*step){ xs.push(segs[k], segs[k+2]); ys.push(segs[k+1], segs[k+3]); }
+  const xs = [], ys = []; const step = Math.max(1, Math.floor(segs.length/SS/4000));
+  for (let k = 0; k < segs.length; k += SS*step){ xs.push(segs[k], segs[k+2]); ys.push(segs[k+1], segs[k+3]); }
   for (const t of flat.texts){ xs.push(t.x); ys.push(t.y); }
   xs.sort((a,b) => a-b); ys.sort((a,b) => a-b);
   const pick = (A, f) => A.length ? A[Math.min(A.length-1, Math.max(0, Math.floor(A.length*f)))] : 0;
@@ -541,7 +562,7 @@ function prepare(flat){
   const bounds = {x0:x0-mx, y0:y0-my, x1:x1+mx, y1:y1+my};
   const hs = flat.texts.map(t => t.h).sort((a,b) => a-b);
   S.textH = hs.length ? Math.max(1, hs[Math.floor(hs.length/2)]) : Math.max(bounds.x1-bounds.x0, bounds.y1-bounds.y0)/150;
-  return {L, paths, fillP, textsBy, segs, pts, bounds, polys:flat.polys, fills:flat.fills};
+  return {L, paths, fillP, textsBy, segs, pts, baseSegs:segs, basePts:pts, nBaseS:segs.length/SS, nBaseP:pts.length/PS, ovPolys:[], shapes:flat.shapes, bounds, polys:flat.polys, fills:flat.fills};
 }
 
 /* ============ spatial index ============ */
@@ -556,15 +577,16 @@ function buildIndex(){
   const sg = new Map(), pg = new Map();
   const put = (m, key, id) => { let a = m.get(key); if (!a){ a = []; m.set(key, a); } a.push(id); };
   const s = G.segs;
-  for (let id = 0, k = 0; k < s.length; k += 6, id++){
+  for (let id = 0, k = 0; k < s.length; k += SS, id++){
     if (!vis[s[k+4]]) continue;
+    if (id < G.nBaseS && S.ov.has(s[k+6])) continue;
     const x1 = s[k], y1 = s[k+1], x2 = s[k+2], y2 = s[k+3];
     const steps = Math.min(4000, Math.ceil(Math.hypot(x2-x1, y2-y1)/(cell*.5)) + 1); let last = -1;
     for (let t = 0; t <= steps; t++){ const f = t/steps; const key = cx(x1 + (x2-x1)*f) * 65536 + cy(y1 + (y2-y1)*f); if (key !== last){ put(sg, key, id); last = key; } }
   }
   const p = G.pts;
-  for (let id = 0, k = 0; k < p.length; k += 4, id++){ if (!vis[p[k+2]]) continue; put(pg, cx(p[k])*65536 + cy(p[k+1]), id); }
-  IX = {sg, pg, cx, cy, segMark:new Int32Array(s.length/6), ptMark:new Int32Array(p.length/4), stamp:0};
+  for (let id = 0, k = 0; k < p.length; k += PS, id++){ if (!vis[p[k+2]]) continue; if (id < G.nBaseP && S.ov.has(p[k+4])) continue; put(pg, cx(p[k])*65536 + cy(p[k+1]), id); }
+  IX = {sg, pg, cx, cy, segMark:new Int32Array(s.length/SS), ptMark:new Int32Array(p.length/PS), stamp:0};
 }
 function query(m, mark, x, y, r){
   const out = []; if (!IX) return out;
@@ -581,7 +603,7 @@ function closestOnSeg(px, py, x1, y1, x2, y2){
   return [x1 + dx*t, y1 + dy*t];
 }
 function segInt(a, b){
-  const s = G.segs; const x1=s[a*6],y1=s[a*6+1],x2=s[a*6+2],y2=s[a*6+3],x3=s[b*6],y3=s[b*6+1],x4=s[b*6+2],y4=s[b*6+3];
+  const s = G.segs; const x1=s[a*SS],y1=s[a*SS+1],x2=s[a*SS+2],y2=s[a*SS+3],x3=s[b*SS],y3=s[b*SS+1],x4=s[b*SS+2],y4=s[b*SS+3];
   const d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4); if (Math.abs(d) < 1e-12) return null;
   const t = ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4))/d, u = -((x1-x2)*(y1-y3) - (y1-y2)*(x1-x3))/d;
   if (t < -1e-6 || t > 1+1e-6 || u < -1e-6 || u > 1+1e-6) return null;
@@ -604,14 +626,14 @@ function snapAt(wx, wy, from, touch){
     if (S.snapOn){
       const s = G.segs;
       for (const id of query(IX.sg, IX.segMark, qx, qy, R)){
-        const k = id*6, x1 = s[k], y1 = s[k+1], x2 = s[k+2], y2 = s[k+3]; let px, py;
+        const k = id*SS, x1 = s[k], y1 = s[k+1], x2 = s[k+2], y2 = s[k+3]; let px, py;
         if (lock === 'h'){ if (y1 === y2) continue; const t = (qy - y1)/(y2 - y1); if (t < -1e-6 || t > 1+1e-6) continue; px = x1 + t*(x2-x1); py = qy; }
         else { if (x1 === x2) continue; const t = (qx - x1)/(x2 - x1); if (t < -1e-6 || t > 1+1e-6) continue; px = qx; py = y1 + t*(y2-y1); }
         const d = Math.hypot(px-qx, py-qy); if (d < bd){ bd = d; best = {x:px, y:py, type:'int'}; }
       }
       const p = G.pts;
       for (const id of query(IX.pg, IX.ptMark, qx, qy, R)){
-        const k = id*4; const tp = p[k+3]; if (tp === 1) continue;
+        const k = id*PS; const tp = p[k+3]; if (tp === 1) continue;
         const px = lock === 'h' ? p[k] : qx, py = lock === 'h' ? qy : p[k+1];
         const off = lock === 'h' ? Math.abs(p[k+1]-qy) : Math.abs(p[k]-qx);
         if (off > R*.6) continue;
@@ -625,14 +647,14 @@ function snapAt(wx, wy, from, touch){
   const p = G.pts; let best = null, bd = R; const TY = ['end','mid','cen','quad','ins'];
   let bestMid = null, bdm = R*.8;
   for (const id of query(IX.pg, IX.ptMark, wx, wy, R)){
-    const k = id*4, d = Math.hypot(p[k]-wx, p[k+1]-wy), t = p[k+3];
+    const k = id*PS, d = Math.hypot(p[k]-wx, p[k+1]-wy), t = p[k+3];
     if (t === 1){ if (d < bdm){ bdm = d; bestMid = {x:p[k], y:p[k+1], type:'mid'}; } }
     else if (d < bd){ bd = d; best = {x:p[k], y:p[k+1], type:TY[t]}; }
   }
   // intersections
   const near = query(IX.sg, IX.segMark, wx, wy, R);
   const s = G.segs; const cand = [];
-  for (const id of near){ const k = id*6; const c = closestOnSeg(wx, wy, s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-wx, c[1]-wy); if (d < R) cand.push([d, id, c]); }
+  for (const id of near){ const k = id*SS; const c = closestOnSeg(wx, wy, s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-wx, c[1]-wy); if (d < R) cand.push([d, id, c]); }
   cand.sort((a,b) => a[0]-b[0]); if (cand.length > 40) cand.length = 40;
   for (let a = 0; a < cand.length; a++) for (let b = a+1; b < cand.length; b++){
     const q = segInt(cand[a][1], cand[b][1]); if (!q) continue; const d = Math.hypot(q[0]-wx, q[1]-wy);
@@ -752,6 +774,7 @@ function drawSnapMark(c, x, y, type){
 }
 function drawOverlay(){
   octx.setTransform(dpr,0,0,dpr,0,0); octx.clearRect(0,0,cw,ch);
+  drawRoute(octx);
   for (const d of S.dims) drawDim(octx, d, d === S.selDim);
   const M = MS;
   if (S.mode === 'dim'){
@@ -775,8 +798,8 @@ function drawOverlay(){
   updateLoupe();
 }
 function updateLoupe(){
-  const M = MS;
-  if (!(S.mode === 'dim' && M.cur && M.dragging)){ lp.hidden = true; return; }
+  const M = S.mode === 'route' ? RS : MS;
+  if (!((S.mode === 'dim' || S.mode === 'route') && M.cur && M.dragging)){ lp.hidden = true; return; }
   lp.hidden = false;
   const [x, y] = w2s(M.cur.x, M.cur.y);
   const left = x < 150 && y < 200; lp.style.left = left ? '' : '10px'; lp.style.right = left ? '10px' : '';
@@ -795,10 +818,13 @@ ov.addEventListener('pointerdown', e => {
   ov.setPointerCapture(e.pointerId); const p = evPos(e); ptrs.set(e.pointerId, p);
   if (ptrs.size === 1){
     if (S.mode === 'dim'){ gest = {type:'cursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; MS.dragging = true; moveCursor(p); }
+    else if (S.mode === 'route' && ['a','b','draw'].includes(RS.step)){ gest = {type:'rcursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; RS.dragging = true; updateHint(); moveRCursor(p); }
+    else if (S.mode === 'route' && RS.step === 'shape' && RS.pattern !== 'free' && nearRoute(p)){ gest = {type:'roff'}; }
     else gest = {type:'pan', start:p, v0:{...view}, t:performance.now(), moved:false};
   } else if (ptrs.size === 2){
     const [a, b] = [...ptrs.values()];
     if (gest && gest.type === 'cursor'){ MS.dragging = false; MS.cur = null; MS.finger = null; }
+    if (gest && gest.type === 'rcursor'){ RS.dragging = false; RS.cur = null; RS.finger = null; }
     gest = {type:'pinch', d0:Math.hypot(a[0]-b[0], a[1]-b[1]) || 1, c0:[(a[0]+b[0])/2, (a[1]+b[1])/2], v0:{...view}};
     drawOverlay();
   }
@@ -808,6 +834,8 @@ ov.addEventListener('pointermove', e => {
   const p = evPos(e); ptrs.set(e.pointerId, p);
   if (!gest) return;
   if (gest.type === 'cursor') moveCursor(p);
+  else if (gest.type === 'rcursor') moveRCursor(p);
+  else if (gest.type === 'roff') setOffsetFrom(p);
   else if (gest.type === 'pan'){
     const dx = p[0]-gest.start[0], dy = p[1]-gest.start[1]; if (Math.hypot(dx, dy) > 6) gest.moved = true;
     if (gest.moved){ view.tx = gest.v0.tx + dx; view.ty = gest.v0.ty + dy; viewChanged(); }
@@ -824,8 +852,14 @@ function endPtr(e, cancel){
     MS.dragging = false; MS.finger = null;
     if (!cancel && MS.cur) placePoint(MS.cur); else { MS.cur = null; drawOverlay(); }
     gest = null;
+  } else if (gest.type === 'rcursor' && ptrs.size === 0){
+    RS.dragging = false; RS.finger = null;
+    if (!cancel && RS.cur) routePlace(RS.cur); else { RS.cur = null; updateRouteUi(); }
+    gest = null;
+  } else if (gest.type === 'roff' && ptrs.size === 0){
+    gest = null; $('#pill').hidden = true; updateRoutePanel();
   } else if (gest.type === 'pan' && ptrs.size === 0){
-    if (!gest.moved && !cancel && performance.now() - gest.t < 500) tapSelect(gest.start);
+    if (!gest.moved && !cancel && performance.now() - gest.t < 500){ if (S.mode === 'route' && RS.step === 'pick') routePick(gest.start); else tapSelect(gest.start); }
     gest = null;
   } else if (gest.type === 'pinch'){
     if (ptrs.size === 0) gest = null; else gest = {type:'none'};
@@ -878,12 +912,240 @@ function updatePill(){
   pill.innerHTML = html; pill.hidden = false;
 }
 
+
+/* ============ pipe route change ============ */
+const RS = {step:null, sel:null, a:null, b:null, cands:[], way:[], cur:null, dragging:false, finger:null, pattern:'ko', side:1, D:200, withPar:true};
+try { const r = JSON.parse(localStorage.getItem('zumen-route') || '{}'); if (['ko','dai'].includes(r.pattern)) RS.pattern = r.pattern; if (+r.D > 0) RS.D = +r.D; } catch(e){}
+function saveRoutePref(){ try { localStorage.setItem('zumen-route', JSON.stringify({pattern:RS.pattern === 'free' ? 'ko' : RS.pattern, D:RS.D})); } catch(e){} }
+const curShape = sid => S.ov.get(sid) || {verts:G.shapes[sid].verts, closed:G.shapes[sid].closed};
+function allPolys(){ return G.polys.filter(p => !(p.sid >= 0 && S.ov.has(p.sid))).concat(G.ovPolys || []); }
+function refreshGeom(){
+  if (!G) return;
+  const es = [], ep = [], ovPolys = [];
+  for (const [sid, o] of S.ov){
+    const sh = G.shapes[sid]; if (!sh) continue; const {f, kinds} = polyFlat(o.verts, o.closed);
+    ovPolys.push({li:sh.li, ck:sh.ck, a:f, sid});
+    for (let q = 0; q < kinds.length; q++){ const x1 = f[2*q], y1 = f[2*q+1], x2 = f[2*q+2], y2 = f[2*q+3]; if (x1 === x2 && y1 === y2) continue; es.push(x1, y1, x2, y2, sh.li, kinds[q], sid); if (!kinds[q]) ep.push((x1+x2)/2, (y1+y2)/2, sh.li, 1, sid); }
+    for (let q = 0; q < o.verts.length; q += 3) ep.push(o.verts[q], o.verts[q+1], sh.li, 0, sid);
+  }
+  const s2 = new Float64Array(G.baseSegs.length + es.length); s2.set(G.baseSegs); s2.set(es, G.baseSegs.length);
+  const p2 = new Float64Array(G.basePts.length + ep.length); p2.set(G.basePts); p2.set(ep, G.basePts.length);
+  G.segs = s2; G.pts = p2; G.ovPolys = ovPolys;
+  const paths = G.L.map(() => new Map());
+  const add = p => { let P = paths[p.li].get(p.ck); if (!P){ P = new Path2D(); paths[p.li].set(p.ck, P); } const a = p.a; P.moveTo(a[0], a[1]); for (let q = 2; q < a.length; q += 2) P.lineTo(a[q], a[q+1]); };
+  for (const p of G.polys) if (!(p.sid >= 0 && S.ov.has(p.sid))) add(p);
+  for (const p of ovPolys) add(p);
+  G.paths = paths;
+}
+function routeReset(){ RS.step = S.mode === 'route' ? 'pick' : null; RS.sel = null; RS.a = RS.b = null; RS.cands = []; RS.way = []; RS.cur = null; RS.dragging = false; RS.finger = null; }
+function findSegIndex(sh, x1, y1, x2, y2){
+  const v = sh.verts, nv = v.length/3, n = sh.closed ? nv : nv - 1;
+  const eq = (a, b) => Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(a));
+  for (let i = 0; i < n; i++){ const j = (i+1) % nv; if (Math.abs(v[3*i+2]) > 1e-9) continue; const ax = v[3*i], ay = v[3*i+1], bx = v[3*j], by = v[3*j+1];
+    if ((eq(ax,x1) && eq(ay,y1) && eq(bx,x2) && eq(by,y2)) || (eq(ax,x2) && eq(ay,y2) && eq(bx,x1) && eq(by,y1))) return i; }
+  return -1;
+}
+function findParallels(sel){
+  const out = []; const grp = G.L[sel.li].g, selL = G.L[sel.li]; const pipeRe = /管|配管|冷媒|ドレン|PIPE|REFR|DRAIN/i;
+  for (const sh of G.shapes){
+    const l = G.L[sh.li]; if (l.deleted || !l.on) continue;
+    if (l !== selL && !(l.g === grp && pipeRe.test(l.name) && pipeRe.test(selL.name))) continue; // same layer, or another pipe layer of the same trade (liquid / gas)
+    const {verts:v, closed} = curShape(sh.sid); const nv = v.length/3, n = closed ? nv : nv - 1;
+    for (let i = 0; i < n; i++){
+      if (sh.sid === sel.sid && i === sel.k) continue; if (Math.abs(v[3*i+2]) > 1e-9) continue;
+      const j = (i+1) % nv, ax = v[3*i], ay = v[3*i+1], bx = v[3*j], by = v[3*j+1], L = Math.hypot(bx-ax, by-ay); if (L < 1) continue;
+      const tx = (bx-ax)/L, ty = (by-ay)/L; if (Math.abs(tx*sel.ty - ty*sel.tx) > 0.005) continue;
+      const sOff = (ax - sel.x1)*sel.nx + (ay - sel.y1)*sel.ny; if (Math.abs(sOff) < 0.5 || Math.abs(sOff) > 400) continue;
+      const ua = (ax - sel.x1)*sel.tx + (ay - sel.y1)*sel.ty, ub = (bx - sel.x1)*sel.tx + (by - sel.y1)*sel.ty;
+      if (Math.max(ua, ub) <= 0 || Math.min(ua, ub) >= sel.L) continue; // must run alongside the picked line
+      out.push({sid:sh.sid, k:i, s:sOff, u0:Math.min(ua, ub), u1:Math.max(ua, ub)});
+    }
+  }
+  return out;
+}
+function routePick(p){
+  const w = s2w(p[0], p[1]), R = 24/view.s, s = G.segs; let best = null, bd = R;
+  for (const id of query(IX.sg, IX.segMark, w[0], w[1], R)){ const k = id*SS; if (s[k+6] < 0 || s[k+5] !== 0) continue; const c = closestOnSeg(w[0], w[1], s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-w[0], c[1]-w[1]); if (d < bd){ bd = d; best = id; } }
+  if (best == null){ toast('配管のまっすぐな線をタップしてください（ブロックの中の線は変えられません）'); return; }
+  const k = best*SS, sid = s[k+6], sh = curShape(sid); const kk = findSegIndex(sh, s[k], s[k+1], s[k+2], s[k+3]);
+  if (kk < 0){ toast('この線は変えられません'); return; }
+  const v = sh.verts, nv = v.length/3, j = (kk+1) % nv, x1 = v[3*kk], y1 = v[3*kk+1], x2 = v[3*j], y2 = v[3*j+1], L = Math.hypot(x2-x1, y2-y1);
+  RS.sel = {sid, k:kk, x1, y1, x2, y2, L, tx:(x2-x1)/L, ty:(y2-y1)/L, nx:-(y2-y1)/L, ny:(x2-x1)/L, li:G.shapes[sid].li};
+  RS.cands = findParallels(RS.sel); RS.step = 'a'; updateRouteUi();
+}
+const selPt = u => [RS.sel.x1 + RS.sel.tx*u, RS.sel.y1 + RS.sel.ty*u];
+function moveRCursor(p){
+  const fy = Math.max(4, p[1] + gest.off); const w = s2w(p[0], fy); RS.finger = gest.off ? p : null;
+  if (RS.step === 'draw'){
+    const last = RS.way.length ? RS.way[RS.way.length-1] : (pt => ({x:pt[0], y:pt[1]}))(selPt(RS.a));
+    RS.cur = snapAt(w[0], w[1], last, gest.touch);
+  } else {
+    const sn = snapAt(w[0], w[1], null, gest.touch); const sel = RS.sel;
+    const u = Math.max(0, Math.min(sel.L, (sn.x - sel.x1)*sel.tx + (sn.y - sel.y1)*sel.ty)); const q = selPt(u);
+    RS.cur = {x:q[0], y:q[1], u, type: sn.type === 'free' || sn.type === 'axis' ? 'on' : sn.type};
+  }
+  drawOverlay(); updateRoutePill();
+}
+function routePlace(cur){
+  if (RS.step === 'a'){ RS.a = cur.u; RS.step = 'b'; }
+  else if (RS.step === 'b'){ if (Math.abs(cur.u - RS.a) < 1){ toast('始まりと終わりが同じ所です'); } else { RS.b = cur.u; RS.step = RS.pattern === 'free' ? 'draw' : 'shape'; } }
+  else if (RS.step === 'draw'){ RS.way.push({x:cur.x, y:cur.y}); }
+  RS.cur = null; $('#pill').hidden = true; updateRouteUi();
+}
+function routeBuild(){
+  const sel = RS.sel; if (!sel || RS.a == null || RS.b == null) return null;
+  const res = {changes:[], ghosts:[], routes:[], err:'', nPar:0};
+  const work = new Map(); // sid -> {verts, closed}
+  const lines = [];
+  if (RS.pattern === 'free'){
+    const A = selPt(RS.a), B = selPt(RS.b);
+    lines.push({sid:sel.sid, k:sel.k, W:[A, ...RS.way.map(q => [q.x, q.y]), B], g:[A, B]});
+  } else {
+    const a = Math.min(RS.a, RS.b), b = Math.max(RS.a, RS.b), D = RS.side*RS.D, th = RS.pattern === 'dai' ? Math.PI/4 : Math.PI/2;
+    const h = th === Math.PI/2 ? 0 : Math.abs(D)/Math.tan(th);
+    const list = [{sid:sel.sid, k:sel.k, s:0, u0:0, u1:sel.L, main:true}].concat(RS.withPar ? RS.cands : []);
+    for (const ln of list){
+      const shift = ln.s*Math.sign(D)*Math.tan(th/2), us = a - shift, ue = b + shift;
+      if (us < ln.u0 - 1e-6 || ue > ln.u1 + 1e-6){ if (ln.main) res.err = 'よける所が線の外に出ています'; continue; }
+      if (ue - us < 2*h - 1e-6){ if (ln.main) res.err = '幅が足りません（45°だと、よける寸法の2倍以上の幅が要ります）'; continue; }
+      const ox = sel.x1 + sel.nx*ln.s, oy = sel.y1 + sel.ny*ln.s;
+      const P2 = (u, v) => [ox + sel.tx*u + sel.nx*v, oy + sel.ty*u + sel.ny*v];
+      const W = h ? [P2(us,0), P2(us+h,D), P2(ue-h,D), P2(ue,0)] : [P2(us,0), P2(us,D), P2(ue,D), P2(ue,0)];
+      lines.push({sid:ln.sid, k:ln.k, W, g:[P2(us,0), P2(ue,0)], main:!!ln.main});
+      if (!ln.main) res.nPar++;
+    }
+    if (res.err) return res;
+  }
+  // apply, highest segment index first so earlier indices stay valid within the same shape
+  lines.sort((p, q) => p.sid - q.sid || q.k - p.k);
+  for (const ln of lines){
+    const cur = work.get(ln.sid) || curShape(ln.sid); const v = cur.verts, nv = v.length/3;
+    let W = ln.W; const dx0 = Math.hypot(W[0][0]-v[3*ln.k], W[0][1]-v[3*ln.k+1]), dx1 = Math.hypot(W[W.length-1][0]-v[3*ln.k], W[W.length-1][1]-v[3*ln.k+1]);
+    if (dx1 < dx0) W = W.slice().reverse();
+    const nvv = [];
+    const pushPt = (x, y, b) => { const m = nvv.length; if (m && Math.hypot(nvv[m-3]-x, nvv[m-2]-y) < 0.01) return; nvv.push(x, y, b); };
+    for (let i = 0; i <= ln.k; i++) pushPt(v[3*i], v[3*i+1], i === ln.k ? 0 : v[3*i+2]);
+    for (const q of W) pushPt(q[0], q[1], 0);
+    for (let i = ln.k+1; i < nv; i++) pushPt(v[3*i], v[3*i+1], v[3*i+2]);
+    work.set(ln.sid, {verts:nvv, closed:cur.closed});
+    res.routes.push(ln.W); res.ghosts.push({sid:ln.sid, x1:ln.g[0][0], y1:ln.g[0][1], x2:ln.g[1][0], y2:ln.g[1][1]});
+  }
+  for (const [sid, o] of work) res.changes.push({sid, verts:o.verts, closed:o.closed});
+  return res;
+}
+function cmdRoute(changes, ghosts, label){
+  const prev = changes.map(c => [c.sid, S.ov.has(c.sid) ? S.ov.get(c.sid) : null]);
+  return {kind:'route', label, do(){ changes.forEach(c => S.ov.set(c.sid, {verts:c.verts, closed:c.closed})); S.ghosts = S.ghosts.concat(ghosts); },
+    undo(){ prev.forEach(([sid, o]) => o ? S.ov.set(sid, o) : S.ov.delete(sid)); S.ghosts = S.ghosts.filter(g => !ghosts.includes(g)); }};
+}
+function cmdRouteReset(sid){
+  const o = S.ov.get(sid), gs = S.ghosts.filter(g => g.sid === sid);
+  return {kind:'route', label:'図面の通りに戻す', do(){ S.ov.delete(sid); S.ghosts = S.ghosts.filter(g => !gs.includes(g)); }, undo(){ S.ov.set(sid, o); S.ghosts = S.ghosts.concat(gs); }};
+}
+function nearRoute(p){
+  const r = routeBuild(); if (!r || !r.routes.length) return false;
+  for (const W of r.routes) for (let i = 0; i < W.length-1; i++){ const a = w2s(W[i][0], W[i][1]), b = w2s(W[i+1][0], W[i+1][1]); const c = closestOnSeg(p[0], p[1], a[0], a[1], b[0], b[1]); if (Math.hypot(c[0]-p[0], c[1]-p[1]) < 40) return true; }
+  return false;
+}
+function setOffsetFrom(p){
+  const w = s2w(p[0], p[1]); const sn = snapAt(w[0], w[1], null, true); const sel = RS.sel;
+  const v = (sn.x - sel.x1)*sel.nx + (sn.y - sel.y1)*sel.ny;
+  const exact = sn.type !== 'free' && sn.type !== 'on';
+  RS.side = v >= 0 ? 1 : -1; RS.D = Math.max(10, exact ? Math.round(Math.abs(v)) : Math.round(Math.abs(v)/10)*10);
+  const pill = $('#pill'); pill.innerHTML = `<b>${RS.D}</b><span>よける寸法${exact ? '・' + (SNAP_NAMES[sn.type] || '') + 'に合わせた' : ''}</span>`; pill.hidden = false;
+  drawOverlay(); updateRoutePanel();
+}
+function updateRoutePill(){
+  const pill = $('#pill'); const c = RS.cur; if (!c){ pill.hidden = true; return; }
+  let h = '';
+  if (RS.step === 'b' && RS.a != null) h = `<b>${fmt(Math.abs(c.u - RS.a))}</b><span>よける幅</span>`;
+  else if (RS.step === 'a') h = `<b>${fmt(c.u)}</b><span>線の端から</span>`;
+  else if (RS.step === 'draw'){ const last = RS.way.length ? RS.way[RS.way.length-1] : (q => ({x:q[0], y:q[1]}))(selPt(RS.a)); h = `<b>${fmt(Math.hypot(c.x-last.x, c.y-last.y))}</b>`; if (c.lock) h += `<span>${c.lock === 'h' ? '横まっすぐ' : '縦まっすぐ'}</span>`; }
+  const nm = SNAP_NAMES[c.type]; if (nm && RS.step !== 'draw') h += `<span>${nm}</span>`;
+  pill.innerHTML = h; pill.hidden = !h;
+}
+function drawRoute(c){
+  if (S.ghosts.length){ c.save(); c.setLineDash([7,5]); c.strokeStyle = tok.muted; c.globalAlpha = .8; c.lineWidth = 1.4; c.beginPath(); for (const g of S.ghosts){ const a = w2s(g.x1, g.y1), b = w2s(g.x2, g.y2); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); } c.stroke(); c.restore(); }
+  if (S.mode !== 'route' || !RS.sel) return;
+  const sel = RS.sel, A = w2s(sel.x1, sel.y1), B = w2s(sel.x2, sel.y2);
+  c.save(); c.lineCap = 'round';
+  c.strokeStyle = tok.snap; c.globalAlpha = .35; c.lineWidth = 9; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke();
+  if (RS.withPar && RS.pattern !== 'free' && RS.cands.length){ c.lineWidth = 5; c.globalAlpha = .22; c.beginPath(); for (const cd of RS.cands){ const o = [sel.x1 + sel.nx*cd.s, sel.y1 + sel.ny*cd.s]; const p0 = w2s(o[0] + sel.tx*cd.u0, o[1] + sel.ty*cd.u0), p1 = w2s(o[0] + sel.tx*cd.u1, o[1] + sel.ty*cd.u1); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); } c.stroke(); }
+  c.globalAlpha = 1;
+  if ((RS.step === 'shape' || RS.step === 'draw')){
+    const r = routeBuild();
+    if (r){
+      c.setLineDash([7,5]); c.strokeStyle = tok.muted; c.lineWidth = 1.5; c.beginPath(); for (const g of r.ghosts){ const a = w2s(g.x1, g.y1), b = w2s(g.x2, g.y2); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); } c.stroke(); c.setLineDash([]);
+      c.strokeStyle = tok.accent; c.lineWidth = 3; c.lineJoin = 'round';
+      for (const W of r.routes){ c.beginPath(); W.forEach((q, i) => { const s2 = w2s(q[0], q[1]); i ? c.lineTo(s2[0], s2[1]) : c.moveTo(s2[0], s2[1]); }); c.stroke(); }
+    }
+  }
+  if (RS.step === 'draw' && RS.cur){ const last = RS.way.length ? RS.way[RS.way.length-1] : (q => ({x:q[0], y:q[1]}))(selPt(RS.a)); const a = w2s(last.x, last.y), b = w2s(RS.cur.x, RS.cur.y); c.strokeStyle = tok.accent; c.lineWidth = 2; c.setLineDash([4,4]); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.setLineDash([]); }
+  for (const [u, lab] of [[RS.a, 'A'], [RS.b, 'B']]){ if (u == null) continue; const q = selPt(u), s2 = w2s(q[0], q[1]); c.fillStyle = tok.accent; c.beginPath(); c.arc(s2[0], s2[1], 7, 0, Math.PI*2); c.fill(); c.fillStyle = tok.panel; c.font = `700 10px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(lab, s2[0], s2[1] + .5); }
+  if (RS.cur){
+    const [x, y] = w2s(RS.cur.x, RS.cur.y);
+    c.strokeStyle = tok.ink; c.lineWidth = 1; c.globalAlpha = .7; c.beginPath(); c.moveTo(x-22, y); c.lineTo(x-6, y); c.moveTo(x+6, y); c.lineTo(x+22, y); c.moveTo(x, y-22); c.lineTo(x, y-6); c.moveTo(x, y+6); c.lineTo(x, y+22); c.stroke(); c.globalAlpha = 1;
+    drawSnapMark(c, x, y, RS.cur.type);
+    if (RS.finger){ c.strokeStyle = tok.muted; c.globalAlpha = .35; c.setLineDash([3,4]); c.beginPath(); c.moveTo(RS.finger[0], RS.finger[1]); c.lineTo(x, y); c.stroke(); c.setLineDash([]); c.globalAlpha = 1; }
+  }
+  c.restore();
+}
+const PAT_ICON = {
+  ko:'<svg viewBox="0 0 40 22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M1 18h10V5h18v13h10"/></svg>',
+  dai:'<svg viewBox="0 0 40 22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M1 18h8l9-13h4l9 13h8"/></svg>',
+  free:'<svg viewBox="0 0 40 22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M1 18h6V9h9V3h10v10h7v5h6"/></svg>'};
+function updateRoutePanel(){
+  const p = $('#routePanel');
+  if (S.mode !== 'route' || !RS.sel || RS.dragging){ p.hidden = true; return; }
+  if (RS.step === 'a' || RS.step === 'b'){
+    if (!S.ov.has(RS.sel.sid) && !RS.cands.length){ p.hidden = true; return; }
+    p.hidden = false;
+    p.innerHTML = `<div class="rnote">${G.L[RS.sel.li].name} ・ 線の長さ ${fmt(RS.sel.L)}${RS.cands.length ? ` ・ 並んでいる配管 ${RS.cands.length} 本` : ''}</div>${S.ov.has(RS.sel.sid) ? '<div class="frow"><button class="btn" data-a="reset" style="flex:1">この配管を図面の通りに戻す</button></div>' : ''}`;
+    p.onclick = e => { if (e.target.closest('[data-a="reset"]')){ exec(cmdRouteReset(RS.sel.sid)); toast('図面の通りに戻しました（↶でやり直せます）'); } };
+    return;
+  }
+  p.hidden = false;
+  const r = routeBuild();
+  const pats = `<div class="divs">${[['ko','コの字'],['dai','45°でよける'],['free','手で描く']].map(([k, t]) => `<button class="btn pat ${RS.pattern === k ? 'sel' : ''}" data-p="${k}">${PAT_ICON[k]}${t}</button>`).join('')}</div>`;
+  const width = fmt(Math.abs(RS.b - RS.a));
+  if (RS.step === 'draw'){
+    p.innerHTML = pats + `<div class="rnote">Aから順に、曲がる所をドラッグで置いていきます（縦横まっすぐ・吸着つき）。最後はBにつながります。置いた点 ${RS.way.length} 個</div>
+      ${r && r.err ? `<div class="rerr">${r.err}</div>` : ''}
+      <div class="frow"><button class="btn" data-a="back" style="flex:1" ${RS.way.length ? '' : 'disabled'}>1つ戻す</button><button class="btn" data-a="cancel" style="flex:1">やめる</button><button class="btn pri" data-a="ok" style="flex:1.4">このルートに変える</button></div>`;
+  } else {
+    p.innerHTML = pats + `<div class="frow"><button class="btn" data-a="flip" aria-label="反対側によける"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M4 7l3-3 3 3M17 20V4M14 17l3 3 3-3"/></svg>反対側</button><button class="btn" data-a="minus" aria-label="10mm減らす">−</button><div class="grow" style="text-align:center"><div class="big">${RS.D}<small>mm</small></div><div class="lsub">よける寸法 ・ 幅 ${width}</div></div><button class="btn" data-a="plus" aria-label="10mm増やす">＋</button></div>
+      <div class="divs">${[100,150,200,300,400,500,800,1000].map(v => `<button class="btn ${RS.D === v ? 'sel' : ''}" data-d="${v}">${v}</button>`).join('')}</div>
+      ${RS.cands.length ? `<button class="btn ${RS.withPar ? 'sel' : ''}" data-a="par" style="justify-content:flex-start">${RS.withPar ? '✓ ' : ''}並んでいる配管もいっしょに（${r ? r.nPar : 0}/${RS.cands.length}本）</button>` : ''}
+      ${r && r.err ? `<div class="rerr">${r.err}</div>` : ''}
+      <div class="frow"><button class="btn" data-a="cancel" style="flex:1">やめる</button><button class="btn pri" data-a="ok" style="flex:2" ${r && !r.err ? '' : 'disabled'}>このルートに変える</button></div>`;
+  }
+  p.onclick = e => {
+    const b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.p){ RS.pattern = b.dataset.p; if (RS.pattern === 'free'){ RS.step = 'draw'; RS.way = []; } else RS.step = 'shape'; saveRoutePref(); updateRouteUi(); return; }
+    if (b.dataset.d){ RS.D = +b.dataset.d; saveRoutePref(); updateRouteUi(); return; }
+    const a = b.dataset.a;
+    if (a === 'flip') RS.side = -RS.side;
+    else if (a === 'minus') RS.D = Math.max(10, RS.D - 10);
+    else if (a === 'plus') RS.D = RS.D + 10;
+    else if (a === 'par') RS.withPar = !RS.withPar;
+    else if (a === 'back') RS.way.pop();
+    else if (a === 'cancel'){ routeReset(); }
+    else if (a === 'ok'){
+      const res = routeBuild(); if (!res || res.err || !res.changes.length){ toast(res && res.err || 'ルートを作れませんでした'); return; }
+      exec(cmdRoute(res.changes, res.ghosts, 'ルート変更')); toast(`ルートを変えました${res.nPar ? `（${res.nPar + 1}本）` : ''}・↶で戻せます`); return;
+    }
+    saveRoutePref(); updateRouteUi();
+  };
+}
+function updateRouteUi(){ updateHint(); updateLayerBar(); updateRoutePanel(); drawOverlay(); }
+
 /* ============ commands (undo/redo) ============ */
 function exec(c){ c.do(); S.undo.push(c); S.redo = []; changed(c.kind); }
 function undo(){ const c = S.undo.pop(); if (!c) return; c.undo(); S.redo.push(c); changed(c.kind); toast('元に戻しました：' + c.label); }
 function redo(){ const c = S.redo.pop(); if (!c) return; c.do(); S.undo.push(c); changed(c.kind); toast('やり直しました：' + c.label); }
 function changed(kind){
   if (kind === 'layer'){ buildIndex(); renderBase(); renderTabs(); }
+  if (kind === 'route'){ refreshGeom(); buildIndex(); renderBase(); if (S.mode === 'route'){ routeReset(); } }
   if (S.selDim && !S.dims.includes(S.selDim)) S.selDim = null;
   drawOverlay(); updateUi(); refreshOpenSheet(); autosave();
 }
@@ -908,9 +1170,9 @@ function updateUi(){
   $('#bUndo').disabled = !S.undo.length; $('#bRedo').disabled = !S.redo.length;
   $('#fname').textContent = S.name || '—';
   if (G){ const live = G.L.filter(l => !l.deleted).length, del = G.L.length - live; $('#fsub').textContent = `レイヤー ${live}${del ? `（削除 ${del}）` : ''} ・ 寸法 ${S.dims.length} ・ ${S.units}`; }
-  $('#mPan').classList.toggle('on', S.mode === 'pan'); $('#mDim').classList.toggle('on', S.mode === 'dim');
+  $('#mPan').classList.toggle('on', S.mode === 'pan'); $('#mDim').classList.toggle('on', S.mode === 'dim'); $('#mRoute').classList.toggle('on', S.mode === 'route');
   $('#tOrtho').classList.toggle('on', S.ortho); $('#tChain').classList.toggle('on', S.chain); $('#tSnap').classList.toggle('on', S.snapOn);
-  updateHint(); updateLayerBar(); updateDimPanel();
+  updateHint(); updateLayerBar(); updateDimPanel(); updateRoutePanel();
 }
 function sortedLayers(){ return G.L.filter(l => l.count > 0).slice().sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ja')); }
 function soloLayers(){
@@ -957,7 +1219,7 @@ function stepTab(dir){
 }
 function updateLayerBar(){
   const bar = $('#layerBar');
-  if (!G || S.selDim){ bar.hidden = true; return; }
+  if (!G || S.selDim || (S.mode === 'route' && RS.step && RS.step !== 'pick')){ bar.hidden = true; return; }
   const l = S.tab ? G.L.find(x => x.name === S.tab) : null;
   if (l && !l.deleted){
     bar.hidden = false;
@@ -997,12 +1259,20 @@ function updateLayerBar(){
 }
 function updateHint(){
   const h = $('#hint');
+  if (S.mode === 'route'){
+    if (RS.dragging){ h.hidden = true; return; }
+    h.hidden = false;
+    $('#hintTxt').textContent = ({pick:'ルートを変える配管（まっすぐな所）をタップ', a:'よけ始める所まで、配管の上をドラッグ', b:'よけ終わる所までドラッグ', shape:'形とよける寸法を選ぶ（線をドラッグでも動きます）', draw:'曲がる所を順にドラッグで置く'})[RS.step] || '';
+    $('#bCancelPt').textContent = '選び直す'; $('#bCancelPt').hidden = RS.step === 'pick';
+    return;
+  }
+  $('#bCancelPt').textContent = '始点を取消';
   if (S.mode !== 'dim' || MS.dragging){ h.hidden = true; return; }
   h.hidden = false;
   $('#hintTxt').textContent = MS.p1 ? (S.chain ? '連続：次の点までドラッグ' : '終点までドラッグして指を離す') : '始点までドラッグして指を離す';
   $('#bCancelPt').hidden = !MS.p1;
 }
-$('#bCancelPt').onclick = () => { MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
+$('#bCancelPt').onclick = () => { if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
 
 function updateDimPanel(){
   const p = $('#dimPanel'); const d = S.selDim;
@@ -1037,8 +1307,9 @@ function zoomTo(d){
 }
 
 /* toolbar */
-$('#mPan').onclick = () => { S.mode = 'pan'; MS.p1 = null; MS.cur = null; updatePill(); drawOverlay(); updateUi(); };
-$('#mDim').onclick = () => { S.mode = 'dim'; S.selDim = null; drawOverlay(); updateUi(); };
+$('#mPan').onclick = () => { S.mode = 'pan'; MS.p1 = null; MS.cur = null; routeReset(); updatePill(); drawOverlay(); updateUi(); };
+$('#mDim').onclick = () => { S.mode = 'dim'; S.selDim = null; routeReset(); drawOverlay(); updateUi(); };
+$('#mRoute').onclick = () => { S.mode = 'route'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#tOrtho').onclick = () => { S.ortho = !S.ortho; updateUi(); toast(S.ortho ? '縦横まっすぐ：オン' : '縦横まっすぐ：オフ'); };
 $('#tChain').onclick = () => { S.chain = !S.chain; if (!S.chain && MS.p1 && S.mode === 'dim'){} updateUi(); toast(S.chain ? '連続寸法：オン（終点が次の始点に）' : '連続寸法：オフ'); };
 $('#tSnap').onclick = () => { S.snapOn = !S.snapOn; updateUi(); toast(S.snapOn ? '吸着：オン' : '吸着：オフ'); };
@@ -1145,7 +1416,7 @@ const dbGet = (s, k) => dbOp(s, 'readonly', st => st.get(k));
 const dbPut = (s, v) => dbOp(s, 'readwrite', st => st.put(v));
 const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
-function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1}))}; }
+function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}}; }
 let autoT = 0;
 function autosave(){
   clearTimeout(autoT);
@@ -1166,13 +1437,15 @@ async function openText(text, srcName, opts = {}){
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat);
     const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], groups:doc.meta.groups || {}} : null);
-    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null;
+    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; routeReset();
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){
       const del = new Set(st.deleted || []), hid = new Set(st.hidden || []);
       G.L.forEach(l => { if (del.has(l.name)) l.deleted = true; if (hid.has(l.name)) l.on = false; const gg = st.groups && st.groups[l.name]; if (gg && GROUPS.some(g => g.id === gg)) l.g = gg; });
       S.dims = (st.dims || []).map((d, i) => ({id:'d' + i + Date.now().toString(36), x1:+d.x1, y1:+d.y1, x2:+d.x2, y2:+d.y2, n:+d.n || 1}));
+      if (st.routes && st.routes.n === G.shapes.length){ for (const [k, v, c] of st.routes.ov || []) if (G.shapes[k]) S.ov.set(+k, {verts:v, closed:!!c}); S.ghosts = st.routes.ghosts || []; }
     }
+    refreshGeom();
     S.name = opts.name || (doc.meta?.name) || srcName.replace(/\.dxf$/i, '');
     S.projectId = opts.projectId || null;
     buildIndex(); view = {s:1, tx:0, ty:0}; fit(); renderTabs(); updateUi();
@@ -1268,21 +1541,21 @@ function buildExport(name){
   const {codes, vals, n} = toPairs(S.text);
   const del = new Set(G.L.filter(l => l.deleted).map(l => l.name)); del.add(DIM_LAYER);
   // pre-scan
-  let seed = 0, layerTbl = null, msHandle = null, plotStyle = null, inTable = null, dimLayerExists = false;
+  let seed = 0, layerTbl = null, msHandle = null, plotStyle = null, inTable = null, dimLayerExists = false; const exLayers = new Set();
   for (let i = 0; i < n; i++){
     if (codes[i] === 9 && vals[i].trim() === '$HANDSEED') seed = parseInt(vals[i+1], 16);
     if (codes[i] === 0 && vals[i].trim() === 'TABLE'){ inTable = (vals[i+1] || '').trim(); if (inTable === 'LAYER'){ for (let j = i+1; j < i+10 && j < n; j++) if (codes[j] === 5){ layerTbl = vals[j].trim(); break; } } }
     if (codes[i] === 0 && vals[i].trim() === 'BLOCK_RECORD'){ let h = null, nm = null; for (let j = i+1; j < n && codes[j] !== 0; j++){ if (codes[j] === 5) h = vals[j].trim(); if (codes[j] === 2) nm = vals[j].trim(); } if (nm && nm.toUpperCase() === '*MODEL_SPACE') msHandle = h; }
-    if (codes[i] === 0 && vals[i].trim() === 'LAYER' && inTable === 'LAYER'){ let nm = null, ps = null; for (let j = i+1; j < n && codes[j] !== 0; j++){ if (codes[j] === 2) nm = vals[j].trim(); if (codes[j] === 390) ps = vals[j].trim(); } if (nm === '0') plotStyle = ps; if (nm === DIM_LAYER) dimLayerExists = true; }
+    if (codes[i] === 0 && vals[i].trim() === 'LAYER' && inTable === 'LAYER'){ let nm = null, ps = null; for (let j = i+1; j < n && codes[j] !== 0; j++){ if (codes[j] === 2) nm = vals[j].trim(); if (codes[j] === 390) ps = vals[j].trim(); } if (nm === '0') plotStyle = ps; if (nm === DIM_LAYER) dimLayerExists = true; if (nm) exLayers.add(nm); }
   }
   const modern = !!msHandle; let next = seed || 0x10000;
   const H = () => (next++).toString(16).toUpperCase();
   const P = (c, v) => [String(c).padStart(3, ' '), String(v)];
   const num = v => (Math.round(v*1e6)/1e6).toString();
-  function ent(type, sub, body){
+  function ent(type, sub, body, layer = DIM_LAYER, extra = [], owner = null){
     let a = P(0, type);
-    if (modern) a = a.concat(P(5, H()), P(330, msHandle), P(100, 'AcDbEntity'));
-    a = a.concat(P(8, DIM_LAYER));
+    if (modern) a = a.concat(P(5, H()), P(330, owner || msHandle), P(100, 'AcDbEntity'));
+    a = a.concat(P(8, layer), extra);
     if (modern) a = a.concat(P(100, sub));
     return a.concat(body);
   }
@@ -1305,16 +1578,36 @@ function buildExport(name){
       newEnts.push(text((d.x1+d.x2)/2 - nx*th*.4, (d.y1+d.y2)/2 - ny*th*.4, th, deg, '計' + fmt(L), 3));
     }
   }
+  // changed pipe routes: the original entity is replaced by one polyline on the same layer (so other apps still read it as that pipe)
+  const ovHandles = new Set(), blockEnts = new Map();
+  for (const [sid, o] of S.ov){
+    const sh = G.shapes[sid]; if (!sh || G.L[sh.li].deleted) continue; if (sh.h) ovHandles.add(sh.h);
+    const M = sh.M, det = M[0]*M[3] - M[1]*M[2];
+    const inv = [M[3]/det, -M[1]/det, -M[2]/det, M[0]/det, (M[2]*M[5] - M[3]*M[4])/det, (M[1]*M[4] - M[0]*M[5])/det];
+    const v = o.verts, nv = v.length/3; const extra = [];
+    for (const c of [6, 62, 370, 420, 48]) if (sh.raw[c] !== undefined) extra.push(...P(c, String(sh.raw[c]).trim()));
+    const body = [...P(90, nv), ...P(70, o.closed ? 1 : 0)];
+    for (let q = 0; q < nv; q++){
+      const x = inv[0]*v[3*q] + inv[2]*v[3*q+1] + inv[4], y = inv[1]*v[3*q] + inv[3]*v[3*q+1] + inv[5], b = det < 0 ? -v[3*q+2] : v[3*q+2];
+      body.push(...P(10, num(x)), ...P(20, num(y))); if (Math.abs(b) > 1e-12) body.push(...P(42, num(b)));
+    }
+    const e = ent('LWPOLYLINE', 'AcDbPolyline', body, sh.rawLayer, extra, sh.owner);
+    if (sh.blk){ if (!blockEnts.has(sh.blk)) blockEnts.set(sh.blk, []); blockEnts.get(sh.blk).push(e); } else newEnts.push(e);
+  }
+  for (const g of S.ghosts) newEnts.push(ent('LINE', 'AcDbLine', [...P(10,num(g.x1)), ...P(20,num(g.y1)), ...P(30,'0.0'), ...P(11,num(g.x2)), ...P(21,num(g.y2)), ...P(31,'0.0')], GHOST_LAYER));
   let layerRec = [];
-  if (!dimLayerExists){
-    layerRec = P(0, 'LAYER');
-    if (modern) layerRec = layerRec.concat(P(5, H()), P(330, layerTbl || '0'), P(100, 'AcDbSymbolTableRecord'), P(100, 'AcDbLayerTableRecord'));
-    layerRec = layerRec.concat(P(2, DIM_LAYER), P(70, 0), P(62, 1), P(6, 'Continuous'));
-    if (modern){ layerRec = layerRec.concat(P(370, -3)); if (plotStyle) layerRec = layerRec.concat(P(390, plotStyle)); }
+  const needLayers = [[DIM_LAYER, 1]]; if (S.ghosts.length) needLayers.push([GHOST_LAYER, 8]);
+  for (const [lname, lcol] of needLayers){
+    if (exLayers.has(lname)) continue;
+    let r = P(0, 'LAYER');
+    if (modern) r = r.concat(P(5, H()), P(330, layerTbl || '0'), P(100, 'AcDbSymbolTableRecord'), P(100, 'AcDbLayerTableRecord'));
+    r = r.concat(P(2, lname), P(70, 0), P(62, lcol), P(6, 'Continuous'));
+    if (modern){ r = r.concat(P(370, -3)); if (plotStyle) r = r.concat(P(390, plotStyle)); }
+    layerRec = layerRec.concat(r);
   }
   const meta = {v:1, name, dims:stateRecord().dims, groups:stateRecord().groups, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
   const out = [...P(999, META + JSON.stringify(meta))];
-  let section = null, table = null, dropSeq = false;
+  let section = null, table = null, dropSeq = false, curBlock = null;
   let i = 0;
   while (i < n){
     const c = codes[i], v = vals[i];
@@ -1325,12 +1618,14 @@ function buildExport(name){
       if (t === 'TABLE') table = (vals[i+1] || '').trim();
       if (t === 'ENDTAB' && table === 'LAYER' && layerRec.length){ out.push(...layerRec); layerRec = []; }
       if (t === 'ENDSEC' && section === 'ENTITIES'){ for (const e of newEnts) out.push(...e); }
+      if (section === 'BLOCKS' && t === 'BLOCK'){ curBlock = null; for (let j = i+1; j < n && codes[j] !== 0; j++) if (codes[j] === 2){ curBlock = vals[j].trim(); break; } }
+      if (section === 'BLOCKS' && t === 'ENDBLK'){ const add = blockEnts.get(curBlock); if (add){ for (const e of add) out.push(...e); blockEnts.delete(curBlock); } curBlock = null; }
       if ((section === 'ENTITIES' || section === 'BLOCKS') && t !== 'SECTION' && t !== 'ENDSEC' && t !== 'BLOCK' && t !== 'ENDBLK'){
-        let j = i + 1, layer = null, attFollow = false;
-        while (j < n && codes[j] !== 0){ if (codes[j] === 8 && layer === null) layer = vals[j].trim(); if (codes[j] === 66 && parseInt(vals[j]) === 1) attFollow = true; j++; }
-        let drop = false;
+        let j = i + 1, layer = null, attFollow = false, hdl = null;
+        while (j < n && codes[j] !== 0){ if (codes[j] === 8 && layer === null) layer = vals[j].trim(); if (codes[j] === 5 && hdl === null) hdl = vals[j].trim(); if (codes[j] === 66 && parseInt(vals[j]) === 1) attFollow = true; j++; }
+        let drop = hdl !== null && ovHandles.has(hdl) && (t === 'LINE' || t === 'LWPOLYLINE');
         if (dropSeq && (t === 'VERTEX' || t === 'ATTRIB' || t === 'SEQEND')){ drop = true; if (t === 'SEQEND') dropSeq = false; }
-        else { dropSeq = false; if (layer !== null && del.has(layer)){ drop = true; if (t === 'POLYLINE' || (t === 'INSERT' && attFollow)) dropSeq = true; } }
+        else { dropSeq = false; if (!drop && layer !== null && del.has(layer)){ drop = true; if (t === 'POLYLINE' || (t === 'INSERT' && attFollow)) dropSeq = true; } }
         if (!drop) for (let k = i; k < j; k++) out.push(String(codes[k]).padStart(3, ' '), vals[k]);
         i = j; continue;
       }
@@ -1407,7 +1702,7 @@ function pdfRangeWorld(){
   if (PDF_OPT.range === 'view' && cw){ const a = s2w(0, ch), b = s2w(cw, 0); return {x0:a[0], y0:a[1], x1:b[0], y1:b[1]}; }
   // whole drawing = every visible line and text (exact, not the trimmed view bounds)
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const p of G.polys){ const l = G.L[p.li]; if (l.deleted || !l.on) continue; const a = p.a; for (let i = 0; i < a.length; i += 2){ if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i+1] < y0) y0 = a[i+1]; if (a[i+1] > y1) y1 = a[i+1]; } }
+  for (const p of allPolys()){ const l = G.L[p.li]; if (l.deleted || !l.on) continue; const a = p.a; for (let i = 0; i < a.length; i += 2){ if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i+1] < y0) y0 = a[i+1]; if (a[i+1] > y1) y1 = a[i+1]; } }
   for (const d of S.dims){ x0 = Math.min(x0, d.x1, d.x2); x1 = Math.max(x1, d.x1, d.x2); y0 = Math.min(y0, d.y1, d.y2); y1 = Math.max(y1, d.y1, d.y2); }
   if (!isFinite(x0)){ const B = G.bounds; return {x0:B.x0, y0:B.y0, x1:B.x1, y1:B.y1}; }
   const m = Math.max(x1-x0, y1-y0) * 0.01; return {x0:x0-m, y0:y0-m, x1:x1+m, y1:y1+m};
@@ -1479,7 +1774,7 @@ async function buildPdf(){
   // lines
   const wx0 = Math.min(R.x0, R.x1) - (fw/k)*.5, wx1 = Math.max(R.x0, R.x1) + (fw/k)*.5, wy0 = Math.min(R.y0, R.y1) - (fh/k)*.5, wy1 = Math.max(R.y0, R.y1) + (fh/k)*.5;
   const byStroke = new Map();
-  for (const p of G.polys){
+  for (const p of allPolys()){
     if (!visL.has(p.li)) continue; const a = p.a;
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (let i = 0; i < a.length; i += 2){ if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i+1] < y0) y0 = a[i+1]; if (a[i+1] > y1) y1 = a[i+1]; }
     if (x1 < wx0 || x0 > wx1 || y1 < wy0 || y0 > wy1) continue;
@@ -1497,6 +1792,7 @@ async function buildPdf(){
     out.push(`${f2(ax)} ${f2(ay)} m ${f2(bx)} ${f2(by)} l S`);
     for (let i = 0; i <= n; i++){ const px = ax + (bx-ax)*i/n, py = ay + (by-ay)*i/n; out.push(`${f2(px - (ux+nx)*tk*.7)} ${f2(py - (uy+ny)*tk*.7)} m ${f2(px + (ux+nx)*tk*.7)} ${f2(py + (uy+ny)*tk*.7)} l S`); }
   }
+  if (S.ghosts.length){ out.push(`0.55 0.58 0.62 RG ${f2(0.18*PT)} w [${f2(1.5*PT)} ${f2(1*PT)}] 0 d`); for (const g of S.ghosts) out.push(`${f2(X(g.x1))} ${f2(Y(g.y1))} m ${f2(X(g.x2))} ${f2(Y(g.y2))} l S`); out.push('[] 0 d'); }
   out.push('Q');
   // frame + title strip
   out.push('0 0 0 RG', `${f2(0.35*PT)} w`, `${f2(fx0*PT)} ${f2(Hpt-(fy0+fh)*PT)} ${f2(fw*PT)} ${f2(fh*PT)} re S`, `${f2(fx0*PT)} ${f2(Hpt-(fy0+fh+TB)*PT)} ${f2(fw*PT)} ${f2(TB*PT)} re S`);

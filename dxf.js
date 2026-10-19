@@ -181,7 +181,7 @@ window.dxfChips=function(){const wr=document.getElementById("plWrap");let el=doc
    ② 向きの違う物の端どうしが近ければ、芯の交わる所までのばして曲がり（エルボ）を付ける。途中にぶつかる時は分岐（チーズ）
    ③ つながった物は同じ高さにそろえる（近くの「FL+3700」などの多い方）
    ④ どこにもつながらない短い物（記号のかけら）は捨てる */
-function dlTidy(S0,k){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub,lay]=s,L=Math.hypot(x2-x1,z2-z1);return{a:[x1,z1],b:[x2,z2],h,sh,w,hh,sub,lay:lay||"",L,u:[(x2-x1)/L,(z2-z1)/L],id:0,cn:0}}).filter(o=>o.L>1);
+function dlTidy(S0,k,EQ){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub,lay]=s,L=Math.hypot(x2-x1,z2-z1);return{a:[x1,z1],b:[x2,z2],h,sh,w,hh,sub,lay:lay||"",L,u:[(x2-x1)/L,(z2-z1)/L],id:0,cn:0}}).filter(o=>o.L>1);
  const par=S.map((_,i)=>i),fd=i=>par[i]===i?i:(par[i]=fd(par[i])),un=(i,j)=>{par[fd(i)]=fd(j)};
  const cr=(u,v)=>u[0]*v[1]-u[1]*v[0],dt=(u,v)=>u[0]*v[0]+u[1]*v[1],sub=(p,q)=>[p[0]-q[0],p[1]-q[1]];
  /* 0) ほかのダクトの中にすっぽり入る物は捨てる：フランジ・ダンパーの線（ダクトを横切る短い線の組）や、太いダクトの中の細い線の組。
@@ -191,7 +191,9 @@ function dlTidy(S0,k){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub,lay]=s,L=
  /* 曲がりの角の四角（中心線と外形の線が組になった、太さと同じくらいの短い物）：直角のダクトの先にくっついている物も捨てる */
  const corner=(A,B)=>A.L<=1.3*A.w&&Math.abs(cr(A.u,B.u))>0.9&&Math.abs(A.w-B.w)<=0.25*B.w&&inside(A,B,B.w*1.1);
  const dropIn=()=>{S=S.filter((A,i)=>!S.some((B,j)=>j!==i&&B.lay===A.lay&&B.sh===A.sh&&B.sub===A.sub&&(A.L*A.w<B.L*B.w||(A.L*A.w===B.L*B.w&&j<i))&&(inside(A,B)||corner(A,B))))};
- const DU=k==="duct";   // 衛生配管は今まで通り（ダクトだけ、中に入る物・角の四角を捨てる／端は1回だけつなぐ）
+ const DU=k==="duct";EQ=DU&&Array.isArray(EQ)?EQ:[];
+ /* 機器（ロスナイなど）の箱の中にほとんど入っている物は、機器の中の線なので捨てる（上を横切る長いダクトは残す） */
+ if(EQ.length)S=S.filter(o=>{let ins=0;const n=20;for(let q=0;q<=n;q++){const x=o.a[0]+(o.b[0]-o.a[0])*q/n,z=o.a[1]+(o.b[1]-o.a[1])*q/n;if(EQ.some(e=>{const dx=x-e.x,dz=z-e.z,lx=dx*e.c-dz*e.s,lz=dx*e.s+dz*e.c;return Math.abs(lx)<e.w/2-10&&Math.abs(lz)<e.d/2-10}))ins++}return ins/(n+1)<0.7});   // 衛生配管は今まで通り（ダクトだけ、中に入る物・角の四角を捨てる／端は1回だけつなぐ）
  if(DU)dropIn();
  /* ① 一直線につなぐ */
  let ch=true,guard=0;while(ch&&guard++<20){ch=false;
@@ -213,6 +215,19 @@ function dlTidy(S0,k){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub,lay]=s,L=
   const endA=t<R||A.L-t<R,endB=tb<R||B.L-tb<R;if(!endA&&!endB)return null;   // 交わる所がどちらの端にも近くない＝ただ横切っているだけ
   const gA=endA?Math.min(Math.abs(t),Math.abs(A.L-t)):0,gB=endB?Math.min(Math.abs(tb),Math.abs(B.L-tb)):0;
   return{t,tb,X,endA,endB,g:gA+gB,ka:t<A.L/2?"a":"b",kb:tb<B.L/2?"a":"b"}};
+ /* 一直線にすぐ続く物（太さのちがう箱・チャンバー・口の短い管）は、その端どうしをつながっている扱いにする（遠くのダクトと分岐にしない） */
+ if(DU)for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++){const A=S[i],B=S[j];if(A.lay!==B.lay||Math.abs(cr(A.u,B.u))>0.05)continue;const W=Math.max(A.w,B.w);if(Math.abs(cr(A.u,sub(B.a,A.a)))>0.35*W+10)continue;
+  let bd=1e9,ea=null,eb=null;[["a","a"],["a","b"],["b","a"],["b","b"]].forEach(([p,q])=>{const d=Math.hypot(A[p][0]-B[q][0],A[p][1]-B[q][1]);if(d<bd){bd=d;ea=p;eb=q}});
+  if(bd<Math.max(60,0.75*W)){usedE.add(i+ea);usedE.add(j+eb);un(i,j);A.cn++;B.cn++;
+   /* すき間は真ん中で突き合わせる（軸の上で） */const m=[(A[ea][0]+B[eb][0])/2,(A[ea][1]+B[eb][1])/2],pj=(o,q)=>{const t=dt(sub(q,o.a),o.u);return[o.a[0]+o.u[0]*t,o.a[1]+o.u[1]*t]};
+   const pa=pj(A,m),pb=pj(B,m);A[ea]=pa;B[eb]=pb;[A,B].forEach(o=>{o.L=Math.hypot(o.b[0]-o.a[0],o.b[1]-o.a[1])})}}
+ /* 機器のダクト口：口の近く（30cm）に向かってくるダクトは、まっすぐのまま口の先までのばす。その端はほかのダクトとつながない */
+ const EQH=[];EQ.forEach(e=>(e.P||[]).forEach(pt=>{let best=null,bd=300;
+  S.forEach((o,i)=>{if(Math.abs(cr(o.u,pt.u))>0.3)return;["a","b"].forEach(en=>{const p=o[en],v=sub([pt.x,pt.z],p),al=dt(v,o.u)*(en==="a"?-1:1),lat=Math.abs(cr(o.u,v));
+   if(al>-150&&Math.abs(al)<bd&&lat<Math.max(80,o.w*0.7)){bd=Math.abs(al);best={i,en,al}}})});
+  if(!best)return;const o=S[best.i],t=dt(sub([pt.x,pt.z],o.a),o.u);
+  if(best.en==="a")o.a=[o.a[0]+o.u[0]*t,o.a[1]+o.u[1]*t];else o.b=[o.a[0]+o.u[0]*t,o.a[1]+o.u[1]*t];
+  if(best.en==="a")o.b=o.b;o.L=Math.hypot(o.b[0]-o.a[0],o.b[1]-o.a[1]);o.u=[(o.b[0]-o.a[0])/o.L,(o.b[1]-o.a[1])/o.L];o.cn++;usedE.add(best.i+best.en);EQH.push([best.i,pt.y])}));
  const cand=[];for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++){if(S[i].lay!==S[j].lay)continue;const r=geo(S[i],S[j]);if(r)cand.push({i,j,g:r.g})}
  cand.sort((p,q)=>p.g-q.g);
  cand.forEach(({i,j})=>{const A=S[i],B=S[j];A.u=[(A.b[0]-A.a[0])/A.L,(A.b[1]-A.a[1])/A.L];B.u=[(B.b[0]-B.a[0])/B.L,(B.b[1]-B.a[1])/B.L];const r=geo(A,B);if(!r)return;
@@ -224,6 +239,8 @@ function dlTidy(S0,k){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub,lay]=s,L=
  /* ③ 高さをそろえる */
  const grp={};S.forEach((o,i)=>{const r=fd(i);(grp[r]=grp[r]||[]).push(o)});
  Object.values(grp).forEach(G=>{const v={};G.forEach(o=>{const hk=Math.round(o.h/10)*10;v[hk]=(v[hk]||0)+o.L});const hb=+Object.keys(v).sort((a,b)=>v[b]-v[a])[0];G.forEach(o=>o.h=hb)});
+ /* ③' 口につないだダクトは、つながっている物ごと口の高さにそろえる */
+ EQH.forEach(([i,y])=>{const r=fd(i);if(Math.abs(S[i].h-y)>1200)return;S.forEach((q,j)=>{if(fd(j)===r)q.h=y})});
  /* ④ 短いかけらを捨てる */
  const keep=S.map(o=>o.cn>0||o.L>=Math.max(300,2*o.w));
  /* 短くても、残す物と一直線にすぐ続いている物（機器のダクト口の短い管など）は残す */
@@ -333,6 +350,10 @@ if(!by[k])return;if(P.dxf&&!dxfVisible(P)(s[5]))return;const v=main?own((s[0]+s[
     const a=W(p1[0],p1[1]),b=W(p2[0],p2[1]);solids.push([Math.round(a[0]),Math.round(a[1]),Math.round(b[0]),Math.round(b[1]),Math.round(hAt(so[0],so[1])),sh,Math.round(wm),Math.round(hh),sub(G[0].q.lay),G[0].q.lay||""])})});
   /* 組にならなかった線（曲がり・継手・記号など）は細い線で */
   items.forEach(m=>{if(m.used||m.l*mm<40)return;const s=m.q.s,src=m.q.o||s,a=W(s[0],s[1]),b=W(s[2],s[3]);lines.push([Math.round(a[0]),Math.round(a[1]),Math.round(b[0]),Math.round(b[1]),Math.round(hAt((src[0]+src[2])/2,(src[1]+src[3])/2))])});
-  const T=dlTidy(solids,k);out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});
+  /* 機器（登録のある換気機器）の外形とダクト口（向き・高さ）。ロスナイ：左 EA・OA、右 RA・SA、奥行の中心から ±K/2、高さは下から 94／289 */
+  const EQ=[];try{(st.bld||[]).forEach(o=>{if(o.k!=="eq")return;const th=-(o.r||0)*Math.PI/180,c=Math.cos(th),sn=Math.sin(th),e={x:o.x,z:o.z,w:o.w,d:o.d,c,s:sn,P:[]};
+   const V=typeof VENTM!=="undefined"&&VENTM[o.m];if(V){const tip=(V.A-14)/2+V.J+7;[[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([sx,sz])=>{const lx=sx*tip,lz=sz*V.K/2;
+    e.P.push({x:o.x+lx*c+lz*sn,z:o.z-lx*sn+lz*c,y:Math.round(o.y+V.C*94/289),u:[c*sx,-sn*sx]})})}EQ.push(e)})}catch(err){}
+  const T=dlTidy(solids,k,EQ);out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});
  return out};
 })();

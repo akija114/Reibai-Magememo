@@ -922,9 +922,10 @@ function tapSelect(p){
 /* ---- tap a line / text in the drawing -> pick a part (one drawn object) or its whole layer ---- */
 let pickScope = 'part'; try { if (localStorage.getItem('zumen-pickscope') === 'layer') pickScope = 'layer'; } catch(e){}
 function hitsAt(p){
-  const w = s2w(p[0], p[1]), R = 22/view.s, s = G.segs, L = new Map(), E = new Map();
+  const w = s2w(p[0], p[1]), R = 22/view.s, s = G.segs, L = new Map(), E = new Map(), RSd = new Set();
+  for (const g of S.ghosts){ const c = closestOnSeg(w[0], w[1], g.x1, g.y1, g.x2, g.y2); if (Math.hypot(c[0]-w[0], c[1]-w[1]) < R && g.sid != null) RSd.add(g.sid); }
   const note = (li, eid, d) => { if (!L.has(li) || d < L.get(li)) L.set(li, d); if (eid >= 0 && (!E.has(eid) || d < E.get(eid))) E.set(eid, d); };
-  for (const id of query(IX.sg, IX.segMark, w[0], w[1], R)){ const k = id*SS; const c = closestOnSeg(w[0], w[1], s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-w[0], c[1]-w[1]); if (d < R) note(s[k+4], s[k+7], d); }
+  for (const id of query(IX.sg, IX.segMark, w[0], w[1], R)){ const k = id*SS; const c = closestOnSeg(w[0], w[1], s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-w[0], c[1]-w[1]); if (d < R){ note(s[k+4], s[k+7], d); if (s[k+6] >= 0 && S.ov.has(s[k+6])) RSd.add(s[k+6]); } }
   for (const l of G.L){
     if (l.deleted || !l.on) continue;
     for (const t of G.textsBy[l.idx]){
@@ -938,7 +939,7 @@ function hitsAt(p){
     }
   }
   const sort = m => [...m.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
-  return {layers:sort(L), parts:sort(E)};
+  return {layers:sort(L), parts:sort(E), routes:[...RSd]};
 }
 function pickLayerAt(p){
   if (!G){ S.pick = null; return; }
@@ -948,8 +949,8 @@ function pickLayerAt(p){
     if (S.pick.sel.has(e)) S.pick.sel.delete(e); else S.pick.sel.add(e);
     S.pick.parts = [e]; S.pick.i = 0; return;
   }
-  if (!h.layers.length){ S.pick = null; return; }
-  S.pick = {cands:h.layers, i:0, parts:h.parts, pi:0, sel:new Set(h.parts.length ? [h.parts[0]] : []), multi:false};
+  if (!h.layers.length && !h.routes.length){ S.pick = null; return; }
+  S.pick = {cands:h.layers, i:0, parts:h.parts, pi:0, sel:new Set(h.parts.length ? [h.parts[0]] : []), multi:false, routes:h.routes};
 }
 const partName = e => (G.parts[e] && G.parts[e].name) || '図形';
 const partsBox = eids => { const pts = []; for (const e of eids) for (const pl of G.eidPolys.get(e) || []){ const a = pl.a; for (let i = 0; i < a.length; i += 2) pts.push([a[i], a[i+1]]); } return boxOf(pts); };
@@ -966,13 +967,19 @@ function updatePickBar(){
   if (!S.pick || !G || S.mode !== 'pan' || S.selDim){ bar.hidden = true; return; }
   const pk = S.pick;
   bar.hidden = false; $('#layerBar').hidden = true;
+  const rRow = pk.routes && pk.routes.length ? `<div class="frow" style="background:var(--accent-soft);border-radius:10px;padding:6px 6px 6px 10px"><div class="grow"><div class="lname" style="color:var(--accent)">ここはルートを変えた配管です</div><div class="lsub">変える前は点線の所</div></div><button class="btn pri" data-a="rroute">元のルートに戻す</button></div>` : '';
+  if (!pk.cands.length){
+    bar.innerHTML = `<div class="frow"><div class="grow"></div><button class="btn" data-a="close" aria-label="閉じる">✕</button></div>${rRow}`;
+    bar.onclick = e => { const a = e.target.closest('button[data-a]')?.dataset.a; if (a === 'rroute') revertRoutesOf(pk.routes); S.pick = null; updatePickBar(); drawOverlay(); };
+    return;
+  }
   const scope = `<div class="seg2"><button class="btn ${pickScope === 'part' ? 'sel' : ''}" data-a="sp">この部品だけ</button><button class="btn ${pickScope === 'layer' ? 'sel' : ''}" data-a="sl">レイヤー全部</button></div>`;
   if (pickScope === 'part'){
     const sel = [...pk.sel].filter(e => !gone(e)); pk.sel = new Set(sel);
     const n = pk.parts.length, cur = sel.length === 1 ? sel[0] : null, info = cur != null ? G.parts[cur] : null;
     const title = sel.length === 0 ? (pk.multi ? '図面をタップして部品を選んでください' : 'この場所に部品がありません') : sel.length === 1 ? partName(cur) : `${sel.length} 個の部品をえらんでいます`;
     const sub = sel.length === 1 && info ? `レイヤー ${G.L[info.li].name}${!pk.multi && n > 1 ? ` ・ 重なり ${pk.pi + 1}/${n}（◀▶）` : ''}` : (pk.multi ? '追加で選ぶ：タップするたびに選ぶ／外す' : '');
-    bar.innerHTML = `<div class="frow">${!pk.multi && n > 1 ? '<button class="btn" data-a="pprev" aria-label="前の候補">◀</button>' : ''}
+    bar.innerHTML = rRow + `<div class="frow">${!pk.multi && n > 1 ? '<button class="btn" data-a="pprev" aria-label="前の候補">◀</button>' : ''}
       <div class="grow"><div class="lname">${esc(title)}</div><div class="lsub">${esc(sub)}</div></div>
       ${!pk.multi && n > 1 ? '<button class="btn" data-a="pnext" aria-label="次の候補">▶</button>' : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
       ${scope}
@@ -981,7 +988,7 @@ function updatePickBar(){
   } else {
     const li = pk.cands[pk.i], l = G.L[li]; if (!l || l.deleted){ S.pick = null; bar.hidden = true; return; }
     const n = pk.cands.length, opts = GROUPS.map(g => `<option value="${g.id}" ${g.id === l.g ? 'selected' : ''}>${g.name}</option>`).join('');
-    bar.innerHTML = `<div class="frow">${n > 1 ? `<button class="btn" data-a="prev" aria-label="前の候補">◀</button>` : ''}
+    bar.innerHTML = rRow + `<div class="frow">${n > 1 ? `<button class="btn" data-a="prev" aria-label="前の候補">◀</button>` : ''}
       <div class="grow"><div class="lname"><i class="sw" style="display:inline-block;vertical-align:-2px;margin-right:6px;background:${colorCss(l.ck)}"></i>${esc(l.name)}</div><div class="lsub">${l.count} 個の図形${n > 1 ? ` ・ 重なり ${pk.i + 1}/${n}（◀▶）` : ''}</div></div>
       ${n > 1 ? `<button class="btn" data-a="next" aria-label="次の候補">▶</button>` : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
       ${scope}
@@ -991,6 +998,7 @@ function updatePickBar(){
   bar.onclick = e => {
     const btn = e.target.closest('button[data-a]'); if (!btn || btn.disabled) return; const a = btn.dataset.a;
     const L = pickScope === 'layer' ? G.L[pk.cands[pk.i]] : null;
+    if (a === 'rroute'){ revertRoutesOf(pk.routes); S.pick = null; updatePickBar(); drawOverlay(); return; }
     if (a === 'sp' || a === 'sl'){ pickScope = a === 'sp' ? 'part' : 'layer'; try { localStorage.setItem('zumen-pickscope', pickScope); } catch(err){} }
     else if (a === 'prev'){ pk.i = (pk.i - 1 + pk.cands.length) % pk.cands.length; }
     else if (a === 'next'){ pk.i = (pk.i + 1) % pk.cands.length; }
@@ -1212,6 +1220,20 @@ function revertEntry(e){
     do(){ inner.do(); e.reverted = true; }, undo(){ inner.undo(); e.reverted = false; }});
   toast(`「${e.label}」だけ取り消しました${later ? '（あとで同じ配管にした変更も一緒に戻りました）' : ''}・↶でやり直せます`);
   if (HL && HL.e === e){ renderHlBar(); drawOverlay(); }
+}
+function revertRoutesOf(sids){
+  const touch = e => e.kind === 'route' && e.prev && !e.undone && !e.reverted && e.prev.some(([sid]) => sids.includes(sid));
+  const list = S.log.filter(touch).sort((a, b) => b.t - a.t);
+  if (list.length){
+    const all = new Set(sids); list.forEach(e => e.prev.forEach(([sid]) => all.add(sid)));
+    const inner = []; for (const e of list){ const c = inverseOf(e); if (c) inner.push([e, c]); }
+    // also anything still changed without a log entry (e.g. older saves)
+    exec({kind:'route', label:'元のルートに戻す', log:{label:'元のルートに戻した', detail:list.length > 1 ? `${list.length}回分の変更` : (list[0].detail || ''), routes:list.flatMap(e => e.routes || []), ghosts:list.flatMap(e => e.ghosts || []), box:boxOf(list.flatMap(e => e.box ? [[e.box[0], e.box[1]], [e.box[2], e.box[3]]] : [])), revertOf:list[0].id},
+      do(){ inner.forEach(([e, c]) => { c.do(); e.reverted = true; }); }, undo(){ inner.slice().reverse().forEach(([e, c]) => { c.undo(); e.reverted = false; }); }});
+  }
+  const rest = sids.filter(sid => S.ov.has(sid));
+  for (const sid of rest) exec(cmdRouteReset(sid));
+  toast('元のルートに戻しました（↶でやり直せます）');
 }
 function nearRoute(p){
   const r = routeBuild(); if (!r || !r.routes.length) return false;

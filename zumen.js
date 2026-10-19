@@ -714,6 +714,20 @@ function plSavePage(n){try{plDB("readwrite",o=>{const g=o.get("last");g.onsucces
 async function plResume(){let r=null;try{r=await plDB("readonly",o=>o.get("last"))}catch(e){}if(!r||!r.blob){toast("前の図面が見つかりませんでした。もう一度ファイルから開いてください");return}
  const f=new File([r.blob],r.name,{type:r.type||"application/pdf"});W.resume=true;W.resumePage=r.page||1;await planLoad(f,true)}
 plLastInfo();
+/* ===== ほかのアプリ（図面修正アプリなど）から図面を受け取る =====
+   ・zumen.html?from=fix … 同じサイト（akija114.github.io）の IndexedDB「pbmShare」の「f」→ キー「dxf」に入れた {blob, name, hide} を開く
+   ・zumen.html?dxf=<URL> … その URL の DXF / PDF を開く（相手のサイトが読み出しを許可している時）
+   hide：隠しておく線の名前（画層）の一覧（無くてもよい） */
+(async()=>{let q;try{q=new URLSearchParams(location.search)}catch(e){return}if(!q.has("from")&&!q.has("dxf"))return;
+ try{let r=null;
+  if(q.has("dxf")){const u=q.get("dxf"),res=await fetch(u);if(!res.ok)throw new Error("HTTP "+res.status);const bl=await res.blob();r={blob:bl,name:decodeURIComponent((u.split("?")[0].split("/").pop())||"zumen.dxf")}}
+  else r=await new Promise((ok,ng)=>{const o=indexedDB.open("pbmShare",1);o.onupgradeneeded=()=>o.result.createObjectStore("f");o.onerror=()=>ng(o.error);
+   o.onsuccess=()=>{try{const t=o.result.transaction("f","readonly").objectStore("f").get("dxf");t.onsuccess=()=>ok(t.result);t.onerror=()=>ng(t.error)}catch(e){ok(null)}}});
+  if(!r||!r.blob){toast("図面修正アプリから図面が届いていません。図面修正アプリの「曲げ共有で開く」から開いてください");return}
+  if(Array.isArray(r.hide))try{localStorage.setItem("pbm_dxfhide",JSON.stringify(r.hide))}catch(e){}
+  openDraw();const nm=r.name||"zumen.dxf",f=new File([r.blob],nm,{type:r.type||(/\.pdf$/i.test(nm)?"application/pdf":"application/dxf")});await planLoad(f);
+  toast("図面修正アプリから「"+nm+"」を受け取りました");try{history.replaceState(null,"",location.pathname)}catch(e){}}
+ catch(e){console.warn(e);toast("図面を受け取れませんでした（"+(e.message||e)+"）")}})();
 async function planLoad(f,resume){
  try{
   if(!resume){W.resume=false;plSaveLast(f)}

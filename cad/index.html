@@ -168,6 +168,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   </div>
   <div class="tabrow">
     <button class="listbtn" id="bLayers" aria-label="レイヤー一覧"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>一覧</button>
+    <button class="listbtn" id="bViews" aria-label="表示の保存"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>表示</button>
     <div class="tabs" id="tabs"></div>
   </div>
   <div class="subtabs" id="subtabs" hidden></div>
@@ -231,7 +232,7 @@ const S = {
   text:'', eol:'\r\n', srcName:'', name:'', fileId:'', projectId:null,
   units:'mm', geo:null, layers:[], dims:[], selDim:null,
   mode:'pan', ortho:true, chain:false, snapOn:true, tab:null, group:null, pick:null,
-  undo:[], redo:[], textH:150, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(),
+  undo:[], redo:[], textH:150, views:[], viewId:null, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(),
 };
 let view = {s:1, tx:0, ty:0}, bview = {s:1, tx:0, ty:0};
 let cw = 0, ch = 0, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -836,8 +837,12 @@ ov.addEventListener('pointerdown', e => {
     if (S.mode === 'dim'){ gest = {type:'cursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; MS.dragging = true; moveCursor(p); }
     else if (S.mode === 'route' && ['a','b','draw'].includes(RS.step)){ gest = {type:'rcursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; RS.dragging = true; updateHint(); moveRCursor(p); }
     else if (S.mode === 'route' && RS.step === 'shape' && RS.pattern !== 'free' && nearRoute(p)){ gest = {type:'roff'}; }
-    else gest = {type:'pan', start:p, v0:{...view}, t:performance.now(), moved:false};
+    else {
+      gest = {type:'pan', start:p, v0:{...view}, t:performance.now(), moved:false};
+      if (S.mode === 'pan'){ const g0 = gest; g0.lt = setTimeout(() => { if (gest === g0 && !g0.moved && ptrs.size === 1){ g0.long = true; longPress(g0.start); } }, 450); }
+    }
   } else if (ptrs.size === 2){
+    if (gest && gest.lt) clearTimeout(gest.lt);
     const [a, b] = [...ptrs.values()];
     if (gest && gest.type === 'cursor'){ MS.dragging = false; MS.cur = null; MS.finger = null; }
     if (gest && gest.type === 'rcursor'){ RS.dragging = false; RS.cur = null; RS.finger = null; }
@@ -853,7 +858,8 @@ ov.addEventListener('pointermove', e => {
   else if (gest.type === 'rcursor') moveRCursor(p);
   else if (gest.type === 'roff') setOffsetFrom(p);
   else if (gest.type === 'pan'){
-    const dx = p[0]-gest.start[0], dy = p[1]-gest.start[1]; if (Math.hypot(dx, dy) > 6) gest.moved = true;
+    const dx = p[0]-gest.start[0], dy = p[1]-gest.start[1]; if (Math.hypot(dx, dy) > 8){ gest.moved = true; if (gest.lt) clearTimeout(gest.lt); }
+    if (gest.long) return;
     if (gest.moved){ view.tx = gest.v0.tx + dx; view.ty = gest.v0.ty + dy; viewChanged(); }
   } else if (gest.type === 'pinch' && ptrs.size >= 2){
     const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0]-b[0], a[1]-b[1]); const c = [(a[0]+b[0])/2, (a[1]+b[1])/2];
@@ -875,7 +881,8 @@ function endPtr(e, cancel){
   } else if (gest.type === 'roff' && ptrs.size === 0){
     gest = null; $('#pill').hidden = true; updateRoutePanel();
   } else if (gest.type === 'pan' && ptrs.size === 0){
-    if (!gest.moved && !cancel && performance.now() - gest.t < 500){ if (S.mode === 'route' && RS.step === 'pick') routePick(gest.start); else tapSelect(gest.start); }
+    if (gest.lt) clearTimeout(gest.lt);
+    if (!gest.long && !gest.moved && !cancel && performance.now() - gest.t < 500){ if (S.mode === 'route' && RS.step === 'pick') routePick(gest.start); else tapSelect(gest.start); }
     gest = null;
   } else if (gest.type === 'pinch'){
     if (ptrs.size === 0) gest = null; else gest = {type:'none'};
@@ -935,11 +942,29 @@ function hitsAt(p){
       const x0 = t.ha === 0 ? 0 : t.ha === 1 ? -len/2 : -len;
       const tot = (t.lines.length - 1)*t.h*1.6 + t.h; const y1 = t.va === 'top' ? 0 : t.va === 'mid' ? tot/2 : t.va === 'bottom' ? tot : t.h*1.05; const y0 = y1 - tot - t.h*0.2;
       const ex = Math.max(x0 - lx, 0, lx - (x0 + len)), ey = Math.max(y0 - ly, 0, ly - y1); const d = Math.hypot(ex, ey);
-      if (d < R) note(l.idx, t.eid, d);
+      if (d < R) note(l.idx, t.eid, d + R*0.4); // lines win over text boxes they sit in
     }
   }
   const sort = m => [...m.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
   return {layers:sort(L), parts:sort(E), routes:[...RSd]};
+}
+/* long press = add one more thing to the current selection */
+function longPress(p){
+  if (!G || S.mode !== 'pan') return;
+  const h = hitsAt(p);
+  if (!S.pick){ pickLayerAt(p); if (S.pick) toast('選びました。ほかの物も長押しで追加できます'); }
+  else if (pickScope === 'part'){
+    const e = h.parts[0]; if (e === undefined){ toast('ここには部品がありません'); return; }
+    if (S.pick.sel.has(e)) S.pick.sel.delete(e); else S.pick.sel.add(e);
+    toast(`${S.pick.sel.size} 個えらんでいます`);
+  } else {
+    const li = h.layers[0]; if (li === undefined) return;
+    if (!S.pick.lsel) S.pick.lsel = new Set([S.pick.cands[S.pick.i]]);
+    if (S.pick.lsel.has(li)) S.pick.lsel.delete(li); else S.pick.lsel.add(li);
+    toast(`${S.pick.lsel.size} 個のレイヤーをえらんでいます`);
+  }
+  try { navigator.vibrate && navigator.vibrate(15); } catch(e){}
+  S.selDim = null; updateDimPanel(); drawOverlay(); updatePickBar();
 }
 function pickLayerAt(p){
   if (!G){ S.pick = null; return; }
@@ -978,7 +1003,7 @@ function updatePickBar(){
     const sel = [...pk.sel].filter(e => !gone(e)); pk.sel = new Set(sel);
     const n = pk.parts.length, cur = sel.length === 1 ? sel[0] : null, info = cur != null ? G.parts[cur] : null;
     const title = sel.length === 0 ? (pk.multi ? '図面をタップして部品を選んでください' : 'この場所に部品がありません') : sel.length === 1 ? partName(cur) : `${sel.length} 個の部品をえらんでいます`;
-    const sub = sel.length === 1 && info ? `レイヤー ${G.L[info.li].name}${!pk.multi && n > 1 ? ` ・ 重なり ${pk.pi + 1}/${n}（◀▶）` : ''}` : (pk.multi ? '追加で選ぶ：タップするたびに選ぶ／外す' : '');
+    const sub = sel.length === 1 && info ? `レイヤー ${G.L[info.li].name}${!pk.multi && n > 1 ? ` ・ 重なり ${pk.pi + 1}/${n}（◀▶）` : ''} ・ 長押しで追加` : (pk.multi ? '追加で選ぶ：タップするたびに選ぶ／外す' : '長押しでほかの物も追加／外す');
     bar.innerHTML = rRow + `<div class="frow">${!pk.multi && n > 1 ? '<button class="btn" data-a="pprev" aria-label="前の候補">◀</button>' : ''}
       <div class="grow"><div class="lname">${esc(title)}</div><div class="lsub">${esc(sub)}</div></div>
       ${!pk.multi && n > 1 ? '<button class="btn" data-a="pnext" aria-label="次の候補">▶</button>' : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
@@ -987,9 +1012,12 @@ function updatePickBar(){
       <div class="frow"><button class="btn" data-a="ohide" style="flex:1" ${sel.length ? '' : 'disabled'}>非表示</button><button class="btn del" data-a="odel" style="flex:1" ${sel.length ? '' : 'disabled'}>削除</button></div>`;
   } else {
     const li = pk.cands[pk.i], l = G.L[li]; if (!l || l.deleted){ S.pick = null; bar.hidden = true; return; }
+    if (!pk.lsel) pk.lsel = new Set([li]);
+    [...pk.lsel].forEach(x => { if (G.L[x].deleted) pk.lsel.delete(x); }); if (!pk.lsel.size) pk.lsel.add(li);
+    const many = pk.lsel.size > 1;
     const n = pk.cands.length, opts = GROUPS.map(g => `<option value="${g.id}" ${g.id === l.g ? 'selected' : ''}>${g.name}</option>`).join('');
     bar.innerHTML = rRow + `<div class="frow">${n > 1 ? `<button class="btn" data-a="prev" aria-label="前の候補">◀</button>` : ''}
-      <div class="grow"><div class="lname"><i class="sw" style="display:inline-block;vertical-align:-2px;margin-right:6px;background:${colorCss(l.ck)}"></i>${esc(l.name)}</div><div class="lsub">${l.count} 個の図形${n > 1 ? ` ・ 重なり ${pk.i + 1}/${n}（◀▶）` : ''}</div></div>
+      <div class="grow">${many ? `<div class="lname">${pk.lsel.size} 個のレイヤーをえらんでいます</div><div class="lsub">${esc(short([...pk.lsel].map(x => G.L[x].name)))} ・ 長押しで追加／外す</div>` : `<div class="lname"><i class="sw" style="display:inline-block;vertical-align:-2px;margin-right:6px;background:${colorCss(l.ck)}"></i>${esc(l.name)}</div><div class="lsub">${l.count} 個の図形${n > 1 ? ` ・ 重なり ${pk.i + 1}/${n}（◀▶）` : ''} ・ 長押しで追加</div>`}</div>
       ${n > 1 ? `<button class="btn" data-a="next" aria-label="次の候補">▶</button>` : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
       ${scope}
       <div class="frow"><select class="gsel" data-a="grp" aria-label="グループ" style="height:40px;max-width:96px">${opts}</select><button class="btn" data-a="solo" style="flex:1">これだけ見る</button><button class="btn" data-a="hide" style="flex:1">非表示</button><button class="btn del" data-a="del" style="flex:1">削除</button></div>`;
@@ -1000,8 +1028,8 @@ function updatePickBar(){
     const L = pickScope === 'layer' ? G.L[pk.cands[pk.i]] : null;
     if (a === 'rroute'){ revertRoutesOf(pk.routes); S.pick = null; updatePickBar(); drawOverlay(); return; }
     if (a === 'sp' || a === 'sl'){ pickScope = a === 'sp' ? 'part' : 'layer'; try { localStorage.setItem('zumen-pickscope', pickScope); } catch(err){} }
-    else if (a === 'prev'){ pk.i = (pk.i - 1 + pk.cands.length) % pk.cands.length; }
-    else if (a === 'next'){ pk.i = (pk.i + 1) % pk.cands.length; }
+    else if (a === 'prev'){ pk.i = (pk.i - 1 + pk.cands.length) % pk.cands.length; pk.lsel = new Set([pk.cands[pk.i]]); }
+    else if (a === 'next'){ pk.i = (pk.i + 1) % pk.cands.length; pk.lsel = new Set([pk.cands[pk.i]]); }
     else if (a === 'pprev' || a === 'pnext'){ const n = pk.parts.length; pk.pi = (pk.pi + (a === 'pnext' ? 1 : -1) + n) % n; pk.sel = new Set([pk.parts[pk.pi]]); }
     else if (a === 'close'){ S.pick = null; }
     else if (a === 'multi'){ pk.multi = !pk.multi; }
@@ -1016,8 +1044,8 @@ function updatePickBar(){
     else if (a === 'ohide'){ const sel = [...pk.sel]; exec(cmdObjs(sel, 'hide')); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を非表示にしました（↶で戻せます）`); S.pick = null; }
     else if (a === 'odel'){ const sel = [...pk.sel]; exec(cmdObjs(sel, 'del')); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を削除しました（↶で戻せます）`); S.pick = null; }
     else if (a === 'solo'){ const nm = L.name; S.pick = null; updatePickBar(); setTab(nm); drawOverlay(); return; }
-    else if (a === 'hide'){ S.pick = null; exec(cmdVis([L.name], false)); toast(`「${L.name}」を非表示にしました（↶で戻せます）`); }
-    else if (a === 'del'){ S.pick = null; exec(cmdDelLayers([L.name], `「${L.name}」を削除`)); toast(`「${L.name}」を削除しました（↶で戻せます）`); }
+    else if (a === 'hide'){ const ns = [...(pk.lsel || [pk.cands[pk.i]])].map(x => G.L[x].name); S.pick = null; exec(cmdVis(ns, false)); toast(`${ns.length > 1 ? ns.length + '個のレイヤー' : '「' + ns[0] + '」'}を非表示にしました（↶で戻せます）`); }
+    else if (a === 'del'){ const ns = [...(pk.lsel || [pk.cands[pk.i]])].map(x => G.L[x].name); S.pick = null; exec(cmdDelLayers(ns, ns.length > 1 ? `${ns.length}個のレイヤーを削除` : `「${ns[0]}」を削除`)); toast(`${ns.length > 1 ? ns.length + '個のレイヤー' : '「' + ns[0] + '」'}を削除しました（↶で戻せます）`); }
     updatePickBar(); drawOverlay(); updateLayerBar();
   };
 }
@@ -1030,9 +1058,9 @@ function drawPick(c){
     for (const e of S.pick.sel){ if (gone(e)) continue; for (const pl of G.eidPolys.get(e) || []){ if (pl.sid >= 0 && S.ov.has(pl.sid)) continue; pathOf(pl.a); } for (const pl of G.ovPolys || []) if (pl.eid === e) pathOf(pl.a); }
     for (const l of G.L) for (const t of G.textsBy[l.idx]) if (S.pick.sel.has(t.eid)) texts.push(t);
   } else {
-    const li = S.pick.cands[S.pick.i]; const l = G.L[li]; if (!l || l.deleted){ c.restore(); return; }
-    for (const p of allPolys()) if (p.li === li) pathOf(p.a);
-    texts = G.textsBy[li].filter(t => !gone(t.eid));
+    const ls = S.pick.lsel ? [...S.pick.lsel] : [S.pick.cands[S.pick.i]]; const set = new Set(ls.filter(x => G.L[x] && !G.L[x].deleted)); if (!set.size){ c.restore(); return; }
+    for (const p of allPolys()) if (set.has(p.li)) pathOf(p.a);
+    for (const x of set) texts = texts.concat(G.textsBy[x].filter(t => !gone(t.eid)));
   }
   c.stroke();
   c.fillStyle = tok.snap; c.globalAlpha = .25;
@@ -1350,6 +1378,7 @@ function changed(kind){
   if (kind === 'layer'){ buildIndex(); renderBase(); renderTabs(); }
   if (kind === 'route'){ refreshGeom(); buildIndex(); renderBase(); if (S.mode === 'route'){ routeReset(); } }
   if (kind === 'obj'){ refreshGeom(); buildIndex(); renderBase(); }
+  if (kind === 'view'){ refreshGeom(); buildIndex(); renderBase(); renderTabs(); }
   if (S.selDim && !S.dims.includes(S.selDim)) S.selDim = null;
   drawOverlay(); updateUi(); refreshOpenSheet(); autosave();
 }
@@ -1523,6 +1552,55 @@ $('#tSnap').onclick = () => { S.snapOn = !S.snapOn; updateUi(); toast(S.snapOn ?
 $('#bFit').onclick = fit;
 $('#bUndo').onclick = undo; $('#bRedo').onclick = redo;
 $('#bLayers').onclick = () => openLayerSheet(false);
+$('#bViews').onclick = () => openViewSheet();
+/* ---- saved views: name the current set of shown layers / hidden parts and come back to it ---- */
+function snapView(){ return {on:G.L.filter(l => l.on && !l.deleted).map(l => l.name), hide:[...S.hideObj]}; }
+function sameView(v){ const cur = snapView(); const a = new Set(cur.on), b = new Set(v.on.filter(n => G.L.some(l => l.name === n && !l.deleted))); if (a.size !== b.size || [...a].some(x => !b.has(x))) return false; const h1 = new Set(cur.hide), h2 = new Set(v.hide); return h1.size === h2.size && [...h1].every(x => h2.has(x)); }
+function cmdApplyView(v){
+  const before = {on:G.L.map(l => l.on), hide:new Set(S.hideObj), id:S.viewId};
+  return {kind:'view', label:`表示「${v.name}」`, do(){ const on = new Set(v.on); G.L.forEach(l => l.on = on.has(l.name)); S.hideObj = new Set(v.hide.filter(e => G.parts[e])); S.viewId = v.id; },
+    undo(){ G.L.forEach((l, i) => l.on = before.on[i]); S.hideObj = new Set(before.hide); S.viewId = before.id; }};
+}
+function openViewSheet(){
+  if (!G) return;
+  openSheet('表示の保存', body => {
+    const cur = S.views.find(v => sameView(v));
+    const onN = G.L.filter(l => l.on && !l.deleted && l.count).length, liveN = G.L.filter(l => !l.deleted && l.count).length;
+    let h = `<div class="note">いま表示しているレイヤー（${onN}/${liveN}）と隠した部品（${S.hideObj.size}個）を、名前を付けて残せます。何個でも作れて、押すといつでもその表示に切り替わります。</div>
+      <div class="frow"><input id="viewName" class="grow" style="height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 12px;font-size:16px;color:var(--ink);-webkit-user-select:text;user-select:text" placeholder="例：空調だけ・ダクト確認用" enterkeyhint="done"><button class="btn pri" data-a="save" style="height:44px">今の表示を保存</button></div>`;
+    if (!S.views.length) h += '<div class="empty">まだありません。レイヤーや部品を表示・非表示にしてから、名前を付けて保存してください。</div>';
+    else {
+      h += `<div class="grp">保存した表示（${S.views.length}）</div>`;
+      for (const v of S.views){
+        const isCur = cur && cur.id === v.id;
+        h += `<div class="row"><div class="grow" data-open="${v.id}"><div class="nm">${isCur ? '● ' : ''}${esc(v.name)}</div><div class="sub">レイヤー ${v.on.length} 表示${v.hide.length ? ` ・ 隠した部品 ${v.hide.length}` : ''}${isCur ? ' ・ いまこの表示' : ''}</div></div>
+          <button class="btn ${isCur ? 'sel' : 'pri'}" data-open="${v.id}">${isCur ? '表示中' : '切り替え'}</button><span class="confirm"><button class="btn" data-more="${v.id}">…</button></span></div>`;
+      }
+    }
+    h += `<div class="grp">すぐ使える</div><div class="sh-tools"><button class="btn" data-a="allon">全部表示</button>${S.hideObj.size ? '<button class="btn" data-a="objshow">隠した部品も全部表示</button>' : ''}</div>`;
+    body.innerHTML = h;
+    const inp = body.querySelector('#viewName');
+    body.onclick = e => {
+      const b = e.target.closest('button,[data-open]'); if (!b) return;
+      if (b.dataset.a === 'save'){
+        const name = (inp.value || '').trim() || `表示${S.views.length + 1}`;
+        const ex = S.views.find(v => v.name === name);
+        if (ex && !b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '上書きする'; return; }
+        const v = {id: ex ? ex.id : 'v' + Date.now().toString(36), name, ...snapView(), t:Date.now()};
+        if (ex) Object.assign(ex, v); else S.views.push(v);
+        S.viewId = v.id; autosave(); refreshOpenSheet(); toast(`「${name}」を保存しました`); return;
+      }
+      if (b.dataset.a === 'allon'){ exec(cmdVis(G.L.filter(l => !l.deleted).map(l => l.name), true)); return; }
+      if (b.dataset.a === 'objshow'){ exec(cmdObjs([...S.hideObj], 'show')); return; }
+      if (b.dataset.open){ const v = S.views.find(x => x.id === b.dataset.open); if (!v) return; exec(cmdApplyView(v)); closeSheet(); toast(`「${v.name}」の表示にしました（↶で戻せます）`); return; }
+      if (b.dataset.more){ const v = S.views.find(x => x.id === b.dataset.more); b.parentElement.innerHTML = `<button class="btn" data-ow="${v.id}">今の表示で上書き</button><button class="btn" data-ren="${v.id}">名前</button><button class="btn del" data-delv="${v.id}">削除</button>`; return; }
+      if (b.dataset.ow){ const v = S.views.find(x => x.id === b.dataset.ow); Object.assign(v, snapView(), {t:Date.now()}); S.viewId = v.id; autosave(); refreshOpenSheet(); toast(`「${v.name}」を今の表示で上書きしました`); return; }
+      if (b.dataset.ren){ const v = S.views.find(x => x.id === b.dataset.ren); inp.value = v.name; inp.focus(); b.parentElement.innerHTML = `<button class="btn pri" data-ren2="${v.id}">この名前にする</button>`; return; }
+      if (b.dataset.ren2){ const v = S.views.find(x => x.id === b.dataset.ren2); const nm = (inp.value || '').trim(); if (nm){ v.name = nm; autosave(); } refreshOpenSheet(); return; }
+      if (b.dataset.delv){ if (!b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '本当に削除'; return; } S.views = S.views.filter(x => x.id !== b.dataset.delv); autosave(); refreshOpenSheet(); toast('削除しました'); }
+    };
+  });
+}
 $('#bDims').onclick = () => openLogSheet('log');
 $('#bSave').onclick = openSaveSheet;
 $('#bOpen').onclick = openStartSheet;
@@ -1717,7 +1795,7 @@ const dbGet = (s, k) => dbOp(s, 'readonly', st => st.get(k));
 const dbPut = (s, v) => dbOp(s, 'readwrite', st => st.put(v));
 const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
-function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}}; }
+function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, views:{n:G.shapes.length, list:S.views}}; }
 let autoT = 0;
 function autosave(){
   clearTimeout(autoT);
@@ -1737,8 +1815,8 @@ async function openText(text, srcName, opts = {}){
     S.fileId = opts.fileId || hashText(text);
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat);
-    const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], groups:doc.meta.groups || {}, log:doc.meta.log || []} : null);
-    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); routeReset();
+    const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views} : null);
+    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; routeReset();
     for (const [k, t] of Object.entries(G.parts)) if (t.inv) S.hideObj.add(+k);
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){
@@ -1746,6 +1824,10 @@ async function openText(text, srcName, opts = {}){
       G.L.forEach(l => { if (del.has(l.name)) l.deleted = true; if (hid.has(l.name)) l.on = false; const gg = st.groups && st.groups[l.name]; if (gg && GROUPS.some(g => g.id === gg)) l.g = gg; });
       S.dims = (st.dims || []).map((d, i) => ({id:'d' + i + Date.now().toString(36), x1:+d.x1, y1:+d.y1, x2:+d.x2, y2:+d.y2, n:+d.n || 1}));
       S.log = Array.isArray(st.log) ? st.log : [];
+      if (st.views && Array.isArray(st.views.list)){
+        if (st.views.n === G.shapes.length) S.views = st.views.list;
+        else if (st.views.byHandle){ const hmap = new Map(); for (const [k, t] of Object.entries(G.parts)) if (t.h) hmap.set(t.h, +k); S.views = st.views.list.map(v => ({...v, hide:(v.hideH || []).map(h => hmap.get(h)).filter(x => x !== undefined)})); }
+      }
       if (st.objs && st.objs.n === G.shapes.length){ (st.objs.hide || []).forEach(e => S.hideObj.add(+e)); (st.objs.del || []).forEach(e => S.delObj.add(+e)); }
       if (st.routes && st.routes.n === G.shapes.length){ for (const [k, v, c] of st.routes.ov || []) if (G.shapes[k]) S.ov.set(+k, {verts:v, closed:!!c}); S.ghosts = st.routes.ghosts || []; }
     }
@@ -1912,7 +1994,7 @@ function buildExport(name, opt = {}){
     if (modern){ r = r.concat(P(370, -3)); if (plotStyle) r = r.concat(P(390, plotStyle)); }
     layerRec = layerRec.concat(r);
   }
-  const meta = {v:1, name, dims:stateRecord().dims, groups:stateRecord().groups, log:S.log, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
+  const meta = {v:1, name, dims:stateRecord().dims, groups:stateRecord().groups, log:S.log, views:{byHandle:true, list:S.views.map(v => ({id:v.id, name:v.name, on:v.on, t:v.t, hideH:v.hide.map(e => G.parts[e] && G.parts[e].h).filter(Boolean)}))}, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
   const out = [...P(999, META + JSON.stringify(meta))];
   let section = null, table = null, dropSeq = false, curBlock = null;
   let i = 0;

@@ -1977,7 +1977,10 @@ const TUT=[
 <li><b>📋 テキストをコピー</b>：曲げデータをLINEなどに貼って送る</li>
 <li><b>📥 貼り付けて読込</b>：もらったテキストを貼ると同じ図が開く</li></ul>
 <div class="tbox">📱 <b>ホーム画面に追加</b>すると<br>アプリのように使えます<br><small>Safariの共有ボタン →「ホーム画面に追加」</small></div>
-<p class="tsub">この説明は、いつでも上の <b>❓</b> から見られます。</p>`}
+<p class="tsub">この説明は、いつでも上の <b>❓</b> から見られます。</p>`},
+{i:"send",t:"⑧ 使う前に",h:`<div class="tbox" style="text-align:left">⚠️ 計算結果・3D表示は<b>目安</b>です。<br>実際に曲げる前・施工の前に、<b>必ず寸法を確認</b>してください。<br><small>この表示による材料のロスや施工の不具合について、作者は責任を負いかねます。</small></div>
+<ul><li>📤 →「<b>📦 全部を書き出す</b>」で、保存した現場をファイルにバックアップできます</li>
+<li>📤 →「<b>💬 感想・不具合を送る</b>」で、気づいたことを送ってください。アプリが良くなります🙏</li></ul>`}
 ];
 let tutI=0;
 function renderTut(){
@@ -2702,6 +2705,65 @@ function initLocal(){
  $("#planTitle").placeholder="現場名（例：A様邸 室外機）";
  const m=$("#shMore");m.style.display="";m.textContent="💾 現場を保存・保存した現場を開く";m.style.background="#2563eb";m.style.color="#fff";
  plans=loadSites();renderPlans();
+ if(!isStandalone())$("#cloudNote").innerHTML+='<br><b style="color:#b45309">⚠️ ホーム画面に追加していないと、しばらく開かないだけで消えることがあります。</b>Safariの共有ボタン →「ホーム画面に追加」から開くと消えにくくなります。';
+ try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+ addBackupUI();
+}
+/* ---------- バックアップ（全部の現場と設定をファイルに書き出す／戻す） ---------- */
+const isStandalone=()=>{try{return navigator.standalone===true||matchMedia("(display-mode: standalone)").matches}catch(e){return false}};
+function addBackupUI(){
+ if($("#bkRow"))return;const sr=$("#cloudOv .saverow");if(!sr)return;
+ const box=document.createElement("div");box.id="bkRow";
+ box.innerHTML='<div class="ctitle" style="margin-top:14px">📦 バックアップ</div>'+
+  '<div style="display:flex;gap:8px;margin-bottom:6px"><button class="sharebtn" id="bkOut" style="flex:1;margin:0;padding:0 6px">📦 全部を書き出す</button><button class="sharebtn" id="bkIn" style="flex:1;margin:0;padding:0 6px">📂 ファイルから戻す</button></div>'+
+  '<input type="file" id="bkFile" accept=".json,application/json,text/plain" style="display:none">'+
+  '<div class="note">保存した現場と設定（ベンダー・単位など）を1つのファイルにします。「ファイル」アプリやLINEに保存しておけば、機種変更やデータが消えた時に戻せます。</div>'+
+  '<button class="sharebtn" id="fbBtn" style="width:100%;margin:6px 0 4px;background:#fef3c7;color:#92400e">💬 感想・不具合を送る</button>'+
+  '<div class="note" style="font-size:11px">※ 計算結果・3D表示は目安です。実際の曲げ・施工の前に、必ず寸法を確認してください。この表示による材料のロスや施工の不具合について、作者は責任を負いかねます。</div>';
+ sr.after(box);
+ $("#bkOut").onclick=exportBackup;
+ $("#bkIn").onclick=()=>$("#bkFile").click();
+ $("#bkFile").onchange=e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)importBackup(f)};
+ $("#fbBtn").onclick=sendFeedback;
+}
+async function exportBackup(){
+ const data={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("pbm"))data[k]=localStorage.getItem(k)}}catch(e){}
+ const n=loadSites().length,d=new Date(),ymd=d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+ const txt=JSON.stringify({app:"magekyouyuu",v:1,at:Date.now(),sites:n,data});
+ const name="曲げ共有バックアップ_"+ymd+".json";
+ try{const file=new File([txt],name,{type:"application/json"});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});toast("書き出しました（現場 "+n+" 件）");return}
+ }catch(e){if(e&&e.name==="AbortError")return}
+ try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);toast("書き出しました（現場 "+n+" 件）")}
+ catch(e){toast("書き出せませんでした")}
+}
+function importBackup(f){
+ const r=new FileReader();
+ r.onload=()=>{let o=null;try{o=JSON.parse(r.result)}catch(e){}
+  if(!o||o.app!=="magekyouyuu"||!o.data||typeof o.data!=="object"){toast("曲げ共有のバックアップファイルではありません");return}
+  let inc=[];try{inc=JSON.parse(o.data[SITES_KEY]||"[]")}catch(e){}if(!Array.isArray(inc))inc=[];
+  const cur=loadSites(),ids=new Set(cur.map(x=>x.id)),add=inc.filter(x=>x&&x.id&&!ids.has(x.id));
+  const when=new Date(o.at||0).toLocaleDateString("ja-JP");
+  if(!confirm(when+" のバックアップから、今ない現場 "+add.length+" 件を戻します（今ある現場は消えません）。よろしいですか？"))return;
+  const merged=[...cur,...add].sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
+  try{storeSites(merged)}catch(e){toast("容量がいっぱいで戻せませんでした");return}
+  if(confirm("設定（ベンダー・単位・表示など）もバックアップの時の状態に戻しますか？\n（「キャンセル」なら今の設定のまま）")){
+   try{Object.keys(o.data).forEach(k=>{if(k.startsWith("pbm")&&k!==SITES_KEY&&k!=="pbm1")localStorage.setItem(k,String(o.data[k]))})}catch(e){}
+   toast("戻しました。読み込み直します");setTimeout(()=>location.reload(),900);return}
+  plans=loadSites();renderPlans();toast("現場を "+add.length+" 件戻しました");
+ };
+ r.onerror=()=>toast("ファイルを読めませんでした");
+ r.readAsText(f);
+}
+/* 感想・不具合：送り先が決まったら FB_TO に入れる（メールアドレス or LINEのURL）。空ならLINEなどで送れる共有画面を出す */
+const FB_TO="";
+async function sendFeedback(){
+ const ua=navigator.userAgent,dev=/iPhone/.test(ua)?"iPhone":/Android/.test(ua)?"Android":/iPad/.test(ua)?"iPad":"その他";
+ const txt="【曲げ共有の感想】\n良かった所：\n\n困った所・おかしい所：\n\n欲しい機能：\n\n（"+document.title+"／"+dev+"／ベンダー："+(BENDERS[BENDER]?BENDERS[BENDER].n:"")+"）";
+ if(FB_TO.indexOf("@")>0){location.href="mailto:"+FB_TO+"?subject="+encodeURIComponent("曲げ共有の感想")+"&body="+encodeURIComponent(txt);return}
+ if(/^https?:\/\//.test(FB_TO)){try{await navigator.clipboard.writeText(txt)}catch(e){}toast("ひな形をコピーしました。貼り付けて送ってください");setTimeout(()=>{location.href=FB_TO},700);return}
+ try{if(navigator.share){await navigator.share({text:txt});return}}catch(e){if(e&&e.name==="AbortError")return}
+ try{await navigator.clipboard.writeText(txt);toast("ひな形をコピーしました。LINEなどに貼って送ってください")}catch(e){toast("送れませんでした")}
 }
 async function initCloud(){
  if(!window.claude){initLocal();return}

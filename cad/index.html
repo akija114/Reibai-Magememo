@@ -105,6 +105,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .pat svg{width:40px;height:22px}
 .rnote{font-size:12px;color:var(--muted);line-height:1.5}
 .rerr{font-size:12px;color:var(--danger);font-weight:600}
+.hlbar{position:absolute;left:8px;right:8px;top:8px;background:var(--panel);border:1.5px solid var(--snap);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.18);padding:6px;display:flex;align-items:center;gap:6px;z-index:3}
+.hlbar .grow{flex:1;min-width:0}
+.hlbar .t1{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hlbar .t2{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hlbar .btn{height:36px;padding:0 10px}
+.lk{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;font-size:11px;font-weight:800;color:#fff}
+.lk.layer{background:#8893A0}.lk.dim{background:var(--accent)}.lk.route{background:var(--snap)}
+.row.undone .nm{text-decoration:line-through;opacity:.55}
+.seg2{display:flex;gap:6px}
+.seg2 .btn{flex:1}
 .segline{font-family:var(--font-num);font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow-x:auto}
 
 /* toolbar */
@@ -151,7 +161,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   <div class="top">
     <button class="ib" id="bOpen" aria-label="ファイルを開く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
     <div class="ttl"><b id="fname">—</b><span id="fsub"></span></div>
-    <button class="ib" id="bDims" aria-label="寸法一覧"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h1M3 12h1M3 18h1"/></svg></button>
+    <button class="ib" id="bDims" aria-label="変更の記録と寸法一覧"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg></button>
     <button class="ib" id="bUndo" aria-label="元に戻す" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
     <button class="ib" id="bRedo" aria-label="やり直し" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
     <button class="save" id="bSave">保存</button>
@@ -166,6 +176,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <canvas id="ov"></canvas>
     <canvas id="loupe" hidden></canvas>
     <div class="pill" id="pill" hidden></div>
+    <div class="hlbar" id="hlBar" hidden></div>
     <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bCancelPt" hidden>始点を取消</button></div></div>
     <div class="float" id="layerBar" hidden></div>
     <div class="float" id="dimPanel" hidden></div>
@@ -219,7 +230,7 @@ const S = {
   text:'', eol:'\r\n', srcName:'', name:'', fileId:'', projectId:null,
   units:'mm', geo:null, layers:[], dims:[], selDim:null,
   mode:'pan', ortho:true, chain:false, snapOn:true, tab:null, group:null,
-  undo:[], redo:[], textH:150, ov:new Map(), ghosts:[],
+  undo:[], redo:[], textH:150, ov:new Map(), ghosts:[], log:[],
 };
 let view = {s:1, tx:0, ty:0}, bview = {s:1, tx:0, ty:0};
 let cw = 0, ch = 0, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -776,6 +787,7 @@ function drawOverlay(){
   octx.setTransform(dpr,0,0,dpr,0,0); octx.clearRect(0,0,cw,ch);
   drawRoute(octx);
   for (const d of S.dims) drawDim(octx, d, d === S.selDim);
+  drawHL(octx);
   const M = MS;
   if (S.mode === 'dim'){
     if (M.p1){
@@ -1033,14 +1045,16 @@ function routeBuild(){
   for (const [sid, o] of work) res.changes.push({sid, verts:o.verts, closed:o.closed});
   return res;
 }
-function cmdRoute(changes, ghosts, label){
+function cmdRoute(changes, ghosts, label, info = {}){
   const prev = changes.map(c => [c.sid, S.ov.has(c.sid) ? S.ov.get(c.sid) : null]);
-  return {kind:'route', label, do(){ changes.forEach(c => S.ov.set(c.sid, {verts:c.verts, closed:c.closed})); S.ghosts = S.ghosts.concat(ghosts); },
+  const routes = info.routes || [];
+  return {kind:'route', label, log:{label:'ルート変更', detail:info.detail || '', layers:[...new Set(changes.map(c => G.L[G.shapes[c.sid].li].name))], routes, ghosts:ghosts.map(g => ({...g})), box:boxOf(routes.flat().concat(ghosts.flatMap(g => [[g.x1,g.y1],[g.x2,g.y2]])))}, do(){ changes.forEach(c => S.ov.set(c.sid, {verts:c.verts, closed:c.closed})); S.ghosts = S.ghosts.concat(ghosts); },
     undo(){ prev.forEach(([sid, o]) => o ? S.ov.set(sid, o) : S.ov.delete(sid)); S.ghosts = S.ghosts.filter(g => !ghosts.includes(g)); }};
 }
 function cmdRouteReset(sid){
-  const o = S.ov.get(sid), gs = S.ghosts.filter(g => g.sid === sid);
-  return {kind:'route', label:'図面の通りに戻す', do(){ S.ov.delete(sid); S.ghosts = S.ghosts.filter(g => !gs.includes(g)); }, undo(){ S.ov.set(sid, o); S.ghosts = S.ghosts.concat(gs); }};
+  const o = S.ov.get(sid), gs = S.ghosts.filter(g => g.sid === sid); const sh = G.shapes[sid];
+  const f = polyFlat(sh.verts, sh.closed).f, orig = []; for (let i = 0; i < f.length; i += 2) orig.push([f[i], f[i+1]]);
+  return {kind:'route', label:'図面の通りに戻す', log:{label:'図面の通りに戻した', detail:G.L[sh.li].name, routes:[orig], ghosts:[], box:boxOf(orig)}, do(){ S.ov.delete(sid); S.ghosts = S.ghosts.filter(g => !gs.includes(g)); }, undo(){ S.ov.set(sid, o); S.ghosts = S.ghosts.concat(gs); }};
 }
 function nearRoute(p){
   const r = routeBuild(); if (!r || !r.routes.length) return false;
@@ -1132,7 +1146,8 @@ function updateRoutePanel(){
     else if (a === 'cancel'){ routeReset(); }
     else if (a === 'ok'){
       const res = routeBuild(); if (!res || res.err || !res.changes.length){ toast(res && res.err || 'ルートを作れませんでした'); return; }
-      exec(cmdRoute(res.changes, res.ghosts, 'ルート変更')); toast(`ルートを変えました${res.nPar ? `（${res.nPar + 1}本）` : ''}・↶で戻せます`); return;
+      const pname = {ko:'コの字', dai:'45°でよける', free:'手で描く'}[RS.pattern];
+      exec(cmdRoute(res.changes, res.ghosts, 'ルート変更', {routes:res.routes, detail:`${pname}${RS.pattern === 'free' ? '' : ' ' + RS.D + 'mm'} ・ 幅 ${fmt(Math.abs(RS.b - RS.a))}${res.nPar ? ` ・ ${res.nPar + 1}本` : ''}`})); toast(`ルートを変えました${res.nPar ? `（${res.nPar + 1}本）` : ''}・↶で戻せます`); return;
     }
     saveRoutePref(); updateRouteUi();
   };
@@ -1140,9 +1155,18 @@ function updateRoutePanel(){
 function updateRouteUi(){ updateHint(); updateLayerBar(); updateRoutePanel(); drawOverlay(); }
 
 /* ============ commands (undo/redo) ============ */
-function exec(c){ c.do(); S.undo.push(c); S.redo = []; changed(c.kind); }
-function undo(){ const c = S.undo.pop(); if (!c) return; c.undo(); S.redo.push(c); changed(c.kind); toast('元に戻しました：' + c.label); }
-function redo(){ const c = S.redo.pop(); if (!c) return; c.do(); S.undo.push(c); changed(c.kind); toast('やり直しました：' + c.label); }
+function exec(c){
+  c.do(); S.undo.push(c); S.redo = [];
+  if (c.log){ c.entry = {id:Date.now().toString(36) + Math.random().toString(36).slice(2,5), t:Date.now(), kind:c.kind, label:c.label, undone:false, ...c.log}; S.log.push(c.entry); }
+  changed(c.kind);
+}
+function undo(){ const c = S.undo.pop(); if (!c) return; c.undo(); if (c.entry) c.entry.undone = true; S.redo.push(c); changed(c.kind); toast('元に戻しました：' + c.label); }
+function redo(){ const c = S.redo.pop(); if (!c) return; c.do(); if (c.entry) c.entry.undone = false; S.undo.push(c); changed(c.kind); toast('やり直しました：' + c.label); }
+/* ---- change log helpers ---- */
+function boxOf(pts){ let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of pts){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return isFinite(x0) ? [x0, y0, x1, y1] : null; }
+function layersBox(names){ const set = new Set(names.map(n => G.L.findIndex(l => l.name === n))); const pts = []; for (const p of G.polys){ if (!set.has(p.li)) continue; const a = p.a; for (let i = 0; i < a.length; i += 2) pts.push([a[i], a[i+1]]); } return boxOf(pts); }
+const short = names => names.slice(0, 3).join('、') + (names.length > 3 ? ` ほか${names.length - 3}` : '');
+const dimRec = d => ({x1:d.x1, y1:d.y1, x2:d.x2, y2:d.y2, n:d.n || 1});
 function changed(kind){
   if (kind === 'layer'){ buildIndex(); renderBase(); renderTabs(); }
   if (kind === 'route'){ refreshGeom(); buildIndex(); renderBase(); if (S.mode === 'route'){ routeReset(); } }
@@ -1151,19 +1175,21 @@ function changed(kind){
 }
 function cmdDelLayers(names, label){
   const ls = names.map(n => G.L.find(l => l.name === n)).filter(l => l && !l.deleted);
-  return {kind:'layer', label:label || `レイヤー削除（${ls.length}）`, do(){ ls.forEach(l => l.deleted = true); }, undo(){ ls.forEach(l => l.deleted = false); }};
+  const nm = ls.map(l => l.name);
+  return {kind:'layer', label:label || `レイヤー削除（${ls.length}）`, log:{label:'レイヤーを削除', detail:short(nm), layers:nm, box:layersBox(nm)}, do(){ ls.forEach(l => l.deleted = true); }, undo(){ ls.forEach(l => l.deleted = false); }};
 }
 function cmdRestoreLayers(names){
   const ls = names.map(n => G.L.find(l => l.name === n)).filter(l => l && l.deleted);
-  return {kind:'layer', label:`レイヤー復活（${ls.length}）`, do(){ ls.forEach(l => l.deleted = false); }, undo(){ ls.forEach(l => l.deleted = true); }};
+  const nm = ls.map(l => l.name);
+  return {kind:'layer', label:`レイヤー復活（${ls.length}）`, log:{label:'レイヤーを戻した', detail:short(nm), layers:nm, box:layersBox(nm)}, do(){ ls.forEach(l => l.deleted = false); }, undo(){ ls.forEach(l => l.deleted = true); }};
 }
 function cmdVis(names, on){
   const ls = names.map(n => G.L.find(l => l.name === n)).filter(l => l && l.on !== on);
   return {kind:'layer', label: on ? '表示' : '非表示', do(){ ls.forEach(l => l.on = on); }, undo(){ ls.forEach(l => l.on = !on); }};
 }
-function cmdAddDim(d){ return {kind:'dim', label:'寸法追加', do(){ S.dims.push(d); }, undo(){ S.dims = S.dims.filter(x => x !== d); }}; }
-function cmdDelDims(ds){ const before = S.dims.slice(); return {kind:'dim', label:`寸法削除（${ds.length}）`, do(){ S.dims = S.dims.filter(x => !ds.includes(x)); }, undo(){ S.dims = before.slice(); }}; }
-function cmdDiv(d, n){ const o = d.n || 1; return {kind:'dim', label: n === 1 ? '分割なし' : `${n}等分`, do(){ d.n = n; }, undo(){ d.n = o; }}; }
+function cmdAddDim(d){ return {kind:'dim', label:'寸法追加', log:{label:'寸法を追加', detail:fmt(Math.hypot(d.x2-d.x1, d.y2-d.y1)) + ' mm', dims:[dimRec(d)], box:boxOf([[d.x1,d.y1],[d.x2,d.y2]])}, do(){ S.dims.push(d); }, undo(){ S.dims = S.dims.filter(x => x !== d); }}; }
+function cmdDelDims(ds){ const before = S.dims.slice(); return {kind:'dim', label:`寸法削除（${ds.length}）`, log:{label:'寸法を削除', detail:ds.length === 1 ? fmt(Math.hypot(ds[0].x2-ds[0].x1, ds[0].y2-ds[0].y1)) + ' mm' : ds.length + ' 本', dims:ds.map(dimRec), gone:true, box:boxOf(ds.flatMap(d => [[d.x1,d.y1],[d.x2,d.y2]]))}, do(){ S.dims = S.dims.filter(x => !ds.includes(x)); }, undo(){ S.dims = before.slice(); }}; }
+function cmdDiv(d, n){ const o = d.n || 1; const L = Math.hypot(d.x2-d.x1, d.y2-d.y1); return {kind:'dim', label: n === 1 ? '分割なし' : `${n}等分`, log:{label: n === 1 ? '分割をやめた' : (n === 2 ? '中心（2等分）' : `${n}等分`), detail: n === 1 ? fmt(L) + ' mm' : `${fmt(L)} → ${fmt(L/n)} ずつ`, dims:[{...dimRec(d), n}], box:boxOf([[d.x1,d.y1],[d.x2,d.y2]])}, do(){ d.n = n; }, undo(){ d.n = o; }}; }
 
 /* ============ UI ============ */
 function updateUi(){
@@ -1259,6 +1285,7 @@ function updateLayerBar(){
 }
 function updateHint(){
   const h = $('#hint');
+  if (HL){ h.hidden = true; return; }
   if (S.mode === 'route'){
     if (RS.dragging){ h.hidden = true; return; }
     h.hidden = false;
@@ -1316,7 +1343,7 @@ $('#tSnap').onclick = () => { S.snapOn = !S.snapOn; updateUi(); toast(S.snapOn ?
 $('#bFit').onclick = fit;
 $('#bUndo').onclick = undo; $('#bRedo').onclick = redo;
 $('#bLayers').onclick = () => openLayerSheet(false);
-$('#bDims').onclick = openDimSheet;
+$('#bDims').onclick = () => openLogSheet('log');
 $('#bSave').onclick = openSaveSheet;
 $('#bOpen').onclick = openStartSheet;
 
@@ -1378,8 +1405,7 @@ function openLayerSheet(trashFirst){
     };
   });
 }
-function openDimSheet(){
-  openSheet('寸法一覧', body => {
+function renderDimsInto(body){ {
     if (!S.dims.length){ body.innerHTML = '<div class="empty">まだ寸法がありません。下の「寸法」を押して、始点→終点の順にドラッグして指を離すと追加されます。</div>'; return; }
     const tot = S.dims.reduce((a, d) => a + Math.hypot(d.x2-d.x1, d.y2-d.y1), 0);
     body.innerHTML = `<div class="note">寸法 ${S.dims.length} 本 ・ 全部の合計 ${fmt(tot)} ${S.units}</div>` + S.dims.map((d, i) => {
@@ -1393,9 +1419,88 @@ function openDimSheet(){
       else if (b.dataset.a === 'delall'){ $('#delAllWrap').innerHTML = `本当に全部消しますか？ <button class="btn del" data-a="delall2">消す</button>`; }
       else if (b.dataset.a === 'delall2'){ exec(cmdDelDims(S.dims.slice())); toast('全部削除（↶で戻せます）'); }
     };
-  });
+  }
 }
 
+let logTab = 'log';
+function openDimSheet(){ openLogSheet('dims'); }
+function openLogSheet(tab){
+  if (tab) logTab = tab;
+  openSheet('記録・寸法', body => {
+    const live = S.log.filter(e => !e.undone).length;
+    const top = `<div class="seg2"><button class="btn ${logTab === 'log' ? 'sel' : ''}" data-tab="log">変更の記録（${live}）</button><button class="btn ${logTab === 'dims' ? 'sel' : ''}" data-tab="dims">寸法一覧（${S.dims.length}）</button></div>`;
+    if (logTab === 'dims'){
+      const box = document.createElement('div'); box.style.cssText = 'display:flex;flex-direction:column;gap:10px'; renderDimsInto(box);
+      body.innerHTML = top; body.appendChild(box);
+      body.querySelector('.seg2').onclick = e => { const b = e.target.closest('[data-tab]'); if (b){ logTab = b.dataset.tab; refreshOpenSheet(); } };
+      return;
+    }
+    if (!S.log.length){ body.innerHTML = top + '<div class="empty">まだ変更はありません。レイヤーの削除・寸法・ルート変更をすると、ここに順番に残ります。押すとその場所に飛んで光ります。</div>'; }
+    else {
+      let h = top + '<div class="note">押すと、その変更の場所に飛んで光ります。消した物も赤い点線で見えます。</div>'; let lastDay = '';
+      for (const e of S.log.slice().reverse()){
+        const d = new Date(e.t), day = `${d.getMonth()+1}/${d.getDate()}`;
+        if (day !== lastDay){ h += `<div class="grp">${day}</div>`; lastDay = day; }
+        const tag = {layer:'層', dim:'寸', route:'管'}[e.kind] || '・';
+        h += `<div class="row ${e.undone ? 'undone' : ''}" data-log="${esc(e.id)}"><i class="lk ${e.kind}">${tag}</i><div class="grow"><div class="nm">${esc(e.label)}${e.detail ? ` <span style="color:var(--muted);font-size:12px">${esc(e.detail)}</span>` : ''}</div><div class="sub">${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}${e.undone ? ' ・ 取り消し済み' : ''}</div></div><button class="btn" data-log="${esc(e.id)}">見る</button></div>`;
+      }
+      h += `<span class="confirm" id="logClr"><button class="btn" data-a="clr">記録を消す（図面はそのまま）</button></span>`;
+      body.innerHTML = h;
+    }
+    body.onclick = e => {
+      const t = e.target.closest('[data-tab]'); if (t){ logTab = t.dataset.tab; refreshOpenSheet(); return; }
+      const b = e.target.closest('[data-log],[data-a]'); if (!b) return;
+      if (b.dataset.log){ const en = S.log.find(x => x.id === b.dataset.log); if (en){ closeSheet(); showLog(en); } }
+      else if (b.dataset.a === 'clr'){ $('#logClr').innerHTML = '<button class="btn del" data-a="clr2">記録を全部消す</button>'; }
+      else if (b.dataset.a === 'clr2'){ S.log = []; S.undo.forEach(c => c.entry = null); S.redo.forEach(c => c.entry = null); autosave(); refreshOpenSheet(); toast('記録を消しました'); }
+    };
+  });
+}
+/* ---- show one log entry: zoom + highlight ---- */
+let HL = null;
+function showLog(entry){
+  HL = {e:entry, t0:performance.now()};
+  S.selDim = null; updateDimPanel();
+  if (entry.box) zoomBox(entry.box); else drawOverlay();
+  renderHlBar(); updateHint(); animHL();
+}
+function zoomBox(b){
+  const pad = S.textH*6, w = Math.max(b[2]-b[0], 1) + pad*2, h = Math.max(b[3]-b[1], 1) + pad*2;
+  view.s = Math.min(cw/w, (ch*0.62)/h); view.tx = cw/2 - (b[0]+b[2])/2*view.s; view.ty = ch*0.52 + (b[1]+b[3])/2*view.s; renderBase();
+}
+function animHL(){ if (!HL) return; drawOverlay(); if (performance.now() - HL.t0 < 2800) requestAnimationFrame(animHL); }
+function renderHlBar(){
+  const bar = $('#hlBar'); if (!HL){ bar.hidden = true; return; }
+  const e = HL.e, i = S.log.indexOf(e), d = new Date(e.t);
+  bar.hidden = false;
+  bar.innerHTML = `<button class="btn" data-a="prev" ${i > 0 ? '' : 'disabled'} aria-label="前の変更">◀</button><i class="lk ${e.kind}">${{layer:'層', dim:'寸', route:'管'}[e.kind] || '・'}</i>
+    <div class="grow"><div class="t1">${esc(e.label)}${e.undone ? '（取り消し済み）' : ''}</div><div class="t2">${esc(e.detail || '')} ・ ${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ・ ${i+1}/${S.log.length}</div></div>
+    <button class="btn" data-a="next" ${i < S.log.length-1 ? '' : 'disabled'} aria-label="次の変更">▶</button><button class="btn" data-a="close" aria-label="閉じる">✕</button>`;
+  bar.onclick = ev => {
+    const a = ev.target.closest('[data-a]')?.dataset.a; if (!a) return;
+    if (a === 'close'){ HL = null; renderHlBar(); updateHint(); drawOverlay(); }
+    else if (a === 'prev' && i > 0) showLog(S.log[i-1]);
+    else if (a === 'next' && i < S.log.length-1) showLog(S.log[i+1]);
+  };
+}
+function drawHL(c){
+  if (!HL || !G) return; const e = HL.e, k = performance.now() - HL.t0;
+  const pulse = k < 2800 ? 0.55 + 0.45*Math.sin(k/120) : 1;
+  c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
+  const poly = (pts, color, w, dash) => { if (!pts || pts.length < 2) return; c.strokeStyle = color; c.lineWidth = w; c.setLineDash(dash || []); c.beginPath(); pts.forEach((q, i) => { const s2 = w2s(q[0], q[1]); i ? c.lineTo(s2[0], s2[1]) : c.moveTo(s2[0], s2[1]); }); c.stroke(); };
+  if (e.box){ const a = w2s(e.box[0], e.box[3]), b = w2s(e.box[2], e.box[1]); const m = 14; c.globalAlpha = .9*pulse; c.strokeStyle = tok.snap; c.lineWidth = 2; c.setLineDash([8,6]); c.strokeRect(a[0]-m, a[1]-m, b[0]-a[0]+2*m, b[1]-a[1]+2*m); }
+  c.globalAlpha = pulse;
+  if (e.kind === 'layer' && e.layers){
+    const set = new Set(e.layers.map(n => G.L.findIndex(l => l.name === n)));
+    const gone = /削除/.test(e.label);
+    c.strokeStyle = gone ? tok.danger : tok.snap; c.lineWidth = 2.2; c.setLineDash(gone ? [5,4] : []); c.beginPath();
+    for (const p of G.polys){ if (!set.has(p.li)) continue; const a = p.a; let s2 = w2s(a[0], a[1]); c.moveTo(s2[0], s2[1]); for (let i = 2; i < a.length; i += 2){ s2 = w2s(a[i], a[i+1]); c.lineTo(s2[0], s2[1]); } }
+    c.stroke();
+  }
+  if (e.kind === 'dim' && e.dims){ for (const d of e.dims){ const col = e.gone ? tok.danger : tok.snap; poly([[d.x1,d.y1],[d.x2,d.y2]], col, 5, e.gone ? [6,5] : []); const n = d.n || 1; for (let i = 1; i < n; i++){ const s2 = w2s(d.x1 + (d.x2-d.x1)*i/n, d.y1 + (d.y2-d.y1)*i/n); c.setLineDash([]); c.fillStyle = col; c.beginPath(); c.arc(s2[0], s2[1], 6, 0, Math.PI*2); c.fill(); } } }
+  if (e.kind === 'route'){ for (const g of e.ghosts || []) poly([[g.x1,g.y1],[g.x2,g.y2]], tok.danger, 3, [6,5]); for (const r of e.routes || []) poly(r, tok.snap, 5); }
+  c.restore();
+}
 /* ============ storage (IndexedDB, this device only) ============ */
 let dbp = null;
 function idb(){
@@ -1416,7 +1521,7 @@ const dbGet = (s, k) => dbOp(s, 'readonly', st => st.get(k));
 const dbPut = (s, v) => dbOp(s, 'readwrite', st => st.put(v));
 const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
-function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}}; }
+function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log}; }
 let autoT = 0;
 function autosave(){
   clearTimeout(autoT);
@@ -1436,13 +1541,14 @@ async function openText(text, srcName, opts = {}){
     S.fileId = opts.fileId || hashText(text);
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat);
-    const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], groups:doc.meta.groups || {}} : null);
-    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; routeReset();
+    const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], groups:doc.meta.groups || {}, log:doc.meta.log || []} : null);
+    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; routeReset();
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){
       const del = new Set(st.deleted || []), hid = new Set(st.hidden || []);
       G.L.forEach(l => { if (del.has(l.name)) l.deleted = true; if (hid.has(l.name)) l.on = false; const gg = st.groups && st.groups[l.name]; if (gg && GROUPS.some(g => g.id === gg)) l.g = gg; });
       S.dims = (st.dims || []).map((d, i) => ({id:'d' + i + Date.now().toString(36), x1:+d.x1, y1:+d.y1, x2:+d.x2, y2:+d.y2, n:+d.n || 1}));
+      S.log = Array.isArray(st.log) ? st.log : [];
       if (st.routes && st.routes.n === G.shapes.length){ for (const [k, v, c] of st.routes.ov || []) if (G.shapes[k]) S.ov.set(+k, {verts:v, closed:!!c}); S.ghosts = st.routes.ghosts || []; }
     }
     refreshGeom();
@@ -1605,7 +1711,7 @@ function buildExport(name){
     if (modern){ r = r.concat(P(370, -3)); if (plotStyle) r = r.concat(P(390, plotStyle)); }
     layerRec = layerRec.concat(r);
   }
-  const meta = {v:1, name, dims:stateRecord().dims, groups:stateRecord().groups, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
+  const meta = {v:1, name, dims:stateRecord().dims, groups:stateRecord().groups, log:S.log, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
   const out = [...P(999, META + JSON.stringify(meta))];
   let section = null, table = null, dropSeq = false, curBlock = null;
   let i = 0;

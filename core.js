@@ -2276,19 +2276,20 @@ const bldHid=k=>!!(st.bhid&&st.bhid[k]);
 function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
  const sMat={duct:new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.35,metalness:.55})},eMat=DL_SUB.map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.5,metalness:.1}));
  DLK.forEach(([k,n,col])=>{if(!dlOnOf(k))return;
-  const S=D[k+"S"];if(Array.isArray(S))S.forEach(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,a=new THREE.Vector3(x1,GY+h,z1),b=new THREE.Vector3(x2,GY+h,z2),len=a.distanceTo(b);if(len<5)return;
-   const mt=k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;
-   if(sh===1){m=new THREE.Mesh(new THREE.BoxGeometry(w,hh,len),mt);m.position.copy(a).add(b).multiplyScalar(.5);m.rotation.y=Math.atan2(x2-x1,z2-z1)}
-   else{m=new THREE.Mesh(new THREE.CylinderGeometry(w/2,w/2,len,k==="duct"?20:12,1),mt);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize())}
+  /* [9]＝終わりの高さ（たて管）、[10]＝終わりの太さ（口の所の広がる管） */
+  const S=D[k+"S"];if(Array.isArray(S))S.forEach(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,h2=typeof s[9]==="number"?s[9]:h,w2=typeof s[10]==="number"?s[10]:w,a=new THREE.Vector3(x1,GY+h,z1),b=new THREE.Vector3(x2,GY+h2,z2),len=a.distanceTo(b);if(len<5)return;
+   const mt=k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;const vert=Math.abs(h2-h)>len*0.7;
+   if(sh===1){m=new THREE.Mesh(new THREE.BoxGeometry(w,vert?len:hh,vert?hh:len),mt);m.position.copy(a).add(b).multiplyScalar(.5);if(!vert)m.rotation.y=Math.atan2(x2-x1,z2-z1)}
+   else{m=new THREE.Mesh(new THREE.CylinderGeometry(w2/2,w/2,len,k==="duct"?20:12,1),mt);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize())}
    m.userData.dl=k;T.grp.add(m);
    try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry,30),new THREE.LineBasicMaterial({color:k==="duct"?0x475569:0x14532d,transparent:true,opacity:.5}));e.position.copy(m.position);e.quaternion.copy(m.quaternion);e.rotation.copy(m.rotation);T.grp.add(e)}catch(err){}});
   /* 曲がり・分岐の継手 */
   /* 丸い物の曲がり（エルボ）は、まっすぐの管の端から端まで曲がった管でつなぐ（[..., 1, 向きA, 向きB, 曲がりの長さ]） */
   const Jt=D[k+"J"];if(Array.isArray(Jt))Jt.forEach(q=>{const[x,z,h,sh,w,hh,sub]=q,mt=k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;
-   if(q[7]===1&&q.length>=13){const tl=q[12],y=GY+h,P0=new THREE.Vector3(x+q[8]*tl,y,z+q[9]*tl),P1=new THREE.Vector3(x,y,z),P2=new THREE.Vector3(x+q[10]*tl,y,z+q[11]*tl);
+   if(q[7]===1&&q.length>=13){const tl=q[12],y=GY+h,ay=q[13]||0,by=q[14]||0,P0=new THREE.Vector3(x+q[8]*tl,y+ay*tl,z+q[9]*tl),P1=new THREE.Vector3(x,y,z),P2=new THREE.Vector3(x+q[10]*tl,y+by*tl,z+q[11]*tl);
     const cv=new THREE.QuadraticBezierCurve3(P0,P1,P2);m=new THREE.Mesh(new THREE.TubeGeometry(cv,k==="duct"?16:10,w/2,k==="duct"?20:12,false),mt);m.userData.dl=k;T.grp.add(m);
     /* 継ぎ目の帯（ダクトの差し込み） */
-    if(k==="duct")[[P0,[q[8],q[9]]],[P2,[q[10],q[11]]]].forEach(([p,u])=>{const r=new THREE.Mesh(new THREE.CylinderGeometry(w/2+6,w/2+6,Math.min(30,w*0.2),20,1),mt);r.position.copy(p);r.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(u[0],0,u[1]));r.userData.dl=k;T.grp.add(r)});
+    if(k==="duct")[[P0,[q[8],ay,q[9]]],[P2,[q[10],by,q[11]]]].forEach(([p,u])=>{const r=new THREE.Mesh(new THREE.CylinderGeometry(w/2+6,w/2+6,Math.min(30,w*0.2),20,1),mt);r.position.copy(p);r.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(u[0],u[1],u[2]).normalize());r.userData.dl=k;T.grp.add(r)});
     return}
    m=sh===1?new THREE.Mesh(new THREE.BoxGeometry(w,hh,w),mt):new THREE.Mesh(new THREE.SphereGeometry(w/2,k==="duct"?20:12,k==="duct"?14:8),mt);m.position.set(x,GY+h,z);if(sh===1&&q[8])m.rotation.y=q[8];m.userData.dl=k;T.grp.add(m)});
   const L=D[k];if(!Array.isArray(L)||!L.length)return;

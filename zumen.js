@@ -335,6 +335,19 @@ function planAutoEquip(r){const P=PLAN,mm=P.mmpp,T2=P.textsAll||P.texts||[],nm=t
    for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){const a=B[i],b=B[j];if([[a[0],a[1]],[a[2],a[3]]].some(p=>[[b[0],b[1]],[b[2],b[3]]].some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<tol)))par[fd(i)]=fd(j)}
    const G={};B.forEach((s2,i)=>{const k=fd(i);const g=G[k]=G[k]||{x0:1e9,y0:1e9,x1:-1e9,y1:-1e9,n:0};g.x0=Math.min(g.x0,s2[0],s2[2]);g.x1=Math.max(g.x1,s2[0],s2[2]);g.y0=Math.min(g.y0,s2[1],s2[3]);g.y1=Math.max(g.y1,s2[1],s2[3]);g.n++});
    Object.values(G).forEach(q=>{const a=(q.x1-q.x0)*mm,b=(q.y1-q.y0)*mm;if(q.n<4||Math.max(a,b)<300||Math.max(a,b)>3500||Math.min(a,b)<200)return;if(cx<q.x0||cx>q.x1||cy<q.y0||cy>q.y1)return;if(a*b<ba){ba=a*b;rc=q}})}
+  /* 品番が機械の外にある（引出線で離して書いてある）時：近く（6m）の、機器の色の小さい四角（20〜80cm）で、ダクトの端がすぐ横にある物（換気扇など） */
+  let far=false;if(!rc&&!V){const DS=(P.segAll||[]).filter(s2=>dxfCat&&dxfCat(s2[5])==="duct"),lim=6000/mm,tol=60/mm;
+   /* 機器の色の線を、つながり（角が丸くて少しすき間があってもよい）ごとにまとめて外形を出す */
+   const B=P.segs.filter(s2=>blue(s2[4])&&Math.hypot((s2[0]+s2[2])/2-cx,(s2[1]+s2[3])/2-cy)<lim),par=B.map((_,i)=>i),fd=i=>par[i]===i?i:(par[i]=fd(par[i]));
+   for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){const a=B[i],b=B[j];if(Math.max(a[0],a[2])<Math.min(b[0],b[2])-tol||Math.max(b[0],b[2])<Math.min(a[0],a[2])-tol||Math.max(a[1],a[3])<Math.min(b[1],b[3])-tol||Math.max(b[1],b[3])<Math.min(a[1],a[3])-tol)continue;
+    if([[a[0],a[1]],[a[2],a[3]]].some(p=>[[b[0],b[1]],[b[2],b[3]]].some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<tol)))par[fd(i)]=fd(j)}
+   const G={};B.forEach((s2,i)=>{const k=fd(i);const g=G[k]=G[k]||{x0:1e9,y0:1e9,x1:-1e9,y1:-1e9,n:0};g.x0=Math.min(g.x0,s2[0],s2[2]);g.x1=Math.max(g.x1,s2[0],s2[2]);g.y0=Math.min(g.y0,s2[1],s2[3]);g.y1=Math.max(g.y1,s2[1],s2[3]);g.n++});
+   Object.values(G).forEach(q=>{const a=(q.x1-q.x0)*mm,b=(q.y1-q.y0)*mm;if(q.n<4||Math.max(a,b)>800||Math.min(a,b)<200||Math.max(a,b)/Math.min(a,b)>1.6)return;
+    const qx=(q.x0+q.x1)/2,qy=(q.y0+q.y1)/2,d=Math.hypot(qx-cx,qy-cy);
+    if(st.bld.some(o=>o.k==="eq"&&o.m&&Math.hypot(...((p2=>[o.x-p2[0],o.z-p2[1]])(btW([qx,qy]))))<600))return;
+    /* すぐ横（40cm）でダクトが終わっている物だけ（点検口などとまちがえない） */
+    const pad=400/mm,nearD=DS.some(s2=>[[s2[0],s2[1]],[s2[2],s2[3]]].some(p2=>p2[0]>q.x0-pad&&p2[0]<q.x1+pad&&p2[1]>q.y0-pad&&p2[1]<q.y1+pad&&!(p2[0]>q.x0&&p2[0]<q.x1&&p2[1]>q.y0&&p2[1]<q.y1)));if(!nearD)return;
+    if(d<ba){ba=d;rc=q;far=true}})}
   if(!rc&&!V)return;   // 形も機種も分からない文字は置かない
   const c=rc?btW([(rc.x0+rc.x1)/2,(rc.y0+rc.y1)/2]):btW([cx,cy]);if(st.bld.some(o=>o.k==="eq"&&Math.hypot(o.x-c[0],o.z-c[1])<300))return;
   const wD=rc?Math.round((rc.x1-rc.x0)*mm/10)*10:0,dD=rc?Math.round((rc.y1-rc.y0)*mm/10)*10:0;let o;
@@ -343,8 +356,12 @@ function planAutoEquip(r){const P=PLAN,mm=P.mmpp,T2=P.textsAll||P.texts||[],nm=t
    if(!y0)y0=y1?y1-V.C:CH+50;
    o=normBld([{k:"eq",m:vk,x:c[0],z:c[1],w:rr?V.B:V.A+2*V.J,d:rr?V.A+2*V.J:V.B,h:V.C,y:y0,r:rr,n:"ロスナイ "+V.n}])[0]}
   else{/* 登録していない機械：図面の外形の箱（高さは文字から、無ければ300） */
-   if(!y0)y0=CH+50;if(!(y1>y0))y1=y0+300;
-   o=normBld([{k:"eq",x:c[0],z:c[1],w:wD,d:dD,h:y1-y0,y:y0,r:0,n:s}])[0]}
+   /* 高さ：「FL+2400」だけの時（天井の換気扇など）は、それを下の面にする。本体の高さは 250（仮） */
+   if(!y0){const fl=near(/^FL\s*[+＋]\s*\d{3,4}$/);if(fl)y0=+(nm(fl).match(/(\d{3,4})/)||[])[1]}
+   const fan=/^(VD|FY|EK|EX|V|VL|BFHS|FHS|DVF)[-‐−]/.test(s);if(!y0)y0=CH+50;if(!(y1>y0))y1=y0+(fan?250:300);
+   o=normBld([{k:"eq",x:c[0],z:c[1],w:wD,d:dD,h:y1-y0,y:y0,r:0,n:(fan?"換気扇 ":"")+s}])[0];
+   /* 同じ所に点検口として置いてしまった四角は消す */
+   st.bld=st.bld.filter(q=>!(q.k==="ins"&&Math.abs(q.x-o.x)<o.w/2&&Math.abs(q.z-o.z)<o.d/2))}
   btAdd([o]);out.push(o.n)});
  return out}
 function insFromRects(list){const P=PLAN,L=[],have=st.bld.filter(o=>o.k==="ins");

@@ -111,7 +111,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .hlbar .t2{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hlbar .btn{height:36px;padding:0 10px}
 .lk{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;font-size:11px;font-weight:800;color:#fff}
-.lk.layer{background:#8893A0}.lk.dim{background:var(--accent)}.lk.route{background:var(--snap)}
+.lk.layer{background:#8893A0}.lk.obj{background:#7C5CD6}.lk.dim{background:var(--accent)}.lk.route{background:var(--snap)}
 .row.undone .nm{text-decoration:line-through;opacity:.55}
 .seg2{display:flex;gap:6px}
 .seg2 .btn{flex:1}
@@ -205,7 +205,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 /* ============ constants & state ============ */
 const DIM_LAYER = '追加寸法';
 const GHOST_LAYER = '変更前ルート';
-const SS = 7, PS = 5; // stride of segs (x1,y1,x2,y2,layer,kind,shape) / pts (x,y,layer,type,shape)
+const SS = 8, PS = 6; // stride of segs (x1,y1,x2,y2,layer,kind,shape,part) / pts (x,y,layer,type,shape,part)
 const META = 'WADA_ZUMEN:';
 const SAMPLE_NAME = '受け取った図面_261016.dxf';
 const MAGE_BASE = 'https://akija114.github.io/Reibai-Magememo/';
@@ -231,7 +231,7 @@ const S = {
   text:'', eol:'\r\n', srcName:'', name:'', fileId:'', projectId:null,
   units:'mm', geo:null, layers:[], dims:[], selDim:null,
   mode:'pan', ortho:true, chain:false, snapOn:true, tab:null, group:null, pick:null,
-  undo:[], redo:[], textH:150, ov:new Map(), ghosts:[], log:[],
+  undo:[], redo:[], textH:150, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(),
 };
 let view = {s:1, tx:0, ty:0}, bview = {s:1, tx:0, ty:0};
 let cw = 0, ch = 0, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -347,6 +347,7 @@ function polyFlat(v, closed){ // v: x,y,bulge (stride 3) -> tessellated points +
 function flatten(doc){
   const L = [], LM = new Map();
   const segs = [], pts = [], polys = [], fills = [], texts = [], shapes = [];
+  let curEid = -1; const parts = {}; // eid -> {name, h, inv}
   const skipDim = !!doc.meta;
   function lay(name){
     let i = LM.get(name);
@@ -364,17 +365,17 @@ function flatten(doc){
     const w = new Array(flat.length);
     for (let k = 0; k < flat.length; k += 2){ w[k] = M[0]*flat[k] + M[2]*flat[k+1] + M[4]; w[k+1] = M[1]*flat[k] + M[3]*flat[k+1] + M[5]; }
     if (closed && w.length >= 4) w.push(w[0], w[1]);
-    polys.push({li, ck, a:w, sid});
+    polys.push({li, ck, a:w, sid, eid:curEid});
     const ns = w.length/2 - 1;
     for (let s = 0; s < ns; s++){
       const kd = typeof kinds === 'number' ? kinds : (kinds[s] || 0);
       const x1 = w[2*s], y1 = w[2*s+1], x2 = w[2*s+2], y2 = w[2*s+3];
       if (x1 === x2 && y1 === y2) continue;
-      segs.push(x1, y1, x2, y2, li, kd, sid);
-      if (kd === 0) pts.push((x1+x2)/2, (y1+y2)/2, li, 1, sid);
+      segs.push(x1, y1, x2, y2, li, kd, sid, curEid);
+      if (kd === 0) pts.push((x1+x2)/2, (y1+y2)/2, li, 1, sid, curEid);
     }
   }
-  function endPt(M, x, y, li, type, sid = -1){ const p = ap(M, x, y); pts.push(p[0], p[1], li, type, sid); }
+  function endPt(M, x, y, li, type, sid = -1){ const p = ap(M, x, y); pts.push(p[0], p[1], li, type, sid, curEid); }
   // shapes = lines / polylines that the route tool may rewrite. Inside a block only when every block on the way is used once (so editing the block edits just this place)
   const uses = new Map(); const countIns = es => { for (const e of es) if (e.type === 'INSERT'){ const o = fo(e.g); const nm = (o[2]||'').trim(); uses.set(nm, (uses.get(nm) || 0) + 1); } };
   countIns(doc.entities); for (const b of doc.blocks.values()) countIns(b.ents);
@@ -384,7 +385,7 @@ function flatten(doc){
     const det = M[0]*M[3] - M[1]*M[2], wv = [];
     for (let q = 0; q < lv.length; q += 3){ const pp = ap(M, lv[q], lv[q+1]); wv.push(pp[0], pp[1], det < 0 ? -lv[q+2] : lv[q+2]); }
     const sid = shapes.length;
-    shapes.push({sid, h:o[5] ? o[5].trim() : null, owner:o[330] ? o[330].trim() : null, blk:ctx.blk, M:M.slice(), rawLayer:(o[8] || '0').trim(), li, ck, verts:wv, closed:!!closed, raw:{6:o[6], 62:o[62], 370:o[370], 420:o[420], 48:o[48]}});
+    shapes.push({sid, eid:curEid, h:o[5] ? o[5].trim() : null, owner:o[330] ? o[330].trim() : null, blk:ctx.blk, M:M.slice(), rawLayer:(o[8] || '0').trim(), li, ck, verts:wv, closed:!!closed, raw:{6:o[6], 62:o[62], 370:o[370], 420:o[420], 48:o[48]}});
     return sid;
   };
   function addText(M, x, y, h, angDeg, wf, str, ha, va, li, ck){
@@ -393,7 +394,7 @@ function flatten(doc){
     const dx = M[0]*Math.cos(a) + M[2]*Math.sin(a), dy = M[1]*Math.cos(a) + M[3]*Math.sin(a);
     const hx = M[0]*-Math.sin(a) + M[2]*Math.cos(a), hy = M[1]*-Math.sin(a) + M[3]*Math.cos(a);
     const sx = Math.hypot(dx, dy), sy = Math.hypot(hx, hy) || 1;
-    texts.push({li, ck, x:p[0], y:p[1], h:h*sy, a:Math.atan2(dy, dx), wf:(wf || 1)*sx/sy, lines:String(str).split('\n'), ha, va});
+    texts.push({eid:curEid, li, ck, x:p[0], y:p[1], h:h*sy, a:Math.atan2(dy, dx), wf:(wf || 1)*sx/sy, lines:String(str).split('\n'), ha, va});
   }
   function walk(ents, M, inhL, inhC, depth, ctx){
     if (depth > 12) return;
@@ -406,6 +407,8 @@ function flatten(doc){
       if (ln === '0' && inhL != null) ln = inhL;
       if (skipDim && ln === DIM_LAYER){ if (T === 'POLYLINE') while (k+1 < ents.length && ents[k+1].type !== 'SEQEND') k++; continue; }
       const li = lay(ln);
+      if (depth === 0){ curEid = k; const TN = {LINE:'線', ARC:'円弧', CIRCLE:'円', ELLIPSE:'だ円', LWPOLYLINE:'ポリライン', POLYLINE:'ポリライン', TEXT:'文字', MTEXT:'文字', HATCH:'塗り', SOLID:'塗り', SPLINE:'曲線', DIMENSION:'寸法'};
+        parts[k] = {name: T === 'INSERT' ? (o[2] || '').trim() : (T === 'TEXT' || T === 'MTEXT') ? '文字「' + cleanMtext(o[1] || '').slice(0, 14) + '」' : (TN[T] || T), h:o[5] ? o[5].trim() : null, inv: parseInt(o[60]) === 1, li}; }
       const c62 = o[62] !== undefined ? parseInt(o[62]) : 256;
       let ck;
       if (o[420] !== undefined) ck = rgbKey(+o[420]);
@@ -461,12 +464,12 @@ function flatten(doc){
           const ring = T === '3DFACE' ? [...q, x3, y3, x4, y4] : [...q, x4, y4, x3, y3];
           const Mx = T === '3DFACE' ? M : Mo;
           const w = []; for (let p = 0; p < ring.length; p += 2){ const r = ap(Mx, ring[p], ring[p+1]); w.push(r[0], r[1]); }
-          fills.push({li, ck, rings:[w]}); break;
+          fills.push({li, ck, rings:[w], eid:curEid}); break;
         }
         case 'HATCH': {
           const rings = parseHatch(e.g);
           if (rings.length){ const W = rings.map(r => { const w = []; for (let p = 0; p < r.length; p += 2){ const q = ap(Mo, r[p], r[p+1]); w.push(q[0], q[1]); } return w; });
-            if ((parseInt(o[70])||0) & 1) fills.push({li, ck, rings:W}); else W.forEach(w => polys.push({li, ck, a:w.concat(w[0], w[1])})); }
+            if ((parseInt(o[70])||0) & 1) fills.push({li, ck, rings:W, eid:curEid}); else W.forEach(w => polys.push({li, ck, a:w.concat(w[0], w[1]), sid:-1, eid:curEid})); }
           break;
         }
         case 'SPLINE': {
@@ -515,7 +518,7 @@ function flatten(doc){
     }
   }
   walk(doc.entities, I, null, null, 0, {blk:null, ok:true});
-  return {L, segs, pts, polys, fills, texts, shapes};
+  return {L, segs, pts, polys, fills, texts, shapes, parts};
 }
 function parseHatch(g){
   // returns rings (flat arrays, OCS)
@@ -557,10 +560,7 @@ let G = null; // {L, paths: [Map(ck->Path2D)], fillsP, textsBy, bounds, segs Flo
 function prepare(flat){
   const L = flat.L;
   const paths = L.map(() => new Map()), fillP = L.map(() => new Map()), textsBy = L.map(() => []);
-  for (const f of flat.fills){
-    let P = fillP[f.li].get(f.ck); if (!P){ P = new Path2D(); fillP[f.li].set(f.ck, P); }
-    for (const r of f.rings){ P.moveTo(r[0], r[1]); for (let k = 2; k < r.length; k += 2) P.lineTo(r[k], r[k+1]); P.closePath(); }
-  }
+  const eidPolys = new Map(); for (const pl of flat.polys){ if (pl.eid < 0) continue; let a = eidPolys.get(pl.eid); if (!a){ a = []; eidPolys.set(pl.eid, a); } a.push(pl); }
   for (const t of flat.texts) textsBy[t.li].push(t);
   const segs = Float64Array.from(flat.segs), pts = Float64Array.from(flat.pts);
   // robust bounds
@@ -574,7 +574,7 @@ function prepare(flat){
   const bounds = {x0:x0-mx, y0:y0-my, x1:x1+mx, y1:y1+my};
   const hs = flat.texts.map(t => t.h).sort((a,b) => a-b);
   S.textH = hs.length ? Math.max(1, hs[Math.floor(hs.length/2)]) : Math.max(bounds.x1-bounds.x0, bounds.y1-bounds.y0)/150;
-  return {L, paths, fillP, textsBy, segs, pts, baseSegs:segs, basePts:pts, nBaseS:segs.length/SS, nBaseP:pts.length/PS, ovPolys:[], shapes:flat.shapes, bounds, polys:flat.polys, fills:flat.fills};
+  return {L, paths, fillP, textsBy, segs, pts, baseSegs:segs, basePts:pts, nBaseS:segs.length/SS, nBaseP:pts.length/PS, ovPolys:[], shapes:flat.shapes, parts:flat.parts, eidPolys, bounds, polys:flat.polys, fills:flat.fills};
 }
 
 /* ============ spatial index ============ */
@@ -592,12 +592,13 @@ function buildIndex(){
   for (let id = 0, k = 0; k < s.length; k += SS, id++){
     if (!vis[s[k+4]]) continue;
     if (id < G.nBaseS && S.ov.has(s[k+6])) continue;
+    if (gone(s[k+7])) continue;
     const x1 = s[k], y1 = s[k+1], x2 = s[k+2], y2 = s[k+3];
     const steps = Math.min(4000, Math.ceil(Math.hypot(x2-x1, y2-y1)/(cell*.5)) + 1); let last = -1;
     for (let t = 0; t <= steps; t++){ const f = t/steps; const key = cx(x1 + (x2-x1)*f) * 65536 + cy(y1 + (y2-y1)*f); if (key !== last){ put(sg, key, id); last = key; } }
   }
   const p = G.pts;
-  for (let id = 0, k = 0; k < p.length; k += PS, id++){ if (!vis[p[k+2]]) continue; if (id < G.nBaseP && S.ov.has(p[k+4])) continue; put(pg, cx(p[k])*65536 + cy(p[k+1]), id); }
+  for (let id = 0, k = 0; k < p.length; k += PS, id++){ if (!vis[p[k+2]]) continue; if (id < G.nBaseP && S.ov.has(p[k+4])) continue; if (gone(p[k+5])) continue; put(pg, cx(p[k])*65536 + cy(p[k+1]), id); }
   IX = {sg, pg, cx, cy, segMark:new Int32Array(s.length/SS), ptMark:new Int32Array(p.length/PS), stamp:0};
 }
 function query(m, mark, x, y, r){
@@ -718,6 +719,7 @@ function renderBase(){
     for (const l of order){
       const dim = soloSet && !soloSet.has(l); bctx.globalAlpha = dim ? .4 : 1;
       for (const t of G.textsBy[l.idx]){
+        if (gone(t.eid)) continue;
         const hp = t.h*view.s; if (hp < 3.2) continue;
         const [sx, sy] = w2s(t.x, t.y); const ext = hp * (t.lines[0].length + 2) * t.wf * 1.2 + hp*t.lines.length*1.7;
         if (sx < -ext || sx > cw+ext || sy < -ext || sy > ch+ext) continue;
@@ -912,62 +914,121 @@ function tapSelect(p){
     const [ax, ay] = w2s(d.x1, d.y1), [bx, by] = w2s(d.x2, d.y2); const c = closestOnSeg(p[0], p[1], ax, ay, bx, by);
     const dd = Math.hypot(c[0]-p[0], c[1]-p[1]); if (dd < bd){ bd = dd; best = d; }
   }
+  if (S.pick && S.pick.multi && pickScope === 'part'){ pickLayerAt(p); drawOverlay(); updatePickBar(); return; }
   S.selDim = best;
   if (best) S.pick = null; else pickLayerAt(p);
   drawOverlay(); updateDimPanel(); updatePickBar();
 }
-/* ---- tap a line / text in the drawing -> pick its layer ---- */
-function pickLayerAt(p){
-  if (!G){ S.pick = null; return; }
-  const w = s2w(p[0], p[1]), R = 22/view.s, s = G.segs, dist = new Map();
-  const note = (li, d) => { if (!dist.has(li) || d < dist.get(li)) dist.set(li, d); };
-  for (const id of query(IX.sg, IX.segMark, w[0], w[1], R)){ const k = id*SS; const c = closestOnSeg(w[0], w[1], s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-w[0], c[1]-w[1]); if (d < R) note(s[k+4], d); }
+/* ---- tap a line / text in the drawing -> pick a part (one drawn object) or its whole layer ---- */
+let pickScope = 'part'; try { if (localStorage.getItem('zumen-pickscope') === 'layer') pickScope = 'layer'; } catch(e){}
+function hitsAt(p){
+  const w = s2w(p[0], p[1]), R = 22/view.s, s = G.segs, L = new Map(), E = new Map();
+  const note = (li, eid, d) => { if (!L.has(li) || d < L.get(li)) L.set(li, d); if (eid >= 0 && (!E.has(eid) || d < E.get(eid))) E.set(eid, d); };
+  for (const id of query(IX.sg, IX.segMark, w[0], w[1], R)){ const k = id*SS; const c = closestOnSeg(w[0], w[1], s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-w[0], c[1]-w[1]); if (d < R) note(s[k+4], s[k+7], d); }
   for (const l of G.L){
     if (l.deleted || !l.on) continue;
     for (const t of G.textsBy[l.idx]){
-      if (t.h*view.s < 3.2) continue;
+      if (t.h*view.s < 3.2 || gone(t.eid)) continue;
       const dx = w[0] - t.x, dy = w[1] - t.y, ca = Math.cos(-t.a), sa = Math.sin(-t.a), lx = (dx*ca - dy*sa)/t.wf, ly = dx*sa + dy*ca;
       const len = Math.max(...t.lines.map(x => [...x].reduce((a, ch) => a + (ch.charCodeAt(0) > 255 ? 1 : 0.6), 0))) * t.h * 1.1;
       const x0 = t.ha === 0 ? 0 : t.ha === 1 ? -len/2 : -len;
       const tot = (t.lines.length - 1)*t.h*1.6 + t.h; const y1 = t.va === 'top' ? 0 : t.va === 'mid' ? tot/2 : t.va === 'bottom' ? tot : t.h*1.05; const y0 = y1 - tot - t.h*0.2;
       const ex = Math.max(x0 - lx, 0, lx - (x0 + len)), ey = Math.max(y0 - ly, 0, ly - y1); const d = Math.hypot(ex, ey);
-      if (d < R) note(l.idx, d);
+      if (d < R) note(l.idx, t.eid, d);
     }
   }
-  if (!dist.size){ S.pick = null; return; }
-  const cands = [...dist.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
-  S.pick = {cands, i:0};
+  const sort = m => [...m.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
+  return {layers:sort(L), parts:sort(E)};
+}
+function pickLayerAt(p){
+  if (!G){ S.pick = null; return; }
+  const h = hitsAt(p);
+  if (S.pick && S.pick.multi && pickScope === 'part'){
+    const e = h.parts[0]; if (e === undefined) return;
+    if (S.pick.sel.has(e)) S.pick.sel.delete(e); else S.pick.sel.add(e);
+    S.pick.parts = [e]; S.pick.i = 0; return;
+  }
+  if (!h.layers.length){ S.pick = null; return; }
+  S.pick = {cands:h.layers, i:0, parts:h.parts, pi:0, sel:new Set(h.parts.length ? [h.parts[0]] : []), multi:false};
+}
+const partName = e => (G.parts[e] && G.parts[e].name) || '図形';
+const partsBox = eids => { const pts = []; for (const e of eids) for (const pl of G.eidPolys.get(e) || []){ const a = pl.a; for (let i = 0; i < a.length; i += 2) pts.push([a[i], a[i+1]]); } return boxOf(pts); };
+function cmdObjs(eids, op){
+  const list = [...eids]; const names = list.map(partName);
+  const lab = {hide:'部品を非表示', del:'部品を削除', show:'部品を表示に戻した', restore:'部品を戻した'}[op];
+  const set = op === 'hide' || op === 'show' ? S.hideObj : S.delObj, add = op === 'hide' || op === 'del';
+  const changedIds = list.filter(e => add ? !set.has(e) : set.has(e));
+  return {kind:'obj', label:lab, log:{label:lab, detail:short(names) + (list.length > 1 ? `（${list.length}個）` : ''), eids:list, box:partsBox(list), gone:op === 'del'},
+    do(){ changedIds.forEach(e => add ? set.add(e) : set.delete(e)); }, undo(){ changedIds.forEach(e => add ? set.delete(e) : set.add(e)); }};
 }
 function updatePickBar(){
   const bar = $('#pickBar');
   if (!S.pick || !G || S.mode !== 'pan' || S.selDim){ bar.hidden = true; return; }
-  const li = S.pick.cands[S.pick.i], l = G.L[li]; if (!l || l.deleted){ S.pick = null; bar.hidden = true; return; }
-  const n = S.pick.cands.length, opts = GROUPS.map(g => `<option value="${g.id}" ${g.id === l.g ? 'selected' : ''}>${g.name}</option>`).join('');
+  const pk = S.pick;
   bar.hidden = false; $('#layerBar').hidden = true;
-  bar.innerHTML = `<div class="frow">${n > 1 ? `<button class="btn" data-a="prev" aria-label="前の候補">◀</button>` : ''}
-    <div class="grow"><div class="lname"><i class="sw" style="display:inline-block;vertical-align:-2px;margin-right:6px;background:${colorCss(l.ck)}"></i>${esc(l.name)}</div><div class="lsub">${l.count} 個の図形${n > 1 ? ` ・ ここに重なっているレイヤー ${S.pick.i + 1}/${n}（◀▶で切替）` : ''}</div></div>
-    ${n > 1 ? `<button class="btn" data-a="next" aria-label="次の候補">▶</button>` : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
-    <div class="frow"><select class="gsel" data-a="grp" aria-label="グループ" style="height:40px;max-width:96px">${opts}</select><button class="btn" data-a="solo" style="flex:1">これだけ見る</button><button class="btn" data-a="hide" style="flex:1">非表示</button><button class="btn del" data-a="del" style="flex:1">削除</button></div>`;
-  bar.onchange = e => { if (e.target.dataset.a === 'grp'){ l.g = e.target.value; saveGroupPref(l.name, l.g); renderTabs(); autosave(); toast(`「${l.name}」を${gById(l.g).name}に移しました`); } };
+  const scope = `<div class="seg2"><button class="btn ${pickScope === 'part' ? 'sel' : ''}" data-a="sp">この部品だけ</button><button class="btn ${pickScope === 'layer' ? 'sel' : ''}" data-a="sl">レイヤー全部</button></div>`;
+  if (pickScope === 'part'){
+    const sel = [...pk.sel].filter(e => !gone(e)); pk.sel = new Set(sel);
+    const n = pk.parts.length, cur = sel.length === 1 ? sel[0] : null, info = cur != null ? G.parts[cur] : null;
+    const title = sel.length === 0 ? (pk.multi ? '図面をタップして部品を選んでください' : 'この場所に部品がありません') : sel.length === 1 ? partName(cur) : `${sel.length} 個の部品をえらんでいます`;
+    const sub = sel.length === 1 && info ? `レイヤー ${G.L[info.li].name}${!pk.multi && n > 1 ? ` ・ 重なり ${pk.pi + 1}/${n}（◀▶）` : ''}` : (pk.multi ? '追加で選ぶ：タップするたびに選ぶ／外す' : '');
+    bar.innerHTML = `<div class="frow">${!pk.multi && n > 1 ? '<button class="btn" data-a="pprev" aria-label="前の候補">◀</button>' : ''}
+      <div class="grow"><div class="lname">${esc(title)}</div><div class="lsub">${esc(sub)}</div></div>
+      ${!pk.multi && n > 1 ? '<button class="btn" data-a="pnext" aria-label="次の候補">▶</button>' : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
+      ${scope}
+      <div class="frow"><button class="btn ${pk.multi ? 'sel' : ''}" data-a="multi" style="flex:1">${pk.multi ? '✓ ' : '＋'}追加で選ぶ</button><span class="confirm" style="flex:1.3;display:flex"><button class="btn" data-a="others" style="flex:1" ${sel.length ? '' : 'disabled'}>これ以外を隠す</button></span></div>
+      <div class="frow"><button class="btn" data-a="ohide" style="flex:1" ${sel.length ? '' : 'disabled'}>非表示</button><button class="btn del" data-a="odel" style="flex:1" ${sel.length ? '' : 'disabled'}>削除</button></div>`;
+  } else {
+    const li = pk.cands[pk.i], l = G.L[li]; if (!l || l.deleted){ S.pick = null; bar.hidden = true; return; }
+    const n = pk.cands.length, opts = GROUPS.map(g => `<option value="${g.id}" ${g.id === l.g ? 'selected' : ''}>${g.name}</option>`).join('');
+    bar.innerHTML = `<div class="frow">${n > 1 ? `<button class="btn" data-a="prev" aria-label="前の候補">◀</button>` : ''}
+      <div class="grow"><div class="lname"><i class="sw" style="display:inline-block;vertical-align:-2px;margin-right:6px;background:${colorCss(l.ck)}"></i>${esc(l.name)}</div><div class="lsub">${l.count} 個の図形${n > 1 ? ` ・ 重なり ${pk.i + 1}/${n}（◀▶）` : ''}</div></div>
+      ${n > 1 ? `<button class="btn" data-a="next" aria-label="次の候補">▶</button>` : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
+      ${scope}
+      <div class="frow"><select class="gsel" data-a="grp" aria-label="グループ" style="height:40px;max-width:96px">${opts}</select><button class="btn" data-a="solo" style="flex:1">これだけ見る</button><button class="btn" data-a="hide" style="flex:1">非表示</button><button class="btn del" data-a="del" style="flex:1">削除</button></div>`;
+    bar.onchange = e => { if (e.target.dataset.a === 'grp'){ l.g = e.target.value; saveGroupPref(l.name, l.g); renderTabs(); autosave(); toast(`「${l.name}」を${gById(l.g).name}に移しました`); } };
+  }
   bar.onclick = e => {
-    const a = e.target.closest('button[data-a]')?.dataset.a; if (!a) return;
-    if (a === 'prev'){ S.pick.i = (S.pick.i - 1 + n) % n; }
-    else if (a === 'next'){ S.pick.i = (S.pick.i + 1) % n; }
+    const btn = e.target.closest('button[data-a]'); if (!btn || btn.disabled) return; const a = btn.dataset.a;
+    const L = pickScope === 'layer' ? G.L[pk.cands[pk.i]] : null;
+    if (a === 'sp' || a === 'sl'){ pickScope = a === 'sp' ? 'part' : 'layer'; try { localStorage.setItem('zumen-pickscope', pickScope); } catch(err){} }
+    else if (a === 'prev'){ pk.i = (pk.i - 1 + pk.cands.length) % pk.cands.length; }
+    else if (a === 'next'){ pk.i = (pk.i + 1) % pk.cands.length; }
+    else if (a === 'pprev' || a === 'pnext'){ const n = pk.parts.length; pk.pi = (pk.pi + (a === 'pnext' ? 1 : -1) + n) % n; pk.sel = new Set([pk.parts[pk.pi]]); }
     else if (a === 'close'){ S.pick = null; }
-    else if (a === 'solo'){ const nm = l.name; S.pick = null; updatePickBar(); setTab(nm); drawOverlay(); return; }
-    else if (a === 'hide'){ S.pick = null; exec(cmdVis([l.name], false)); toast(`「${l.name}」を非表示にしました（↶で戻せます）`); }
-    else if (a === 'del'){ S.pick = null; exec(cmdDelLayers([l.name], `「${l.name}」を削除`)); toast(`「${l.name}」を削除しました（↶で戻せます）`); }
+    else if (a === 'multi'){ pk.multi = !pk.multi; }
+    else if (a === 'others'){
+      const sel = [...pk.sel], lis = new Set(); for (const e2 of sel) for (const pl of G.eidPolys.get(e2) || []) lis.add(pl.li);
+      for (const e2 of sel){ const t = G.parts[e2]; if (t) lis.add(t.li); }
+      const others = new Set(); for (const [e2, pls] of G.eidPolys){ if (pk.sel.has(e2) || gone(e2)) continue; if (pls.some(pl => lis.has(pl.li) && !G.L[pl.li].deleted)) others.add(e2); }
+      for (const l2 of G.L) for (const t of G.textsBy[l2.idx]) if (lis.has(t.li) && !pk.sel.has(t.eid) && !gone(t.eid) && t.eid >= 0) others.add(t.eid);
+      if (!btn.dataset.ok){ btn.dataset.ok = '1'; btn.textContent = `${others.size}個を隠す`; btn.classList.add('del'); return; }
+      exec(cmdObjs(others, 'hide')); toast(`選んだ物以外の ${others.size} 個を隠しました（↶で戻せます）`); S.pick = null;
+    }
+    else if (a === 'ohide'){ const sel = [...pk.sel]; exec(cmdObjs(sel, 'hide')); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を非表示にしました（↶で戻せます）`); S.pick = null; }
+    else if (a === 'odel'){ const sel = [...pk.sel]; exec(cmdObjs(sel, 'del')); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を削除しました（↶で戻せます）`); S.pick = null; }
+    else if (a === 'solo'){ const nm = L.name; S.pick = null; updatePickBar(); setTab(nm); drawOverlay(); return; }
+    else if (a === 'hide'){ S.pick = null; exec(cmdVis([L.name], false)); toast(`「${L.name}」を非表示にしました（↶で戻せます）`); }
+    else if (a === 'del'){ S.pick = null; exec(cmdDelLayers([L.name], `「${L.name}」を削除`)); toast(`「${L.name}」を削除しました（↶で戻せます）`); }
     updatePickBar(); drawOverlay(); updateLayerBar();
   };
 }
 function drawPick(c){
   if (!S.pick || !G || S.mode !== 'pan' || S.selDim) return;
-  const li = S.pick.cands[S.pick.i]; const l = G.L[li]; if (!l || l.deleted) return;
   c.save(); c.strokeStyle = tok.snap; c.globalAlpha = .85; c.lineWidth = 2.6; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath();
-  for (const p of allPolys()){ if (p.li !== li) continue; const a = p.a; let q = w2s(a[0], a[1]); c.moveTo(q[0], q[1]); for (let i = 2; i < a.length; i += 2){ q = w2s(a[i], a[i+1]); c.lineTo(q[0], q[1]); } }
+  const pathOf = a => { let q = w2s(a[0], a[1]); c.moveTo(q[0], q[1]); for (let i = 2; i < a.length; i += 2){ q = w2s(a[i], a[i+1]); c.lineTo(q[0], q[1]); } };
+  let texts = [];
+  if (pickScope === 'part'){
+    for (const e of S.pick.sel){ if (gone(e)) continue; for (const pl of G.eidPolys.get(e) || []){ if (pl.sid >= 0 && S.ov.has(pl.sid)) continue; pathOf(pl.a); } for (const pl of G.ovPolys || []) if (pl.eid === e) pathOf(pl.a); }
+    for (const l of G.L) for (const t of G.textsBy[l.idx]) if (S.pick.sel.has(t.eid)) texts.push(t);
+  } else {
+    const li = S.pick.cands[S.pick.i]; const l = G.L[li]; if (!l || l.deleted){ c.restore(); return; }
+    for (const p of allPolys()) if (p.li === li) pathOf(p.a);
+    texts = G.textsBy[li].filter(t => !gone(t.eid));
+  }
   c.stroke();
   c.fillStyle = tok.snap; c.globalAlpha = .25;
-  for (const t of G.textsBy[li]){ const q = w2s(t.x, t.y), hp = Math.max(6, t.h*view.s); c.beginPath(); c.arc(q[0], q[1], hp*0.6, 0, Math.PI*2); c.fill(); }
+  for (const t of texts){ const q = w2s(t.x, t.y), hp = Math.max(6, t.h*view.s); c.beginPath(); c.arc(q[0], q[1], hp*0.6, 0, Math.PI*2); c.fill(); }
   c.restore();
 }
 function updatePill(){
@@ -987,25 +1048,29 @@ function updatePill(){
 const RS = {step:null, sel:null, a:null, b:null, cands:[], way:[], cur:null, dragging:false, finger:null, pattern:'ko', side:1, D:200, withPar:true};
 try { const r = JSON.parse(localStorage.getItem('zumen-route') || '{}'); if (['ko','dai'].includes(r.pattern)) RS.pattern = r.pattern; if (+r.D > 0) RS.D = +r.D; } catch(e){}
 function saveRoutePref(){ try { localStorage.setItem('zumen-route', JSON.stringify({pattern:RS.pattern === 'free' ? 'ko' : RS.pattern, D:RS.D})); } catch(e){} }
+const gone = eid => eid >= 0 && (S.hideObj.has(eid) || S.delObj.has(eid));
 const curShape = sid => S.ov.get(sid) || {verts:G.shapes[sid].verts, closed:G.shapes[sid].closed};
-function allPolys(){ return G.polys.filter(p => !(p.sid >= 0 && S.ov.has(p.sid))).concat(G.ovPolys || []); }
+function allPolys(){ return G.polys.filter(p => !(p.sid >= 0 && S.ov.has(p.sid)) && !gone(p.eid)).concat((G.ovPolys || []).filter(p => !gone(p.eid))); }
 function refreshGeom(){
   if (!G) return;
   const es = [], ep = [], ovPolys = [];
   for (const [sid, o] of S.ov){
     const sh = G.shapes[sid]; if (!sh) continue; const {f, kinds} = polyFlat(o.verts, o.closed);
-    ovPolys.push({li:sh.li, ck:sh.ck, a:f, sid});
-    for (let q = 0; q < kinds.length; q++){ const x1 = f[2*q], y1 = f[2*q+1], x2 = f[2*q+2], y2 = f[2*q+3]; if (x1 === x2 && y1 === y2) continue; es.push(x1, y1, x2, y2, sh.li, kinds[q], sid); if (!kinds[q]) ep.push((x1+x2)/2, (y1+y2)/2, sh.li, 1, sid); }
-    for (let q = 0; q < o.verts.length; q += 3) ep.push(o.verts[q], o.verts[q+1], sh.li, 0, sid);
+    ovPolys.push({li:sh.li, ck:sh.ck, a:f, sid, eid:sh.eid});
+    for (let q = 0; q < kinds.length; q++){ const x1 = f[2*q], y1 = f[2*q+1], x2 = f[2*q+2], y2 = f[2*q+3]; if (x1 === x2 && y1 === y2) continue; es.push(x1, y1, x2, y2, sh.li, kinds[q], sid, sh.eid); if (!kinds[q]) ep.push((x1+x2)/2, (y1+y2)/2, sh.li, 1, sid, sh.eid); }
+    for (let q = 0; q < o.verts.length; q += 3) ep.push(o.verts[q], o.verts[q+1], sh.li, 0, sid, sh.eid);
   }
   const s2 = new Float64Array(G.baseSegs.length + es.length); s2.set(G.baseSegs); s2.set(es, G.baseSegs.length);
   const p2 = new Float64Array(G.basePts.length + ep.length); p2.set(G.basePts); p2.set(ep, G.basePts.length);
   G.segs = s2; G.pts = p2; G.ovPolys = ovPolys;
   const paths = G.L.map(() => new Map());
   const add = p => { let P = paths[p.li].get(p.ck); if (!P){ P = new Path2D(); paths[p.li].set(p.ck, P); } const a = p.a; P.moveTo(a[0], a[1]); for (let q = 2; q < a.length; q += 2) P.lineTo(a[q], a[q+1]); };
-  for (const p of G.polys) if (!(p.sid >= 0 && S.ov.has(p.sid))) add(p);
-  for (const p of ovPolys) add(p);
+  for (const p of G.polys) if (!(p.sid >= 0 && S.ov.has(p.sid)) && !gone(p.eid)) add(p);
+  for (const p of ovPolys) if (!gone(p.eid)) add(p);
   G.paths = paths;
+  const fillP = G.L.map(() => new Map());
+  for (const f of G.fills){ if (gone(f.eid)) continue; let P = fillP[f.li].get(f.ck); if (!P){ P = new Path2D(); fillP[f.li].set(f.ck, P); } for (const r of f.rings){ P.moveTo(r[0], r[1]); for (let k = 2; k < r.length; k += 2) P.lineTo(r[k], r[k+1]); P.closePath(); } }
+  G.fillP = fillP;
 }
 function routeReset(){ S.pick = null; try { updatePickBar(); } catch(e){} RS.step = S.mode === 'route' ? 'pick' : null; RS.sel = null; RS.a = RS.b = null; RS.cands = []; RS.way = []; RS.cur = null; RS.dragging = false; RS.finger = null; }
 function findSegIndex(sh, x1, y1, x2, y2){
@@ -1228,6 +1293,7 @@ const dimRec = d => ({x1:d.x1, y1:d.y1, x2:d.x2, y2:d.y2, n:d.n || 1});
 function changed(kind){
   if (kind === 'layer'){ buildIndex(); renderBase(); renderTabs(); }
   if (kind === 'route'){ refreshGeom(); buildIndex(); renderBase(); if (S.mode === 'route'){ routeReset(); } }
+  if (kind === 'obj'){ refreshGeom(); buildIndex(); renderBase(); }
   if (S.selDim && !S.dims.includes(S.selDim)) S.selDim = null;
   drawOverlay(); updateUi(); refreshOpenSheet(); autosave();
 }
@@ -1430,6 +1496,11 @@ function openLayerSheet(trashFirst){
     let h = `<div class="sh-tools"><button class="btn" data-a="allon">全部表示</button><button class="btn" data-a="alloff">全部非表示</button><button class="btn del" data-a="delhidden" ${hidden.length ? '' : 'disabled style="opacity:.4"'}>非表示の${hidden.length}件を削除</button></div>
       <div class="note">空調・ダクト・衛生・電気・建築に自動で振り分けています。違うときは右の選択で変えられます（この端末で覚えます）。削除してもゴミ箱から戻せます。</div>`;
     const trash = dead.length ? `<div class="ghead"><b>ゴミ箱</b><span class="ct">${dead.length}</span>${dead.length > 1 ? '<button class="btn" data-a="restoreall">全部戻す</button>' : ''}</div>` + dead.map(l => `<div class="row"><i class="sw" style="background:${colorCss(l.ck)}"></i><div class="grow"><div class="nm">${esc(l.name)}</div><div class="sub">${gById(l.g).name} ・ ${l.count} 個</div></div><button class="btn" data-restore="${esc(l.name)}">戻す</button></div>`).join('') : '';
+    if (S.hideObj.size || S.delObj.size){
+      h += `<div class="ghead"><b>部品</b></div>`;
+      if (S.hideObj.size) h += `<div class="row"><div class="grow"><div class="nm">隠した部品 ${S.hideObj.size} 個</div><div class="sub">${esc(short([...S.hideObj].map(partName)))}</div></div><button class="btn" data-a="objshow">全部表示</button></div>`;
+      if (S.delObj.size) h += `<div class="row"><div class="grow"><div class="nm">削除した部品 ${S.delObj.size} 個</div><div class="sub">${esc(short([...S.delObj].map(partName)))}</div></div><button class="btn" data-a="objrest">全部戻す</button></div>`;
+    }
     if (trashFirst) h += trash;
     for (const g of GROUPS){
       const ls = live.filter(l => l.g === g.id); if (!ls.length) continue;
@@ -1460,6 +1531,8 @@ function openLayerSheet(trashFirst){
       else if (d.a === 'alloff') exec(cmdVis(live.map(l => l.name), false));
       else if (d.a === 'delhidden' && hidden.length){ exec(cmdDelLayers(hidden.map(l => l.name), `非表示${hidden.length}件を削除`)); toast(`${hidden.length}件のレイヤーを削除（↶で戻せます）`); }
       else if (d.a === 'restoreall') exec(cmdRestoreLayers(dead.map(l => l.name)));
+      else if (d.a === 'objshow'){ exec(cmdObjs([...S.hideObj], 'show')); toast('隠した部品を全部表示しました'); }
+      else if (d.a === 'objrest'){ exec(cmdObjs([...S.delObj], 'restore')); toast('削除した部品を全部戻しました'); }
     };
   });
 }
@@ -1499,7 +1572,7 @@ function openLogSheet(tab){
       for (const e of S.log.slice().reverse()){
         const d = new Date(e.t), day = `${d.getMonth()+1}/${d.getDate()}`;
         if (day !== lastDay){ h += `<div class="grp">${day}</div>`; lastDay = day; }
-        const tag = {layer:'層', dim:'寸', route:'管'}[e.kind] || '・';
+        const tag = {layer:'層', dim:'寸', route:'管', obj:'品'}[e.kind] || '・';
         h += `<div class="row ${e.undone ? 'undone' : ''}" data-log="${esc(e.id)}"><i class="lk ${e.kind}">${tag}</i><div class="grow"><div class="nm">${esc(e.label)}${e.detail ? ` <span style="color:var(--muted);font-size:12px">${esc(e.detail)}</span>` : ''}</div><div class="sub">${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}${e.undone ? ' ・ 取り消し済み' : ''}</div></div><button class="btn" data-log="${esc(e.id)}">見る</button></div>`;
       }
       h += `<span class="confirm" id="logClr"><button class="btn" data-a="clr">記録を消す（図面はそのまま）</button></span>`;
@@ -1531,7 +1604,7 @@ function renderHlBar(){
   const bar = $('#hlBar'); if (!HL){ bar.hidden = true; return; }
   const e = HL.e, i = S.log.indexOf(e), d = new Date(e.t);
   bar.hidden = false;
-  bar.innerHTML = `<button class="btn" data-a="prev" ${i > 0 ? '' : 'disabled'} aria-label="前の変更">◀</button><i class="lk ${e.kind}">${{layer:'層', dim:'寸', route:'管'}[e.kind] || '・'}</i>
+  bar.innerHTML = `<button class="btn" data-a="prev" ${i > 0 ? '' : 'disabled'} aria-label="前の変更">◀</button><i class="lk ${e.kind}">${{layer:'層', dim:'寸', route:'管', obj:'品'}[e.kind] || '・'}</i>
     <div class="grow"><div class="t1">${esc(e.label)}${e.undone ? '（取り消し済み）' : ''}</div><div class="t2">${esc(e.detail || '')} ・ ${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} ・ ${i+1}/${S.log.length}</div></div>
     <button class="btn" data-a="next" ${i < S.log.length-1 ? '' : 'disabled'} aria-label="次の変更">▶</button><button class="btn" data-a="close" aria-label="閉じる">✕</button>`;
   bar.onclick = ev => {
@@ -1556,6 +1629,11 @@ function drawHL(c){
     c.stroke();
   }
   if (e.kind === 'dim' && e.dims){ for (const d of e.dims){ const col = e.gone ? tok.danger : tok.snap; poly([[d.x1,d.y1],[d.x2,d.y2]], col, 5, e.gone ? [6,5] : []); const n = d.n || 1; for (let i = 1; i < n; i++){ const s2 = w2s(d.x1 + (d.x2-d.x1)*i/n, d.y1 + (d.y2-d.y1)*i/n); c.setLineDash([]); c.fillStyle = col; c.beginPath(); c.arc(s2[0], s2[1], 6, 0, Math.PI*2); c.fill(); } } }
+  if (e.kind === 'obj' && e.eids){
+    c.strokeStyle = e.gone || /非表示/.test(e.label) ? tok.danger : tok.snap; c.lineWidth = 2.2; c.setLineDash(/非表示|削除/.test(e.label) ? [5,4] : []); c.beginPath();
+    for (const id of e.eids) for (const pl of G.eidPolys.get(id) || []){ const a = pl.a; let q = w2s(a[0], a[1]); c.moveTo(q[0], q[1]); for (let i = 2; i < a.length; i += 2){ q = w2s(a[i], a[i+1]); c.lineTo(q[0], q[1]); } }
+    c.stroke();
+  }
   if (e.kind === 'route'){ for (const g of e.ghosts || []) poly([[g.x1,g.y1],[g.x2,g.y2]], tok.danger, 3, [6,5]); for (const r of e.routes || []) poly(r, tok.snap, 5); }
   c.restore();
 }
@@ -1579,7 +1657,7 @@ const dbGet = (s, k) => dbOp(s, 'readonly', st => st.get(k));
 const dbPut = (s, v) => dbOp(s, 'readwrite', st => st.put(v));
 const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
-function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log}; }
+function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}}; }
 let autoT = 0;
 function autosave(){
   clearTimeout(autoT);
@@ -1600,13 +1678,15 @@ async function openText(text, srcName, opts = {}){
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat);
     const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], groups:doc.meta.groups || {}, log:doc.meta.log || []} : null);
-    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; routeReset();
+    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); routeReset();
+    for (const [k, t] of Object.entries(G.parts)) if (t.inv) S.hideObj.add(+k);
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){
       const del = new Set(st.deleted || []), hid = new Set(st.hidden || []);
       G.L.forEach(l => { if (del.has(l.name)) l.deleted = true; if (hid.has(l.name)) l.on = false; const gg = st.groups && st.groups[l.name]; if (gg && GROUPS.some(g => g.id === gg)) l.g = gg; });
       S.dims = (st.dims || []).map((d, i) => ({id:'d' + i + Date.now().toString(36), x1:+d.x1, y1:+d.y1, x2:+d.x2, y2:+d.y2, n:+d.n || 1}));
       S.log = Array.isArray(st.log) ? st.log : [];
+      if (st.objs && st.objs.n === G.shapes.length){ (st.objs.hide || []).forEach(e => S.hideObj.add(+e)); (st.objs.del || []).forEach(e => S.delObj.add(+e)); }
       if (st.routes && st.routes.n === G.shapes.length){ for (const [k, v, c] of st.routes.ov || []) if (G.shapes[k]) S.ov.set(+k, {verts:v, closed:!!c}); S.ghosts = st.routes.ghosts || []; }
     }
     refreshGeom();
@@ -1701,7 +1781,7 @@ function openSaveSheet(){
     body.querySelector('#sv3').addEventListener('click', async () => { const name = nm(); S.name = name; updateUi(); const out = buildExport(name); await offerFile(name + '.dxf', out); });
   });
 }
-function buildExport(name){
+function buildExport(name, opt = {}){
   const {codes, vals, n} = toPairs(S.text);
   const del = new Set(G.L.filter(l => l.deleted).map(l => l.name)); del.add(DIM_LAYER);
   // pre-scan
@@ -1744,6 +1824,9 @@ function buildExport(name){
   }
   // changed pipe routes: the original entity is replaced by one polyline on the same layer (so other apps still read it as that pipe)
   const ovHandles = new Set(), blockEnts = new Map();
+  const delH = new Set(), hideH = new Set();
+  for (const e of S.delObj){ const t = G.parts[e]; if (t && t.h) delH.add(t.h); }
+  for (const e of S.hideObj){ const t = G.parts[e]; if (t && t.h) (opt.dropHidden ? delH : hideH).add(t.h); }
   for (const [sid, o] of S.ov){
     const sh = G.shapes[sid]; if (!sh || G.L[sh.li].deleted) continue; if (sh.h) ovHandles.add(sh.h);
     const M = sh.M, det = M[0]*M[3] - M[1]*M[2];
@@ -1788,9 +1871,18 @@ function buildExport(name){
         let j = i + 1, layer = null, attFollow = false, hdl = null;
         while (j < n && codes[j] !== 0){ if (codes[j] === 8 && layer === null) layer = vals[j].trim(); if (codes[j] === 5 && hdl === null) hdl = vals[j].trim(); if (codes[j] === 66 && parseInt(vals[j]) === 1) attFollow = true; j++; }
         let drop = hdl !== null && ovHandles.has(hdl) && (t === 'LINE' || t === 'LWPOLYLINE');
+        if (section === 'ENTITIES' && hdl !== null && delH.has(hdl) && !dropSeq){ drop = true; if (t === 'POLYLINE' || (t === 'INSERT' && attFollow)) dropSeq = true; }
         if (dropSeq && (t === 'VERTEX' || t === 'ATTRIB' || t === 'SEQEND')){ drop = true; if (t === 'SEQEND') dropSeq = false; }
         else { dropSeq = false; if (!drop && layer !== null && del.has(layer)){ drop = true; if (t === 'POLYLINE' || (t === 'INSERT' && attFollow)) dropSeq = true; } }
-        if (!drop) for (let k = i; k < j; k++) out.push(String(codes[k]).padStart(3, ' '), vals[k]);
+        if (!drop){
+          const inv = section === 'ENTITIES' && hdl !== null && hideH.has(hdl);
+          let put60 = false;
+          for (let k = i; k < j; k++){
+            if (inv && codes[k] === 60) continue;
+            out.push(String(codes[k]).padStart(3, ' '), vals[k]);
+            if (inv && !put60 && codes[k] === 8){ out.push(' 60', '1'); put60 = true; }
+          }
+        }
         i = j; continue;
       }
     }
@@ -1819,7 +1911,7 @@ async function sendToMage(name){
   if (!ON_MAGE_SITE){ toast('ここからは渡せません。曲げ共有のサイトの図面修正ページで開いてください'); const n = $('#mageNote'); if (n) n.style.color = 'var(--danger)'; return; }
   try {
     S.name = name; updateUi();
-    const text = buildExport(name);
+    const text = buildExport(name, {dropHidden:true});
     const hide = G.L.filter(l => !l.on && !l.deleted).map(l => l.name);
     const rec = {blob: new Blob([text], {type:'application/dxf'}), name: name + '.dxf', hide};
     await new Promise((ok, ng) => {
@@ -1933,7 +2025,7 @@ async function buildPdf(){
   out.push('q', `${f2(fx0*PT)} ${f2(Hpt-(fy0+fh)*PT)} ${f2(fw*PT)} ${f2(fh*PT)} re W n`, '1 J 1 j');
   // fills
   const byCol = new Map();
-  for (const f of G.fills){ if (!visL.has(f.li)) continue; const c = pdfRGB(f.ck, mono).map(v => 1 - (1-v)*.35); const key = c.map(f2).join(' '); if (!byCol.has(key)) byCol.set(key, []); byCol.get(key).push(f); }
+  for (const f of G.fills){ if (!visL.has(f.li) || gone(f.eid)) continue; const c = pdfRGB(f.ck, mono).map(v => 1 - (1-v)*.35); const key = c.map(f2).join(' '); if (!byCol.has(key)) byCol.set(key, []); byCol.get(key).push(f); }
   for (const [c, fs] of byCol){ out.push(`${c} rg`); for (const f of fs){ for (const r of f.rings){ out.push(`${f2(X(r[0]))} ${f2(Y(r[1]))} m`); for (let i = 2; i < r.length; i += 2) out.push(`${f2(X(r[i]))} ${f2(Y(r[i+1]))} l`); out.push('h'); } out.push('f'); } }
   // lines
   const wx0 = Math.min(R.x0, R.x1) - (fw/k)*.5, wx1 = Math.max(R.x0, R.x1) + (fw/k)*.5, wy0 = Math.min(R.y0, R.y1) - (fh/k)*.5, wy1 = Math.max(R.y0, R.y1) + (fh/k)*.5;
@@ -1969,6 +2061,7 @@ async function buildPdf(){
   const jobs = new Map(); // colourKey -> [draw fns]
   const add = (rgb, fn) => { const key = rgb.map(f2).join(' '); if (!jobs.has(key)) jobs.set(key, []); jobs.get(key).push(fn); };
   for (const l of G.L){ if (!visL.has(l.idx)) continue; for (const t of G.textsBy[l.idx]){
+    if (gone(t.eid)) continue;
     const sx = PX(t.x), sy = PY(t.y), hp = t.h*k*pxmm; if (hp < 2.2) continue;
     const ext = hp * (t.lines[0].length + 2) * t.wf * 1.3 + hp*t.lines.length*1.7;
     if (sx < fx0*pxmm - ext || sx > (fx0+fw)*pxmm + ext || sy < fy0*pxmm - ext || sy > (fy0+fh)*pxmm + ext) continue;

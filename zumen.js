@@ -349,7 +349,7 @@ function planAutoEquip(r){const P=PLAN,mm=P.mmpp,T2=P.textsAll||P.texts||[],nm=t
     const pad=400/mm,nearD=DS.some(s2=>[[s2[0],s2[1]],[s2[2],s2[3]]].some(p2=>p2[0]>q.x0-pad&&p2[0]<q.x1+pad&&p2[1]>q.y0-pad&&p2[1]<q.y1+pad&&!(p2[0]>q.x0&&p2[0]<q.x1&&p2[1]>q.y0&&p2[1]<q.y1)));if(!nearD)return;
     if(d<ba){ba=d;rc=q;far=true}})}
   if(!rc&&!V)return;   // 形も機種も分からない文字は置かない
-  const c=rc?btW([(rc.x0+rc.x1)/2,(rc.y0+rc.y1)/2]):btW([cx,cy]);if(st.bld.some(o=>o.k==="eq"&&Math.hypot(o.x-c[0],o.z-c[1])<300))return;
+  const c=rc?btW([(rc.x0+rc.x1)/2,(rc.y0+rc.y1)/2]):btW([cx,cy]);/* 前の読み込みで置いた機械があれば、今の読み方（高さ・機種・大きさ）で置き直す */const old=st.bld.find(o=>o.k==="eq"&&Math.hypot(o.x-c[0],o.z-c[1])<300);if(old&&out.length&&out.includes(old.n))return;
   const wD=rc?Math.round((rc.x1-rc.x0)*mm/10)*10:0,dD=rc?Math.round((rc.y1-rc.y0)*mm/10)*10:0;let o;
   if(V){/* 登録してある機種：本体の大きさは寸法表。向きは図面の外形（差し込み口込みの幅 A＋2J）に近い方 */
    const AA=V.A+2*V.J,rr=rc&&(Math.abs(wD-V.B)+Math.abs(dD-AA))<(Math.abs(wD-AA)+Math.abs(dD-V.B))?90:0;
@@ -362,7 +362,7 @@ function planAutoEquip(r){const P=PLAN,mm=P.mmpp,T2=P.textsAll||P.texts||[],nm=t
    o=normBld([{k:"eq",x:c[0],z:c[1],w:wD,d:dD,h:y1-y0,y:y0,r:0,n:(fan?"換気扇 ":"")+s}])[0];
    /* 同じ所に点検口として置いてしまった四角は消す */
    st.bld=st.bld.filter(q=>!(q.k==="ins"&&Math.abs(q.x-o.x)<o.w/2&&Math.abs(q.z-o.z)<o.d/2))}
-  btAdd([o]);out.push(o.n)});
+  if(old)st.bld=st.bld.filter(q=>q!==old);btAdd([o]);out.push(o.n)});
  return out}
 function insFromRects(list){const P=PLAN,L=[],have=st.bld.filter(o=>o.k==="ins");
  list.forEach(r=>{if(!r)return;const q=btW([(r.x0+r.x1)/2,(r.y0+r.y1)/2]);if(have.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<200)||L.some(o=>Math.hypot(o.x-q[0],o.z-q[1])<200))return;

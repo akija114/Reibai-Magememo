@@ -224,7 +224,24 @@ function dlTidy(S0,k,EQ,LB){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub,lay
  /* 図面の文字（「OA 150φ FL+3900」）：同じ画層で、向きが同じで、近く（文字の横 70cm 以内）のダクトに付ける。大きさはその場で直す */
  if(DU&&Array.isArray(LB))LB.forEach(lb=>{let best=null,bd=1e9;S.forEach(o=>{if(o.lay!==lb.lay)return;if(lb.u&&Math.abs(cr(o.u,lb.u))>0.35)return;const v=sub([lb.x,lb.z],o.a),t=dt(v,o.u),l=Math.abs(cr(o.u,v));
    if(t<-800||t>o.L+800||l>Math.max(700,o.w/2+500))return;const d=l+Math.max(0,-t,t-o.L)*1.5+(lb.sz?Math.abs(o.w-lb.sz.a)*2:0)-Math.min(o.L,2000)*0.01;if(d<bd){bd=d;best=o}});   // 太さの合う物・長い物を優先（となりの箱・チャンバーに付けない）
-  if(!best)return;if(lb.h)best.lh=lb.h;if(lb.sz){best.lsz=lb.sz;if(lb.sz.r){best.sh=0;best.w=best.hh=lb.sz.a}else{best.sh=1;best.w=lb.sz.a;best.hh=lb.sz.b}}});
+  if(!best)return;if(lb.h)best.lh=lb.h;if(lb.sz){best.lsz=lb.sz;if(lb.sz.r){best.sh=0;best.w=best.hh=lb.sz.a}else{best.sh=1;best.w=lb.sz.a;best.hh=lb.sz.b}};if(lb.h)(best.lbs=best.lbs||[]).push({t:dt(sub([lb.x,lb.z],best.a),best.u),h:lb.h})});
+ /* 1本のダクトに高さのちがう文字が2つ以上ある時（ロスナイの上だけ上げる、など）：文字と文字の間で切って、それぞれの高さにする。
+    切る所は、間にある段差の記号（ダクトの上の半円の線）。無ければ文字と文字の真ん中 */
+ if(DU){const MK=(LB&&LB.mk)||[],n0=S.length;for(let i=0;i<n0;i++){const o=S[i];if(!o.lbs||o.lbs.length<2)continue;const L=o.lbs.sort((p,q)=>p.t-q.t);if(L.every(q=>q.h===L[0].h))continue;
+  const cut=[];for(let m=0;m+1<L.length;m++){if(L[m].h===L[m+1].h)continue;const t0=L[m].t,t1=L[m+1].t;
+   const ms=MK.filter(k=>k.lay===o.lay).map(k=>({t:dt(sub([k.x,k.z],o.a),o.u),l:Math.abs(cr(o.u,sub([k.x,k.z],o.a)))})).filter(k=>k.l<o.w&&k.t>Math.min(t0,t1)+50&&k.t<Math.max(t0,t1)-50);
+   /* 記号は「⌒⌒」の2本で1組：低い方の文字に近い方で切る（上がり始め） */
+   /* 斜めの短い線（半円をつくる線）が 3本以上かたまっている所だけ */
+   ms.sort((p,q)=>p.t-q.t);const cl=[];ms.forEach(k=>{const c=cl[cl.length-1];if(c&&k.t-c.t1<60){c.t1=k.t;c.n++;c.s+=k.t}else cl.push({t1:k.t,n:1,s:k.t})});ms.length=0;cl.filter(c=>c.n>=3).forEach(c=>ms.push({t:c.s/c.n}));
+   let tc=(t0+t1)/2;if(ms.length){const lowFirst=L[m].h<L[m+1].h;ms.sort((p,q)=>p.t-q.t);tc=lowFirst?ms[0].t:ms[ms.length-1].t}
+   cut.push({t:Math.max(o.w,Math.min(o.L-o.w,tc)),h0:L[m].h,h1:L[m+1].h})}
+  if(!cut.length)continue;const pt=t=>[o.a[0]+o.u[0]*t,o.a[1]+o.u[1]*t],bOld=o.b.slice();let prev=i;
+  o.lh=cut[0].h0;o.b=pt(cut[0].t);o.L=cut[0].t;
+  cut.forEach((c,m)=>{const t1=m+1<cut.length?cut[m+1].t:null,N=Object.assign({},o,{a:pt(c.t),b:t1!==null?pt(t1):bOld,lh:c.h1,lbs:null,cn:0});N.L=Math.hypot(N.b[0]-N.a[0],N.b[1]-N.a[1]);
+   S.push(N);par.push(S.length-1);const n=S.length-1;usedE.add(prev+"b");usedE.add(n+"a");un(prev,n);S[prev].cn++;N.cn++;LKs.push({i:prev,j:n,p:N.a.slice()});
+   /* 前の「b」の端につないであった物は、最後の切れはしにつけかえる */
+   if(m===cut.length-1&&usedE.has(i+"b#"))usedE.add(n+"b");prev=n});
+  LKs.forEach(q=>{if(q.i!==i&&q.j!==i)return;if(Math.hypot(q.p[0]-bOld[0],q.p[1]-bOld[1])<Math.hypot(q.p[0]-o.a[0],q.p[1]-o.a[1])&&Math.hypot(q.p[0]-bOld[0],q.p[1]-bOld[1])<o.w){if(q.i===i)q.i=prev;else q.j=prev;usedE.add(prev+"b")}})}}
  /* 機器のダクト口：
     ・ロスナイ（登録のある機種）：口の近く（30cm）に向かってくるダクトを口の先までのばし、口の所は口の太さ（φ100 など）からダクトの太さへ広げる管にする
     ・登録のない機械（換気扇など）：箱の近く（45cm）で終わるダクトを、箱の面の真ん中の高さの口につなぐ
@@ -426,7 +443,9 @@ if(!by[k])return;if(P.dxf&&!dxfVisible(P)(s[5]))return;const v=main?own((s[0]+s[
     g.forEach(u=>used.add(u));const cx=g.reduce((a,u)=>a+u.x,0)/g.length,cy=g.reduce((a,u)=>a+u.y,0)/g.length,p=toW(seed,cx,cy);if(!p)return;
     const rr=(seed.r||0)*Math.PI/180,p2=toW(seed,cx+Math.cos(rr)*20,cy-Math.sin(rr)*20);let u=null;if(p2){const dx=p2[0]-p[0],dz=p2[1]-p[1],l=Math.hypot(dx,dz);if(l>0)u=[dx/l,dz/l]}
     if(h||sz)LB.push({x:p[0],z:p[1],lay:seed.lay,h,sz,u})};
-   TT.filter(t=>isH(nz(t))).forEach(t=>{if(!used.has(t))mk(t)});TT.filter(t=>isS(nz(t))).forEach(t=>{if(!used.has(t))mk(t)})}
+   TT.filter(t=>isH(nz(t))).forEach(t=>{if(!used.has(t))mk(t)});TT.filter(t=>isS(nz(t))).forEach(t=>{if(!used.has(t))mk(t)})
+   /* 段差の記号（ダクトの線の半円）の場所 */
+   LB.mk=(P.segAll||P.segs).filter(q=>{if(dxfCat(q[5])!=="duct")return false;const dx=q[2]-q[0],dy=q[3]-q[1],l=Math.hypot(dx,dy);if(!l||l*mm>150)return false;return Math.abs(2*dx*dy)/(l*l)>0.3}).map(q=>{const p=toW({lay:q[5]},(q[0]+q[2])/2,(q[1]+q[3])/2);return p?{x:p[0],z:p[1],lay:q[5]}:null}).filter(Boolean)}
   /* 登録のない機械（換気扇など）：口は近くのダクトの所に作る（高さは箱の真ん中） */
   EQ.forEach((e,n)=>{const o=(st.bld||[]).filter(q=>q.k==="eq")[n];if(o&&!e.P.length){e.fan=1;e.py=Math.round((o.y||0)+(o.h||250)/2);e.pd=o.pd||0}});
   const T=dlTidy(solids,k,EQ,LB);out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});

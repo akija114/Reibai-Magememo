@@ -151,7 +151,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .bigbtn{height:52px;border-radius:12px;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px}
 .bigbtn.pri{background:var(--accent);color:var(--accent-ink)}
 .bigbtn.sec{background:var(--panel2)}
-.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:999px;font-size:13px;z-index:40;max-width:90%;text-align:center;pointer-events:none}
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 112px);transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:999px;font-size:13px;z-index:40;max-width:90%;text-align:center;pointer-events:none}
 .loading{position:absolute;inset:0;display:grid;place-items:center;background:var(--paper);font-size:14px;color:var(--muted);z-index:5}
 .confirm{display:flex;gap:6px;align-items:center}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(30px);opacity:.5}}}
@@ -186,10 +186,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <div class="loading" id="loading">読み込み中…</div>
   </div>
   <div class="tool">
-    <button class="tb mode" id="mPan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"/><path d="m9 6 3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>移動・選択</button>
+    <button class="tb mode" id="mPan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"/><path d="m9 6 3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>選択</button>
     <button class="tb mode" id="mDim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8v8M21 8v8M3 12h18"/><path d="m6 9-3 3 3 3M18 9l3 3-3 3"/></svg>寸法</button>
     <button class="tb mode" id="mRoute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16h5V8h10v8h5"/><path d="M7 16h10" stroke-dasharray="2 2.5" opacity=".55"/></svg>ルート</button>
     <div class="sep"></div>
+    <button class="tb mode" id="mBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="3 2.5"/><path d="M14 13l6 6M14 13h4M14 13v4"/></svg>範囲</button>
     <button class="tb" id="tOrtho"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 4v15h15"/><path d="M5 12h6v7" stroke-dasharray="2 2"/></svg>縦横</button>
     <button class="tb" id="tChain"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 12h20M2 9v6M9 9v6M15 9v6M22 9v6"/></svg>連続</button>
     <button class="tb" id="tSnap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="8" height="8"/><path d="M3 12h5M16 12h5M12 3v5M12 16v5"/></svg>吸着</button>
@@ -564,6 +565,10 @@ function prepare(flat){
   const L = flat.L;
   const paths = L.map(() => new Map()), fillP = L.map(() => new Map()), textsBy = L.map(() => []);
   const eidPolys = new Map(); for (const pl of flat.polys){ if (pl.eid < 0) continue; let a = eidPolys.get(pl.eid); if (!a){ a = []; eidPolys.set(pl.eid, a); } a.push(pl); }
+  const pbox = new Map(); const grow = (e, x, y, li) => { let b = pbox.get(e); if (!b){ b = [x, y, x, y, new Set()]; pbox.set(e, b); } if (x < b[0]) b[0] = x; if (y < b[1]) b[1] = y; if (x > b[2]) b[2] = x; if (y > b[3]) b[3] = y; b[4].add(li); };
+  for (const pl of flat.polys){ if (pl.eid < 0) continue; const a = pl.a; for (let i = 0; i < a.length; i += 2) grow(pl.eid, a[i], a[i+1], pl.li); }
+  for (const t of flat.texts){ if (t.eid < 0) continue; grow(t.eid, t.x, t.y, t.li); const len = t.lines[0].length * t.h * t.wf; grow(t.eid, t.x + Math.cos(t.a)*len, t.y + Math.sin(t.a)*len, t.li); }
+  for (const f of flat.fills){ if (f.eid < 0) continue; for (const r of f.rings) for (let i = 0; i < r.length; i += 2) grow(f.eid, r[i], r[i+1], f.li); }
   for (const t of flat.texts) textsBy[t.li].push(t);
   const segs = Float64Array.from(flat.segs), pts = Float64Array.from(flat.pts);
   // robust bounds
@@ -577,7 +582,7 @@ function prepare(flat){
   const bounds = {x0:x0-mx, y0:y0-my, x1:x1+mx, y1:y1+my};
   const hs = flat.texts.map(t => t.h).sort((a,b) => a-b);
   S.textH = hs.length ? Math.max(1, hs[Math.floor(hs.length/2)]) : Math.max(bounds.x1-bounds.x0, bounds.y1-bounds.y0)/150;
-  return {L, paths, fillP, textsBy, segs, pts, baseSegs:segs, basePts:pts, nBaseS:segs.length/SS, nBaseP:pts.length/PS, ovPolys:[], shapes:flat.shapes, parts:flat.parts, eidPolys, bounds, polys:flat.polys, fills:flat.fills};
+  return {L, paths, fillP, textsBy, segs, pts, baseSegs:segs, basePts:pts, nBaseS:segs.length/SS, nBaseP:pts.length/PS, ovPolys:[], shapes:flat.shapes, parts:flat.parts, eidPolys, pbox, bounds, polys:flat.polys, fills:flat.fills};
 }
 
 /* ============ spatial index ============ */
@@ -793,6 +798,7 @@ function drawOverlay(){
   octx.setTransform(dpr,0,0,dpr,0,0); octx.clearRect(0,0,cw,ch);
   drawRoute(octx);
   drawPick(octx);
+  if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) drawDim(octx, d, d === S.selDim);
   drawHL(octx);
   const M = MS;
@@ -839,6 +845,7 @@ ov.addEventListener('pointerdown', e => {
     if (S.mode === 'dim'){ gest = {type:'cursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; MS.dragging = true; moveCursor(p); }
     else if (S.mode === 'route' && ['a','b','draw'].includes(RS.step)){ gest = {type:'rcursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; RS.dragging = true; updateHint(); moveRCursor(p); }
     else if (S.mode === 'route' && RS.step === 'shape' && RS.pattern !== 'free' && nearRoute(p)){ gest = {type:'roff'}; }
+    else if (S.mode === 'box'){ gest = {type:'box', start:p, cur:p}; }
     else {
       gest = {type:'pan', start:p, v0:{...view}, t:performance.now(), moved:false};
       if (S.mode === 'pan'){ const g0 = gest; g0.lt = setTimeout(() => { if (gest === g0 && !g0.moved && ptrs.size === 1){ g0.long = true; longPress(g0.start); } }, 450); }
@@ -856,6 +863,7 @@ ov.addEventListener('pointermove', e => {
   if (!ptrs.has(e.pointerId)){ return; }
   const p = evPos(e); ptrs.set(e.pointerId, p);
   if (!gest) return;
+  if (gest.type === 'box'){ gest.cur = p; drawOverlay(); return; }
   if (gest.type === 'cursor') moveCursor(p);
   else if (gest.type === 'rcursor') moveRCursor(p);
   else if (gest.type === 'roff') setOffsetFrom(p);
@@ -880,6 +888,9 @@ function endPtr(e, cancel){
     RS.dragging = false; RS.finger = null;
     if (!cancel && RS.cur) routePlace(RS.cur); else { RS.cur = null; updateRouteUi(); }
     gest = null;
+  } else if (gest.type === 'box' && ptrs.size === 0){
+    const g0 = gest; gest = null; drawOverlay();
+    if (!cancel && Math.abs(g0.cur[0]-g0.start[0]) > 12 && Math.abs(g0.cur[1]-g0.start[1]) > 12) boxSelect(g0.start, g0.cur);
   } else if (gest.type === 'roff' && ptrs.size === 0){
     gest = null; $('#pill').hidden = true; updateRoutePanel();
   } else if (gest.type === 'pan' && ptrs.size === 0){
@@ -950,6 +961,26 @@ function hitsAt(p){
   const sort = m => [...m.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
   return {layers:sort(L), parts:sort(E), routes:[...RSd]};
 }
+/* drag a box: pick every part inside it (or touching it) */
+let boxCross = false; try { boxCross = localStorage.getItem('zumen-boxcross') === '1'; } catch(e){}
+function boxSelect(a, b){
+  const w1 = s2w(a[0], a[1]), w2 = s2w(b[0], b[1]);
+  const x0 = Math.min(w1[0], w2[0]), x1 = Math.max(w1[0], w2[0]), y0 = Math.min(w1[1], w2[1]), y1 = Math.max(w1[1], w2[1]);
+  const inside = [], hidden = [];
+  for (const [e, bx] of G.pbox){
+    if (S.delObj.has(e)) continue;
+    const vis = [...bx[4]].some(li => !G.L[li].deleted && G.L[li].on); if (!vis) continue;
+    const hit = boxCross ? !(bx[2] < x0 || bx[0] > x1 || bx[3] < y0 || bx[1] > y1) : (bx[0] >= x0 && bx[2] <= x1 && bx[1] >= y0 && bx[3] <= y1);
+    if (!hit) continue;
+    if (S.hideObj.has(e)) hidden.push(e); else inside.push(e);
+  }
+  if (!inside.length && !hidden.length){ toast(boxCross ? '囲んだ所に部品がありません' : '全部が四角に入っている部品がありません（「かかっている物も」をオンにすると、はみ出た物も選べます）'); return; }
+  const lis = new Set(); inside.forEach(e => G.pbox.get(e)[4].forEach(li => lis.add(li)));
+  pickScope = 'part'; S.mode = 'pan'; S.selDim = null;
+  S.pick = {cands:[...lis], i:0, parts:inside.slice(0, 1), pi:0, sel:new Set(inside), multi:false, boxHidden:hidden};
+  updateUi(); drawOverlay(); updatePickBar();
+  toast(`${inside.length} 個えらびました${hidden.length ? `（隠した部品 ${hidden.length} 個も中にあります）` : ''}`);
+}
 /* long press = add one more thing to the current selection */
 function longPress(p){
   if (!G || S.mode !== 'pan') return;
@@ -1011,7 +1042,8 @@ function updatePickBar(){
       ${!pk.multi && n > 1 ? '<button class="btn" data-a="pnext" aria-label="次の候補">▶</button>' : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
       ${scope}
       <div class="frow"><button class="btn ${pk.multi ? 'sel' : ''}" data-a="multi" style="flex:1">${pk.multi ? '✓ ' : '＋'}追加で選ぶ</button><span class="confirm" style="flex:1.3;display:flex"><button class="btn" data-a="others" style="flex:1" ${sel.length ? '' : 'disabled'}>これ以外を隠す</button></span></div>
-      <div class="frow"><button class="btn" data-a="ohide" style="flex:1" ${sel.length ? '' : 'disabled'}>非表示</button><button class="btn del" data-a="odel" style="flex:1" ${sel.length ? '' : 'disabled'}>削除</button></div>`;
+      <div class="frow"><button class="btn" data-a="ohide" style="flex:1" ${sel.length ? '' : 'disabled'}>非表示</button><button class="btn del" data-a="odel" style="flex:1" ${sel.length ? '' : 'disabled'}>削除</button></div>
+      ${pk.boxHidden && pk.boxHidden.filter(e => S.hideObj.has(e)).length ? `<button class="btn" data-a="boxshow">囲んだ所の隠した部品を表示（${pk.boxHidden.filter(e => S.hideObj.has(e)).length}個）</button>` : ''}`;
   } else {
     const li = pk.cands[pk.i], l = G.L[li]; if (!l || l.deleted){ S.pick = null; bar.hidden = true; return; }
     if (!pk.lsel) pk.lsel = new Set([li]);
@@ -1029,6 +1061,7 @@ function updatePickBar(){
     const btn = e.target.closest('button[data-a]'); if (!btn || btn.disabled) return; const a = btn.dataset.a;
     const L = pickScope === 'layer' ? G.L[pk.cands[pk.i]] : null;
     if (a === 'rroute'){ revertRoutesOf(pk.routes); S.pick = null; updatePickBar(); drawOverlay(); return; }
+    if (a === 'boxshow'){ const hs = pk.boxHidden.filter(e => S.hideObj.has(e)); exec(cmdObjs(hs, 'show')); toast(`${hs.length} 個を表示しました（↶で戻せます）`); pk.boxHidden = []; updatePickBar(); drawOverlay(); return; }
     if (a === 'sp' || a === 'sl'){ pickScope = a === 'sp' ? 'part' : 'layer'; try { localStorage.setItem('zumen-pickscope', pickScope); } catch(err){} }
     else if (a === 'prev'){ pk.i = (pk.i - 1 + pk.cands.length) % pk.cands.length; pk.lsel = new Set([pk.cands[pk.i]]); }
     else if (a === 'next'){ pk.i = (pk.i + 1) % pk.cands.length; pk.lsel = new Set([pk.cands[pk.i]]); }
@@ -1382,7 +1415,7 @@ function changed(kind){
   if (kind === 'obj'){ refreshGeom(); buildIndex(); renderBase(); }
   if (kind === 'view'){ refreshGeom(); buildIndex(); renderBase(); renderTabs(); }
   if (S.selDim && !S.dims.includes(S.selDim)) S.selDim = null;
-  drawOverlay(); updateUi(); refreshOpenSheet(); autosave();
+  drawOverlay(); updateUi(); refreshOpenSheet(); autosave(true);
 }
 function cmdDelLayers(names, label){
   const ls = names.map(n => G.L.find(l => l.name === n)).filter(l => l && !l.deleted);
@@ -1407,7 +1440,7 @@ function updateUi(){
   $('#bUndo').disabled = !S.undo.length; $('#bRedo').disabled = !S.redo.length;
   $('#fname').textContent = S.name || '—';
   if (G){ const live = G.L.filter(l => !l.deleted).length, del = G.L.length - live; $('#fsub').textContent = `レイヤー ${live}${del ? `（削除 ${del}）` : ''} ・ 寸法 ${S.dims.length} ・ ${S.units}`; }
-  $('#mPan').classList.toggle('on', S.mode === 'pan'); $('#mDim').classList.toggle('on', S.mode === 'dim'); $('#mRoute').classList.toggle('on', S.mode === 'route');
+  $('#mPan').classList.toggle('on', S.mode === 'pan'); $('#mDim').classList.toggle('on', S.mode === 'dim'); $('#mRoute').classList.toggle('on', S.mode === 'route'); $('#mBox').classList.toggle('on', S.mode === 'box');
   $('#tOrtho').classList.toggle('on', S.ortho); $('#tChain').classList.toggle('on', S.chain); $('#tSnap').classList.toggle('on', S.snapOn);
   updateHint(); updateLayerBar(); updateDimPanel(); updateRoutePanel();
 }
@@ -1497,6 +1530,10 @@ function updateLayerBar(){
 function updateHint(){
   const h = $('#hint');
   if (HL){ h.hidden = true; return; }
+  if (S.mode === 'box'){
+    h.hidden = false; $('#hintTxt').textContent = '指でなぞって四角で囲む（2本指で移動）';
+    $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = boxCross ? '✓ かかっている物も' : 'かかっている物も'; return;
+  }
   if (S.mode === 'route'){
     if (RS.dragging){ h.hidden = true; return; }
     h.hidden = false;
@@ -1510,7 +1547,7 @@ function updateHint(){
   $('#hintTxt').textContent = MS.p1 ? (S.chain ? '連続：次の点までドラッグ' : '終点までドラッグして指を離す') : '始点までドラッグして指を離す';
   $('#bCancelPt').hidden = !MS.p1;
 }
-$('#bCancelPt').onclick = () => { if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
+$('#bCancelPt').onclick = () => { if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
 
 function updateDimPanel(){
   const p = $('#dimPanel'); const d = S.selDim;
@@ -1550,6 +1587,7 @@ function zoomTo(d){
 /* toolbar */
 $('#mPan').onclick = () => { S.mode = 'pan'; MS.p1 = null; MS.cur = null; routeReset(); updatePill(); drawOverlay(); updateUi(); };
 $('#mDim').onclick = () => { S.mode = 'dim'; S.selDim = null; routeReset(); drawOverlay(); updateUi(); };
+$('#mBox').onclick = () => { S.mode = 'box'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#mRoute').onclick = () => { S.mode = 'route'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#tOrtho').onclick = () => { S.ortho = !S.ortho; updateUi(); toast(S.ortho ? '縦横まっすぐ：オン' : '縦横まっすぐ：オフ'); };
 $('#tChain').onclick = () => { S.chain = !S.chain; if (!S.chain && MS.p1 && S.mode === 'dim'){} updateUi(); toast(S.chain ? '連続寸法：オン（終点が次の始点に）' : '連続寸法：オフ'); };
@@ -1802,7 +1840,8 @@ const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
 function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n}) => ({x1,y1,x2,y2,n:n||1})), routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, views:{n:G.shapes.length, list:S.views}}; }
 let autoT = 0;
-function autosave(){
+function autosave(dirty = true){
+  if (dirty && G) S.dirty = true;
   clearTimeout(autoT);
   autoT = setTimeout(() => { if (!G) return; dbPut('projects', {id:'__last', name:S.name, srcName:S.srcName, fileId:S.fileId, projectId:S.projectId, updated:Date.now(), ...stateRecord()}); }, 800);
 }
@@ -1842,7 +1881,7 @@ async function openText(text, srcName, opts = {}){
     S.pdfInfo = doc.pdf || null;
     buildIndex(); view = {s:1, tx:0, ty:0}; fit(); renderTabs(); updateUi();
     if (opts.fileId !== 'sample' && !opts.noStore) dbOp('files', 'readwrite', s => s.put({id:S.fileId, text, srcName}));
-    autosave();
+    autosave(false); S.dirty = !!opts.keepDirty;
     $('#loading').hidden = true;
     return true;
   } catch(err){
@@ -1862,8 +1901,31 @@ async function readUpload(file){
 $('#fileIn').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   closeSheet();
-  try { const r = await readUpload(f); if (r.pdf) await openPdf(r.pdf, r.name); else await openText(r.text, r.name); } catch(err){ toast(err.message || '開けませんでした'); }
+  guardUnsaved(async () => { try { const r = await readUpload(f); if (r.pdf) await openPdf(r.pdf, r.name); else await openText(r.text, r.name); } catch(err){ toast(err.message || '開けませんでした'); } });
 };
+/* ask before throwing away unsaved changes */
+async function quickSave(){
+  const id = S.projectId || 'p' + Date.now().toString(36);
+  const ok1 = await dbOp('files', 'readwrite', s => s.put({id:S.fileId, text:S.fileId === 'sample' ? '' : S.text, srcName:S.srcName}));
+  const ok = await dbPut('projects', {id, name:S.name, srcName:S.srcName, fileId:S.fileId, updated:Date.now(), ...stateRecord()});
+  if (!ok || !ok1) return false;
+  S.projectId = id; S.dirty = false; return true;
+}
+function guardUnsaved(next){
+  if (!G || !S.dirty){ next(); return; }
+  openSheet('変更が保存されていません', body => {
+    body.innerHTML = `<div class="note">「${esc(S.name)}」の変更（寸法・レイヤー・ルートなど）がまだ保存されていません。別のファイルを開く前に保存しますか？</div>
+      <button class="bigbtn pri" data-a="save">${S.projectId ? '上書き保存して開く' : 'この端末に保存して開く'}</button>
+      <button class="bigbtn sec" data-a="nosave">保存しないで開く</button>
+      <button class="bigbtn sec" data-a="cancel">やめる（今の図面に戻る）</button>`;
+    body.onclick = async e => {
+      const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      if (a === 'cancel'){ closeSheet(); return; }
+      if (a === 'save'){ const ok = await quickSave(); if (!ok){ toast('保存できませんでした（プライベートブラウズ中は保存できません）'); return; } toast(`「${S.name}」を保存しました`); }
+      closeSheet(); S.dirty = false; next();
+    };
+  });
+}
 async function loadSample(){
   const b64 = (document.getElementById('sample').textContent || '').trim();
   if (!b64 || b64.startsWith('__') || !('DecompressionStream' in window)) return null;
@@ -1873,6 +1935,7 @@ async function loadSample(){
 }
 async function openProject(p){
   closeSheet();
+  if (S.dirty){ guardUnsaved(() => openProject(p)); return; }
   let text = null;
   if (p.fileId === 'sample') text = await loadSample();
   else { const f = await dbGet('files', p.fileId); text = f && f.text; }
@@ -1887,7 +1950,7 @@ function openStartSheet(){
       <div class="grp">この端末に保存した図面</div><div id="plist"><div class="empty">読み込み中…</div></div>
       ${HAS_SAMPLE ? '<div class="grp">お試し</div><button class="bigbtn sec" id="smp">受け取った図面（サンプル）を開く</button>' : ''}`;
     body.querySelector('#pick').onclick = () => $('#fileIn').click();
-    if (HAS_SAMPLE) body.querySelector('#smp').onclick = async () => { closeSheet(); const t = await loadSample(); if (t) openText(t, SAMPLE_NAME, {fileId:'sample'}); else toast('この端末ではサンプルを開けません'); };
+    if (HAS_SAMPLE) body.querySelector('#smp').onclick = () => guardUnsaved(async () => { closeSheet(); const t = await loadSample(); if (t) openText(t, SAMPLE_NAME, {fileId:'sample'}); else toast('この端末ではサンプルを開けません'); });
     const all = ((await dbAll('projects')) || []).filter(p => p.id !== '__last').sort((a, b) => b.updated - a.updated);
     const pl = body.querySelector('#plist'); if (!pl) return;
     if (!all.length){ pl.innerHTML = '<div class="empty">まだありません。上の「保存」→「この端末に保存」で、削除したレイヤーと寸法ごと残せます。</div>'; return; }
@@ -1921,13 +1984,13 @@ function openSaveSheet(){
       const ok1 = await dbOp('files', 'readwrite', s => s.put({id:S.fileId, text:S.fileId === 'sample' ? '' : S.text, srcName:S.srcName}));
       const ok = await dbPut('projects', {id, name, srcName:S.srcName, fileId:S.fileId, updated:Date.now(), ...stateRecord()});
       if (!ok || !ok1){ toast('この端末に保存できませんでした（プライベートブラウズ中は保存できません）'); return; }
-      S.projectId = id; S.name = name; updateUi(); autosave(); closeSheet(); toast(`「${name}」を保存しました`);
+      S.projectId = id; S.name = name; updateUi(); autosave(false); S.dirty = false; closeSheet(); toast(`「${name}」を保存しました`);
     };
     body.querySelector('#sv1')?.addEventListener('click', () => save(false));
     body.querySelector('#sv2').addEventListener('click', () => save(true));
     body.querySelector('#svMage').addEventListener('click', () => sendToMage(nm()));
     body.querySelector('#svPdf').addEventListener('click', () => { S.name = nm(); updateUi(); openPdfSheet(); });
-    body.querySelector('#sv3').addEventListener('click', async () => { const name = nm(); S.name = name; updateUi(); const out = buildExport(name); await offerFile(name + '.dxf', out); });
+    body.querySelector('#sv3').addEventListener('click', async () => { const name = nm(); S.name = name; updateUi(); const out = buildExport(name); await offerFile(name + '.dxf', out); S.dirty = false; });
   });
 }
 function buildExport(name, opt = {}){
@@ -2069,7 +2132,7 @@ async function sendToMage(name){
       o.onerror = () => ng(o.error);
       o.onsuccess = () => { try { const db = o.result; const tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(rec, 'dxf'); tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = () => ng(tx.error); tx.onabort = () => ng(tx.error); } catch(e){ ng(e); } };
     });
-    autosave();
+    autosave(false); S.dirty = false;
     toast('曲げ共有を開いています…');
     location.href = MAGE_BASE + 'zumen.html?from=fix';
   } catch(e){ toast('渡せませんでした（' + ((e && e.message) || e) + '）'); }
@@ -2355,10 +2418,14 @@ async function pdfToDxf(bytes, pageNo){
   const k = 25.4/72*sc.scale;
   const W = (x, y) => [(VT[0]*x + VT[2]*y + VT[4])*k, (PH - (VT[1]*x + VT[3]*y + VT[5]))*k];
   const opl = await page.getOperatorList();
+  let occ = null; try { occ = await doc.getOptionalContentConfig(); } catch(e){}
+  const ocName = id => { try { const g = occ && occ.getGroup(id); return g && g.name ? String(g.name) : null; } catch(e){ return null; } };
+  const mcStack = []; let curOC = null;
   let ctm = [1,0,0,1,0,0], gs = {stroke:'#000000', fill:'#000000', dash:false}; const stack = [];
   const lines = new Map(), solids = [], layerInfo = new Map();
   const hexOf = c => typeof c === 'string' ? c.toLowerCase() : (c && c.length >= 3 ? '#' + [c[0],c[1],c[2]].map(x => (x|0).toString(16).padStart(2,'0')).join('') : '#000000');
-  const key = (hex, dash) => hex + (dash ? '|d' : '');
+  const ocColor = new Map();
+  const key = (hex, dash) => { if (curOC){ if (!ocColor.has(curOC)) ocColor.set(curOC, hex); return 'oc|' + curOC; } return hex + (dash ? '|d' : ''); };
   const addLine = (k2, a, b) => { if (Math.hypot(a[0]-b[0], a[1]-b[1]) < 1e-3) return; const id = [a[0], a[1], b[0], b[1]].map(v => Math.round(v*10)).join(','), id2 = [b[0], b[1], a[0], a[1]].map(v => Math.round(v*10)).join(','); if (lines.has(id) || lines.has(id2)) return; lines.set(id, [a[0], a[1], b[0], b[1], k2]); layerInfo.set(k2, (layerInfo.get(k2) || 0) + 1); };
   const STROKE = new Set([OPS.stroke, OPS.closeStroke, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
   const FILL = new Set([OPS.fill, OPS.eoFill, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke]);
@@ -2389,6 +2456,9 @@ async function pdfToDxf(bytes, pageNo){
     else if (fn === OPS.setStrokeRGBColor) gs.stroke = hexOf(a.length === 1 ? a[0] : a);
     else if (fn === OPS.setFillRGBColor) gs.fill = hexOf(a.length === 1 ? a[0] : a);
     else if (fn === OPS.setDash){ const arr = a[0]; gs.dash = !!(arr && arr.length && Array.from(arr).some(x => x > 0)); }
+    else if (fn === OPS.beginMarkedContentProps){ let nm = null; if (a && a[0] === 'OC'){ const pr = a[1]; nm = pr && (pr.id ? ocName(pr.id) : (pr.ids && pr.ids.length ? ocName(pr.ids[0]) : null)); if (!nm && typeof pr === 'string') nm = ocName(pr); } mcStack.push(nm); curOC = [...mcStack].reverse().find(x => x) || null; }
+    else if (fn === OPS.beginMarkedContent){ mcStack.push(null); }
+    else if (fn === OPS.endMarkedContent){ mcStack.pop(); curOC = [...mcStack].reverse().find(x => x) || null; }
     else if (fn === OPS.setGState){ for (const [k2, v] of a[0] || []) if (k2 === 'D') gs.dash = !!(v && v[0] && v[0].length); }
     else if (fn === OPS.constructPath){
       const op = a[0], d = a[1] && a[1][0]; if (!d || typeof d.length !== 'number') continue;
@@ -2407,6 +2477,7 @@ async function pdfToDxf(bytes, pageNo){
   // layers named by colour (+ what that colour usually is on 設備 drawings)
   const names = new Map(), used = new Map();
   for (const k2 of [...layerInfo.keys()].sort((p, q) => layerInfo.get(q) - layerInfo.get(p))){
+    if (k2.startsWith('oc|')){ names.set(k2, k2.slice(3).replace(/[<>\/":;?*|=`]/g, '_')); continue; }
     const [hex, dsh] = k2.split('|'); const w = colorWord(hex); const base = w + (dsh ? '・点線' : '') + (ROLE[w] || '');
     const n = (used.get(base) || 0) + 1; used.set(base, n); names.set(k2, n > 1 ? `${base}${n}` : base);
   }
@@ -2427,16 +2498,35 @@ async function pdfToDxf(bytes, pageNo){
   P(0,'SECTION'); P(2,'HEADER'); P(9,'$ACADVER'); P(1,'AC1021'); P(9,'$INSUNITS'); P(70,4); P(9,'$HANDSEED'); P(5,'FFFFF'); P(0,'ENDSEC');
   P(0,'SECTION'); P(2,'TABLES'); P(0,'TABLE'); P(2,'LAYER'); P(70, names.size + 2);
   const layerRow = (nm, hex) => { P(0,'LAYER'); P(2, nm); P(70, 0); P(62, aciOf(hex)); P(6, 'CONTINUOUS'); P(420, parseInt(hex.slice(1), 16)); };
-  for (const [k2, nm] of names) layerRow(nm, k2.split('|')[0]);
+  for (const [k2, nm] of names) layerRow(nm, k2.startsWith('oc|') ? (ocColor.get(k2.slice(3)) || '#000000') : k2.split('|')[0]);
   layerRow('文字', '#000000');
   P(0,'ENDTAB'); P(0,'ENDSEC');
+  // lines that touch end-to-end (same layer) become one part, so a pipe run or a machine is picked with one tap
+  const L2 = [...lines.values()], par = L2.map((_, i) => i);
+  const find = i => { while (par[i] !== i){ par[i] = par[par[i]]; i = par[i]; } return i; };
+  const ends = new Map();
+  L2.forEach((ln, i) => { for (const [x, y] of [[ln[0], ln[1]], [ln[2], ln[3]]]){ const kk = ln[4] + '@' + Math.round(x*2) + ',' + Math.round(y*2); const j = ends.get(kk); if (j === undefined) ends.set(kk, i); else par[find(i)] = find(j); } });
+  const comps = new Map(); L2.forEach((ln, i) => { const r = find(i); if (!comps.has(r)) comps.set(r, []); comps.get(r).push(ln); });
+  const groups = [], singles = []; for (const c of comps.values()) (c.length > 1 ? groups : singles).push(c);
+  const lineEnt = (ln, layer) => { P(0,'LINE'); P(5, H()); P(8, layer || names.get(ln[4])); P(10, f3(ln[0])); P(20, f3(ln[1])); P(30, 0); P(11, f3(ln[2])); P(21, f3(ln[3])); P(31, 0); };
+  const blockNames = []; const perLayer = new Map();
+  P(0,'SECTION'); P(2,'BLOCKS');
+  for (const c of groups){
+    const ln0 = names.get(c[0][4]); const n = (perLayer.get(ln0) || 0) + 1; perLayer.set(ln0, n);
+    const bn = `${ln0}-${n}`; blockNames.push([bn, ln0]);
+    P(0,'BLOCK'); P(5, H()); P(8, ln0); P(2, bn); P(70, 0); P(10, 0); P(20, 0); P(30, 0); P(3, bn); P(1, '');
+    for (const ln of c) lineEnt(ln);
+    P(0,'ENDBLK'); P(5, H()); P(8, ln0);
+  }
+  P(0,'ENDSEC');
   P(0,'SECTION'); P(2,'ENTITIES');
-  for (const [x1, y1, x2, y2, k2] of lines.values()){ P(0,'LINE'); P(5, H()); P(8, names.get(k2)); P(10, f3(x1)); P(20, f3(y1)); P(30, 0); P(11, f3(x2)); P(21, f3(y2)); P(31, 0); }
+  for (const [bn, ln0] of blockNames){ P(0,'INSERT'); P(5, H()); P(8, ln0); P(2, bn); P(10, 0); P(20, 0); P(30, 0); }
+  for (const c of singles) for (const ln of c) lineEnt(ln);
   for (const [pts, k2] of solids){ const q = pts.length === 3 ? [pts[0], pts[1], pts[2], pts[2]] : [pts[0], pts[1], pts[3], pts[2]]; P(0,'SOLID'); P(5, H()); P(8, names.get(k2)); q.forEach((pp, j) => { P(10+j, f3(pp[0])); P(20+j, f3(pp[1])); P(30+j, 0); }); }
   for (const [x, y, hh, ang, str] of texts){ P(0,'TEXT'); P(5, H()); P(8, '文字'); P(10, f3(x)); P(20, f3(y)); P(30, 0); P(40, f3(hh)); P(1, str); if (Math.abs(ang) > 0.01) P(50, f3(ang)); }
   P(0,'ENDSEC'); P(0,'EOF');
   const hs = out.indexOf('$HANDSEED'); if (hs >= 0) out[hs + 2] = h.toString(16).toUpperCase();
-  return {text: out.join('\n') + '\n', info, nLines:lines.size, nText:texts.length, pages:doc.numPages};
+  return {text: out.join('\n') + '\n', info, nLines:lines.size, nText:texts.length, pages:doc.numPages, nParts:groups.length + singles.length, nOC:[...names.keys()].filter(k2 => k2.startsWith('oc|')).length};
 }
 async function openPdf(bytes, name, pageNo){
   $('#loading').hidden = false; $('#loading').textContent = 'PDFを読み込み中…（はじめは少し時間がかかります）';
@@ -2449,7 +2539,7 @@ async function openPdf(bytes, name, pageNo){
     const r = await pdfToDxf(bytes, pageNo);
     if (r.nLines < 10) throw new Error('線が見つかりません。スキャンした（写真の）PDFは読めません');
     const ok = await openText(r.text, name.replace(/\.pdf$/i, '') + (r.pages > 1 ? `_p${pageNo}` : '') + '.pdf');
-    if (ok) toast(`PDFから線 ${r.nLines} 本・文字 ${r.nText} 個を読み込みました。縮尺 1/${fmt(r.info.scale)}（${r.info.from}）。違う時は寸法を1本測って「この寸法で縮尺を合わせる」`);
+    if (ok) toast(`PDFから線 ${r.nLines} 本（つながった物ごとに ${r.nParts} 個の部品）・文字 ${r.nText} 個を読み込みました。${r.nOC ? `PDFのレイヤー ${r.nOC} 個をそのまま使っています。` : 'このPDFにはレイヤーが入っていないので、色ごとに分けました。'}縮尺 1/${fmt(r.info.scale)}（${r.info.from}）。違う時は寸法を1本測って「この寸法で縮尺を合わせる」`);
   } catch(err){ console.error(err); $('#loading').hidden = !!G; toast(err.message || 'PDFを開けませんでした'); }
 }
 function choosePdfPage(bytes, name, n){
@@ -2479,10 +2569,11 @@ async function calibratePdf(r){
     out.push(String(codes[i]).padStart(3, ' '), v);
   }
   const st = scaleState(stateRecord(), r); const keepView = {...view};
-  const ok = await openText(out.join('\n') + '\n', S.srcName, {state:st, name:S.name, projectId:S.projectId});
+  const ok = await openText(out.join('\n') + '\n', S.srcName, {state:st, name:S.name, projectId:S.projectId, keepDirty:true});
   if (ok){ view = {s:keepView.s/r, tx:keepView.tx, ty:keepView.ty}; renderBase(); toast(`縮尺を 1/${fmt(S.pdfInfo.scale)} に合わせました`); }
 }
 
+window.addEventListener('beforeunload', e => { if (S.dirty){ e.preventDefault(); e.returnValue = ''; } });
 /* ============ boot ============ */
 readTokens();
 try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readTokens(); renderBase(); renderTabs(); }); } catch(e){}

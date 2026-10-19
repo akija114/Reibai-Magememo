@@ -181,6 +181,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <div class="float" id="layerBar" hidden></div>
     <div class="float" id="dimPanel" hidden></div>
     <div class="float" id="routePanel" hidden></div>
+    <div class="float" id="pickBar" hidden></div>
     <div class="loading" id="loading">読み込み中…</div>
   </div>
   <div class="tool">
@@ -229,7 +230,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 const S = {
   text:'', eol:'\r\n', srcName:'', name:'', fileId:'', projectId:null,
   units:'mm', geo:null, layers:[], dims:[], selDim:null,
-  mode:'pan', ortho:true, chain:false, snapOn:true, tab:null, group:null,
+  mode:'pan', ortho:true, chain:false, snapOn:true, tab:null, group:null, pick:null,
   undo:[], redo:[], textH:150, ov:new Map(), ghosts:[], log:[],
 };
 let view = {s:1, tx:0, ty:0}, bview = {s:1, tx:0, ty:0};
@@ -786,6 +787,7 @@ function drawSnapMark(c, x, y, type){
 function drawOverlay(){
   octx.setTransform(dpr,0,0,dpr,0,0); octx.clearRect(0,0,cw,ch);
   drawRoute(octx);
+  drawPick(octx);
   for (const d of S.dims) drawDim(octx, d, d === S.selDim);
   drawHL(octx);
   const M = MS;
@@ -910,7 +912,63 @@ function tapSelect(p){
     const [ax, ay] = w2s(d.x1, d.y1), [bx, by] = w2s(d.x2, d.y2); const c = closestOnSeg(p[0], p[1], ax, ay, bx, by);
     const dd = Math.hypot(c[0]-p[0], c[1]-p[1]); if (dd < bd){ bd = dd; best = d; }
   }
-  S.selDim = best; drawOverlay(); updateDimPanel();
+  S.selDim = best;
+  if (best) S.pick = null; else pickLayerAt(p);
+  drawOverlay(); updateDimPanel(); updatePickBar();
+}
+/* ---- tap a line / text in the drawing -> pick its layer ---- */
+function pickLayerAt(p){
+  if (!G){ S.pick = null; return; }
+  const w = s2w(p[0], p[1]), R = 22/view.s, s = G.segs, dist = new Map();
+  const note = (li, d) => { if (!dist.has(li) || d < dist.get(li)) dist.set(li, d); };
+  for (const id of query(IX.sg, IX.segMark, w[0], w[1], R)){ const k = id*SS; const c = closestOnSeg(w[0], w[1], s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-w[0], c[1]-w[1]); if (d < R) note(s[k+4], d); }
+  for (const l of G.L){
+    if (l.deleted || !l.on) continue;
+    for (const t of G.textsBy[l.idx]){
+      if (t.h*view.s < 3.2) continue;
+      const dx = w[0] - t.x, dy = w[1] - t.y, ca = Math.cos(-t.a), sa = Math.sin(-t.a), lx = (dx*ca - dy*sa)/t.wf, ly = dx*sa + dy*ca;
+      const len = Math.max(...t.lines.map(x => [...x].reduce((a, ch) => a + (ch.charCodeAt(0) > 255 ? 1 : 0.6), 0))) * t.h * 1.1;
+      const x0 = t.ha === 0 ? 0 : t.ha === 1 ? -len/2 : -len;
+      const tot = (t.lines.length - 1)*t.h*1.6 + t.h; const y1 = t.va === 'top' ? 0 : t.va === 'mid' ? tot/2 : t.va === 'bottom' ? tot : t.h*1.05; const y0 = y1 - tot - t.h*0.2;
+      const ex = Math.max(x0 - lx, 0, lx - (x0 + len)), ey = Math.max(y0 - ly, 0, ly - y1); const d = Math.hypot(ex, ey);
+      if (d < R) note(l.idx, d);
+    }
+  }
+  if (!dist.size){ S.pick = null; return; }
+  const cands = [...dist.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
+  S.pick = {cands, i:0};
+}
+function updatePickBar(){
+  const bar = $('#pickBar');
+  if (!S.pick || !G || S.mode !== 'pan' || S.selDim){ bar.hidden = true; return; }
+  const li = S.pick.cands[S.pick.i], l = G.L[li]; if (!l || l.deleted){ S.pick = null; bar.hidden = true; return; }
+  const n = S.pick.cands.length, opts = GROUPS.map(g => `<option value="${g.id}" ${g.id === l.g ? 'selected' : ''}>${g.name}</option>`).join('');
+  bar.hidden = false; $('#layerBar').hidden = true;
+  bar.innerHTML = `<div class="frow">${n > 1 ? `<button class="btn" data-a="prev" aria-label="前の候補">◀</button>` : ''}
+    <div class="grow"><div class="lname"><i class="sw" style="display:inline-block;vertical-align:-2px;margin-right:6px;background:${colorCss(l.ck)}"></i>${esc(l.name)}</div><div class="lsub">${l.count} 個の図形${n > 1 ? ` ・ ここに重なっているレイヤー ${S.pick.i + 1}/${n}（◀▶で切替）` : ''}</div></div>
+    ${n > 1 ? `<button class="btn" data-a="next" aria-label="次の候補">▶</button>` : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
+    <div class="frow"><select class="gsel" data-a="grp" aria-label="グループ" style="height:40px;max-width:96px">${opts}</select><button class="btn" data-a="solo" style="flex:1">これだけ見る</button><button class="btn" data-a="hide" style="flex:1">非表示</button><button class="btn del" data-a="del" style="flex:1">削除</button></div>`;
+  bar.onchange = e => { if (e.target.dataset.a === 'grp'){ l.g = e.target.value; saveGroupPref(l.name, l.g); renderTabs(); autosave(); toast(`「${l.name}」を${gById(l.g).name}に移しました`); } };
+  bar.onclick = e => {
+    const a = e.target.closest('button[data-a]')?.dataset.a; if (!a) return;
+    if (a === 'prev'){ S.pick.i = (S.pick.i - 1 + n) % n; }
+    else if (a === 'next'){ S.pick.i = (S.pick.i + 1) % n; }
+    else if (a === 'close'){ S.pick = null; }
+    else if (a === 'solo'){ const nm = l.name; S.pick = null; updatePickBar(); setTab(nm); drawOverlay(); return; }
+    else if (a === 'hide'){ S.pick = null; exec(cmdVis([l.name], false)); toast(`「${l.name}」を非表示にしました（↶で戻せます）`); }
+    else if (a === 'del'){ S.pick = null; exec(cmdDelLayers([l.name], `「${l.name}」を削除`)); toast(`「${l.name}」を削除しました（↶で戻せます）`); }
+    updatePickBar(); drawOverlay(); updateLayerBar();
+  };
+}
+function drawPick(c){
+  if (!S.pick || !G || S.mode !== 'pan' || S.selDim) return;
+  const li = S.pick.cands[S.pick.i]; const l = G.L[li]; if (!l || l.deleted) return;
+  c.save(); c.strokeStyle = tok.snap; c.globalAlpha = .85; c.lineWidth = 2.6; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath();
+  for (const p of allPolys()){ if (p.li !== li) continue; const a = p.a; let q = w2s(a[0], a[1]); c.moveTo(q[0], q[1]); for (let i = 2; i < a.length; i += 2){ q = w2s(a[i], a[i+1]); c.lineTo(q[0], q[1]); } }
+  c.stroke();
+  c.fillStyle = tok.snap; c.globalAlpha = .25;
+  for (const t of G.textsBy[li]){ const q = w2s(t.x, t.y), hp = Math.max(6, t.h*view.s); c.beginPath(); c.arc(q[0], q[1], hp*0.6, 0, Math.PI*2); c.fill(); }
+  c.restore();
 }
 function updatePill(){
   const pill = $('#pill'); const M = MS;
@@ -949,7 +1007,7 @@ function refreshGeom(){
   for (const p of ovPolys) add(p);
   G.paths = paths;
 }
-function routeReset(){ RS.step = S.mode === 'route' ? 'pick' : null; RS.sel = null; RS.a = RS.b = null; RS.cands = []; RS.way = []; RS.cur = null; RS.dragging = false; RS.finger = null; }
+function routeReset(){ S.pick = null; try { updatePickBar(); } catch(e){} RS.step = S.mode === 'route' ? 'pick' : null; RS.sel = null; RS.a = RS.b = null; RS.cands = []; RS.way = []; RS.cur = null; RS.dragging = false; RS.finger = null; }
 function findSegIndex(sh, x1, y1, x2, y2){
   const v = sh.verts, nv = v.length/3, n = sh.closed ? nv : nv - 1;
   const eq = (a, b) => Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(a));
@@ -1245,7 +1303,7 @@ function stepTab(dir){
 }
 function updateLayerBar(){
   const bar = $('#layerBar');
-  if (!G || S.selDim || (S.mode === 'route' && RS.step && RS.step !== 'pick')){ bar.hidden = true; return; }
+  if (!G || S.selDim || (S.pick && S.mode === 'pan') || (S.mode === 'route' && RS.step && RS.step !== 'pick')){ bar.hidden = true; return; }
   const l = S.tab ? G.L.find(x => x.name === S.tab) : null;
   if (l && !l.deleted){
     bar.hidden = false;

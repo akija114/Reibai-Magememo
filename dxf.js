@@ -105,7 +105,7 @@ window.dxfToPlan=function(G,f){const S=G.segs.filter(s=>Math.hypot(s[2]-s[0],s[3
 function dxfGrp(L){L=L||"";const mp=dxMap()[L];if(mp)return mp==="ref"||mp==="drain"||mp==="acq"?"ac":mp;const k=dxfCat(L);if(k==="ref"||k==="drain")return"ac";if(k)return k;
  if(/機器|ｽﾘｰﾌﾞ|スリーブ|メンテ|室内機|室外機|空調|冷媒|PAC|基準線|HVAC|EQPM|EQUIP|AIRCON|CLIM/i.test(L))return"ac";
  if(/寸法|文字|符号|枠|凡例|方位|補助線|表/.test(L))return"anno";return"arch"}
-const DXV=[["ac","空調","#2563eb"],["duct","ダクト","#0d9488"],["eisei","衛生","#16a34a"],["elec","電気","#ca8a04"],["arch","建築","#64748b"],["anno","寸法・文字","#a16207"]];
+const DXV=[["ac","空調","#2563eb"],["duct","ダクト","#0d9488"],["eisei","衛生","#16a34a"],["elec","電気","#ca8a04"],["arch","建築","#64748b"],["anno","その他","#a16207"]];
 const DXOPT=[["ref","冷媒"],["drain","ドレン"],["acq","空調機器"],["duct","ダクト"],["eisei","衛生"],["elec","電気"],["arch","建築"],["anno","寸法・文字"]];
 /* 種類を変えた時：線の色（自動読み込み用）・種類・3D用の線を作り直す */
 function dxfRegroup(P){if(!P||!P.dS)return;P.dS.forEach(s=>{s[5]=dxfGrp(s[6])});P.segs.forEach(s=>{const c=dxfAnaCol(s[5]);if(c)s[4]=c});(P.arcs||[]).forEach(o=>{const c=dxfAnaCol(o.lay);if(c)o.col=c});
@@ -121,7 +121,7 @@ window.dxfLayerSheet=function(){const P=typeof PLAN!=="undefined"?PLAN:null;if(!
    <div style="display:flex;align-items:center;gap:8px;padding:14px 14px 8px"><b style="font-size:17px;flex:1">📋 線の名前ごと</b><button id="dxlClose" style="height:38px;padding:0 14px;border-radius:10px;font-weight:800;background:#e2e8f0;border:0">閉じる</button></div>
    <div style="font-size:12.5px;color:#475569;padding:0 14px 8px">CADの図面は、線ごとに名前（画層）が付いています。名前は会社・図面ごとに違うので、<b>何の線か</b>を選び直せます。左のボタンで1つずつ表示・非表示。自動読み込みも、表示している線だけを使います。</div>
    <div style="overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 10px calc(env(safe-area-inset-bottom,0px) + 12px)">`;
-  let lg="";L.forEach(o=>{if(o.g!==lg){lg=o.g;const D=DXV.find(x=>x[0]===o.g)||["","その他","#475569"];const allOn=L.filter(q=>q.g===o.g).every(q=>!hid.has(q.n));h+=`<div style="display:flex;align-items:center;gap:8px;margin:12px 4px 4px"><b style="flex:1;color:${D[2]}">${D[1]}</b><button data-lgall="${o.g}" style="height:30px;padding:0 10px;border-radius:9px;font-weight:800;font-size:12.5px;border:1.5px solid ${D[2]};background:#fff;color:${D[2]}">${allOn?"まとめて消す":"まとめて表示"}</button></div>`}
+  let lg="";L.forEach(o=>{if(o.g!==lg){lg=o.g;const D=DXV.find(x=>x[0]===o.g)||["","その他","#475569"];const allOn=L.filter(q=>q.g===o.g).every(q=>!hid.has(q.n));h+=`<div style="display:flex;align-items:center;gap:8px;margin:12px 4px 4px"><b style="flex:1;color:${D[2]}">${D[1]}</b><button data-lgall="${o.g}" style="height:30px;padding:0 10px;border-radius:9px;font-weight:800;font-size:12.5px;border:1.5px solid ${D[2]};background:#fff;color:${D[2]}">${allOn?"全部消す":"全部表示"}</button></div>`}
    const vis=!hid.has(o.n);h+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #e2e8f0">
     <button data-lv="${esc(o.n)}" style="flex:none;width:40px;height:34px;border-radius:9px;font-weight:800;border:2px solid #475569;background:${vis?"#475569":"#fff"};color:${vis?"#fff":"#475569"}">${vis?"✓":"－"}</button>
     <div style="flex:1;min-width:0;font-size:13.5px;word-break:break-all">${esc(o.n)}<span style="color:#94a3b8;font-size:12px">（${o.c}本）</span></div>
@@ -158,23 +158,37 @@ window.dxfFilterRun=function(fn){const P=PLAN;const vis=dxfVisible(P),bk={segs:P
  P.arcs=(P.arcs||[]).filter(o=>vis(o.lay));P.rects=null;P._ca=null;P._flt=1;
  try{try{planAnalyze()}catch(e){}return fn()}finally{P.segs=bk.segs;P.texts=bk.texts;P.arcs=bk.arcs;P.rects=null;P._ca=null;P._flt=0;try{planAnalyze()}catch(e){}}};
 /* 図面画面の下の切りかえボタン（DXFの時だけ） */
+/* 図面画面の下の切りかえボタン（DXFの時だけ）：
+   グループ（空調・ダクト・衛生・電気・建築・その他）のボタン。押す＝グループ全体のオンオフ、▾＝その中のレイヤーを1つずつ選ぶ列を出す */
 window.dxfChips=function(){const wr=document.getElementById("plWrap");let el=document.getElementById("dxfChips");const P=typeof PLAN!=="undefined"?PLAN:null;
  if(!wr||!P||!P.dxf){if(el)el.remove();return}
- if(!el){el=document.createElement("div");el.id="dxfChips";el.style.cssText="position:absolute;left:8px;right:8px;bottom:8px;z-index:5;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none";wr.appendChild(el)}
- const kk=P.fkey+"|"+(P._tex||0)+"|"+(window.DXF_PICK?1:0);if(el.dataset.k===kk)return;el.dataset.k=kk;
+ if(!el){el=document.createElement("div");el.id="dxfChips";el.style.cssText="position:absolute;left:8px;right:8px;bottom:8px;z-index:5;display:flex;flex-direction:column;gap:6px";wr.appendChild(el)}
+ const op=window.DXF_OPEN||"";const kk=P.fkey+"|"+(P._tex||0)+"|"+(window.DXF_PICK?1:0)+"|"+op;if(el.dataset.k===kk)return;el.dataset.k=kk;
  const hid=dxHid(),nh=hid.size,pk=!!window.DXF_PICK,cs="flex:none;height:34px;padding:0 10px;border-radius:17px;font-weight:800;font-size:13px;";
- /* CADの線の名前をそのまま：種類の順（空調→ダクト→衛生→電気→建築→寸法・文字）、同じ種類は線の多い順 */
- const cnt={};P.dS.forEach(s=>{cnt[s[6]]=(cnt[s[6]]||0)+1});const gOrd=DXV.map(x=>x[0]);
- const LN=Object.keys(cnt).sort((a,b)=>gOrd.indexOf(dxfGrp(a))-gOrd.indexOf(dxfGrp(b))||cnt[b]-cnt[a]);
+ const cnt={};P.dS.forEach(s=>{cnt[s[6]]=(cnt[s[6]]||0)+1});
  const esc=t=>String(t).replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
- el.innerHTML=`<button data-dl2="1" style="${cs}border:2px solid #0f172a;background:#0f172a;color:#fff">📋 一覧</button>`+`<button data-dp="1" style="${cs}border:2px solid #dc2626;background:${pk?"#dc2626":"#ffffffee"};color:${pk?"#fff":"#dc2626"}">✋ ${pk?"消したい線をタップ":"タップで消す"}</button>`+(nh?`<button data-dr="1" style="${cs}border:2px solid #475569;background:#ffffffee;color:#475569">↩ 全部表示（${nh}）</button>`:"")+
-  LN.map(n=>{const col=(DXV.find(x=>x[0]===dxfGrp(n))||["","","#475569"])[2],o=!hid.has(n);return `<button data-ln="${esc(n)}" style="${cs}max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:2px solid ${col};background:${o?col:"#ffffffee"};color:${o?"#fff":col}">${o?"✓":"－"}${esc(n)}</button>`}).join("");
- el.querySelectorAll("[data-ln]").forEach(b=>b.onclick=e=>{e.stopPropagation();const n=b.dataset.ln,H=dxHid();if(H.has(n))H.delete(n);else H.add(n);try{localStorage.setItem("pbm_dxfhide",JSON.stringify([...H]))}catch(err){}
-  const sl=el.scrollLeft;dxfRender(P);if(P.tex)P.tex.needsUpdate=true;dxfChips();el.scrollLeft=sl;try{planDraw()}catch(err){}try{if(typeof T!=="undefined"&&T)T.dirty=true}catch(err){}});
+ const G=DXV.map(([k,n,col])=>{const ls=Object.keys(cnt).filter(l=>dxfGrp(l)===k).sort((a,b)=>cnt[b]-cnt[a]);return{k,n,col,ls,on:ls.filter(l=>!hid.has(l)).length}}).filter(g=>g.ls.length);
+ const row="display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;align-items:center";
+ const og=G.find(g=>g.k===op);
+ let h="";
+ if(og)h+=`<div style="${row};background:#ffffffee;border:2px solid ${og.col};border-radius:20px;padding:4px">`+
+  `<button data-gt="${og.k}" style="${cs}height:30px;border:0;background:${og.col};color:#fff">${og.on===og.ls.length?"全部消す":"全部表示"}</button>`+
+  og.ls.map(n=>{const o=!hid.has(n);return `<button data-ln="${esc(n)}" style="${cs}height:30px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:2px solid ${og.col};background:${o?og.col:"#fff"};color:${o?"#fff":og.col}">${o?"✓":"－"}${esc(n)}<small style="opacity:.7;font-weight:600">（${cnt[n]}）</small></button>`}).join("")+`</div>`;
+ h+=`<div style="${row}">`+
+  `<button data-dl2="1" style="${cs}border:2px solid #0f172a;background:#0f172a;color:#fff">📋 一覧</button>`+
+  G.map(g=>{const all=g.on===g.ls.length,none=!g.on,bg=all?g.col:"#ffffffee",fg=all?"#fff":g.col,bs=none?"dashed":"solid",isO=g.k===op;
+   return `<span style="flex:none;display:flex;border-radius:17px;overflow:hidden;border:2px ${bs} ${g.col};${isO?"box-shadow:0 0 0 2px #fff,0 0 0 4px "+g.col:""}"><button data-gt="${g.k}" style="${cs}border-radius:0;border:0;background:${bg};color:${fg}">${all?"✓":none?"－":"◐"}${g.n}<small style="font-weight:600;opacity:.8"> ${g.on}/${g.ls.length}</small></button><button data-go="${g.k}" aria-label="${g.n}のレイヤーを選ぶ" style="${cs}border-radius:0;border:0;border-left:1.5px solid ${all?"#ffffff88":g.col+"66"};padding:0 9px;background:${bg};color:${fg}">${isO?"▴":"▾"}</button></span>`}).join("")+
+  `<button data-dp="1" style="${cs}border:2px solid #dc2626;background:${pk?"#dc2626":"#ffffffee"};color:${pk?"#fff":"#dc2626"}">✋ ${pk?"消したい線をタップ":"タップで消す"}</button>`+
+  (nh?`<button data-dr="1" style="${cs}border:2px solid #475569;background:#ffffffee;color:#475569">↩ 全部表示（${nh}）</button>`:"")+`</div>`;
+ const keepSc=[...el.children].map(c=>c.scrollLeft);el.innerHTML=h;
+ const rows=[...el.children];if(rows.length===keepSc.length)rows.forEach((c,i)=>c.scrollLeft=keepSc[i]);else if(rows.length)rows[rows.length-1].scrollLeft=keepSc[keepSc.length-1]||0;
+ const save=H=>{try{localStorage.setItem("pbm_dxfhide",JSON.stringify([...H]))}catch(err){}},redraw=()=>{dxfRender(P);if(P.tex)P.tex.needsUpdate=true;dxfChips();try{planDraw()}catch(err){}try{if(typeof T!=="undefined"&&T)T.dirty=true}catch(err){}};
+ el.querySelectorAll("[data-ln]").forEach(b=>b.onclick=e=>{e.stopPropagation();const n=b.dataset.ln,H=dxHid();if(H.has(n))H.delete(n);else H.add(n);save(H);redraw()});
+ el.querySelectorAll("[data-gt]").forEach(b=>b.onclick=e=>{e.stopPropagation();const g=G.find(x=>x.k===b.dataset.gt);if(!g)return;const H=dxHid(),allOn=g.ls.every(n=>!H.has(n));g.ls.forEach(n=>{if(allOn)H.add(n);else H.delete(n)});save(H);redraw();if(window.toast)toast(g.n+"を"+(allOn?"消しました":"表示しました"))});
+ el.querySelectorAll("[data-go]").forEach(b=>b.onclick=e=>{e.stopPropagation();window.DXF_OPEN=window.DXF_OPEN===b.dataset.go?"":b.dataset.go;dxfChips()});
  el.querySelector("[data-dl2]").onclick=e=>{e.stopPropagation();dxfLayerSheet()};
  el.querySelector("[data-dp]").onclick=e=>{e.stopPropagation();window.DXF_PICK=!window.DXF_PICK;if(window.DXF_PICK&&window.toast)toast("消したい線（網目など）を1本タップしてください。同じ種類の線をまとめて消します");dxfChips()};
- {const r=el.querySelector("[data-dr]");if(r)r.onclick=e=>{e.stopPropagation();try{localStorage.setItem("pbm_dxfhide","[]")}catch(err){}dxfRender(P);if(P.tex)P.tex.needsUpdate=true;dxfChips();try{planDraw()}catch(err){}if(window.toast)toast("全部の線を表示しました")}}
- function dvOn(k){return dxvOn()(k)}};
+ {const r=el.querySelector("[data-dr]");if(r)r.onclick=e=>{e.stopPropagation();save(new Set());redraw();if(window.toast)toast("全部の線を表示しました")}}};
 
 /* ===== 立体のダクト・配管をつなげて整える =====
    ① 同じ向き・同じ太さで一直線に並ぶ物は1本につなぐ（フランジ・ダンパー・文字などで線が切れていても）

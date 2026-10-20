@@ -760,7 +760,8 @@ function fixLabels(cam,W,H){
  });
 }
 
-function build3D(){
+function build3D(){build3D0();if(EZ&&DV)ezDvFilter()}   // かんたん表示の曲げ入力中は、ラベルなどを出し分ける
+function build3D0(){
  const V=THREE.Vector3,br=brOn();
  const GM=!!(GUIDE&&GUIDE.on);
  if(st.nopipe&&JSON.stringify(st.rows)!==NOPSIG)st.nopipe=false;
@@ -888,6 +889,7 @@ const LG=[];
   const rd=L.rad,tg=L.tag;
   const mat=new THREE.MeshStandardMaterial({color:L.col,metalness:0.35,roughness:0.32});
   const matO=new THREE.MeshStandardMaterial({color:0xf97316,metalness:0.35,roughness:0.32});
+  const HLR=EZ&&DV&&DV.hl!=null?DV.hl:sel,RED2=EZ&&DV&&DV.ez===2&&L.id===DV.g?new THREE.MeshStandardMaterial({color:0xef4444,metalness:0.2,roughness:0.4}):null;   // かんたん表示：強調する行／STEP 2 の曲げた後（仮）
   let acc=0;
   const cyl=(pa,pb,mt,sph,rowi)=>{
    const len=pa.distanceTo(pb);if(len<1e-6)return;
@@ -907,10 +909,11 @@ const LG=[];
   };
   L.P.forEach(p=>{
    const len=p.a.distanceTo(p.b);
-   const hl=L.id===leg&&(p.row===sel||p.arc===sel),sph=p.arc>=0;
+   const hl=L.id===leg&&(p.row===HLR||p.arc===HLR),sph=p.arc>=0;
    if(len<1e-6){return}
    const ri=p.row>=0?p.row:p.arc;
-   if(hl)cyl(p.a,p.b,hi,sph,ri);
+   if(RED2&&ri===DV.i+1)cyl(p.a,p.b,RED2,sph,ri);
+   else if(hl)cyl(p.a,p.b,hi,sph,ri);
    else if(acc>=L.lim)cyl(p.a,p.b,matO,sph,ri);
    else if(acc+len>L.lim){
     const pt=p.a.clone().lerp(p.b,(L.lim-acc)/len);
@@ -920,10 +923,10 @@ const LG=[];
   });
   const cs=L.id===leg;
   L.dims.forEach(dm=>{
-   const on=cs&&dm.i===sel;
+   const on=cs&&dm.i===HLR;
    const s=label(tg+nm(dm.i)+" "+fmt(dm.l)+"mm",ext*0.042,on?"#fef3c7f2":"#ffffffee","#0c4a6e");
    s.position.copy(dm.a).add(dm.b).multiplyScalar(0.5);
-   s.userData.cat="dim";pxl(s,on?24:20,{t:"perp",a:dm.a,b:dm.b},rd);
+   s.userData.cat="dim";s.userData.ri=dm.i;s.userData.g=L.id;pxl(s,on?24:20,{t:"perp",a:dm.a,b:dm.b},rd);
    T.grp.add(s);
   });
   if(st.sup.on&&!GM&&!EZ)L.dims.forEach(dm=>{   // 支持：かんたん表示では描かない（設定 st.sup.on は変えない）
@@ -940,7 +943,7 @@ const LG=[];
   L.angL.forEach(g=>{
    const on=cs&&g.i===sel;
    const s=label(g.a+"°"+(g.a>=180?" 返し":""),ext*(on?0.065:0.052),ANGC[g.a]||"#475569","#ffffff");
-   s.position.copy(g.p);s.userData.cat="ang";pxl(s,on?26:22,{t:"out",o:g.o},rd);T.grp.add(s);
+   s.position.copy(g.p);s.userData.cat="ang";s.userData.ri=g.i;s.userData.g=L.id;pxl(s,on?26:22,{t:"out",o:g.o},rd);T.grp.add(s);
   });
   L.ofsL.forEach(o=>{const s=label("↔ 差 "+fmt(o.v)+"mm",ext*0.035,"#ede9fef2","#5b21b6");s.position.copy(o.a).add(o.b).multiplyScalar(0.5);s.userData.cat="ofs";pxl(s,19,{t:"perp",a:o.a,b:o.b,dn:true},rd);T.grp.add(s)});
   if(br){
@@ -966,9 +969,9 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   const rd=cl.rad,L=ext*0.11,am=new THREE.MeshStandardMaterial({color:0xef4444,roughness:.4});
   const q=new THREE.Quaternion().setFromUnitVectors(Y,bd.b);
   const sh=new THREE.Mesh(new THREE.CylinderGeometry(rd*0.4,rd*0.4,L*0.7,10),am);
-  sh.position.copy(bd.e).addScaledVector(bd.b,L*0.35);sh.quaternion.copy(q);T.grp.add(sh);
+  sh.position.copy(bd.e).addScaledVector(bd.b,L*0.35);sh.quaternion.copy(q);sh.userData.ezk=1;T.grp.add(sh);
   const cn=new THREE.Mesh(new THREE.ConeGeometry(rd*1.1,L*0.3,14),am);
-  cn.position.copy(bd.e).addScaledVector(bd.b,L*0.85);cn.quaternion.copy(q);T.grp.add(cn);
+  cn.position.copy(bd.e).addScaledVector(bd.b,L*0.85);cn.quaternion.copy(q);cn.userData.ezk=1;T.grp.add(cn);
   const row=cl.rows[sel],NM=["上","右","下","左"],si=[0,90,180,270].indexOf(effT(sel,cl.rows));
   const s=label(dirName(effT(sel,cl.rows))+"へ "+row.a+"°",ext*0.045,"#fee2e2f2","#7f1d1d");
   s.position.copy(bd.e).addScaledVector(bd.b,L*1.2);s.userData.cat="bend";pxl(s,22);T.grp.add(s);
@@ -978,9 +981,9 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   dirs.forEach((v,k)=>{
    const on=k===si,gm=new THREE.MeshBasicMaterial({color:on?0xef4444:0x94a3b8});
    const sp=new THREE.Mesh(new THREE.CylinderGeometry(rd*0.14,rd*0.14,cr,6),gm);
-   sp.position.copy(bd.e).addScaledVector(v,cr/2);sp.quaternion.setFromUnitVectors(Y,v);T.grp.add(sp);
+   sp.position.copy(bd.e).addScaledVector(v,cr/2);sp.quaternion.setFromUnitVectors(Y,v);sp.userData.ezk=1;T.grp.add(sp);
    const dot=new THREE.Mesh(new THREE.SphereGeometry(rd*(on?0.8:0.5),12,8),gm);
-   dot.position.copy(bd.e).addScaledVector(v,cr);T.grp.add(dot);
+   dot.position.copy(bd.e).addScaledVector(v,cr);dot.userData.ezk=1;T.grp.add(dot);
    if(!on){const t=label(NM[k],ext*0.032,"#ffffffcc","#475569");t.position.copy(bd.e).addScaledVector(v,cr*1.4);t.userData.cat="bend";pxl(t,17);T.grp.add(t)}
   });
  }
@@ -1554,11 +1557,13 @@ function openDirView(i,opt){
   const fr=(T.legFr&&T.legFr[DV.g]||[])[DV.i];if(!fr){closeDirView(false);return}
   const D=Math.max(900,T.ext*0.32),to={pos:fr.c.clone().addScaledVector(fr.d,-D).addScaledVector(fr.u,D*0.08),tg:fr.c.clone(),up:fr.u.clone()};
   const from={pos:T.cam.position.clone(),tg:(T.custom?T.custom.tg:T.tg).clone(),up:T.cam.up.clone()};
-  flyCam(from,to,1100,()=>{
+  const go=()=>{
    if(!DV)return;
    const rr=LR()[DV.i];if(!rr.a){rr.a=90;rr.t=DV.t;rr.o=false}
    if(DV.add&&!DV.pushed){LR().push({l:500,a:0,t:0,o:false});DV.pushed=true}
-   build3D();placeDirCam();$("#dirOv").classList.add("on");setupDirLens();drawDial();if(EZ)ezStep(1)});
+   if(EZ){$("#dirOv").classList.add("on");setupDirLens();ezStep(1);return}   // かんたん表示：配管の後ろへは寄らず、斜めから全体
+   build3D();placeDirCam();$("#dirOv").classList.add("on");setupDirLens();drawDial()};
+  if(EZ)go();else flyCam(from,to,1100,go);
  },80);
 }
 /* カメラをゆっくり動かす（ふわっと寄っていく） */
@@ -1573,6 +1578,7 @@ function flyCam(from,to,ms,done){
  step();
 }
 function placeDirCam(){
+ if(EZ&&DV&&DV.ez&&DV.ez!==3){ezFitMain();return}   // かんたん表示：STEP 3 以外は斜めから配管全体
  const fr=(T.legFr&&T.legFr[DV.g]||[])[DV.i];if(!fr){closeDirView(false);return}
  const D=Math.max(900,T.ext*0.32);
  const pos=fr.c.clone().addScaledVector(fr.d,-D).addScaledVector(fr.u,D*0.08);
@@ -1603,7 +1609,7 @@ function drawDial(){
  }
  const [hx,hy]=pt(t,R-4),[ax,ay]=pt(t,R*0.25);
  h+=`<line x1="${ax}" y1="${ay}" x2="${hx}" y2="${hy}" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="8" fill="#fff" stroke="#ef4444" stroke-width="3"/><circle cx="${hx}" cy="${hy}" r="15" fill="#ef4444" stroke="#fff" stroke-width="3"/>`;
- svg.innerHTML=h;
+ svg.innerHTML=EZ&&DV.ez&&DV.ez!==3?"":h;   // かんたん表示は STEP 3 だけダイヤル
  const r=LR()[DV.i];
  $("#dirTop").innerHTML=EZ?ezTop():`🔍 進む方向を向いて見た図（${legName(DV.g)} ${nm(DV.i)} の曲げ）<br><small>赤い丸を指で回して向きを決めます。色付きの目印（天井・床・起点側・前の配管）を手がかりにしてください</small>`;
  $("#dirVal").innerHTML=`向き <b>${dirName(t)}</b>　／　曲げ角度 <b>${r.a}°${r.a>=180?"（返し）":""}</b>`;
@@ -1618,11 +1624,11 @@ function setupDirLens(){
  $("#dirL1t").textContent=nm(i)+(i>0?" 前回の曲げからの長さ mm":" 起点からの長さ mm");$("#dirL1").value=uVal(r.l);
  const l2=$("#dirL2").parentElement;l2.style.display=n?"":"none";
  if(n){$("#dirL2t").textContent=nm(i+1)+" 曲げた後の長さ mm";$("#dirL2").value=uVal(n.l)}
- const on=(inp,row,re)=>{inp.onfocus=()=>inp.select();inp.oninput=()=>{row.l=Math.max(0,uParse(inp.value)||0);build3D();if(re)placeDirCam();T.dirty=true;drawDial()}};
- on($("#dirL1"),r,true);if(n)on($("#dirL2"),n,false);
+ const on=(inp,row,re,hr)=>{inp.onfocus=()=>{inp.select();if(EZ&&DV&&DV.hl!==hr){DV.hl=hr;build3D();T.dirty=true}};inp.oninput=()=>{row.l=Math.max(0,uParse(inp.value)||0);build3D();if(re||EZ)placeDirCam();T.dirty=true;drawDial()}};
+ on($("#dirL1"),r,true,i);if(n)on($("#dirL2"),n,false,i+1);
 }
 let dvRAF=0;
-function applyDV(){const r=LR()[DV.i];r.t=normT(DV.t);r.o=false;if(!dvRAF)dvRAF=requestAnimationFrame(()=>{dvRAF=0;build3D();T.dirty=true})}
+function applyDV(){const r=LR()[DV.i];r.t=normT(DV.t);r.o=false;if(!dvRAF)dvRAF=requestAnimationFrame(()=>{dvRAF=0;build3D();if(EZ&&DV&&DV.ez&&DV.ez!==3)ezFitMain();T.dirty=true})}
 /* 3Dで配管を1回タップ → その行を選んで、リストの一番上に出す（3Dの色も変わる） */
 function selectFromTap(sg){
  if(sg.g!==leg){leg=sg.g;}
@@ -1637,7 +1643,7 @@ function closeDirView(ok){
  if(!ok&&r){r.a=DV.orig.a;r.t=DV.orig.t;r.o=DV.orig.o;if(DV.pushed&&LR().length>DV.i+1)LR().pop()}
  if(ok)sel=DV.i;
  const c=DV.cam,wf=DV.wasFull;
- $("#dirOv").classList.remove("on");delete $("#dirOv").dataset.ez;ezOvOff();
+ $("#dirOv").classList.remove("on");delete $("#dirOv").dataset.ez;ezOvOff();ezCamOff();
  const back={tg:c.tg.clone(),up:new THREE.Vector3(0,1,0),pos:new THREE.Vector3(c.tg.x+c.dist*Math.sin(c.ph)*Math.sin(c.th),c.tg.y+c.dist*Math.cos(c.ph),c.tg.z+c.dist*Math.sin(c.ph)*Math.cos(c.th))};
  const from=T.custom?{pos:T.custom.pos.clone(),tg:T.custom.tg.clone(),up:T.custom.up.clone()}:null;
  DV=null;if(ok)save();render();
@@ -1910,6 +1916,7 @@ ${APP==="zumen"?`  <div class="pt pt2" style="margin-top:10px;font-size:13px">�
   if(was!==1||!d0)return;
   const mv=Math.hypot(e.clientX-d0.x,e.clientY-d0.y),dt=Date.now()-d0.t;d0=null;
   if(mv>10||dt>350){last=null;return}
+  if(DV)return;   // 曲げ入力中（かんたん表示の確認で回している時など）はタップで何も選ばない
   const now=Date.now();
   if(last&&now-last.t<380&&Math.hypot(e.clientX-last.x,e.clientY-last.y)<36){
    last=null;if(GUIDE)return;const sg=pickLeg(e.clientX,e.clientY);if(sg)openPMenu(sg,e.clientX,e.clientY);else{const bi=APP==="zumen"?pickBld(e.clientX,e.clientY):-1;if(bi>=0)openBld(bi);else openEmptyMenu(e.clientX,e.clientY)}
@@ -2057,7 +2064,7 @@ function ezUpd(){
 }
 function ezTop(){
  const n=DV.ez||1;
- return `${nm(DV.i)} の曲げ　STEP ${n} / 4<br><small>${n===3?"進む方向を向いて見た図です。赤い丸＝曲げる向き（天井・床の目印を手がかりに）":n===4?"内容を確かめて、下の青いボタン":"下の欄に入れて「次へ」"}</small>`;
+ return n===1?`${nm(DV.i)} の曲げ　<span style="color:#fde047">黄色</span>＝入力中の長さ`:n===2?`${nm(DV.i)} の曲げ　<span style="color:#fca5a5">赤</span>＝曲げた後（仮）`:n===3?`${nm(DV.i)} の曲げ　下は進む方向を向いて見た図`:`完成形　☝️回転　🤏拡大`;
 }
 /* ===== STEP 3 の全体図（全体＋拡大）=====
    新しい3D画面は作らない。同じ renderer・同じ3D（T.grp）を、全体図用のカメラで画面上側の枠にもう1回描くだけ。
@@ -2074,7 +2081,7 @@ function ezOvSeg(pa,pb,col,sph,ext){
 }
 function ezOvOff(){
  if(!T)return;T.ovr=null;if(DV)DV.ovl=null;
- if(T.cam.view&&T.cam.view.enabled){T.cam.clearViewOffset();T.dirty=true}
+ if(T.voff==="ov")ezCamOff();
  const f=$("#ezOvF");if(f)f.style.display="none";
 }
 /* 枠の位置：上の説明の下〜下の操作パネルの上 を、全体図（上）と拡大（下）に分ける */
@@ -2091,28 +2098,66 @@ function ezOvLayout(){
  const R=Math.round(clamp(Math.min(W*0.24,(z1-z0)/2-48),46,120)),cy=Math.round((z0+z1)/2);
  T.ovr={x:10,y:y0,w:W-20,h:oh};DV.ovl={R,cy};
  /* 拡大の3Dは、曲げ位置が全体図の下の真ん中に来るようにカメラの中心をずらす（カメラの位置・向きはそのまま） */
- const d=Math.round(cy-H/2);if(!(T.cam.view&&T.cam.view.enabled&&T.cam.view.offsetY===-d))T.cam.setViewOffset(W,H,0,-d,W,H);
+ const d=Math.round(cy-H/2);if(!(T.voff==="ov"&&T.cam.view&&T.cam.view.enabled&&T.cam.view.offsetY===-d))T.cam.setViewOffset(W,H,0,-d,W,H);T.voff="ov";
  const fr=(T.legFr&&T.legFr[DV.g]||[])[DV.i];if(fr){T.cam.updateMatrixWorld();const v=fr.c.clone().project(T.cam);DV.cx=(v.x*.5+.5)*W;DV.cy=(-v.y*.5+.5)*H}
  const f=$("#ezOvF");f.style.cssText=`display:block;left:${T.ovr.x}px;top:${y0}px;width:${T.ovr.w}px;height:${oh}px`;
  T.dirty=true;
+}
+/* カメラの中心のずらしを消す（全体図用・斜めから全体用のどちらも） */
+function ezCamOff(){if(!T)return;T.voff=null;if(T.cam.view&&T.cam.view.enabled){T.cam.clearViewOffset();T.dirty=true}}
+/* 斜めから見る向き（最初は、曲げ入力を開く前に見ていた向き。真上・真横すぎる時は斜めに寄せる） */
+function ezView0(){if(!DV.mv)DV.mv={th:DV.cam.th,ph:clamp(DV.cam.ph,0.75,1.2)};return DV.mv}
+function ezBasis(th,ph){const V=THREE.Vector3,bk=new V(Math.sin(ph)*Math.sin(th),Math.cos(ph),Math.sin(ph)*Math.cos(th)),rt=new V(0,1,0).cross(bk).normalize(),up=bk.clone().cross(rt);return{bk,rt,up}}
+/* 配管の点がすべて入るカメラの距離と中心（th の向き1つ、tv＝縦の画角の tan、a＝横/縦） */
+function ezFitOne(pts,th,ph,tv,a){
+ const {bk,rt,up}=ezBasis(th,ph),c=new THREE.Vector3();pts.forEach(p=>c.add(p));c.multiplyScalar(1/pts.length);
+ for(let k=0;k<2;k++){let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;pts.forEach(p=>{const d=p.clone().sub(c),x=d.dot(rt),y=d.dot(up);x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)});c.addScaledVector(rt,(x0+x1)/2).addScaledVector(up,(y0+y1)/2)}
+ let dist=1;pts.forEach(p=>{const d=p.clone().sub(c),z=d.dot(bk);dist=Math.max(dist,Math.abs(d.dot(rt))/(tv*a)+z,Math.abs(d.dot(up))/tv+z)});
+ return{c,dist};
+}
+function ezPts(segs){const pts=[];(segs||[]).forEach(sg=>{pts.push(sg.a,sg.b)});return pts}
+/* どの水平の向きに回しても入る距離（12方向で調べて一番遠い物）。中心は配管の箱の真ん中（回しても動かない） */
+function ezFitAll(segs,ph,tv,a){
+ const pts=ezPts(segs);if(!pts.length)return null;
+ const b=new THREE.Box3();pts.forEach(p=>b.expandByPoint(p));const c=b.getCenter(new THREE.Vector3());
+ let dist=1;for(let k=0;k<12;k++){const {bk,rt,up}=ezBasis(k*Math.PI/6,ph);pts.forEach(p=>{const d=p.clone().sub(c),z=d.dot(bk);dist=Math.max(dist,Math.abs(d.dot(rt))/(tv*a)+z,Math.abs(d.dot(up))/tv+z)})}
+ dist=Math.max(dist,(T.ext||1000)*0.05)*1.03;
+ return{segs,ph,a,c,dist};
+}
+/* かんたん表示の STEP 1・2・4：斜めから配管全体（入力中の物・追加する物も入る）。上の説明バーと下の入力パネルの間に収める。
+   カメラだけを動かす（配管の座標・向きのデータは変えない）。force でない時は、はみ出す・小さすぎる時だけ距離を変える */
+function ezFitMain(force){
+ if(!T||!DV)return;
+ const pts=ezPts(T.segs);if(!pts.length)return;
+ const sr=$("#stage").getBoundingClientRect(),tb=$("#dirTop").getBoundingClientRect().bottom-sr.top,bt=$("#dirOv .dirbot").getBoundingClientRect().top-sr.top;
+ const W=T.w,H=T.h,top=Math.max(0,tb+8),bot=Math.min(H,bt-8),rh=Math.max(60,bot-top);
+ if(DV.ez===4&&!force&&DV.fit4)return;   // STEP 4 は自由に回せるので、入った後は合わせ直さない
+ const mv=ezView0(),tv=Math.tan(T.cam.fov*Math.PI/360)*(rh/H)*0.84,F=ezFitOne(pts,mv.th,mv.ph,tv,(W-24)/rh);
+ let dist=F.dist;if(!force&&DV.mdist&&dist<=DV.mdist&&dist>=DV.mdist*0.6)dist=DV.mdist;   // ちょっとの変化では大きさを変えない
+ DV.mdist=dist;if(DV.ez===4)DV.fit4=1;
+ T.custom=null;T.tg.copy(F.c);T.th=mv.th;T.ph=mv.ph;T.dist=dist;
+ const d=Math.round((top+bot)/2-H/2);T.cam.setViewOffset(W,H,0,-d,W,H);T.voff="main";   // 入る所の真ん中に写す
+ T.dirty=true;
+}
+/* ラベルなどの出し分け（かんたん表示の曲げ入力中）：寸法は入力中の曲げの前後だけ、角度は今の曲げだけ。向きの矢印・目印は STEP 3 だけ */
+function ezDvFilter(){
+ T.grp.children.forEach(o=>{const u=o.userData||{};
+  if(u.lab)o.visible=u.g===DV.g&&((u.cat==="dim"&&(u.ri===DV.i||u.ri===DV.i+1))||(u.cat==="ang"&&u.ri===DV.i));
+  else if(u.ezk)o.visible=DV.ez===3;
+ });
 }
 function ezOvHit(e){const r=T&&T.ovr;if(!r)return false;const sr=$("#stage").getBoundingClientRect(),x=e.clientX-sr.left,y=e.clientY-sr.top;return x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h}
 function ezOvRender(rd,H){
  const r=T.ovr;
  if(!T.ocam){T.ocam=new THREE.PerspectiveCamera(40,1,1,1e6);T.ocam.layers.set(1);T.sc.traverse(o=>{if(o.isLight)o.layers.enable(1)})}
- /* 配管だけが枠いっぱいに入るように合わせる。向きは、曲げ入力を開く前に見ていた向き */
- const V=THREE.Vector3,pts=[];(T.segs||[]).forEach(sg=>{pts.push(sg.a,sg.b)});if(!pts.length)return;
- const th=DV.cam.th,ph=DV.cam.ph,bk=new V(Math.sin(ph)*Math.sin(th),Math.cos(ph),Math.sin(ph)*Math.cos(th)),rt=new V(0,1,0).cross(bk).normalize(),up=bk.clone().cross(rt);
- const oc=T.ocam,a=r.w/r.h,tv=Math.tan(oc.fov*Math.PI/360)*0.78,tw=tv*a;   // 0.78＝枠の内側に余白（左上の説明にかからないように）
- const c=new V();pts.forEach(p=>c.add(p));c.multiplyScalar(1/pts.length);
- for(let k=0;k<2;k++){   // 1回目で中心を合わせ、2回目で距離を決める
-  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;pts.forEach(p=>{const d=p.clone().sub(c),x=d.dot(rt),y=d.dot(up);x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)});
-  c.addScaledVector(rt,(x0+x1)/2).addScaledVector(up,(y0+y1)/2);
- }
- let dist=50;pts.forEach(p=>{const d=p.clone().sub(c),z=d.dot(bk);dist=Math.max(dist,Math.abs(d.dot(rt))/tw+z,Math.abs(d.dot(up))/tv+z)});
- dist=Math.max(dist,(T.ext||1000)*0.05)*1.04;
- oc.aspect=a;oc.near=dist*0.02;oc.far=dist*20;oc.updateProjectionMatrix();
- oc.up.copy(up);oc.position.copy(c).addScaledVector(bk,dist);oc.lookAt(c);oc.updateMatrixWorld();
+ /* 配管だけが枠に入るように合わせる。向き：開く前に見ていた向き（左右スワイプで水平に回せる・上下の角度は固定）。
+    距離は「どの向きに回しても入る」ように決めて、配管が変わった時だけ計算し直す（回している間に大きさが変わらない） */
+ const oc=T.ocam,a=r.w/r.h,mv=ezView0(),th=DV.oth!=null?DV.oth:mv.th,ph=mv.ph;
+ const F=T.ovFit&&T.ovFit.segs===T.segs&&T.ovFit.a===a&&T.ovFit.ph===ph?T.ovFit:(T.ovFit=ezFitAll(T.segs,ph,Math.tan(oc.fov*Math.PI/360)*0.9,a));
+ if(!F)return;
+ const bk=ezBasis(th,ph).bk,up=ezBasis(th,ph).up;
+ oc.aspect=a;oc.near=F.dist*0.02;oc.far=F.dist*20;oc.updateProjectionMatrix();
+ oc.up.copy(up);oc.position.copy(F.c).addScaledVector(bk,F.dist);oc.lookAt(F.c);oc.updateMatrixWorld();
  const y=H-r.y-r.h;
  rd.setViewport(r.x,y,r.w,r.h);rd.setScissor(r.x,y,r.w,r.h);rd.setScissorTest(true);
  rd.setClearColor(0xf8fafc,1);rd.clear(true,true,false);
@@ -2122,21 +2167,24 @@ function ezOvRender(rd,H){
 /* 曲げ入力を1段ずつ：1 長さ → 2 角度 → 3 向き → 4 確認 */
 function ezStep(n){
  if(!DV)return;
- DV.ez=n;$("#dirOv").dataset.ez=n;
- if(n!==3)ezOvOff();else placeDirCam();   // 全体図は STEP 3 だけ
+ const was=DV.ez;DV.ez=n;$("#dirOv").dataset.ez=n;
+ if(n!==1)DV.hl=DV.i;else if(DV.hl==null)DV.hl=DV.i;   // 強調：STEP 1 は入力中の長さ、ほかは今の曲げ
+ if(n!==3)ezOvOff();
+ build3D();   // 段ごとの色（STEP 2 の仮配管）とラベルの出し分け
  const rows=LR(),i=DV.i,r=rows[i],nx=rows[i+1],U=ezU();
- const Q=[null,["長さを入れる","曲げる前と後の長さを入力してください"],["曲げる角度を選ぶ","よく使うのは 90°。180° は Uの字に折り返す"],["曲げる向きを選ぶ","矢印をタップ。ななめは画面の赤い丸を指で回す"],["確認する","よければ下の青いボタン"]][n];
+ const Q=[null,["長さを入れる","曲げる前と後の長さを入力してください"],["曲げる角度を選ぶ","赤＝曲げた後の配管（向きは次のSTEPで決めます。今は仮に「"+dirName(DV.t)+"」）"],["曲げる向きを選ぶ","矢印をタップ。ななめは画面の赤い丸を指で回す"],["確認する","上の3Dは指で回して見られます"]][n];
  $("#ezQ").innerHTML=`<small>STEP ${n} / 4</small><b>${Q[0]}</b><span>${Q[1]}</span>`;
  $("#ezBack").textContent=n===1?"✕ やめる":"◀ 戻る";
  $("#ezNext").textContent=n<4?"次へ ▶":(DV.add?"✅ これで作る":"✅ これで決定");
  if(n===4){
   const o=calc(DV.g).out[i];
-  $("#ezConf").innerHTML=`<div class="ln"><span>${nm(i)} まっすぐ</span><b>${fmt(r.l)}${U}</b></div><div class="ln"><span>曲げる角度</span><b>${r.a}°</b></div><div class="ln"><span>曲げる向き</span><b>${dirName(DV.t)}</b></div>`+
-   (nx?`<div class="ln"><span>${nm(i+1)} 曲げた後</span><b>${fmt(nx.l)}${U}</b></div>`:"")+
+  $("#ezConf").innerHTML=`<div class="ln"><span>${nm(i)} 曲げる前</span><b>${fmt(r.l)}${U}</b></div>`+(nx?`<div class="ln"><span>${nm(i+1)} 曲げた後</span><b>${fmt(nx.l)}${U}</b></div>`:"")+`<div class="ln"><span>曲げる角度</span><b>${r.a}°</b></div><div class="ln"><span>曲げる向き</span><b>${dirName(DV.t)}</b></div>`+
    `<div class="ln"><span>印の位置（シュー）</span><b>${fmt(o.shoe)}${U}</b></div><div class="ln"><span>曲げで縮む長さ（引き）</span><b>${fmt(o.back)}${U}</b></div>`+
    (o.shoe<0?`<div class="w">⚠️ 長さが短すぎて、この角度では曲げられません。「戻る」で長さを長くしてください</div>`:"")+
-   `<div class="nt">シュー＝曲げ始めの印をつける位置。数字は目安です。曲げる前に寸法を確かめてください。</div>`;
+   `<div class="nt">シュー＝曲げ始めの印をつける位置。数字は目安です。</div>`;
  }
+ /* カメラは下のパネルの文字を入れた後に合わせる（パネルの高さで写す範囲が決まるため） */
+ if(n===3){ezCamOff();placeDirCam()}else ezFitMain(n===4||was===3||!was);   // STEP 3 は今までの拡大、ほかは斜めから全体
  drawDial();
 }
 if(APP==="bend"){
@@ -2155,6 +2203,11 @@ if(APP==="bend"){
   const add=DV.add;closeDirView(true);toast(add?"曲げを作りました。3Dで形を確かめてください":"曲げを直しました");
  };
  $("#ezBack").onclick=()=>{if(!DV)return;const n=DV.ez||1;if(n===1)closeDirView(false);else ezStep(n-1)};
+ {let od=null;const ov=$("#dirOv");
+  ov.addEventListener("pointerdown",e=>{if(!EZ||!DV||DV.ez!==3||!ezOvHit(e)||e.target.closest("#ezOvR"))return;od={x:e.clientX,id:e.pointerId};try{ov.setPointerCapture(e.pointerId)}catch(x){}});
+  ov.addEventListener("pointermove",e=>{if(!od||e.pointerId!==od.id||!DV)return;const dx=e.clientX-od.x;od.x=e.clientX;DV.oth=(DV.oth!=null?DV.oth:ezView0().th)-dx*0.01;T.dirty=true});   // カメラだけ回す（向きの選択・配管は変わらない）
+  const end=()=>{od=null};ov.addEventListener("pointerup",end);ov.addEventListener("pointercancel",end);
+  $("#ezOvR").onclick=()=>{if(DV){DV.oth=null;T.dirty=true}};}
  const ovSeg=()=>[...$("#ezView").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===EZOV));ovSeg();
  $("#ezView").onclick=e=>{const b=e.target.closest("button");if(!b||!DV)return;EZOV=b.dataset.v==="1";try{localStorage.setItem("pbm_ezov",EZOV?"1":"0")}catch(x){}ovSeg();
   if(!EZOV)ezOvOff();placeDirCam();drawDial()};

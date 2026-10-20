@@ -2297,7 +2297,27 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
    m=sh===1?new THREE.Mesh(new THREE.BoxGeometry(w,hh,w),mt):new THREE.Mesh(new THREE.SphereGeometry(w/2,k==="duct"?20:12,k==="duct"?14:8),mt);m.position.set(x,GY+h,z);if(sh===1&&q[8])m.rotation.y=q[8];m.userData.dl=k;T.grp.add(m)});
   const L=D[k];if(!Array.isArray(L)||!L.length)return;
   const P=[];L.forEach(s=>{P.push(s[0],GY+s[4],s[1],s[2],GY+s[4],s[3])});const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(P,3));
-  const ls=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.55}));ls.userData.dl=k;T.grp.add(ls)})}
+  const ls=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.55}));ls.userData.dl=k;T.grp.add(ls)});
+ /* ベントキャップ（VC深型フード・FD付）：ダクトの先（外壁）に。寸法は宇佐美工業 VC100・VC150 の外形図、ほかの大きさは同じ割合で
+    A フードの高さ、C 出、H 下の水切りの幅、J ツバの高さ、K ツバの幅、M フードの幅、O 芯からツバの上まで、E 差し込みの長さ、B 差し込みの外径 */
+ (D.vc||[]).forEach(([x,z,h,ux,uz,n,fd,k])=>{if(!dlOnOf(k))return;const r=(n-100)/50,L=(a,b)=>Math.max(a*0.45,a+(b-a)*r);
+  const A=L(152,197),C=L(81,124),Hd=L(154,212),Jt=L(179,234),K=L(147,200),M=L(134,186),O=L(105,132),E=L(47,56)+(fd?L(8,23):0),B=Math.max(n*0.97,L(97,145)),F=7;
+  const g=new THREE.Group(),ss=new THREE.MeshStandardMaterial({color:0xe8ecf0,roughness:.35,metalness:.3,side:THREE.DoubleSide}),dk=new THREE.MeshStandardMaterial({color:0x334155,roughness:.6});
+  const U=(w,top,bot)=>{const sh=new THREE.Shape(),rr=w/2;sh.moveTo(-rr,bot);sh.lineTo(-rr,top-rr);sh.absarc(0,top-rr,rr,Math.PI,0,true);sh.lineTo(rr,bot);sh.lineTo(-rr,bot);return sh};
+  const top=O,bot=O-Jt;
+  // ツバ（壁に付く板）
+  const fl=new THREE.Mesh(new THREE.ExtrudeGeometry(U(K,top,bot),{depth:F,bevelEnabled:false,curveSegments:24}),ss);fl.rotation.y=Math.PI/2;fl.position.x=0;g.add(fl);
+  // フード：U字の筒（下は開いている）と前の板
+  const ht=top-6,hb=ht-A,band=new THREE.Shape(),rr=M/2,th=1.5;band.moveTo(-rr,hb);band.lineTo(-rr,ht-rr);band.absarc(0,ht-rr,rr,Math.PI,0,true);band.lineTo(rr,hb);band.lineTo(rr-th,hb);band.lineTo(rr-th,ht-rr);band.absarc(0,ht-rr,rr-th,0,Math.PI,false);band.lineTo(-rr+th,hb);band.lineTo(-rr,hb);
+  const hd=new THREE.Mesh(new THREE.ExtrudeGeometry(band,{depth:C,bevelEnabled:false,curveSegments:24}),ss);hd.rotation.y=Math.PI/2;hd.position.x=F;g.add(hd);
+  const fr=new THREE.Mesh(new THREE.ExtrudeGeometry(U(M,ht,hb),{depth:2,bevelEnabled:false,curveSegments:24}),ss);fr.rotation.y=Math.PI/2;fr.position.x=F+C;g.add(fr);
+  // 下の水切り（ツバの下）
+  const lip=new THREE.Mesh(new THREE.BoxGeometry(14,8,Hd),ss);lip.position.set(F+7,bot-4,0);g.add(lip);
+  // 中のルーバー（暗い面）と差し込み（ダクトの中へ）
+  const ins=new THREE.Mesh(new THREE.CircleGeometry(B/2,24),dk);ins.rotation.y=Math.PI/2;ins.position.x=F+1;g.add(ins);
+  const sp=new THREE.Mesh(new THREE.CylinderGeometry(B/2,B/2,E,24,1,true),ss);sp.rotation.z=Math.PI/2;sp.position.x=-E/2;g.add(sp);
+  g.position.set(x,GY+h,z);g.rotation.y=Math.atan2(-uz,ux);g.userData.dl=k;g.traverse(q=>{q.userData.dl=k});T.grp.add(g);
+  try{const lb=label("VC"+n+(fd?"(FD)":""),ext*0.02,"#f1f5f9f2","#334155","bld");lb.position.set(x+ux*(C+60),GY+h+A*0.6+60,z+uz*(C+60));lb.userData.dl=k;pxl(lb,12);T.grp.add(lb)}catch(err){}})}
 /* 3Dの下の切りかえボタン：図面のダクト・衛生と、障害物の種類 */
 function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=st.dln;
  const dk=DLK.filter(([k])=>D&&((D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))),bk=(st.bld&&st.bld.length&&!st.bldHide)?BLD_TG.filter(([k])=>st.bld.some(o=>o.k===k)):[];

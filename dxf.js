@@ -512,5 +512,15 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
   EQ.forEach((e,n)=>{const o=(st.bld||[]).filter(q=>q.k==="eq")[n];if(o&&!e.P.length){e.fan=1;e.py=Math.round((o.y||0)+(o.h||250)/2);e.pd=o.pd||0}});
   LB.rs=RS;
   const T=dlTidy(solids,k,EQ,LB);out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});
+ /* ベントキャップ（「VC200(FD)」「VC150」など）：文字のいちばん近くの、どこにもつながっていないダクト・配管の端に付ける。
+    向きは管の先（外向き）。out.vc＝[x, z, 高さ, 向きx, 向きz, 呼び径, FD付き(1/0), 種類] */
+ try{const VT=(P.textsAll||[]).map(t=>{const z=String(t.s).replace(/[０-９Ａ-Ｚ（）]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/\s/g,"");const m=z.match(/^VC(\d{2,3})(.*)$/i);if(!m)return null;
+   let x=t.x,y=t.y;if(main){const v=own(x,y);if(!v)return null;if(v!==main){const d=off(v);if(!d)return null;x+=d[0];y+=d[1]}}const w=btWx([x,y]);return{x:w[0],z:w[1],n:+m[1],fd:/FD/i.test(m[2])?1:0}}).filter(Boolean);
+  if(VT.length){const E=[];["duct","eisei"].forEach(k=>{const S=out[k+"S"]||[],J=out[k+"J"]||[];const hz=S.filter(r=>(r[0]!==r[2]||r[1]!==r[3])&&(k==="duct"||r[8]===2));   // 衛生は通気管だけ
+    hz.forEach(r=>{[[0,1,2,3],[2,3,0,1]].forEach(([a,b,c,d])=>{const p=[r[a],r[b]],q=[r[c],r[d]],L=Math.hypot(p[0]-q[0],p[1]-q[1]);if(L<20)return;const t1=Math.max(30,r[6]*0.6),t2=Math.max(60,r[6]*1.2);   // t1：管の端どうし、t2：曲がり・分岐の芯
+     const used=S.some(o=>o!==r&&(Math.hypot(o[0]-p[0],o[1]-p[1])<t1||Math.hypot(o[2]-p[0],o[3]-p[1])<t1))||J.some(j=>Math.hypot(j[0]-p[0],j[1]-p[1])<t2&&(j[0]-p[0])*(p[0]-q[0])+(j[1]-p[1])*(p[1]-q[1])>-10*L);   // 曲がりの芯は端の先にあるif(used)return;
+     E.push({x:p[0],z:p[1],h:r[4],u:[(p[0]-q[0])/L,(p[1]-q[1])/L],w:r[6],k})})})});
+   const taken=new Set();out.vc=[];VT.sort((a,b)=>b.n-a.n).forEach(t=>{let b=null,bd=t.n>=100?3500:1200;E.forEach((e,i)=>{if(taken.has(i))return;if(t.n>=100&&e.k!=="duct")return;const d=Math.hypot(e.x-t.x,e.z-t.z)+Math.abs(e.w-t.n)*3;if(d<bd){bd=d;b=i}});
+    if(b===null)return;taken.add(b);const e=E[b];out.vc.push([Math.round(e.x),Math.round(e.z),Math.round(e.h),+e.u[0].toFixed(4),+e.u[1].toFixed(4),t.n,t.fd,e.k])})}}catch(err){console.warn("vc",err)}
  return out};
 })();

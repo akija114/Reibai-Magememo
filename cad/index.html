@@ -84,7 +84,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .pill b{font-family:var(--font-num);font-size:17px;font-variant-numeric:tabular-nums;color:var(--accent)}
 .hint{position:absolute;left:10px;right:10px;top:10px;display:flex;justify-content:center;pointer-events:none}
 .hint > div{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px;font-size:12px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 10px rgba(0,0,0,.1)}
-.hint button{background:var(--panel2);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600}
+.hint button{background:var(--panel2);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:600;white-space:nowrap;flex:none;max-width:9em;overflow:hidden;text-overflow:ellipsis}
+.hint #hintTxt{min-width:0;flex:1 1 auto}
 #loupe{position:absolute;top:56px;left:10px;width:120px;height:120px;border-radius:50%;border:2px solid var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.25);background:var(--paper);pointer-events:none}
 .float{position:absolute;left:8px;right:8px;bottom:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:10px;display:flex;flex-direction:column;gap:8px}
 .frow{display:flex;align-items:center;gap:8px;min-width:0}
@@ -178,7 +179,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <canvas id="loupe" hidden></canvas>
     <div class="pill" id="pill" hidden></div>
     <div class="hlbar" id="hlBar" hidden></div>
-    <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bHint2" hidden></button><button id="bCancelPt" hidden>始点を取消</button></div></div>
+    <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bHint3" hidden></button><button id="bHint2" hidden></button><button id="bCancelPt" hidden>始点を取消</button></div></div>
     <div class="float" id="layerBar" hidden></div>
     <div class="float" id="dimPanel" hidden></div>
     <div class="float" id="routePanel" hidden></div>
@@ -802,6 +803,7 @@ function drawOverlay(){
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
   drawNotes(octx);
+  if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   drawHL(octx);
   const M = MS;
   if (S.mode === 'dim'){
@@ -884,7 +886,7 @@ function endPtr(e, cancel){
   if (!gest) return;
   if (gest.type === 'cursor' && ptrs.size === 0){
     MS.dragging = false; MS.finger = null;
-    if (!cancel && MS.cur) placePoint(MS.cur); else { MS.cur = null; drawOverlay(); }
+    if (!cancel && MS.cur){ if (S.autoDim) autoDimAt(MS.cur); else placePoint(MS.cur); } else { MS.cur = null; drawOverlay(); }
     gest = null;
   } else if (gest.type === 'rcursor' && ptrs.size === 0){
     RS.dragging = false; RS.finger = null;
@@ -1337,6 +1339,141 @@ function openDimGroupSheet(){
     };
   });
 }
+/* ---- 芯出し: dimensions from grid lines (通り芯) or wall faces to a machine centre / a picked point ---- */
+function lastDimCmd(){ const c = S.undo[S.undo.length-1]; return c && c.kind === 'dim' && c.dimAdded ? c : null; }
+function dimStepBack(){
+  const c = lastDimCmd();
+  if (MS.p1 && c && c.dimAdded.some(d => Math.hypot(d.x2 - MS.p1.x, d.y2 - MS.p1.y) < 1e-6)){ const d = c.dimAdded[c.dimAdded.length-1]; undo(); MS.p1 = {x:d.x1, y:d.y1}; }
+  else if (MS.p1){ MS.p1 = null; toast('始点を取り消しました'); }
+  else if (c){ undo(); }
+  MS.cur = null; drawOverlay(); updateHint(); updatePill(); updateDimPanel();
+}
+function findGrids(){
+  if (G.grids) return G.grids;
+  const B = G.bounds, size = Math.min(B.x1 - B.x0, B.y1 - B.y0), th = S.textH;
+  let labels = [];
+  for (const l of G.L){ if (l.deleted) continue; for (const t of G.textsBy[l.idx]){ const s2 = t.lines[0].normalize('NFKC').replace(/\s+/g, ''); if (!/^[XY]\d{1,2}$|^[A-Z]\d{0,2}$|^\d{1,2}$/i.test(s2)) continue;
+    const w = [...s2].length*t.h*0.75*t.wf; const cx = t.ha === 1 ? t.x : t.ha === 2 ? t.x - w/2 : t.x + w/2; const cy = t.va === 'mid' ? t.y : t.va === 'top' ? t.y - t.h/2 : t.y + t.h/2;
+    labels.push({name:s2.toUpperCase(), x:cx, y:cy, h:t.h, xy:/^X/i.test(s2) ? 'X' : /^Y/i.test(s2) ? 'Y' : ''}); } }
+  if (labels.some(l => l.xy)) labels = labels.filter(l => l.xy); // drawings with X1/Y1 style: ignore other short texts
+  // long axis lines; grid lines drawn as separate dashes (一点鎖線) are joined first
+  const S2 = G.baseSegs, lines = [], col = new Map(), q = Math.max(th*0.1, 1);
+  for (let k = 0; k < S2.length; k += SS){
+    const x1 = S2[k], y1 = S2[k+1], x2 = S2[k+2], y2 = S2[k+3], L = Math.hypot(x2-x1, y2-y1); if (L < 1) continue;
+    const vert = Math.abs(x2-x1) < L*0.005, hor = Math.abs(y2-y1) < L*0.005; if (!vert && !hor) continue;
+    const key = (vert ? 'v' : 'h') + Math.round((vert ? (x1+x2)/2 : (y1+y2)/2)/q);
+    let c = col.get(key); if (!c){ c = {vert, c:vert ? (x1+x2)/2 : (y1+y2)/2, iv:[]}; col.set(key, c); }
+    c.iv.push(vert ? [Math.min(y1,y2), Math.max(y1,y2)] : [Math.min(x1,x2), Math.max(x1,x2)]);
+  }
+  for (const c of col.values()){
+    c.iv.sort((a, b) => a[0] - b[0]); let cur = null; const gapMax = size*0.05;
+    const flush = () => { if (cur && cur[1] - cur[0] >= size*0.25) lines.push(c.vert ? {vert:true, x1:c.c, x2:c.c, y1:cur[0], y2:cur[1]} : {vert:false, y1:c.c, y2:c.c, x1:cur[0], x2:cur[1]}); };
+    for (const iv of c.iv){ if (cur && iv[0] <= cur[1] + gapMax) cur[1] = Math.max(cur[1], iv[1]); else { flush(); cur = iv.slice(); } }
+    flush();
+  }
+  const out = {v:[], h:[]};
+  for (const lb of labels){
+    let best = null, bd = Infinity; const tol = Math.max(lb.h, th)*1.2, R = Math.max(lb.h, th)*10;
+    for (const ln of lines){
+      if (ln.vert){ if (lb.xy === 'Y') continue; const x = (ln.x1+ln.x2)/2, off = Math.abs(lb.x - x); if (off > tol) continue; const lo = Math.min(ln.y1, ln.y2), hi = Math.max(ln.y1, ln.y2); const gap = lb.y > hi ? lb.y - hi : lb.y < lo ? lo - lb.y : -1; if (gap < 0 || gap > R) continue; if (off + gap*0.01 < bd){ bd = off + gap*0.01; best = {dir:'v', c:x}; } }
+      else { if (lb.xy === 'X') continue; const y = (ln.y1+ln.y2)/2, off = Math.abs(lb.y - y); if (off > tol) continue; const lo = Math.min(ln.x1, ln.x2), hi = Math.max(ln.x1, ln.x2); const gap = lb.x > hi ? lb.x - hi : lb.x < lo ? lo - lb.x : -1; if (gap < 0 || gap > R) continue; if (off + gap*0.01 < bd){ bd = off + gap*0.01; best = {dir:'h', c:y}; } }
+    }
+    if (!best) continue; const arr = best.dir === 'v' ? out.v : out.h;
+    if (!arr.some(g => Math.abs(g.c - best.c) < th*0.5)) arr.push({c:best.c, name:lb.name});
+  }
+  G.grids = out; return out;
+}
+const WALL_RE = /壁|躯体|間仕切|RC|軽量|LGS|ALC|ブロック|コンクリート|WALL/i, WALL_EX = /補助|基準|芯|中心|寸法|文字|符号|天井|割付|枠|既設|梁|方位/;
+let wallPref = null; try { wallPref = JSON.parse(localStorage.getItem('zumen-walls') || 'null'); } catch(e){}
+function wallLayerSet(){
+  const live = G.L.filter(l => !l.deleted && l.count);
+  if (wallPref && wallPref.length){ const set = new Set(live.filter(l => wallPref.includes(l.name)).map(l => l.idx)); if (set.size) return set; }
+  let ls = live.filter(l => WALL_RE.test(l.name) && !WALL_EX.test(l.name));
+  if (!ls.length) ls = live.filter(l => l.g === 'arch' && !WALL_EX.test(l.name));
+  return new Set(ls.map(l => l.idx));
+}
+function openWallLayerSheet(){
+  openSheet('壁として見るレイヤー', body => {
+    const set = wallLayerSet();
+    body.innerHTML = `<div class="note">「壁の面から」の時に、壁の線として使うレイヤーです。二重線（厚さ4〜26cm）の手前の線を壁の面として測ります。</div>` +
+      G.L.filter(l => !l.deleted && l.count).sort((a, b) => (set.has(b.idx) - set.has(a.idx)) || a.name.localeCompare(b.name, 'ja')).map(l => `<label class="row" style="cursor:pointer"><input type="checkbox" data-wl="${esc(l.name)}" ${set.has(l.idx) ? 'checked' : ''} style="width:22px;height:22px"><i class="sw" style="background:${colorCss(l.ck)}"></i><div class="grow"><div class="nm">${esc(l.name)}</div><div class="sub">${gById(l.g).name}</div></div></label>`).join('') +
+      `<div class="frow"><button class="btn" data-a="auto" style="flex:1">自動にもどす</button><button class="btn pri" data-a="ok" style="flex:1">これで決める</button></div>`;
+    body.onclick = e => {
+      const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      if (a === 'auto'){ wallPref = null; try { localStorage.removeItem('zumen-walls'); } catch(err){} refreshOpenSheet(); return; }
+      wallPref = [...body.querySelectorAll('[data-wl]:checked')].map(x => x.dataset.wl); try { localStorage.setItem('zumen-walls', JSON.stringify(wallPref)); } catch(err){} closeSheet(); toast(`壁のレイヤーを ${wallPref.length} 個にしました`);
+    };
+  });
+}
+function wallHit(P, dir, broad){ // dir: [1,0] [-1,0] [0,1] [0,-1]; first wall face (a long line that has a parallel partner 30-450 behind it)
+  const s = G.segs, wset = broad ? new Set(G.L.filter(l => !l.deleted && l.on && (l.g === 'arch' || l.g === 'etc') && !WALL_EX.test(l.name)).map(l => l.idx)) : wallLayerSet();
+  const horizRay = dir[1] === 0; const cand = [];
+  for (let id = 0, k = 0; k < s.length; k += SS, id++){
+    const li = s[k+4], l = G.L[li]; if (l.deleted || !l.on || !wset.has(li)) continue;
+    if (id < G.nBaseS && S.ov.has(s[k+6])) continue; if (gone(s[k+7])) continue;
+    const x1 = s[k], y1 = s[k+1], x2 = s[k+2], y2 = s[k+3], L = Math.hypot(x2-x1, y2-y1); if (L < 300) continue;
+    if (horizRay){ if (Math.abs(x2-x1) > L*0.02) continue; const lo = Math.min(y1,y2), hi = Math.max(y1,y2); const x = (x1+x2)/2, d = (x - P[0])*dir[0]; cand.push({d, lo, hi, c:x, along:P[1]}); }
+    else { if (Math.abs(y2-y1) > L*0.02) continue; const lo = Math.min(x1,x2), hi = Math.max(x1,x2); const y = (y1+y2)/2, d = (y - P[1])*dir[1]; cand.push({d, lo, hi, c:y, along:P[0]}); }
+  }
+  const gr = findGrids(), gridC = horizRay ? gr.v.map(g => g.c) : gr.h.map(g => g.c);
+  const hits = cand.filter(c => c.d > 50 && c.d < 12000 && c.along >= c.lo - 1 && c.along <= c.hi + 1 && !gridC.some(g => Math.abs(g - c.c) < 1)).sort((a, b) => a.d - b.d);
+  for (const h of hits){ if (hits.some(o => o !== h && o.d - h.d >= 40 && o.d - h.d <= 260)) return h.d; }
+  return null;
+}
+function partCenter(e){ let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const pl of G.eidPolys.get(e) || []){ const a = pl.a; for (let i = 0; i < a.length; i += 2){ if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i+1] < y0) y0 = a[i+1]; if (a[i+1] > y1) y1 = a[i+1]; } } return isFinite(x0) ? [(x0+x1)/2, (y0+y1)/2] : null; }
+function autoDimAt(cur){
+  const A = S.autoDim; let P, what = '位置';
+  if (A.to === 'line' && !A.line){
+    const R = 26/view.s, s = G.segs; let best = null, bd = R;
+    for (const id of query(IX.sg, IX.segMark, cur.x, cur.y, R)){ const k = id*SS; const c = closestOnSeg(cur.x, cur.y, s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-cur.x, c[1]-cur.y); if (d < bd && s[k+5] === 0){ bd = d; best = [s[k], s[k+1], s[k+2], s[k+3]]; } }
+    if (!best){ toast('まっすぐな線の上で離してください'); MS.cur = null; drawOverlay(); return; }
+    A.line = best; MS.cur = null; drawOverlay(); updateHint(); toast('基準の線を決めました。次は' + (A.from === 'part' ? '機器をタップ' : '位置を選ぶ') + '（何個でも続けられます）'); return;
+  }
+  if (A.from === 'part'){
+    const h = hitsAt(w2s(cur.x, cur.y)); const e = h.parts.find(x => G.eidPolys.has(x));
+    if (e == null){ toast('ここに機器が見つかりません。機器の線の上で離してください'); MS.cur = null; drawOverlay(); return; }
+    P = partCenter(e); what = partName(e);
+  } else P = [cur.x, cur.y];
+  const recs = []; const msg = [];
+  if (A.to === 'line'){
+    const [x1, y1, x2, y2] = A.line, dx = x2-x1, dy = y2-y1, l2 = dx*dx + dy*dy, t = ((P[0]-x1)*dx + (P[1]-y1)*dy)/l2;
+    const F = [x1 + dx*t, y1 + dy*t]; const d = Math.hypot(P[0]-F[0], P[1]-F[1]);
+    if (d < 0.5){ toast('線の上にあります'); MS.cur = null; drawOverlay(); return; }
+    recs.push({x1:F[0], y1:F[1], x2:P[0], y2:P[1]}); msg.push(`選んだ線から ${fmt(d)}`);
+  } else if (A.to === 'grid'){
+    const gr = findGrids();
+    if (!gr.v.length && !gr.h.length){ toast('通り芯（X1・Y1などの記号がついた長い線）が見つかりません'); MS.cur = null; drawOverlay(); return; }
+    const nv = gr.v.slice().sort((a, b) => Math.abs(a.c - P[0]) - Math.abs(b.c - P[0]))[0], nh = gr.h.slice().sort((a, b) => Math.abs(a.c - P[1]) - Math.abs(b.c - P[1]))[0];
+    if (nv && Math.abs(nv.c - P[0]) > 0.5){ recs.push({x1:nv.c, y1:P[1], x2:P[0], y2:P[1]}); msg.push(`${nv.name}から ${fmt(Math.abs(P[0]-nv.c))}`); }
+    if (nh && Math.abs(nh.c - P[1]) > 0.5){ recs.push({x1:P[0], y1:nh.c, x2:P[0], y2:P[1]}); msg.push(`${nh.name}から ${fmt(Math.abs(P[1]-nh.c))}`); }
+  } else {
+    const best = (a, b) => (a == null ? b : b == null ? a : (a.d <= b.d ? a : b));
+    let L = wallHit(P, [-1,0]), R = wallHit(P, [1,0]), D = wallHit(P, [0,-1]), U = wallHit(P, [0,1]);
+    const hx = best(L == null ? null : {d:L, s:-1}, R == null ? null : {d:R, s:1}), hy = best(D == null ? null : {d:D, s:-1}, U == null ? null : {d:U, s:1});
+    if (hx){ recs.push({x1:P[0] + hx.s*hx.d, y1:P[1], x2:P[0], y2:P[1]}); msg.push(`${hx.s < 0 ? '左' : '右'}の壁から ${fmt(hx.d)}`); }
+    if (hy){ recs.push({x1:P[0], y1:P[1] + hy.s*hy.d, x2:P[0], y2:P[1]}); msg.push(`${hy.s < 0 ? '下' : '上'}の壁から ${fmt(hy.d)}`); }
+    if (!recs.length){ toast('近くに壁（二重線の面）が見つかりません。「壁として見るレイヤー」を選ぶか、「選んだ線」で測ってください'); MS.cur = null; drawOverlay(); return; }
+  }
+  if (!recs.length){ toast('寸法を作れませんでした'); return; }
+  const g = curDG().id; const ds = recs.map((r, i) => ({id:'a' + Date.now().toString(36) + i, ...r, n:1, g}));
+  exec({kind:'dim', label:'芯出し寸法', dimAdded:ds, log:{label:A.to === 'grid' ? '通り芯から芯出し' : A.to === 'line' ? '選んだ線から芯出し' : '壁から芯出し', detail:`${what}：${msg.join('・')}`, dims:ds.map(dimRec), box:boxOf(ds.flatMap(d => [[d.x1,d.y1],[d.x2,d.y2]]))},
+    do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }});
+  MS.cur = null; drawOverlay(); updateHint(); toast(`${what}：${msg.join('　')}`);
+}
+function openAutoDimSheet(){
+  openSheet('芯出し（自動で寸法）', body => {
+    const opt = (from, to, t, sub) => `<button class="bigbtn sec" data-f="${from}" data-t="${to}" style="flex-direction:column;height:auto;padding:12px;gap:2px"><span>${t}</span><span style="font-size:12px;font-weight:500;color:var(--muted)">${sub}</span></button>`;
+    body.innerHTML = `<div class="note">機器の芯（外形の真ん中）や、選んだ位置から、近い通り芯・壁の面までの寸法を縦と横で自動で入れます。間違えたら「↶ 戻る」で消せます。</div>
+      ${opt('part', 'grid', '機器の芯 → 通り芯', '機器をタップすると、近いX・Yの通り芯から芯までの寸法')}
+      ${opt('part', 'wall', '機器の芯 → 壁の面', '機器をタップすると、近い壁の面から芯までの寸法')}
+      ${opt('point', 'grid', '選んだ位置 → 通り芯', 'ドラッグして離した位置（端点・交点に吸着）から')}
+      ${opt('point', 'wall', '選んだ位置 → 壁の面', 'ドラッグして離した位置から、近い壁の面まで')}
+      ${opt('part', 'line', '機器の芯 → 選んだ線', '先に基準の線（壁の面・通り芯など）を選び、機器を次々タップ')}
+      ${opt('point', 'line', '選んだ位置 → 選んだ線', '先に基準の線を選び、測りたい位置を次々選ぶ')}
+      <button class="btn" data-a="walls">壁として見るレイヤーを選ぶ</button>`;
+    body.onclick = e => { if (e.target.closest('[data-a="walls"]')){ openWallLayerSheet(); return; } const b = e.target.closest('[data-f]'); if (!b) return; S.autoDim = {from:b.dataset.f, to:b.dataset.t, line:null}; MS.p1 = null; closeSheet(); updateHint(); drawOverlay(); };
+  });
+}
 function cmdAddDims(recs){ const ds = recs.map((r, i) => ({id:'r' + Date.now().toString(36) + i, x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:r.n || 1, g:(r.g && S.dimGroups.some(x => x.id === r.g)) ? r.g : curDG().id})); return {kind:'dim', label:'寸法を戻す', do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }}; }
 function cmdSetRoutes(list, ghostsAdd, ghostsDel){ // list: [sid, verts|null, closed]
   const before = list.map(([sid]) => [sid, S.ov.has(sid) ? S.ov.get(sid) : null]); let removed = [];
@@ -1524,7 +1661,7 @@ function cmdVis(names, on){
   const ls = names.map(n => G.L.find(l => l.name === n)).filter(l => l && l.on !== on);
   return {kind:'layer', label: on ? '表示' : '非表示', do(){ ls.forEach(l => l.on = on); }, undo(){ ls.forEach(l => l.on = !on); }};
 }
-function cmdAddDim(d){ return {kind:'dim', label:'寸法追加', log:{label:'寸法を追加', detail:fmt(Math.hypot(d.x2-d.x1, d.y2-d.y1)) + ' mm', dims:[dimRec(d)], box:boxOf([[d.x1,d.y1],[d.x2,d.y2]])}, do(){ S.dims.push(d); }, undo(){ S.dims = S.dims.filter(x => x !== d); }}; }
+function cmdAddDim(d){ return {kind:'dim', label:'寸法追加', dimAdded:[d], log:{label:'寸法を追加', detail:fmt(Math.hypot(d.x2-d.x1, d.y2-d.y1)) + ' mm', dims:[dimRec(d)], box:boxOf([[d.x1,d.y1],[d.x2,d.y2]])}, do(){ S.dims.push(d); }, undo(){ S.dims = S.dims.filter(x => x !== d); }}; }
 function cmdDelDims(ds){ const before = S.dims.slice(); return {kind:'dim', label:`寸法削除（${ds.length}）`, log:{label:'寸法を削除', detail:ds.length === 1 ? fmt(Math.hypot(ds[0].x2-ds[0].x1, ds[0].y2-ds[0].y1)) + ' mm' : ds.length + ' 本', dims:ds.map(dimRec), gone:true, box:boxOf(ds.flatMap(d => [[d.x1,d.y1],[d.x2,d.y2]]))}, do(){ S.dims = S.dims.filter(x => !ds.includes(x)); }, undo(){ S.dims = before.slice(); }}; }
 function cmdDiv(d, n){ const o = d.n || 1; const L = Math.hypot(d.x2-d.x1, d.y2-d.y1); return {kind:'dim', label: n === 1 ? '分割なし' : `${n}等分`, log:{label: n === 1 ? '分割をやめた' : (n === 2 ? '中心（2等分）' : `${n}等分`), detail: n === 1 ? fmt(L) + ' mm' : `${fmt(L)} → ${fmt(L/n)} ずつ`, dims:[{...dimRec(d), n}], prevN:o, box:boxOf([[d.x1,d.y1],[d.x2,d.y2]])}, do(){ d.n = n; }, undo(){ d.n = o; }}; }
 
@@ -1622,7 +1759,7 @@ function updateLayerBar(){
 }
 function updateHint(){
   const h = $('#hint');
-  $('#bHint2').hidden = true;
+  $('#bHint2').hidden = true; $('#bHint3').hidden = true;
   if (HL){ h.hidden = true; return; }
   if (S.mode === 'note'){ h.hidden = false; $('#hintTxt').textContent = 'メモを置きたい所をタップ（置いたメモはタップで直せます）'; $('#bCancelPt').hidden = true; return; }
   if (S.mode === 'box'){
@@ -1639,13 +1776,21 @@ function updateHint(){
   $('#bCancelPt').textContent = '始点を取消';
   if (S.mode !== 'dim' || MS.dragging){ h.hidden = true; return; }
   h.hidden = false;
-  $('#hintTxt').textContent = MS.p1 ? (S.chain ? '連続：次の点までドラッグ' : '終点までドラッグして指を離す') : '始点までドラッグして指を離す';
+  if (S.autoDim){
+    const A = S.autoDim;
+    $('#hintTxt').textContent = A.to === 'line' && !A.line ? '基準にする線（壁の面・通り芯）までドラッグして離す' : `${A.from === 'part' ? '機器をタップ' : '位置までドラッグして離す'} → ${A.to === 'grid' ? '通り芯' : A.to === 'line' ? '選んだ線' : '壁の面'}から寸法`;
+    $('#bHint3').hidden = false; $('#bHint3').textContent = '切替';
+    $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = 'やめる';
+    return;
+  }
+  $('#hintTxt').textContent = MS.p1 ? (S.chain ? '連続：次の点までドラッグ' : '終点までドラッグして離す') : '始点までドラッグして離す';
+  $('#bHint3').hidden = false; $('#bHint3').textContent = MS.p1 || lastDimCmd() ? '↶ 戻る' : '芯出し';
   $('#bHint2').hidden = false; $('#bHint2').textContent = S.chain ? '✓ 連続' : '連続';
   $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = MS.p1 ? '始点を取消' : `▾ ${(S.dimGroups.find(g => g.id === S.curDG) || {name:todayName()}).name}`;
   return;
   $('#bCancelPt').hidden = !MS.p1;
 }
-$('#bCancelPt').onclick = () => { if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
+$('#bCancelPt').onclick = () => { if (S.mode === 'dim' && S.autoDim){ S.autoDim = null; updateHint(); return; } if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
 
 function updateDimPanel(){
   const p = $('#dimPanel'); const d = S.selDim;
@@ -1685,10 +1830,16 @@ function zoomTo(d){
 
 /* toolbar */
 $('#mPan').onclick = () => { S.mode = 'pan'; MS.p1 = null; MS.cur = null; routeReset(); updatePill(); drawOverlay(); updateUi(); };
-$('#mDim').onclick = () => { S.mode = 'dim'; S.selDim = null; routeReset(); drawOverlay(); updateUi(); };
+$('#mDim').onclick = () => { S.autoDim = null; };
+$('#mDim').addEventListener('click', () => { S.mode = 'dim'; S.selDim = null; routeReset(); drawOverlay(); updateUi(); });
 $('#mBox').onclick = () => { S.mode = 'box'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#mRoute').onclick = () => { S.mode = 'route'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#tOrtho').onclick = () => { S.ortho = !S.ortho; updateUi(); toast(S.ortho ? '縦横まっすぐ：オン' : '縦横まっすぐ：オフ'); };
+$('#bHint3').onclick = () => {
+  if (S.mode !== 'dim') return;
+  if (S.autoDim || (!MS.p1 && !lastDimCmd())){ openAutoDimSheet(); return; }
+  dimStepBack();
+};
 $('#bHint2').onclick = () => { if (S.mode !== 'dim') return; S.chain = !S.chain; updateUi(); toast(S.chain ? '連続寸法：オン（終点が次の始点に）' : '連続寸法：オフ'); };
 $('#mNote').onclick = () => { S.mode = 'note'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#tSnap').onclick = () => { S.snapOn = !S.snapOn; updateUi(); toast(S.snapOn ? '吸着：オン' : '吸着：オフ'); };
@@ -1975,7 +2126,7 @@ async function openText(text, srcName, opts = {}){
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat);
     const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], dimGroups:doc.meta.dimGroups, curDG:doc.meta.curDG, groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views, notes:doc.meta.notes} : null);
-    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; S.dimGroups = []; S.curDG = null; routeReset();
+    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; S.dimGroups = []; S.curDG = null; S.autoDim = null; routeReset();
     for (const [k, t] of Object.entries(G.parts)) if (t.inv) S.hideObj.add(+k);
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){

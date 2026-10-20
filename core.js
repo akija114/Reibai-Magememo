@@ -56,6 +56,10 @@ try{const j=JSON.parse(localStorage.getItem("pbm1"));if(j&&Array.isArray(j.rows)
 function normInfo(i){i=i||{};return{site:String(i.site||"").slice(0,40),line:String(i.line||"").slice(0,40),kind:(i.kind==="液"||i.kind==="ガス")?i.kind:""}}
 st.info=normInfo(st.info);
 st.ps=SIZES[st.ps]?st.ps:null;
+/* 表示モード（曲げ共有だけ）：easy＝かんたん表示（初心者）／pro＝くわしい表示（今までの画面）。曲げのデータは同じ st を使う */
+let EZ=false;
+try{if(APP==="bend"){let m=localStorage.getItem("pbm_mode");if(m!=="easy"&&m!=="pro"){m=(localStorage.getItem("pbm1")||localStorage.getItem("pbm_tut"))?"pro":"easy";localStorage.setItem("pbm_mode",m)}EZ=m==="easy"}}catch(e){}
+if(APP==="bend")document.documentElement.dataset.mode=EZ?"easy":"pro";
 const normGoal=g=>Math.max(0,Math.round(+g||0));
 st.goal=normGoal(st.goal);
 const UNIT_KEYS=["","out","cas","cas2","ceil","wall","flr"];
@@ -404,9 +408,9 @@ function upd(){
  [...$("#rows").children].forEach((el,i)=>{
   const o=c.out[i],r=LR()[i];
   el.classList.toggle("over",o.over);el.classList.toggle("sel",i===sel);
-  el.querySelector(".inf").innerHTML=
+  el.querySelector(".inf").innerHTML=EZ?ezInf(o,r):(
    `<span class="${o.shoe<0?"neg":""}">${RI("shoe")}シュー<b>${fmt(o.shoe)}</b></span><span>${RI("cum")}累計<b>${fmt(o.cum)}</b></span>`+
-   (r.a?`<span>${RI("pull")}引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>${RI("ofs")}差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+(st.sup.on&&supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length?`<span><img alt="" src="${$("#supBtn img").src}" style="width:1.3em;height:1.3em;vertical-align:-0.32em;margin-right:2px">${DS[i]&&isVert(DS[i])?"縦":"横"}<b>${supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length}</b></span><span style="flex-basis:100%">↔間隔 <b>${supGaps(r.l,!!(DS[i]&&isVert(DS[i]))).map(fmt).join(" ・ ")}</b></span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:"");
+   (r.a?`<span>${RI("pull")}引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>${RI("ofs")}差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+(st.sup.on&&supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length?`<span><img alt="" src="${$("#supBtn img").src}" style="width:1.3em;height:1.3em;vertical-align:-0.32em;margin-right:2px">${DS[i]&&isVert(DS[i])?"縦":"横"}<b>${supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length}</b></span><span style="flex-basis:100%">↔間隔 <b>${supGaps(r.l,!!(DS[i]&&isVert(DS[i]))).map(fmt).join(" ・ ")}</b></span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:""));
  });
  const over=c.tot>c.lim;
  $("#tot").className="tot"+(over?" over":"");
@@ -414,7 +418,7 @@ function upd(){
  $("#tot").innerHTML=(brOn()?`<small>${legName(leg)}</small><br>`:"")+`📏<b>${fmt(c.tot)}</b>/${fmt(c.lim)}`+(over?`<br><b style="color:#dc2626">⚠️${fmt(c.tot-c.lim)}オーバー</b>`:`<br><span style="color:#15803d">残り<b>${fmt(c.lim-c.tot)}</b></span>`)+(gl?`<br>🎯<b>${fmt(gl)}</b> ${df>0?"あと"+fmt(df):df===0?"ぴったり✅":"超過"+fmt(-df)}`:"");
  $("#bar").className="bar"+(over?" over":"");
  $("#bar i").style.width=Math.min(100,c.tot/c.lim*100)+"%";
- renderInfo();updSupUI();
+ renderInfo();updSupUI();ezUpd();
  if(T){build3D();T.dirty=true}
 }
 
@@ -1549,7 +1553,7 @@ function openDirView(i,opt){
    if(!DV)return;
    const rr=LR()[DV.i];if(!rr.a){rr.a=90;rr.t=DV.t;rr.o=false}
    if(DV.add&&!DV.pushed){LR().push({l:500,a:0,t:0,o:false});DV.pushed=true}
-   build3D();placeDirCam();$("#dirOv").classList.add("on");setupDirLens();drawDial()});
+   build3D();placeDirCam();$("#dirOv").classList.add("on");setupDirLens();drawDial();if(EZ)ezStep(1)});
  },80);
 }
 /* カメラをゆっくり動かす（ふわっと寄っていく） */
@@ -1595,11 +1599,13 @@ function drawDial(){
  h+=`<line x1="${ax}" y1="${ay}" x2="${hx}" y2="${hy}" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="8" fill="#fff" stroke="#ef4444" stroke-width="3"/><circle cx="${hx}" cy="${hy}" r="15" fill="#ef4444" stroke="#fff" stroke-width="3"/>`;
  svg.innerHTML=h;
  const r=LR()[DV.i];
- $("#dirTop").innerHTML=`🔍 進む方向を向いて見た図（${legName(DV.g)} ${nm(DV.i)} の曲げ）<br><small>赤い丸を指で回して向きを決めます。色付きの目印（天井・床・起点側・前の配管）を手がかりにしてください</small>`;
+ $("#dirTop").innerHTML=EZ?ezTop():`🔍 進む方向を向いて見た図（${legName(DV.g)} ${nm(DV.i)} の曲げ）<br><small>赤い丸を指で回して向きを決めます。色付きの目印（天井・床・起点側・前の配管）を手がかりにしてください</small>`;
  $("#dirVal").innerHTML=`向き <b>${dirName(t)}</b>　／　曲げ角度 <b>${r.a}°${r.a>=180?"（返し）":""}</b>`;
  const ab=$("#dirAngs");ab.innerHTML="";
  [15,30,45,90,180].forEach(a=>{const b=document.createElement("button");b.textContent=a+"°";if(r.a===a){b.classList.add("on");b.style.background=ANGC[a]}
+  if(EZ&&a===90){b.classList.add("big");b.textContent="90°（よく使う）"}
   b.onclick=()=>{r.a=a;applyDV();drawDial()};ab.appendChild(b)});
+ if(EZ)[...$("#ezDirs").children].forEach(b=>b.classList.toggle("on",+b.dataset.t===normT(DV.t)));
 }
 function setupDirLens(){
  const rows=LR(),i=DV.i,r=rows[i],n=rows[i+1];
@@ -1625,7 +1631,7 @@ function closeDirView(ok){
  if(!ok&&r){r.a=DV.orig.a;r.t=DV.orig.t;r.o=DV.orig.o;if(DV.pushed&&LR().length>DV.i+1)LR().pop()}
  if(ok)sel=DV.i;
  const c=DV.cam,wf=DV.wasFull;
- $("#dirOv").classList.remove("on");
+ $("#dirOv").classList.remove("on");delete $("#dirOv").dataset.ez;
  const back={tg:c.tg.clone(),up:new THREE.Vector3(0,1,0),pos:new THREE.Vector3(c.tg.x+c.dist*Math.sin(c.ph)*Math.sin(c.th),c.tg.y+c.dist*Math.cos(c.ph),c.tg.z+c.dist*Math.sin(c.ph)*Math.cos(c.th))};
  const from=T.custom?{pos:T.custom.pos.clone(),tg:T.custom.tg.clone(),up:T.custom.up.clone()}:null;
  DV=null;if(ok)save();render();
@@ -1636,7 +1642,7 @@ function closeDirView(ok){
 (function(){
  const svg=$("#dirSvg");let drag=false;
  const ang=e=>{const rc=$("#stage").getBoundingClientRect(),x=e.clientX-rc.left-DV.sx,y=e.clientY-rc.top-DV.sy;let a=normT(Math.atan2(x,-y)*180/Math.PI);const m=Math.round(a/45)*45;if(Math.abs(a-m)<=6)a=m%360;return a};
- $("#dirOv").addEventListener("pointerdown",e=>{if(!DV||e.target.closest(".dirbot")||e.target.closest(".dirtop"))return;drag=true;try{$("#dirOv").setPointerCapture(e.pointerId)}catch(x){}DV.t=ang(e);applyDV();drawDial()});
+ $("#dirOv").addEventListener("pointerdown",e=>{if(!DV||(DV.ez&&DV.ez!==3)||e.target.closest(".dirbot")||e.target.closest(".dirtop"))return;drag=true;try{$("#dirOv").setPointerCapture(e.pointerId)}catch(x){}DV.t=ang(e);applyDV();drawDial()});
  $("#dirOv").addEventListener("pointermove",e=>{if(!drag||!DV)return;DV.t=ang(e);applyDV();drawDial()});
  const end=()=>{drag=false};$("#dirOv").addEventListener("pointerup",end);$("#dirOv").addEventListener("pointercancel",end);
  $("#dirOk").onclick=()=>closeDirView(true);
@@ -1983,26 +1989,120 @@ const TUT=[
 <li>📤 →「<b>💬 感想・不具合を送る</b>」で、気づいたことを送ってください。アプリが良くなります🙏</li></ul>`}
 ];
 let tutI=0;
+let TUTC=TUT;
 function renderTut(){
- const s=TUT[tutI];
+ const TUT=TUTC,s=TUT[tutI];
  $("#tutBody").innerHTML=`<div class="ticon"><img alt="" src="${icoSrc(s.i)}" style="width:72px;height:72px"></div><h3 class="ttl">${s.t}</h3>${s.h.replace(/\{(\w+)\}/g,(m,k)=>TI(k))}`;
  $("#tutBody").scrollTop=0;
  $("#tutDots").innerHTML=TUT.map((_,k)=>`<i class="${k===tutI?"on":""}"></i>`).join("");
  $("#tutPrev").style.visibility=tutI?"visible":"hidden";
  $("#tutNext").textContent=tutI===TUT.length-1?"はじめる ✅":"次へ ▶";
 }
-function openTut(){tutI=0;renderTut();$("#tutOv").classList.add("on")}
-function closeTut(){$("#tutOv").classList.remove("on");try{localStorage.setItem("pbm_tut","1")}catch(e){}}
-$("#tutNext").onclick=()=>{if(tutI<TUT.length-1){tutI++;renderTut()}else closeTut()};
+function openTut(){TUTC=EZ?TUT_EZ:TUT;tutI=0;renderTut();$("#tutOv").classList.add("on")}
+function closeTut(keep){$("#tutOv").classList.remove("on");if(keep===true)return;try{localStorage.setItem("pbm_tut","1");if(EZ)localStorage.setItem("pbm_tut_easy","1")}catch(e){}}
+$("#tutNext").onclick=()=>{if(tutI<TUTC.length-1){tutI++;renderTut()}else closeTut()};
 $("#tutPrev").onclick=()=>{if(tutI>0){tutI--;renderTut()}};
-$("#tutSkip").onclick=closeTut;
+$("#tutSkip").onclick=()=>closeTut(EZ);
+if($("#tutNever"))$("#tutNever").onclick=()=>{closeTut();toast("次からは出しません。上の ❓ でいつでも見られます")};
 $("#helpBtn").onclick=openTut;
 (function(){let sx=null,sy=0;const el=$("#tutCard");
  el.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
  el.addEventListener("touchend",e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
   if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*1.5){if(dx<0)$("#tutNext").click();else $("#tutPrev").click()}},{passive:true});
 })();
-try{if(APP==="bend"&&!localStorage.getItem("pbm_tut")&&!location.hash.match(/^#p=/))setTimeout(openTut,400)}catch(e){}
+try{if(APP==="bend"&&!localStorage.getItem(EZ?"pbm_tut_easy":"pbm_tut")&&!location.hash.match(/^#p=/))setTimeout(openTut,400)}catch(e){}
+/* ===== かんたん表示（初心者モード） =====
+   画面の出し分けは index.html の html[data-mode="easy"] のCSS。ここは文字の更新と、曲げ入力を1つずつ出す段の切り替えだけ。
+   計算（calc）・3D（build3D）・保存（save・現場の保存）は、くわしい表示と同じ物をそのまま使う */
+const TUT_EZ=[
+{i:"size",t:"① 配管サイズを選ぶ",h:`<p>いちばん上の「<b>配管サイズ</b>」をタップして、曲げる配管を選びます。</p>
+<div class="tbox"><b>配管サイズ：4分（12.7mm）</b><br><small>はじめは 4分 になっています</small></div>`},
+{i:"bender",t:"② 寸法と角度を入れる",h:`<p>下の「<b>＋ 曲げを作る</b>」を押すと、1つずつ聞かれます。</p>
+<div class="tbox" style="text-align:left">1. まっすぐの長さ（mm）<br>2. 曲げる角度（よく使うのは 90°）<br>3. 曲げる向き（矢印をタップ）<br>4. 確認して「これで作る」</div>`},
+{i:"view",t:"③ 3Dで確認する",h:`<ul><li>☝️ <b>1本指</b>で回転、🤏 <b>2本指</b>で拡大</li>
+<li>作った後は「<b>＋ 次の曲げを追加</b>」「✏️ 修正」「💾 保存する」</li>
+<li>支持・地面と天井・ルートおまかせなどは、上の「<b>くわしく</b>」から</li></ul>
+<div class="tbox" style="text-align:left">⚠️ 計算と3Dは<b>目安</b>です。曲げる前に<b>必ず寸法を確かめて</b>ください。</div>
+<p class="tsub">この説明は、上の ❓ でいつでも見られます。</p>`}];
+/* upd() から最初の画面を出す時にも呼ばれるので、ここは function で書く（const だと定義前に呼べない） */
+function ezU(){return IN()?"":" mm"}
+function ezSzName(i){return szShort(i)+"（"+SIZES[i][1]+"mm）"}
+function ezInf(o,r){
+ return `<span class="${o.shoe<0?"neg":""}">${RI("shoe")}印の位置（シュー）<b>${fmt(o.shoe)}</b></span>`+
+  (r.a?`<span>${RI("pull")}曲げで縮む長さ（引き）<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+
+  (o.shoe<0?`<span class="w">⚠️ 短すぎて曲げられません</span>`:"")+(o.over?`<span class="w">⚠️ 定尺超え（つなぎが必要）</span>`:"");
+}
+function ezUpd(){
+ if(APP!=="bend")return;
+ const rows=LR(),nb=rows.filter(r=>r.a).length,si=legSize(leg);
+ $("#ezSzT").textContent=ezSzName(si);
+ $("#modeBtn").textContent=EZ?"⚙️ くわしく":"🔰 かんたん";
+ const ab=$("#add");if(!ab.dataset.t0)ab.dataset.t0=ab.textContent;   // くわしい表示の元の文字
+ ab.textContent=EZ?(nb?"＋ 次の曲げを追加":"＋ 曲げを作る"):ab.dataset.t0;
+ $("#ezMore").hidden=!EZ||!nb;
+ $("#ezSteps").innerHTML=`<span class="done">① サイズ ✓</span><span class="${nb?"done":"now"}">② 曲げを作る${nb?" ✓":""}</span><span class="${nb?"now":""}">③ 3Dで確認・保存</span>`;
+ if(!EZ){$("#ezSum").innerHTML="";return}
+ const c=calc(),L=[`${ezSzName(si)}・曲げ ${nb}か所・合計 ${fmt(c.tot)}${ezU()}`];
+ if(!nb)L.push("下の「＋ 曲げを作る」を押してください");
+ else{const i=clamp(sel,0,rows.length-1),r=rows[i];L.push(r.a?`${nm(i)} ${fmt(r.l)}${ezU()} → ${r.a}° ${dirName(effT(i))}へ`:`${nm(i)} まっすぐ ${fmt(r.l)}${ezU()}`)}
+ const ng=c.out.findIndex(o=>o.shoe<0);
+ if(ng>=0)L.push(`<span class="w">⚠️ ${nm(ng)} が短すぎて曲げられません</span>`);
+ if(c.tot>c.lim)L.push(`<span class="w">⚠️ 定尺（${fmt(c.lim)}${ezU()}）を超えています。つなぎが必要です</span>`);
+ $("#ezSum").innerHTML=L.join("<br>");
+}
+function ezTop(){
+ const n=DV.ez||1;
+ return `${nm(DV.i)} の曲げ　STEP ${n} / 4<br><small>${n===3?"進む方向を向いて見た図です。赤い丸＝曲げる向き（天井・床の目印を手がかりに）":n===4?"内容を確かめて、下の青いボタン":"下の欄に入れて「次へ」"}</small>`;
+}
+/* 曲げ入力を1段ずつ：1 長さ → 2 角度 → 3 向き → 4 確認 */
+function ezStep(n){
+ if(!DV)return;
+ DV.ez=n;$("#dirOv").dataset.ez=n;
+ const rows=LR(),i=DV.i,r=rows[i],nx=rows[i+1],U=ezU();
+ const Q=[null,["長さを入れる","曲げる所までの まっすぐの長さ（"+(nx?"と、曲げた後の長さ":"")+"）"],["曲げる角度を選ぶ","よく使うのは 90°。180° は Uの字に折り返す"],["曲げる向きを選ぶ","矢印をタップ。ななめは画面の赤い丸を指で回す"],["確認する","よければ下の青いボタン"]][n];
+ $("#ezQ").innerHTML=`<small>STEP ${n} / 4</small><b>${Q[0]}</b><span>${Q[1]}</span>`;
+ $("#ezBack").textContent=n===1?"✕ やめる":"◀ 戻る";
+ $("#ezNext").textContent=n<4?"次へ ▶":(DV.add?"✅ これで作る":"✅ これで決定");
+ if(n===4){
+  const o=calc(DV.g).out[i];
+  $("#ezConf").innerHTML=`<div class="ln"><span>${nm(i)} まっすぐ</span><b>${fmt(r.l)}${U}</b></div><div class="ln"><span>曲げる角度</span><b>${r.a}°</b></div><div class="ln"><span>曲げる向き</span><b>${dirName(DV.t)}</b></div>`+
+   (nx?`<div class="ln"><span>${nm(i+1)} 曲げた後</span><b>${fmt(nx.l)}${U}</b></div>`:"")+
+   `<div class="ln"><span>印の位置（シュー）</span><b>${fmt(o.shoe)}${U}</b></div><div class="ln"><span>曲げで縮む長さ（引き）</span><b>${fmt(o.back)}${U}</b></div>`+
+   (o.shoe<0?`<div class="w">⚠️ 長さが短すぎて、この角度では曲げられません。「戻る」で長さを長くしてください</div>`:"")+
+   `<div class="nt">シュー＝曲げ始めの印をつける位置。数字は目安です。曲げる前に寸法を確かめてください。</div>`;
+ }
+ drawDial();
+}
+if(APP==="bend"){
+ $("#ezSz").appendChild($("#sz"));
+ const moveSz=()=>{if(EZ)$("#ezSz").appendChild($("#sz"));else $(".top").insertBefore($("#sz"),$("#ezSz"))};moveSz();
+ window.setMode=m=>{
+  EZ=m==="easy";try{localStorage.setItem("pbm_mode",EZ?"easy":"pro")}catch(e){}
+  document.documentElement.dataset.mode=EZ?"easy":"pro";moveSz();render();
+ };
+ $("#modeBtn").onclick=()=>{setMode(EZ?"pro":"easy");toast(EZ?"かんたん表示にしました（入れた曲げはそのまま）":"くわしい表示にしました。上の「🔰 かんたん」でいつでも戻せます")};
+ $("#ezNext").onclick=()=>{
+  if(!DV)return;const n=DV.ez||1,r=LR()[DV.i];
+  if(n===1&&!(r.l>0)){toast("長さを入れてください");$("#dirL1").focus();return}
+  if(n<4){if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();ezStep(n+1);return}
+  const add=DV.add;closeDirView(true);toast(add?"曲げを作りました。3Dで形を確かめてください":"曲げを直しました");
+ };
+ $("#ezBack").onclick=()=>{if(!DV)return;const n=DV.ez||1;if(n===1)closeDirView(false);else ezStep(n-1)};
+ [...$("#ezDirs").children].forEach(b=>b.onclick=()=>{if(!DV)return;DV.t=+b.dataset.t;applyDV();drawDial()});
+ ["#dirL1","#dirL2"].forEach(q=>{const e=$(q);e.setAttribute("enterkeyhint","next");e.addEventListener("keydown",ev=>{if(EZ&&ev.key==="Enter"){ev.preventDefault();$("#ezNext").click()}})});
+ $("#ezFix").onclick=()=>{
+  const rows=LR();let i=rows[sel]&&rows[sel].a?sel:-1;
+  if(i<0)for(let k=rows.length-1;k>=0;k--)if(rows[k].a){i=k;break}
+  if(i<0||!T){toast("直す曲げがありません。下の一覧の数字を直接直すこともできます");return}
+  sel=i;openDirView(i);
+ };
+ $("#ezGuide").onclick=()=>openGuide();
+ $("#ezSave").onclick=()=>{openCloud();toast("名前を付けて「💾 保存」を押してください")};
+ $("#ezPro").onclick=()=>{setMode("pro");toast("くわしい表示にしました。上の「🔰 かんたん」でいつでも戻せます")};
+ /* iPhoneのキーボード：出ている間は、入力の欄と「次へ」をキーボードの上に出す */
+ if(window.visualViewport){const kb=()=>{const v=visualViewport;document.documentElement.style.setProperty("--kb",Math.max(0,Math.round(innerHeight-v.height-v.offsetTop))+"px")};visualViewport.addEventListener("resize",kb);visualViewport.addEventListener("scroll",kb)}
+ if(IN())document.documentElement.classList.add("inch");
+}
 
 /* 長さと配管サイズの表（材料・ガス充填量用） */
 function kindSeg(box,after){

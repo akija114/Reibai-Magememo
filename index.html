@@ -262,19 +262,89 @@ html[data-app="zumen"] .stage{flex:1 1 auto}
 #zdock button{min-height:54px;border-radius:14px;background:var(--card);border:1.5px solid var(--line);font-weight:800;font-size:14.5px;line-height:1.25;padding:6px 8px}
 #zdock button.main{grid-column:1/-1;background:var(--acc);color:#fff;border-color:var(--acc);font-size:16px}
 #zdock .zgo{grid-column:1/-1;min-height:46px;background:none;border-style:dashed;color:var(--acc)}
+/* ===== かんたん表示（初心者モード）：html[data-mode="easy"] の時だけ。計算・3D・保存は今までと同じ物を使い、見せ方だけ変える ===== */
+.modebtn{flex:none;height:44px;padding:0 10px;border-radius:12px;background:var(--card);border:1.5px solid var(--acc);color:var(--acc);font-size:14px;font-weight:800;white-space:nowrap}
+.ezsz,.ezsteps,.ezsum,.ezmore,.ezq,.ezdirs,.ezconf,.ezbtns,.tnever{display:none}
+html[data-mode="easy"] #infoBtn,html[data-mode="easy"] #calcBtn,html[data-mode="easy"] .legadd,html[data-mode="easy"] .ins,html[data-mode="easy"] .gauge,html[data-mode="easy"] #open3,html[data-mode="easy"] #quickShare,
+html[data-mode="easy"] .tools>:not(#viewBtn),html[data-mode="easy"] .toolsTab,html[data-mode="easy"] .uitog,html[data-mode="easy"] .infoTab,html[data-mode="easy"] .suppill,html[data-mode="easy"] .stinfo{display:none!important}
+html[data-mode="easy"] .ezsz{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;justify-content:center;height:56px;padding:0 40px 0 12px;border:2px solid var(--acc);border-radius:14px;background:var(--card);line-height:1.2}
+.ezsz small{font-size:12px;font-weight:700;color:var(--sub)}
+.ezsz b{font-size:20px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ezsz i{position:absolute;right:6px;padding:6px 7px;border-radius:9px;background:var(--sel);top:50%;transform:translateY(-50%);font-style:normal;font-size:13px;font-weight:800;color:var(--acc)}
+html[data-mode="easy"] .ezsz #sz{position:absolute;inset:0;width:100%;height:100%;opacity:0;z-index:1;font-size:16px}
+html[data-mode="easy"] .top .iconbtn{width:44px;height:44px}
+html[data-mode="easy"] #tot{display:none}
+html[data-mode="easy"] .ezsteps{flex:none;display:flex;gap:4px;margin:0 0 6px;font-size:13px;font-weight:800}
+.ezsteps span{flex:1;text-align:center;padding:6px 2px;border-radius:10px;background:var(--card);border:1.5px solid var(--line);color:var(--sub);white-space:nowrap}
+.ezsteps span.done{color:#15803d;border-color:#86efac}
+.ezsteps span.now{background:var(--acc);border-color:var(--acc);color:#fff}
+/* 3Dは残りの高さいっぱい（下のボタンが必ず画面に入るように縮む）、曲げの一覧は高さの上限つき */
+html[data-mode="easy"] .stage{flex:1 1 0;min-height:150px}
+html[data-mode="easy"] #rows{flex:0 1 auto;max-height:30%;min-height:104px;padding-top:6px}
+html[data-mode="easy"] .stage:not(.dirmode):not(.guidemode) .hint{display:block;bottom:8px;font-size:14px;font-weight:700}
+html[data-mode="easy"] .ezsum{display:block;position:absolute;left:8px;right:56px;bottom:34px;z-index:2;background:#ffffffee;color:#0c4a6e;border-radius:12px;padding:5px 10px;font-size:13px;font-weight:800;line-height:1.45;box-shadow:0 2px 8px #0c4a6e33;pointer-events:none}
+html[data-mode="easy"] .ezsum:empty,.stage.dirmode .ezsum,.stage.guidemode .ezsum{display:none!important}
+.ezsum .w{color:#c2410c}
+html[data-mode="easy"] .stage.full .ezsum{bottom:calc(env(safe-area-inset-bottom,0px) + 40px);font-size:15px}
+html[data-mode="easy"] .stage.full .hint{bottom:calc(env(safe-area-inset-bottom,0px) + 12px)}
+html[data-mode="easy"] .dock{flex-wrap:wrap}
+html[data-mode="easy"] .dock .add{flex:1 1 100%;height:60px;font-size:19px}
+html[data-mode="easy"] .ezmore{flex:1 1 100%;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ezmore[hidden]{display:none!important}
+.ezmore button{height:52px!important;font-size:13px!important;line-height:1.2;padding:0 2px;background:var(--card);border:1.5px solid var(--line)!important;color:var(--ink)}
+.ezmore button.sv{border-color:#16a34a!important;color:#15803d}
+/* かんたん表示の曲げ入力：1つずつ出す（#dirOv の data-ez＝今の段） */
+#dirOv[data-ez] .dirbot{background:var(--card);color:var(--ink);bottom:calc(max(var(--kb,0px),env(safe-area-inset-bottom,0px)) + 8px)}
+#dirOv[data-ez] .dirlens,#dirOv[data-ez] .dirlab,#dirOv[data-ez] .dirangs,#dirOv[data-ez] .dirval,#dirOv[data-ez] .dirbtns:not(.ezbtns),#dirOv[data-ez] .dirsvg{display:none}
+#dirOv[data-ez="1"] .dirlens{display:flex}
+#dirOv[data-ez="2"] .dirangs{display:flex}
+#dirOv[data-ez="3"] .ezdirs,#dirOv[data-ez="3"] .dirval{display:flex}
+#dirOv[data-ez="3"] .dirval{display:block}
+#dirOv[data-ez="3"] .dirsvg{display:block}
+#dirOv[data-ez="4"] .ezconf{display:block}
+#dirOv[data-ez] .ezq,#dirOv[data-ez] .ezbtns{display:flex}
+.ezq{flex-direction:column;gap:2px;margin:0 2px 8px}
+.ezq small{font-size:12.5px;font-weight:800;color:var(--acc)}
+.ezq b{font-size:18px;font-weight:900}
+.ezq span{font-size:13px;color:var(--sub);font-weight:600}
+#dirOv[data-ez] .dirlens label{font-size:13.5px;color:var(--ink)}
+#dirOv[data-ez] .dirlens input{height:56px;font-size:26px;text-align:right;padding-right:52px;color:var(--ink);background:var(--bg)}
+#dirOv[data-ez] .dirlens label{position:relative}
+#dirOv[data-ez] .dirlens label:after{content:"mm";position:absolute;right:12px;bottom:15px;font-size:17px;font-weight:800;color:var(--sub)}
+html.inch #dirOv[data-ez] .dirlens label:after{content:"in"}
+#dirOv[data-ez] .dirangs{flex-wrap:wrap}
+#dirOv[data-ez] .dirangs button{flex:1 1 18%;height:56px;font-size:19px;background:var(--bg);color:var(--ink)}
+#dirOv[data-ez] .dirangs button.on{color:#fff}
+#dirOv[data-ez] .dirangs button.big{flex-basis:100%;order:-1;font-size:22px}
+#dirOv[data-ez] .dirval{color:var(--sub)}#dirOv[data-ez] .dirval b{color:var(--ink)}
+.ezdirs{gap:6px;margin-bottom:4px}
+.ezdirs button{flex:1;height:60px;border-radius:12px;background:var(--bg);border:1.5px solid var(--line);font-size:24px;line-height:1.1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ezdirs button small{font-size:13px;font-weight:800}
+.ezdirs button.on{background:#2563eb;border-color:#2563eb;color:#fff}
+.ezconf{font-size:16px;line-height:1.6;margin:0 2px 10px}
+.ezconf .ln{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:3px 0}
+.ezconf .ln b{font-size:18px;font-variant-numeric:tabular-nums}
+.ezconf .nt{font-size:12.5px;color:var(--sub);margin-top:6px;line-height:1.5}
+.ezconf .w{color:var(--warn);font-weight:800;margin-top:6px}
+#dirOv[data-ez] .ezbtns button{height:54px;background:var(--bg);color:var(--ink)}
+#dirOv[data-ez] .ezbtns button.ok{background:#2563eb;color:#fff}
+html[data-mode="easy"] .tnever{display:block;margin:-4px auto 8px;font-size:13.5px;color:#64748b;font-weight:700;padding:8px 10px;min-height:44px}
 html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="genchou"] #legbar,html[data-app="genchou"] #rows,html[data-app="genchou"] .dock{visibility:hidden}
 </style>
 </head>
 <body>
 <nav class="apps"><a href="index.html" class="on">🔧 曲げ共有</a><a href="zumen.html">📐 図面</a><a href="genchou.html">📹 現調</a><a href="kiki.html">🔩 機器</a></nav>
 <div class="top">
+  <label class="ezsz" id="ezSz"><small>配管サイズ</small><b id="ezSzT"></b><i>▼</i></label>
   <select id="sz" aria-label="配管サイズ"></select>
   <button class="iconbtn" id="infoBtn" aria-label="現場情報" style="padding:0"><img alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJjdSIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2ZmZTFiNSIvPjxzdG9wIG9mZnNldD0iLjUiIHN0b3AtY29sb3I9IiNlODkwM2YiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM5YTRhMTIiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iY3V2IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZlMWI1Ii8+PHN0b3Agb2Zmc2V0PSIuNSIgc3RvcC1jb2xvcj0iI2U4OTAzZiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzlhNGExMiIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJhZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2YxZjVmOSIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzk0YTNiOCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48cmVjdCB4PSIyNiIgeT0iMjIiIHdpZHRoPSI0OCIgaGVpZ2h0PSI2MCIgcng9IjYiIGZpbGw9IiNkNmE1NjUiIHN0cm9rZT0iIzdhNGExYSIgc3Ryb2tlLXdpZHRoPSIyIi8+PHJlY3QgeD0iMzEiIHk9IjI4IiB3aWR0aD0iMzgiIGhlaWdodD0iNTAiIHJ4PSIzIiBmaWxsPSIjZmZmIi8+PHJlY3QgeD0iNDAiIHk9IjE2IiB3aWR0aD0iMjAiIGhlaWdodD0iMTIiIHJ4PSIzIiBmaWxsPSIjOTRhM2I4IiBzdHJva2U9IiM0NzU1NjkiIHN0cm9rZS13aWR0aD0iMiIvPjxnIHN0cm9rZT0iIzI1NjNlYiIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWNhcD0icm91bmQiPjxwYXRoIGQ9Ik0zNSA0MCBsMyAzIGw1IC02Ii8+PHBhdGggZD0iTTM1IDUzIGwzIDMgbDUgLTYiLz48L2c+PGcgc3Ryb2tlPSIjOTRhM2I4IiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+PGxpbmUgeDE9IjQ3IiB5MT0iNDAiIHgyPSI2NCIgeTI9IjQwIi8+PGxpbmUgeDE9IjQ3IiB5MT0iNTMiIHgyPSI2NCIgeTI9IjUzIi8+PGxpbmUgeDE9IjM2IiB5MT0iNjYiIHgyPSI2NCIgeTI9IjY2Ii8+PC9nPjwvc3ZnPg==" style="width:34px;height:34px;display:block;margin:auto;pointer-events:none"></button>
   <button class="iconbtn" id="calcBtn" aria-label="寸法計算" style="padding:0"><img alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJjdSIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2ZmZTFiNSIvPjxzdG9wIG9mZnNldD0iLjUiIHN0b3AtY29sb3I9IiNlODkwM2YiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM5YTRhMTIiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iY3V2IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZlMWI1Ii8+PHN0b3Agb2Zmc2V0PSIuNSIgc3RvcC1jb2xvcj0iI2U4OTAzZiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzlhNGExMiIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJhZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2YxZjVmOSIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzk0YTNiOCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48cmVjdCB4PSIyNyIgeT0iMTgiIHdpZHRoPSI0NiIgaGVpZ2h0PSI2NCIgcng9IjgiIGZpbGw9IiNmOGZhZmMiIHN0cm9rZT0iIzQ3NTU2OSIgc3Ryb2tlLXdpZHRoPSIyLjUiLz48cmVjdCB4PSIzMyIgeT0iMjQiIHdpZHRoPSIzNCIgaGVpZ2h0PSIxNCIgcng9IjMiIGZpbGw9IiMxZTNhNWYiLz48dGV4dCB4PSI2NCIgeT0iMzUiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwiIGZvbnQtd2VpZ2h0PSI4MDAiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM3ZGQzZmMiIHRleHQtYW5jaG9yPSJlbmQiPjRSPC90ZXh0PjxyZWN0IHg9IjMzIiB5PSI0MyIgd2lkdGg9IjkiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiM5NGEzYjgiLz48cmVjdCB4PSI0NSIgeT0iNDMiIHdpZHRoPSI5IiBoZWlnaHQ9IjgiIHJ4PSIyIiBmaWxsPSIjOTRhM2I4Ii8+PHJlY3QgeD0iNTciIHk9IjQzIiB3aWR0aD0iOSIgaGVpZ2h0PSI4IiByeD0iMiIgZmlsbD0iIzk0YTNiOCIvPjxyZWN0IHg9IjMzIiB5PSI1NCIgd2lkdGg9IjkiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiM5NGEzYjgiLz48cmVjdCB4PSI0NSIgeT0iNTQiIHdpZHRoPSI5IiBoZWlnaHQ9IjgiIHJ4PSIyIiBmaWxsPSIjOTRhM2I4Ii8+PHJlY3QgeD0iNTciIHk9IjU0IiB3aWR0aD0iOSIgaGVpZ2h0PSI4IiByeD0iMiIgZmlsbD0iIzk0YTNiOCIvPjxyZWN0IHg9IjMzIiB5PSI2NSIgd2lkdGg9IjkiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiM5NGEzYjgiLz48cmVjdCB4PSI0NSIgeT0iNjUiIHdpZHRoPSI5IiBoZWlnaHQ9IjgiIHJ4PSIyIiBmaWxsPSIjOTRhM2I4Ii8+PHJlY3QgeD0iNTciIHk9IjY1IiB3aWR0aD0iOSIgaGVpZ2h0PSI4IiByeD0iMiIgZmlsbD0iI2Y5NzMxNiIvPjwvc3ZnPg==" style="width:34px;height:34px;display:block;margin:auto;pointer-events:none"></button>
   <button class="iconbtn" id="helpBtn" aria-label="使い方" style="padding:0"><img alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJjdSIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2ZmZTFiNSIvPjxzdG9wIG9mZnNldD0iLjUiIHN0b3AtY29sb3I9IiNlODkwM2YiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM5YTRhMTIiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iY3V2IiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZmZlMWI1Ii8+PHN0b3Agb2Zmc2V0PSIuNSIgc3RvcC1jb2xvcj0iI2U4OTAzZiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzlhNGExMiIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJhZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2YxZjVmOSIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzk0YTNiOCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48dGV4dCB4PSI1MCIgeT0iNjgiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI1NCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+PzwvdGV4dD48L3N2Zz4=" style="width:34px;height:34px;display:block;margin:auto;pointer-events:none"></button>
   <button class="iconbtn" id="cloudBtn" aria-label="保存・共有" style="display:none">☁️</button>
   <div class="tot" id="tot"></div>
+  <button class="modebtn" id="modeBtn" aria-label="表示の切り替え"></button>
 </div>
+<div class="ezsteps" id="ezSteps"></div>
 <div class="bar" id="bar"><i></i></div>
 
 <div class="stage" id="stage">
@@ -314,10 +384,14 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
     <div class="dirtop" id="dirTop"></div>
     <svg class="dirsvg" id="dirSvg"></svg>
     <div class="dirbot">
+      <div class="ezq" id="ezQ"></div>
       <div class="dirlens"><label><span id="dirL1t"></span><input id="dirL1" inputmode="numeric" pattern="[0-9]*"></label><label><span id="dirL2t"></span><input id="dirL2" inputmode="numeric" pattern="[0-9]*"></label></div>
       <div class="dirlab">曲げ角度（配管を何度曲げるか）</div>
       <div class="dirangs" id="dirAngs"></div>
       <div class="dirval" id="dirVal"></div>
+      <div class="ezdirs" id="ezDirs"><button data-t="270">⬅️<small>左</small></button><button data-t="0">⬆️<small>上</small></button><button data-t="180">⬇️<small>下</small></button><button data-t="90">➡️<small>右</small></button></div>
+      <div class="ezconf" id="ezConf"></div>
+      <div class="dirbtns ezbtns"><button id="ezBack"></button><button id="ezNext" class="ok"></button></div>
       <div class="dirbtns"><button id="dirNo">✕ やめる</button><button id="dirOk" class="ok">✅ この向きにする</button></div>
     </div>
   </div>
@@ -325,6 +399,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
   <button class="uitog" id="uiTog" aria-label="ボタンの表示切替"><img alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48cGF0aCBkPSJNMTYgNTAgUTUwIDIwIDg0IDUwIFE1MCA4MCAxNiA1MCBaIiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMTIiIGZpbGw9IiMyNTYzZWIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1LjUiIGZpbGw9IiMwYjJhNjYiLz48L3N2Zz4=" style="width:100%;height:100%;display:block;pointer-events:none"></button>
   <button class="suppill" id="supPill"></button>
   <div class="stinfo" id="stInfo"></div>
+  <div class="ezsum" id="ezSum"></div>
   <div class="hint">👆回転　🤏拡大　✌️移動</div>
 </div>
 
@@ -347,6 +422,8 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
   <button class="add" id="add">➕ 曲げを追加</button>
   <button class="d3" id="open3">🧊 3D全画面</button>
   <button class="share" id="quickShare" aria-label="今すぐ送る">📤</button>
+
+  <div class="ezmore" id="ezMore" hidden><button id="ezFix">✏️<br>曲げを修正</button><button id="ezGuide">🔧<br>曲げ方を見る</button><button id="ezSave" class="sv">💾<br>保存する</button><button id="ezPro">⚙️<br>詳細機能</button></div>
 </div>
 
 <div class="ov" id="supOv">
@@ -443,6 +520,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
     <button class="tskip" id="tutSkip">スキップ ✕</button>
     <div class="tbody" id="tutBody"></div>
     <div class="tdots" id="tutDots"></div>
+    <button class="tnever" id="tutNever">次回から表示しない</button>
     <div class="tnav"><button id="tutPrev">◀ 戻る</button><button id="tutNext" class="tnext">次へ ▶</button></div>
   </div>
 </div>
@@ -526,7 +604,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="bend";</script>
 <script src="models.js?v=228"></script>
-<script src="core.js?v=235"></script>
+<script src="core.js?v=238"></script>
 <script src="drain.js?v=228"></script>
 <script src="tanka.js?v=228"></script>
 <script src="mitsumori.js?v=228"></script>

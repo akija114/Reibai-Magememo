@@ -302,6 +302,17 @@ html[data-mode="easy"] .ezmore{flex:1 1 100%;display:grid;grid-template-columns:
 #dirOv[data-ez="3"] .dirval{display:block}
 #dirOv[data-ez="3"] .dirsvg{display:block}
 #dirOv[data-ez="4"] .ezconf{display:block}
+/* STEP 3 の全体図の枠（3Dは canvas に描く。ここは枠と説明だけ） */
+.ezovf,.ezview{display:none}
+.ezovf{position:absolute;z-index:1;border:2px solid #0c4a6e;border-radius:6px;pointer-events:none}
+.ezovf span{position:absolute;left:6px;top:4px;font-size:12px;font-weight:800;color:#0c4a6e;background:#ffffffd9;border-radius:6px;padding:1px 6px}
+.ezovf b{color:#dc2626}
+#dirOv[data-ez="3"] .ezview{display:flex;position:absolute;right:10px;top:10px;gap:0;border:1.5px solid var(--line);border-radius:12px;overflow:hidden}
+#dirOv[data-ez="3"] .ezview.small{display:none}
+.ezview button{height:44px;padding:0 10px;font-size:13px;font-weight:800;background:var(--bg);color:var(--sub)}
+.ezview button.on{background:#2563eb;color:#fff}
+#dirOv[data-ez="3"] .dirtop small{display:none}
+@media (max-height:620px){#dirOv[data-ez="3"] .ezq span,#dirOv[data-ez="3"] #dirVal{display:none!important}}
 #dirOv[data-ez] .ezq,#dirOv[data-ez] .ezbtns{display:flex}
 .ezq{flex-direction:column;gap:2px;margin:0 2px 8px}
 .ezq small{font-size:12.5px;font-weight:800;color:var(--acc)}
@@ -383,8 +394,10 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
   <div class="dirov" id="dirOv">
     <div class="dirtop" id="dirTop"></div>
     <svg class="dirsvg" id="dirSvg"></svg>
+    <div class="ezovf" id="ezOvF"><span>全体図　<b>赤</b>＝曲げた後の配管</span></div>
     <div class="dirbot">
       <div class="ezq" id="ezQ"></div>
+      <div class="ezview" id="ezView"><button data-v="1">全体＋拡大</button><button data-v="0">拡大のみ</button></div>
       <div class="dirlens"><label><span id="dirL1t"></span><input id="dirL1" inputmode="numeric" pattern="[0-9]*"></label><label><span id="dirL2t"></span><input id="dirL2" inputmode="numeric" pattern="[0-9]*"></label></div>
       <div class="dirlab">曲げ角度（配管を何度曲げるか）</div>
       <div class="dirangs" id="dirAngs"></div>

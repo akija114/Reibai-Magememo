@@ -303,7 +303,7 @@ function dlTidy(S0,k,EQ,LB){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub,lay
  const cand=[];for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++){if(!sameNet(S[i],S[j]))continue;const r=geo(S[i],S[j]);if(r)cand.push({i,j,g:r.g})}
  cand.sort((p,q)=>p.g-q.g);
  cand.forEach(({i,j})=>{const A=S[i],B=S[j];A.u=[(A.b[0]-A.a[0])/A.L,(A.b[1]-A.a[1])/A.L];B.u=[(B.b[0]-B.a[0])/B.L,(B.b[1]-B.a[1])/B.L];const r=geo(A,B);if(!r)return;
-  const ea=r.endA?i+r.ka:null,eb=r.endB?j+r.kb:null;if(DU&&((ea&&usedE.has(ea))||(eb&&usedE.has(eb))))return;
+  const ea=r.endA?i+r.ka:null,eb=r.endB?j+r.kb:null;if(LBK&&((ea&&usedE.has(ea))||(eb&&usedE.has(eb))))return;
   const X=r.X;
   if(r.endA){if(r.ka==="a")A.a=[X[0],X[1]];else A.b=[X[0],X[1]];usedE.add(ea)}
   if(r.endB){if(r.kb==="a")B.a=[X[0],X[1]];else B.b=[X[0],X[1]];usedE.add(eb)}
@@ -465,7 +465,7 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
   const grp={};items.forEach(it=>{const key=(it.q.lay||"")+"|"+it.deg;(grp[key]=grp[key]||[]).push(it)});
   const solids=[],lines=[],hAt=(x,y)=>{const t=near(x,y);return t?t.h:defH[k]},W=(x,y)=>btWx([x,y]);
   const wTxt=(x,y)=>{const t=nearSz(x,y);if(!t)return null;return t.r?{r:1,w:[t.a],t}:{r:0,w:[t.a,t.b],t}};
-  Object.values(grp).forEach(G=>{if(G.length<2)return;const hasC=G.some(it=>it.q.c);G.forEach(it=>{if(it.q.c)it.used=1});const ux=G[0].ux,uy=G[0].uy,xy=(t,d)=>[t*ux-d*uy,t*uy+d*ux];
+  Object.values(grp).forEach(G=>{if(G.length<2&&!(k==="eisei"&&G[0].q.c))return;const hasC=G.some(it=>it.q.c);G.forEach(it=>{if(it.q.c)it.used=1});const ux=G[0].ux,uy=G[0].uy,xy=(t,d)=>[t*ux-d*uy,t*uy+d*ux];
    const bp=[...new Set(G.flatMap(it=>[it.lo,it.hi]).map(v=>Math.round(v*4)/4))].sort((a,b)=>a-b),pcs=[];
    for(let n=0;n+1<bp.length;n++){const ta=bp[n],tb=bp[n+1];if((tb-ta)*mm<10)continue;
     const act0=G.filter(it=>it.lo<=ta+0.3&&it.hi>=tb-0.3).sort((a,b)=>a.d-b.d),cen=act0.filter(it=>it.q.c),act=act0.filter(it=>!it.q.c);if(act.length<2)continue;
@@ -481,8 +481,19 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
    /* となりの区間で同じ太さならつなげる */
    pcs.sort((a,b)=>Math.round(a.dl)-Math.round(b.dl)||Math.round(a.dr)-Math.round(b.dr)||a.ta-b.ta);   /* 位置は1px単位でそろえて並べる（小数の差で別物にしない） */const M=[];
    pcs.forEach(p=>{const l=M[M.length-1];if(l&&Math.abs(l.dl-p.dl)<1&&Math.abs(l.dr-p.dr)<1&&p.ta-l.tb<=150/mm){l.tb=Math.max(l.tb,p.tb);l.tw=l.tw||p.tw}else M.push({...p})});
+   /* 衛生：中心線（一点鎖線）が描いてある管は、中心線をそのまま管の芯にする（外形の線の組は継手・フランジで切れて形がくずれるので）。
+      太さは、その中心線をはさむ外形の線の組から。中心線の無い所だけ、今まで通り外形の線の組を使う。
+      たて管の丸の上の十字（短い中心線）は管ではないので使わない */
+   if(k==="eisei"&&hasC){const C=G.filter(it=>it.q.c).sort((a,b)=>a.d-b.d||a.lo-b.lo),runs=[],dT=15/mm,gT=60/mm;
+    C.forEach(it=>{const r=runs.find(r=>Math.abs(r.d-it.d)<dT&&it.lo<=r.hi+gT&&it.hi>=r.lo-gT);if(r){r.lo=Math.min(r.lo,it.lo);r.hi=Math.max(r.hi,it.hi);r.n++;r.d=(r.d*(r.n-1)+it.d)/r.n}else runs.push({d:it.d,lo:it.lo,hi:it.hi,n:1})});
+    const mv=G[0].q.o?[G[0].q.s[0]-G[0].q.o[0],G[0].q.s[1]-G[0].q.o[1]]:[0,0],CI=(P.circ||[]).filter(c=>c.lay===G[0].q.lay).map(c=>({x:c.x+mv[0],y:c.y+mv[1],r:c.r}));
+    runs.forEach(r=>{const m=xy((r.lo+r.hi)/2,r.d),len=r.hi-r.lo;if(CI.some(c=>Math.hypot(c.x-m[0],c.y-m[1])<Math.max(c.r*1.2,8/mm)&&len<Math.max(c.r*5,300/mm)))return;
+     let best=null,bo=0;M.forEach(p=>{const pc=(p.dl+p.dr)/2,pw=p.dr-p.dl;if(Math.abs(pc-r.d)>Math.max(pw*0.35,10/mm))return;const ov=Math.min(p.tb,r.hi)-Math.max(p.ta,r.lo);if(ov>0){p.cov=(p.cov||0)+ov;if(ov>bo){bo=ov;best=p}}});
+     const hw=best?(best.dr-best.dl)/2:25/mm;r.p={dl:r.d-hw,dr:r.d+hw,ta:r.lo,tb:r.hi,tw:best&&best.tw,cen:1}});
+    for(let i=M.length-1;i>=0;i--)if((M[i].cov||0)>0.4*(M[i].tb-M[i].ta))M.splice(i,1);
+    runs.forEach(r=>{if(r.p)M.push(r.p)})}
    /* 短すぎる物（器具・掃除口などの記号の線）は捨てる：長さが太さの（ダクト0.8倍・配管2倍）未満、または10cm未満 */
-   M.forEach(p=>{const lm=(p.tb-p.ta)*mm,wm0=(p.dr-p.dl)*mm;if(k==="duct"?(lm<40||lm<wm0*0.3):(lm<40||lm<wm0*0.8))return;   /* 短い物も一度残して、あとでつなげてから捨てる */const dc=(p.dl+p.dr)/2,p1=xy(p.ta,dc),p2=xy(p.tb,dc),wm=(p.dr-p.dl)*mm,cm=xy((p.ta+p.tb)/2,dc);
+   M.forEach(p=>{const lm=(p.tb-p.ta)*mm,wm0=(p.dr-p.dl)*mm;if(k==="duct"?(lm<40||lm<wm0*0.3):(lm<40||(!p.cen&&lm<wm0*0.8)))return;   /* 短い物も一度残して、あとでつなげてから捨てる */const dc=(p.dl+p.dr)/2,p1=xy(p.ta,dc),p2=xy(p.tb,dc),wm=(p.dr-p.dl)*mm,cm=xy((p.ta+p.tb)/2,dc);
     const src=G[0].q.o?null:cm;   // ほかの図から持ってきた物は、高さの文字を元の図で探す
     const so=G[0].q.o?[cm[0]+(G[0].q.o[0]-G[0].q.s[0]),cm[1]+(G[0].q.o[1]-G[0].q.s[1])]:cm;
     const tz=p.tw&&p.tw.t;let sh=k==="duct"?(wm<=330?0:1):0,hh=wm;

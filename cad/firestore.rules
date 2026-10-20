@@ -1,0 +1,39 @@
+rules_version = '2';
+// CAD図面編集「仲間と共有」用のルール
+// ・合言葉を知っている人だけが参加できる（参加した人＝メンバーだけが中身を読める・書ける）
+// ・消した物は残る（gone:true）。本当に消す「完全削除」はグループを作った人だけ
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isMember(code) { return signedIn() && exists(/databases/$(database)/documents/groups/$(code)/members/$(request.auth.uid)); }
+    function isOwner(code) { return signedIn() && get(/databases/$(database)/documents/groups/$(code)).data.owner == request.auth.uid; }
+
+    match /groups/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid && request.resource.data.n == 1;
+      allow update: if isOwner(code)
+        || (signedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['n'])
+            && request.resource.data.n == resource.data.n + 1);
+      allow delete: if isOwner(code);
+
+      match /members/{uid} {
+        allow read: if isMember(code) || (signedIn() && request.auth.uid == uid);
+        allow create, update: if signedIn() && request.auth.uid == uid;
+        allow delete: if isOwner(code) || (signedIn() && request.auth.uid == uid);
+      }
+      match /drw/{fid} {
+        allow read, create, update: if isMember(code);
+        allow delete: if isOwner(code);
+        match /file/{i} {
+          allow read, create: if isMember(code);
+          allow update, delete: if isOwner(code);
+        }
+        match /items/{key} {
+          allow read, create, update: if isMember(code);
+          allow delete: if isOwner(code);
+        }
+      }
+    }
+  }
+}

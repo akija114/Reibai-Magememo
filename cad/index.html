@@ -112,7 +112,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .hlbar .t2{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hlbar .btn{height:36px;padding:0 10px}
 .lk{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;font-size:11px;font-weight:800;color:#fff}
-.lk.layer{background:#8893A0}.lk.note{background:var(--note)}.lk.obj{background:#7C5CD6}.lk.dim{background:var(--accent)}.lk.route{background:var(--snap)}
+.lk.sh{background:#2E7D5B}.lk.layer{background:#8893A0}.lk.note{background:var(--note)}.lk.obj{background:#7C5CD6}.lk.dim{background:var(--accent)}.lk.route{background:var(--snap)}
 .row.undone .nm{text-decoration:line-through;opacity:.55}
 .seg2{display:flex;gap:6px}
 .seg2 .btn{flex:1}
@@ -156,12 +156,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .loading{position:absolute;inset:0;display:grid;place-items:center;background:var(--paper);font-size:14px;color:var(--muted);z-index:5}
 .confirm{display:flex;gap:6px;align-items:center}
 @media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(30px);opacity:.5}}}
+.shb{position:relative}.shb i{position:absolute;right:6px;top:7px;width:9px;height:9px;border-radius:50%;background:transparent}.shb.on i{background:#2EA36B;box-shadow:0 0 0 2px var(--panel)}.shb.on.wait i{background:#E0A100}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--line);margin-right:4px;flex:none;vertical-align:middle}.dot.on{background:#2EA36B}
+.tagown{font-size:11px;font-weight:700;color:#2E7D5B;border:1px solid currentColor;border-radius:6px;padding:0 4px;margin-left:4px}
+.shnews{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 112px);transform:translateX(-50%);z-index:41;width:max-content;max-width:min(92%,440px);background:var(--panel);color:var(--ink);border:1px solid var(--line);border-left:5px solid #2EA36B;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.45;text-align:left;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;gap:10px;align-items:center}
+.shnews .m{flex:1 1 auto;min-width:0}.shnews span{color:var(--accent);font-weight:700;white-space:nowrap;margin-left:auto}
 </style>
 
 <div id="app">
   <div class="top">
     <button class="ib" id="bOpen" aria-label="ファイルを開く"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
     <div class="ttl"><b id="fname">—</b><span id="fsub"></span></div>
+    <button class="ib shb" id="bShare" aria-label="仲間と共有"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16.5 14.2c2.3.2 4 1.7 4.5 4.3"/></svg><i></i></button>
     <button class="ib" id="bDims" aria-label="変更の記録と寸法一覧"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg></button>
     <button class="ib" id="bUndo" aria-label="元に戻す" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
     <button class="ib" id="bRedo" aria-label="やり直し" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
@@ -990,7 +996,7 @@ function openNoteEditor(n, at){
     body.onclick = e => {
       const b = e.target.closest('[data-a]'); if (!b) return; const a = b.dataset.a;
       if (a === 'ok'){ const tx = ta.value.trim(); if (!tx){ toast('メモを書いてください'); return; }
-        if (isNew){ const nn = {id:'n' + Date.now().toString(36), x:at[0], y:at[1], text:tx, t:Date.now()}; exec(cmdNote('add', nn)); toast('メモを置きました'); }
+        if (isNew){ const nn = {id:'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), x:at[0], y:at[1], text:tx, t:Date.now()}; exec(cmdNote('add', nn)); toast('メモを置きました'); }
         else if (tx !== n.text){ exec(cmdNote('edit', n, tx)); toast('メモを直しました'); }
         closeSheet(); }
       else if (a === 'del'){ if (!b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '本当に削除'; return; } exec(cmdNote('del', n)); closeSheet(); toast('メモを削除しました（↶で戻せます）'); }
@@ -1455,7 +1461,7 @@ function autoDimAt(cur){
     if (!recs.length){ toast('近くに壁（二重線の面）が見つかりません。「壁として見るレイヤー」を選ぶか、「選んだ線」で測ってください'); MS.cur = null; drawOverlay(); return; }
   }
   if (!recs.length){ toast('寸法を作れませんでした'); return; }
-  const g = curDG().id; const ds = recs.map((r, i) => ({id:'a' + Date.now().toString(36) + i, ...r, n:1, g}));
+  const g = curDG().id; const ds = recs.map((r, i) => ({id:'a' + Date.now().toString(36) + Math.random().toString(36).slice(2,6) + i, ...r, n:1, g}));
   exec({kind:'dim', label:'芯出し寸法', dimAdded:ds, log:{label:A.to === 'grid' ? '通り芯から芯出し' : A.to === 'line' ? '選んだ線から芯出し' : '壁から芯出し', detail:`${what}：${msg.join('・')}`, dims:ds.map(dimRec), box:boxOf(ds.flatMap(d => [[d.x1,d.y1],[d.x2,d.y2]]))},
     do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }});
   MS.cur = null; drawOverlay(); updateHint(); toast(`${what}：${msg.join('　')}`);
@@ -1474,7 +1480,7 @@ function openAutoDimSheet(){
     body.onclick = e => { if (e.target.closest('[data-a="walls"]')){ openWallLayerSheet(); return; } const b = e.target.closest('[data-f]'); if (!b) return; S.autoDim = {from:b.dataset.f, to:b.dataset.t, line:null}; MS.p1 = null; closeSheet(); updateHint(); drawOverlay(); };
   });
 }
-function cmdAddDims(recs){ const ds = recs.map((r, i) => ({id:'r' + Date.now().toString(36) + i, x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:r.n || 1, g:(r.g && S.dimGroups.some(x => x.id === r.g)) ? r.g : curDG().id})); return {kind:'dim', label:'寸法を戻す', do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }}; }
+function cmdAddDims(recs){ const ds = recs.map((r, i) => ({id:'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,6) + i, x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:r.n || 1, g:(r.g && S.dimGroups.some(x => x.id === r.g)) ? r.g : curDG().id})); return {kind:'dim', label:'寸法を戻す', do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }}; }
 function cmdSetRoutes(list, ghostsAdd, ghostsDel){ // list: [sid, verts|null, closed]
   const before = list.map(([sid]) => [sid, S.ov.has(sid) ? S.ov.get(sid) : null]); let removed = [];
   return {kind:'route', label:'ルートを戻す',
@@ -1628,7 +1634,7 @@ function updateRouteUi(){ updateHint(); updateLayerBar(); updateRoutePanel(); dr
 /* ============ commands (undo/redo) ============ */
 function exec(c){
   c.do(); S.undo.push(c); S.redo = [];
-  if (c.log){ c.entry = {id:Date.now().toString(36) + Math.random().toString(36).slice(2,5), t:Date.now(), kind:c.kind, label:c.label, undone:false, ...c.log}; S.log.push(c.entry); }
+  if (c.log){ c.entry = {id:Date.now().toString(36) + Math.random().toString(36).slice(2,5), t:Date.now(), kind:c.kind, label:c.label, undone:false, ...c.log}; if (SH.on && FX) c.entry.by = FX.uid; S.log.push(c.entry); }
   changed(c.kind);
 }
 function undo(){ const c = S.undo.pop(); if (!c) return; c.undo(); if (c.entry) c.entry.undone = true; S.redo.push(c); changed(c.kind); toast('元に戻しました：' + c.label); }
@@ -1662,14 +1668,15 @@ function cmdVis(names, on){
   return {kind:'layer', label: on ? '表示' : '非表示', do(){ ls.forEach(l => l.on = on); }, undo(){ ls.forEach(l => l.on = !on); }};
 }
 function cmdAddDim(d){ return {kind:'dim', label:'寸法追加', dimAdded:[d], log:{label:'寸法を追加', detail:fmt(Math.hypot(d.x2-d.x1, d.y2-d.y1)) + ' mm', dims:[dimRec(d)], box:boxOf([[d.x1,d.y1],[d.x2,d.y2]])}, do(){ S.dims.push(d); }, undo(){ S.dims = S.dims.filter(x => x !== d); }}; }
-function cmdDelDims(ds){ const before = S.dims.slice(); return {kind:'dim', label:`寸法削除（${ds.length}）`, log:{label:'寸法を削除', detail:ds.length === 1 ? fmt(Math.hypot(ds[0].x2-ds[0].x1, ds[0].y2-ds[0].y1)) + ' mm' : ds.length + ' 本', dims:ds.map(dimRec), gone:true, box:boxOf(ds.flatMap(d => [[d.x1,d.y1],[d.x2,d.y2]]))}, do(){ S.dims = S.dims.filter(x => !ds.includes(x)); }, undo(){ S.dims = before.slice(); }}; }
+function cmdDelDims(ds){ const before = S.dims.slice(); return {kind:'dim', label:`寸法削除（${ds.length}）`, log:{label:'寸法を削除', detail:ds.length === 1 ? fmt(Math.hypot(ds[0].x2-ds[0].x1, ds[0].y2-ds[0].y1)) + ' mm' : ds.length + ' 本', dims:ds.map(dimRec), gone:true, box:boxOf(ds.flatMap(d => [[d.x1,d.y1],[d.x2,d.y2]]))}, do(){ S.dims = S.dims.filter(x => !ds.includes(x)); }, undo(){ S.dims.push(...ds.filter(x => !S.dims.includes(x))); }}; }
 function cmdDiv(d, n){ const o = d.n || 1; const L = Math.hypot(d.x2-d.x1, d.y2-d.y1); return {kind:'dim', label: n === 1 ? '分割なし' : `${n}等分`, log:{label: n === 1 ? '分割をやめた' : (n === 2 ? '中心（2等分）' : `${n}等分`), detail: n === 1 ? fmt(L) + ' mm' : `${fmt(L)} → ${fmt(L/n)} ずつ`, dims:[{...dimRec(d), n}], prevN:o, box:boxOf([[d.x1,d.y1],[d.x2,d.y2]])}, do(){ d.n = n; }, undo(){ d.n = o; }}; }
 
 /* ============ UI ============ */
 function updateUi(){
   $('#bUndo').disabled = !S.undo.length; $('#bRedo').disabled = !S.redo.length;
   $('#fname').textContent = S.name || '—';
-  if (G){ const live = G.L.filter(l => !l.deleted).length, del = G.L.length - live; $('#fsub').textContent = `レイヤー ${live}${del ? `（削除 ${del}）` : ''} ・ 寸法 ${S.dims.length} ・ ${S.units}`; }
+  if (G){ const live = G.L.filter(l => !l.deleted).length, del = G.L.length - live; $('#fsub').textContent = SH.on ? `${shStatus()} ・ 寸法 ${S.dims.length}` : `レイヤー ${live}${del ? `（削除 ${del}）` : ''} ・ 寸法 ${S.dims.length} ・ ${S.units}`; }
+  { const bs = $('#bShare'); if (bs){ bs.classList.toggle('on', SH.on); bs.classList.toggle('wait', SH.on && (SH.pend || navigator.onLine === false)); } }
   $('#mPan').classList.toggle('on', S.mode === 'pan'); $('#mDim').classList.toggle('on', S.mode === 'dim'); $('#mRoute').classList.toggle('on', S.mode === 'route'); $('#mBox').classList.toggle('on', S.mode === 'box');
   $('#tOrtho').classList.toggle('on', S.ortho); $('#mNote').classList.toggle('on', S.mode === 'note'); $('#tSnap').classList.toggle('on', S.snapOn);
   updateHint(); updateLayerBar(); updateDimPanel(); updateRoutePanel();
@@ -1880,7 +1887,7 @@ function openViewSheet(){
         const name = (inp.value || '').trim() || `表示${S.views.length + 1}`;
         const ex = S.views.find(v => v.name === name);
         if (ex && !b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '上書きする'; return; }
-        const v = {id: ex ? ex.id : 'v' + Date.now().toString(36), name, ...snapView(), t:Date.now()};
+        const v = {id: ex ? ex.id : 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), name, ...snapView(), t:Date.now()};
         if (ex) Object.assign(ex, v); else S.views.push(v);
         S.viewId = v.id; autosave(); refreshOpenSheet(); toast(`「${name}」を保存しました`); return;
       }
@@ -2016,9 +2023,9 @@ function openLogSheet(tab){
         if (day !== lastDay){ h += `<div class="grp">${day}</div>`; lastDay = day; }
         const tag = {layer:'層', dim:'寸', route:'管', obj:'品', note:'メ'}[e.kind] || '・';
         const canRev = !!inverseOf(e);
-        h += `<div class="row ${e.undone || e.reverted ? 'undone' : ''}" data-log="${esc(e.id)}"><i class="lk ${e.kind}">${tag}</i><div class="grow"><div class="nm">${esc(e.label)}${e.detail ? ` <span style="color:var(--muted);font-size:12px">${esc(e.detail)}</span>` : ''}</div><div class="sub">${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}${e.undone || e.reverted ? ' ・ 取り消し済み' : ''}</div></div>${canRev ? `<button class="btn del" data-rev="${esc(e.id)}">取り消す</button>` : ''}<button class="btn" data-log="${esc(e.id)}">見る</button></div>`;
+        h += `<div class="row ${e.undone || e.reverted ? 'undone' : ''}" data-log="${esc(e.id)}"><i class="lk ${e.kind}">${tag}</i><div class="grow"><div class="nm">${esc(e.label)}${e.detail ? ` <span style="color:var(--muted);font-size:12px">${esc(e.detail)}</span>` : ''}</div><div class="sub">${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}${e.by ? ' ・ ' + esc(whoName(e.by, true)) : ''}${e.undone || e.reverted ? ' ・ 取り消し済み' : ''}</div></div>${canRev ? `<button class="btn del" data-rev="${esc(e.id)}">取り消す</button>` : ''}<button class="btn" data-log="${esc(e.id)}">見る</button></div>`;
       }
-      h += `<span class="confirm" id="logClr"><button class="btn" data-a="clr">記録を消す（図面はそのまま）</button></span>`;
+      if (!SH.on) h += `<span class="confirm" id="logClr"><button class="btn" data-a="clr">記録を消す（図面はそのまま）</button></span>`;
       body.innerHTML = h;
     }
     body.onclick = e => {
@@ -2109,7 +2116,8 @@ let autoT = 0;
 function autosave(dirty = true){
   if (dirty && G) S.dirty = true;
   clearTimeout(autoT);
-  autoT = setTimeout(() => { if (!G) return; dbPut('projects', {id:'__last', name:S.name, srcName:S.srcName, fileId:S.fileId, projectId:S.projectId, updated:Date.now(), ...stateRecord()}); }, 800);
+  if (dirty) shSchedule();
+  autoT = setTimeout(() => { if (!G) return; dbPut('projects', {id:'__last', name:S.name, srcName:S.srcName, fileId:S.fileId, projectId:S.projectId, updated:Date.now(), shared:SH.on ? {code:SH.code, fid:SH.fid, name:SH.name} : null, ...stateRecord()}); }, 800);
 }
 function hashText(t){ let h = 2166136261; const step = Math.max(1, Math.floor(t.length/20000)); for (let i = 0; i < t.length; i += step){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + t.length.toString(36); }
 
@@ -2120,6 +2128,7 @@ async function openText(text, srcName, opts = {}){
   try {
     const doc = parseDxf(text);
     const flat = flatten(doc);
+    if (SH.on && !opts.keepShare) shStop();
     if (!flat.segs.length && !flat.texts.length) throw new Error('図形が見つかりません');
     S.text = text; S.eol = text.includes('\r\n') ? '\r\n' : '\n'; S.srcName = srcName;
     S.fileId = opts.fileId || hashText(text);
@@ -2900,6 +2909,426 @@ async function calibratePdf(r){
 }
 
 window.addEventListener('beforeunload', e => { if (S.dirty){ e.preventDefault(); e.returnValue = ''; } });
+/* ============ share（仲間と同時に共有） ============
+   groups/{code}                 {owner, n, name, t}
+   groups/{code}/members/{uid}   {letter, nick, joined, seen}
+   groups/{code}/drw/{fid}       {name, srcName, chunks, size, shapes, by, t}
+   groups/{code}/drw/{fid}/file/{i}   {d: base64(gzip(DXF)) の一部}
+   groups/{code}/drw/{fid}/items/{key} {k, j(JSON), by, t, gone, gBy, gT}
+   変更は「項目ごとの差分」で送る。消した物は gone:true で残し、完全削除（作った人だけ）で本当に消える。 */
+const FB_CFG = null;
+const FB_V = 'https://www.gstatic.com/firebasejs/10.14.1/';
+const SH = {on:false, ready:false, code:null, fid:null, name:'', owner:null, gname:'', members:{}, last:new Map(), R:new Map(), unsub:[], pend:false, beat:0, pushT:0, news:[]};
+let FX = null, fxLoading = null;
+const SH_ONLINE_MS = 150000;
+const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const rid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+function nickLS(v){ try { if (v !== undefined) localStorage.setItem('zumen-nick', v); return localStorage.getItem('zumen-nick') || ''; } catch(e){ return v || ''; } }
+function joinedLS(v){ try { if (v) localStorage.setItem('zumen-joined', JSON.stringify(v)); return JSON.parse(localStorage.getItem('zumen-joined') || '[]'); } catch(e){ return v || []; } }
+function letterOf(n){ let s = ''; n = Math.max(1, n) - 1; do { s = String.fromCharCode(65 + n % 26) + s; n = Math.floor(n / 26) - 1; } while (n >= 0); return s; }
+function whoName(uid, self){ if (!uid) return ''; const m = SH.members[uid]; const nm = m ? (m.nick || m.letter || '?') : '?'; return self && FX && uid === FX.uid ? nm + '（自分）' : nm; }
+const isOnline = m => m && m.seen && Date.now() - m.seen < SH_ONLINE_MS;
+const shOwner = () => !!(FX && SH.owner && SH.owner === FX.uid);
+const keyEnc = k => k.replace(/%/g, '%25').replace(/\//g, '%2F');
+const keyDec = id => id.replace(/%2F/g, '/').replace(/%25/g, '%');
+const ghostKey = g => 'h:' + [g.sid, g.x1, g.y1, g.x2, g.y2].map(v => typeof v === 'number' ? Math.round(v * 100) / 100 : v).join(',');
+const drwPath = () => `groups/${SH.code}/drw/${SH.fid}`;
+
+/* ---- Firebase（つながる部分） ---- */
+async function fxGet(){
+  if (FX) return FX;
+  if (!fxLoading) fxLoading = (window.__FXMOCK ? window.__FXMOCK() : fxReal()).then(f => (FX = f)).catch(e => { fxLoading = null; throw e; });
+  return fxLoading;
+}
+async function fxReal(){
+  if (!FB_CFG) throw new Error('nocfg');
+  const [A, Au, F] = await Promise.all([import(FB_V + 'firebase-app.js'), import(FB_V + 'firebase-auth.js'), import(FB_V + 'firebase-firestore.js')]);
+  const app = A.initializeApp(FB_CFG);
+  let db; try { db = F.initializeFirestore(app, {localCache: F.persistentLocalCache({tabManager: F.persistentMultipleTabManager()})}); } catch(e){ db = F.getFirestore(app); }
+  const auth = Au.getAuth(app);
+  const user = await new Promise((res, rej) => { let tried = false; const off = Au.onAuthStateChanged(auth, u => { if (u){ off(); res(u); } else if (!tried){ tried = true; Au.signInAnonymously(auth).catch(e => { off(); rej(e); }); } }, rej); });
+  const R = p => F.doc(db, p);
+  const conv = s => s.docChanges({includeMetadataChanges:true}).map(c => ({id:c.doc.id, type:c.type, data:c.type === 'removed' ? null : c.doc.data()}));
+  return {
+    uid: user.uid,
+    get: async p => { const s = await F.getDoc(R(p)); return s.exists() ? s.data() : null; },
+    list: async p => { const s = await F.getDocs(F.collection(db, p)); return s.docs.map(d => ({id:d.id, data:d.data()})); },
+    set: (p, d, merge) => F.setDoc(R(p), d, merge ? {merge:true} : {}),
+    del: p => F.deleteDoc(R(p)),
+    batch: async ops => { for (let i = 0; i < ops.length; i += 400){ const b = F.writeBatch(db); ops.slice(i, i + 400).forEach(o => o.del ? b.delete(R(o.p)) : b.set(R(o.p), o.d)); await b.commit(); } },
+    listen: (p, cb) => F.onSnapshot(F.collection(db, p), {includeMetadataChanges:true}, s => cb(conv(s), {fromCache:s.metadata.fromCache, pending:s.metadata.hasPendingWrites}), err => cb(null, {error:err})),
+    listenDoc: (p, cb) => F.onSnapshot(R(p), s => cb(s.exists() ? s.data() : null), err => cb(null, {error:err})),
+    incr: p => F.runTransaction(db, async tx => { const s = await tx.get(R(p)); if (!s.exists()) throw new Error('nf'); const n = (s.data().n || 0) + 1; tx.update(R(p), {n}); return n; }),
+  };
+}
+function shErrMsg(e){
+  const c = (e && (e.code || e.message)) || '';
+  if (c === 'nocfg') return '共有の準備（Firebaseの設定）がまだです';
+  if (/permission/.test(c)) return '許可がありません（合言葉かグループを確かめてください）';
+  if (/unavailable|network|offline|Failed to fetch|import/i.test(c)) return 'ネットにつながっていません';
+  if (/admin-restricted|operation-not-allowed/.test(c)) return 'Firebaseで「匿名」ログインが有効になっていません';
+  return 'うまくいきませんでした（' + String(c).slice(0, 60) + '）';
+}
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('offline')), ms))]);
+
+/* ---- 圧縮して送る・受け取る ---- */
+async function gzB64(text){
+  const u8 = new Uint8Array(await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+  let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+async function unB64Gz(b64){
+  const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+}
+
+/* ---- 今の図面 → 項目の一覧 ---- */
+function sharedState(){
+  const m = new Map();
+  for (const d of S.dims){ if (!d.id) d.id = rid('r'); m.set('d:' + d.id, JSON.stringify(dimRec(d))); }
+  for (const n of S.notes){ if (!n.id) n.id = rid('n'); m.set('n:' + n.id, JSON.stringify(noteRec(n))); }
+  for (const g of S.dimGroups) m.set('g:' + g.id, JSON.stringify({name:g.name}));
+  for (const l of G.L) if (l.deleted) m.set('L:' + l.name, '1');
+  for (const e of S.delObj) m.set('o:' + e, '1');
+  for (const [sid, o] of S.ov) m.set('r:' + sid, JSON.stringify({v:o.verts, c:!!o.closed}));
+  for (const g of S.ghosts) m.set(ghostKey(g), JSON.stringify(g));
+  for (const v of S.views) m.set('v:' + v.id, JSON.stringify(v));
+  for (const e of S.log) m.set('e:' + e.id, JSON.stringify(e));
+  return m;
+}
+function shSchedule(){ if (!SH.on || !SH.ready) return; clearTimeout(SH.pushT); SH.pushT = setTimeout(shPush, 250); }
+function shPush(){
+  clearTimeout(SH.pushT);
+  if (!SH.on || !SH.ready || !G || !FX) return;
+  const cur = sharedState(), ops = [], now = Date.now(), me = FX.uid, base = drwPath() + '/items/';
+  for (const [k, j] of cur) if (SH.last.get(k) !== j){ const d = {k, j, by:me, t:now, gone:false}; ops.push({p:base + keyEnc(k), d}); SH.R.set(k, d); }
+  for (const [k, j] of SH.last) if (!cur.has(k)){ const p = SH.R.get(k) || {k, j, by:me, t:now}; const d = {...p, j:p.j || j, gone:true, gBy:me, gT:now}; ops.push({p:base + keyEnc(k), d}); SH.R.set(k, d); }
+  SH.last = cur;
+  S.dirty = false;
+  if (ops.length) FX.batch(ops).catch(e => toast('共有に送れませんでした：' + shErrMsg(e)));
+}
+
+/* ---- 他の人の変更 → 今の図面 ---- */
+function applyItem(k, v, kinds){
+  const t = k[0], id = k.slice(2);
+  if (t === 'd'){
+    const i = S.dims.findIndex(x => x.id === id);
+    if (v){ const o = {id, x1:+v.x1, y1:+v.y1, x2:+v.x2, y2:+v.y2, n:+v.n || 1, g:v.g}; if (i >= 0) Object.assign(S.dims[i], o); else S.dims.push(o); }
+    else if (i >= 0) S.dims = S.dims.filter(x => x.id !== id);
+    kinds.add('dim');
+  } else if (t === 'n'){
+    const n = S.notes.find(x => x.id === id);
+    if (v){ if (n) Object.assign(n, v); else S.notes.push({...v}); } else if (n) S.notes = S.notes.filter(x => x !== n);
+    kinds.add('note');
+  } else if (t === 'g'){
+    const g = S.dimGroups.find(x => x.id === id);
+    if (v){ if (g) g.name = v.name; else S.dimGroups.push({id, name:v.name, on:true}); }
+    else if (g){ S.dimGroups = S.dimGroups.filter(x => x !== g); if (S.curDG === id) S.curDG = null; }
+    kinds.add('dim');
+  } else if (t === 'L'){
+    const l = G.L.find(x => x.name === id); if (l) l.deleted = !!v; kinds.add('layer');
+  } else if (t === 'o'){
+    if (v) S.delObj.add(+id); else S.delObj.delete(+id); kinds.add('obj');
+  } else if (t === 'r'){
+    if (G.shapes[+id]){ if (v) S.ov.set(+id, {verts:v.v, closed:!!v.c}); else S.ov.delete(+id); } kinds.add('route');
+  } else if (t === 'h'){
+    const i = S.ghosts.findIndex(g => ghostKey(g) === k);
+    if (v){ if (i < 0) S.ghosts.push(v); } else if (i >= 0) S.ghosts = S.ghosts.filter((g, j) => j !== i);
+    kinds.add('route');
+  } else if (t === 'v'){
+    const x = S.views.find(w => w.id === id);
+    if (v){ if (x) Object.assign(x, v); else S.views.push(v); } else if (x) S.views = S.views.filter(w => w !== x);
+    kinds.add('view');
+  } else if (t === 'e'){
+    const x = S.log.find(w => w.id === id);
+    if (v){ if (x) Object.assign(x, v); else { S.log.push(v); S.log.sort((a, b) => a.t - b.t); } } else if (x) S.log = S.log.filter(w => w !== x);
+    kinds.add('log');
+  }
+}
+function shReset(){
+  S.dims = []; S.notes = []; S.ov = new Map(); S.ghosts = []; S.views = []; S.log = []; S.delObj = new Set(); S.selDim = null;
+  const keepOn = new Map(S.dimGroups.map(g => [g.id, g.on])); S.dimGroups = []; SH.keepOn = keepOn;
+  G.L.forEach(l => l.deleted = false);
+  S.undo = []; S.redo = []; HL = null;
+}
+function shApply(changes, initial, quiet){
+  if (!G || !changes) return;
+  if (!initial) shPush();               // 自分のまだ送っていない変更を先に出す
+  const kinds = new Set(), fresh = [];
+  for (const c of changes){
+    const k = (c.data && c.data.k) || keyDec(c.id);
+    const d = c.data;
+    if (d) SH.R.set(k, d); else SH.R.delete(k);
+    const live = d && !d.gone ? d.j : null;
+    if (live === (SH.last.has(k) ? SH.last.get(k) : null)) continue;
+    let v = null; try { v = live ? JSON.parse(live) : null; } catch(e){ continue; }
+    if (v && k[0] === 'e' && !SH.last.has(k) && !initial && !quiet && d.by && d.by !== FX.uid) fresh.push(v);
+    applyItem(k, v, kinds);
+  }
+  if (initial && SH.keepOn){ S.dimGroups.forEach(g => { if (SH.keepOn.has(g.id)) g.on = SH.keepOn.get(g.id); }); SH.keepOn = null; }
+  SH.last = sharedState();
+  if (!kinds.size) return;
+  if (S.curDG && !S.dimGroups.some(g => g.id === S.curDG)) S.curDG = null;
+  if (S.selDim && !S.dims.includes(S.selDim)) S.selDim = null;
+  if (kinds.has('route') || kinds.has('obj') || kinds.has('layer') || kinds.has('view')){ refreshGeom(); buildIndex(); renderBase(); renderTabs(); }
+  drawOverlay(); updateUi(); refreshOpenSheet(); autosave(false);
+  if (fresh.length) shNotify(fresh);
+}
+
+/* ---- 他の人の変更のお知らせ（押すとその場所へ） ---- */
+function shNotify(list){
+  SH.news = SH.news.concat(list).slice(-20);
+  const e = list[list.length - 1];
+  let el = $('#shNews');
+  if (!el){ el = document.createElement('button'); el.id = 'shNews'; el.className = 'shnews'; document.body.appendChild(el); }
+  const more = list.length > 1 ? `（ほか${list.length - 1}件）` : '';
+  el.innerHTML = `<div class="m"><b>${esc(whoName(e.by))}</b>：${esc(e.label)}${e.detail ? ' ' + esc(e.detail) : ''}${more}</div><span>見る ›</span>`;
+  el.hidden = false;
+  el.onclick = () => { el.hidden = true; const en = S.log.find(x => x.id === e.id) || e; closeSheet(); showLog(en); };
+  clearTimeout(SH.newsT); SH.newsT = setTimeout(() => { el.hidden = true; }, 9000);
+  try { if (navigator.vibrate) navigator.vibrate(30); } catch(_){}
+}
+
+/* ---- 共有を始める・つなぐ・やめる ---- */
+function shStop(){
+  SH.unsub.forEach(f => { try { f(); } catch(e){} }); SH.unsub = [];
+  clearInterval(SH.beat); clearTimeout(SH.pushT);
+  Object.assign(SH, {on:false, ready:false, code:null, fid:null, name:'', owner:null, gname:'', members:{}, last:new Map(), R:new Map(), pend:false});
+  const n = $('#shNews'); if (n) n.hidden = true;
+  updateUi();
+}
+async function shAttach(code, fid, name){
+  shStop();
+  Object.assign(SH, {on:true, ready:false, code, fid, name});
+  const f = FX;
+  SH.unsub.push(f.listenDoc(`groups/${code}`, g => { if (g){ SH.owner = g.owner; SH.gname = g.name || ''; updateUi(); refreshOpenSheet(); } }));
+  SH.unsub.push(f.listen(`groups/${code}/members`, (ch, meta) => { if (!ch) return; for (const c of ch){ if (c.data) SH.members[c.id] = c.data; else delete SH.members[c.id]; } updateUi(); if (sheet && sheet.share) refreshOpenSheet(); }));
+  let first = true, warm = true; // warm: 最初にサーバーから全部届くまではお知らせを出さない
+  SH.unsub.push(f.listen(`${drwPath()}/items`, (ch, meta) => {
+    if (!ch){ if (meta && meta.error) toast('共有の受信が止まりました：' + shErrMsg(meta.error)); return; }
+    SH.pend = !!meta.pending;
+    const quiet = warm; if (!meta.fromCache) warm = false;
+    if (first){ first = false; shReset(); SH.last = new Map(); shApply(ch, true); SH.ready = true; S.dirty = false; refreshGeom(); buildIndex(); renderBase(); renderTabs(); drawOverlay(); updateUi(); refreshOpenSheet(); autosave(false); return; }
+    shApply(ch, false, quiet); updateUi();
+  }));
+  const beat = () => { if (document.visibilityState !== 'hidden') f.set(`groups/${code}/members/${f.uid}`, {seen:Date.now()}, true).catch(() => {}); };
+  beat(); SH.beat = setInterval(() => { beat(); updateUi(); }, 60000);
+  updateUi(); autosave(false);
+}
+document.addEventListener('visibilitychange', () => { if (SH.on && FX && document.visibilityState === 'visible'){ FX.set(`groups/${SH.code}/members/${FX.uid}`, {seen:Date.now()}, true).catch(() => {}); updateUi(); } });
+window.addEventListener('online', () => updateUi()); window.addEventListener('offline', () => updateUi());
+
+async function shEnsureMember(code){
+  const f = await fxGet();
+  const g = await withTimeout(f.get(`groups/${code}`), 15000);
+  if (!g) throw new Error('nf');
+  let m = await f.get(`groups/${code}/members/${f.uid}`).catch(() => null);
+  if (!m){
+    const n = await withTimeout(f.incr(`groups/${code}`), 15000);
+    m = {letter:letterOf(n), nick:nickLS(), joined:Date.now(), seen:Date.now()};
+    await withTimeout(f.set(`groups/${code}/members/${f.uid}`, m), 15000);
+  }
+  const js = joinedLS().filter(x => x.code !== code); js.unshift({code, name:g.name || ''}); joinedLS(js);
+  return {g, m};
+}
+async function shCreateGroup(name){
+  const f = await fxGet();
+  let code = '';
+  for (let tries = 0; tries < 6; tries++){ code = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => CODE_CH[b % CODE_CH.length]).join(''); if (!(await withTimeout(f.get(`groups/${code}`), 15000))) break; }
+  const nm = (name || '').trim() || '現場の仲間';
+  await withTimeout(f.set(`groups/${code}`, {owner:f.uid, n:1, name:nm, t:Date.now()}), 15000);
+  await withTimeout(f.set(`groups/${code}/members/${f.uid}`, {letter:'A', nick:nickLS(), joined:Date.now(), seen:Date.now()}), 15000);
+  const js = joinedLS().filter(x => x.code !== code); js.unshift({code, name:nm}); joinedLS(js);
+  return code;
+}
+async function shShareCurrent(code){
+  if (!G) return;
+  const f = await fxGet();
+  const fid = rid('f'), name = S.name;
+  const b64 = await gzB64(S.text), CH = 500000, chunks = Math.ceil(b64.length / CH);
+  $('#loading').hidden = false; $('#loading').textContent = '図面を送っています…';
+  try {
+    for (let i = 0; i < chunks; i++){ $('#loading').textContent = `図面を送っています… ${i + 1}/${chunks}`; await withTimeout(f.set(`groups/${code}/drw/${fid}/file/${i}`, {d:b64.slice(i * CH, (i + 1) * CH)}), 60000); }
+    await withTimeout(f.set(`groups/${code}/drw/${fid}`, {name, srcName:S.srcName, chunks, size:S.text.length, shapes:G.shapes.length, by:f.uid, t:Date.now()}), 20000);
+  } finally { $('#loading').hidden = true; }
+  // 今の寸法・削除などをそのまま共有の最初の中身にする
+  const st = sharedState(), base = `groups/${code}/drw/${fid}/items/`, now = Date.now();
+  await withTimeout(f.batch([...st].map(([k, j]) => ({p:base + keyEnc(k), d:{k, j, by:f.uid, t:now, gone:false}}))), 20000).catch(() => {});
+  S.fileId = 'sh_' + fid; dbOp('files', 'readwrite', s => s.put({id:S.fileId, text:S.text, srcName:S.srcName}));
+  await shAttach(code, fid, name);
+  toast('共有を始めました。仲間に合言葉を送ってください');
+}
+async function shOpen(code, fid){
+  const f = await fxGet();
+  await shEnsureMember(code);
+  const meta = await withTimeout(f.get(`groups/${code}/drw/${fid}`), 20000);
+  if (!meta){ toast('その図面はもうありません'); return; }
+  let text = (await dbGet('files', 'sh_' + fid))?.text;
+  if (!text){
+    $('#loading').hidden = false; $('#loading').textContent = '図面を受け取っています…';
+    try {
+      let b64 = '';
+      for (let i = 0; i < meta.chunks; i++){ $('#loading').textContent = `図面を受け取っています… ${i + 1}/${meta.chunks}`; const c = await withTimeout(f.get(`groups/${code}/drw/${fid}/file/${i}`), 60000); if (!c) throw new Error('図面の一部が見つかりません'); b64 += c.d; }
+      text = await unB64Gz(b64);
+    } finally { $('#loading').hidden = true; }
+  }
+  shStop();
+  const ok = await openText(text, meta.srcName || meta.name, {fileId:'sh_' + fid, name:meta.name, state:{}, keepShare:true});
+  if (!ok) return;
+  if (meta.shapes && meta.shapes !== G.shapes.length) toast('図面の読み込み結果が送った人と違います。部品の削除・ルートがずれるかもしれません');
+  await shAttach(code, fid, meta.name);
+  toast(`「${meta.name}」を共有で開きました`);
+}
+async function shResume(rec){
+  try { await fxGet(); } catch(e){ return; }
+  if (!G || S.fileId !== 'sh_' + rec.fid) return;
+  await shAttach(rec.code, rec.fid, rec.name || S.name);
+}
+
+/* ---- 画面 ---- */
+function shStatus(){
+  if (!SH.on) return '';
+  const ms = Object.entries(SH.members), on = ms.filter(([u, m]) => u !== (FX && FX.uid) && isOnline(m)).length;
+  const off = navigator.onLine === false;
+  return `共有中${off ? '・圏外（つながったら送ります）' : SH.pend ? '・送信中' : ''} ・ ほか${on}人オンライン`;
+}
+function shareCode(code){ return code.slice(0, 3) + '-' + code.slice(3); }
+async function sendCode(code, gname){
+  const url = location.origin + location.pathname + '?join=' + code;
+  const text = `CAD図面編集の共有「${gname || ''}」に入ってください。合言葉：${shareCode(code)}\n${url}`;
+  try { if (navigator.share){ await navigator.share({text}); return; } } catch(e){ if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text); toast('合言葉と案内をコピーしました'); } catch(e){ toast('合言葉：' + shareCode(code)); }
+}
+function openShareSheet(prefill){
+  if (!FB_CFG && !window.__FXMOCK){
+    openSheet('仲間と共有', body => { body.innerHTML = `<div class="note">共有は、ネット版（akija114.github.io の CAD図面編集）で使えます。${location.hostname === 'akija114.github.io' ? 'いま準備中です（Firebaseの設定待ち）。' : ''}</div>`; });
+    return;
+  }
+  openSheet('仲間と共有', body => {
+    sheet.share = true;
+    const js = joinedLS();
+    let h = `<div class="field"><label for="shNick">自分の名前（ニックネーム）</label><input id="shNick" value="${esc(nickLS())}" placeholder="空のままだと A・B・C… の順で名前が付きます" enterkeyhint="done"></div>`;
+    if (SH.on){
+      const ms = Object.entries(SH.members).sort((a, b) => (a[1].joined || 0) - (b[1].joined || 0));
+      h += `<div class="grp">共有中の図面</div><div class="row"><i class="lk sh">共</i><div class="grow"><div class="nm">${esc(SH.name)}</div><div class="sub">${esc(SH.gname)} ・ 合言葉 <b>${shareCode(SH.code)}</b>${navigator.onLine === false ? ' ・ 圏外（つながったら送ります）' : SH.pend ? ' ・ 送信中…' : ' ・ 最新'}</div></div><button class="btn" data-a="send">合言葉を送る</button></div>`;
+      h += `<div class="grp">仲間（${ms.length}人）</div>` + ms.map(([u, m]) => `<div class="row"><i class="dot ${isOnline(m) || u === FX.uid ? 'on' : ''}"></i><div class="grow"><div class="nm">${esc(m.nick || m.letter)}${m.nick ? ` <span class="sub">（${esc(m.letter)}）</span>` : ''}${u === FX.uid ? ' <span class="sub">自分</span>' : ''}${u === SH.owner ? ' <span class="tagown">作った人</span>' : ''}</div><div class="sub">${u === FX.uid || isOnline(m) ? 'オンライン' : m.seen ? '最後に見た：' + new Date(m.seen).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '—'}</div></div></div>`).join('');
+      const nTrash = [...SH.R.values()].filter(trashable).length;
+      h += `<button class="bigbtn sec" data-a="trash">ゴミ箱（消した物 ${nTrash}）</button>`;
+      h += `<button class="bigbtn sec" data-a="leave">この端末で共有を終える</button>`;
+      h += `<div class="note">共有を終えても、図面はこの端末に残ります。変更は自動で全員に送られます。電波がない所でもそのまま作業でき、つながった時にまとめて送られます。履歴には「誰が・何を」したかが残り、誰でも取り消せます。</div>`;
+    } else if (G){
+      h += `<div class="grp">今の図面「${esc(S.name)}」を共有する</div>`;
+      h += js.length ? js.map(g => `<button class="bigbtn sec" data-share="${esc(g.code)}">「${esc(g.name || shareCode(g.code))}」で共有する</button>`).join('') : '<div class="note">先に下で仲間（グループ）を作るか、合言葉で参加してください。</div>';
+    }
+    h += `<div class="grp">参加しているグループ</div>`;
+    h += js.length ? js.map(g => `<div class="row" data-grp="${esc(g.code)}"><i class="lk sh">共</i><div class="grow"><div class="nm">${esc(g.name || '（名前なし）')}</div><div class="sub">合言葉 ${shareCode(g.code)}</div></div><button class="btn" data-grp="${esc(g.code)}">図面を見る</button></div>`).join('') : '<div class="empty">まだありません</div>';
+    h += `<div class="grp">合言葉で参加する</div><div class="field" style="display:flex;gap:6px"><input id="shCode" value="${esc(prefill || '')}" placeholder="例：K7P-2QX" autocapitalize="characters" autocomplete="off" style="flex:1"><button class="btn" data-a="join">参加</button></div>`;
+    h += `<div class="grp">新しく仲間（グループ）を作る</div><div class="field" style="display:flex;gap:6px"><input id="shGname" placeholder="例：○○現場" style="flex:1"><button class="btn" data-a="create">作る</button></div>`;
+    h += `<div class="note">合言葉を知っている人は誰でも入れます。消した物は「ゴミ箱」に残り、本当に消す「完全削除」はグループを作った人だけができます。</div>`;
+    body.innerHTML = h;
+    const nick = body.querySelector('#shNick');
+    nick.onchange = () => { const v = nick.value.trim().slice(0, 16); nickLS(v); if (FX){ joinedLS().forEach(g => FX.set(`groups/${g.code}/members/${FX.uid}`, {nick:v}, true).catch(() => {})); } toast(v ? `名前を「${v}」にしました` : '名前を A・B・C… に戻しました'); };
+    body.onclick = async e => {
+      const b = e.target.closest('[data-a],[data-share],[data-grp]'); if (!b) return;
+      const busy = async (fn) => { b.disabled = true; try { await fn(); } catch(err){ toast(err && err.message === 'nf' ? 'その合言葉のグループが見つかりません' : shErrMsg(err)); } finally { b.disabled = false; } };
+      if (b.dataset.a === 'send') sendCode(SH.code, SH.gname);
+      else if (b.dataset.a === 'trash') openTrashSheet();
+      else if (b.dataset.a === 'leave'){ if (!b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '本当に終える（仲間の図面はそのまま）'; return; } shStop(); S.fileId = hashText(S.text); autosave(false); closeSheet(); toast('この端末での共有を終えました'); }
+      else if (b.dataset.a === 'join') busy(async () => { const code = (body.querySelector('#shCode').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (code.length !== 6){ toast('合言葉は6文字です'); return; } await shEnsureMember(code); openGroupSheet(code); });
+      else if (b.dataset.a === 'create') busy(async () => { const code = await shCreateGroup(body.querySelector('#shGname').value); toast('グループを作りました。合言葉：' + shareCode(code)); openGroupSheet(code); });
+      else if (b.dataset.share) busy(async () => { await shEnsureMember(b.dataset.share); closeSheet(); await shShareCurrent(b.dataset.share); });
+      else if (b.dataset.grp) busy(async () => { openGroupSheet(b.dataset.grp); });
+    };
+  });
+}
+function openGroupSheet(code){
+  const g0 = joinedLS().find(x => x.code === code) || {code, name:''};
+  openSheet(g0.name || 'グループ', async body => {
+    body.innerHTML = '<div class="empty">読み込み中…</div>';
+    let f, g, ms, ds;
+    try { f = await fxGet(); [g, ms, ds] = await Promise.all([f.get(`groups/${code}`), f.list(`groups/${code}/members`), f.list(`groups/${code}/drw`)]); }
+    catch(err){ body.innerHTML = `<div class="empty">${esc(shErrMsg(err))}</div><button class="bigbtn sec" data-back>戻る</button>`; body.querySelector('[data-back]').onclick = () => openShareSheet(); return; }
+    if (!g){ body.innerHTML = '<div class="empty">このグループはもうありません</div>'; return; }
+    const own = g.owner === f.uid;
+    ds.sort((a, b) => b.data.t - a.data.t);
+    const nm = (u, m) => (m.nick || m.letter) + (u === f.uid ? '（自分）' : '');
+    const mname = {}; ms.forEach(x => mname[x.id] = x.data);
+    let h = `<div class="row"><div class="grow"><div class="nm">合言葉 <b style="font-size:18px;letter-spacing:.08em">${shareCode(code)}</b></div><div class="sub">${esc(g.name || '')} ・ ${ms.length}人</div></div><button class="btn" data-a="send">送る</button></div>`;
+    h += `<div class="sub" style="padding:0 2px">${ms.sort((a, b) => (a.data.joined || 0) - (b.data.joined || 0)).map(x => `<i class="dot ${isOnline(x.data) || x.id === f.uid ? 'on' : ''}"></i>${esc(nm(x.id, x.data))}`).join('　')}</div>`;
+    if (G && !(SH.on && SH.code === code)) h += `<button class="bigbtn pri" data-a="share">今の図面「${esc(S.name)}」をここで共有する</button>`;
+    h += `<div class="grp">共有している図面</div>`;
+    h += ds.length ? ds.map(d => `<div class="row"><div class="grow" data-open="${esc(d.id)}"><div class="nm">${esc(d.data.name)}${SH.on && SH.fid === d.id ? ' <span class="tagown">開いています</span>' : ''}</div><div class="sub">${new Date(d.data.t).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})} ・ ${esc(mname[d.data.by] ? mname[d.data.by].nick || mname[d.data.by].letter : '?')}が追加</div></div><button class="btn" data-open="${esc(d.id)}">開く</button>${own ? `<button class="btn del" data-rm="${esc(d.id)}">完全削除</button>` : ''}</div>`).join('') : '<div class="empty">まだありません</div>';
+    h += `<button class="bigbtn sec" data-back>戻る</button>`;
+    body.innerHTML = h;
+    body.onclick = async e => {
+      const b = e.target.closest('[data-a],[data-open],[data-rm],[data-back]'); if (!b) return;
+      try {
+        if (b.dataset.back !== undefined){ openShareSheet(); return; }
+        if (b.dataset.a === 'send') sendCode(code, g.name);
+        else if (b.dataset.a === 'share'){ b.disabled = true; closeSheet(); await shShareCurrent(code); }
+        else if (b.dataset.open){ closeSheet(); if (S.dirty && !SH.on) guardUnsaved(() => shOpen(code, b.dataset.open).catch(err => toast(shErrMsg(err)))); else await shOpen(code, b.dataset.open); }
+        else if (b.dataset.rm){
+          if (!b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '本当に消す（全員から消えます）'; return; }
+          const fid = b.dataset.rm, items = await f.list(`groups/${code}/drw/${fid}/items`), d = ds.find(x => x.id === fid);
+          await f.batch([...items.map(x => ({p:`groups/${code}/drw/${fid}/items/${x.id}`, del:true})), ...Array.from({length:d.data.chunks || 0}, (_, i) => ({p:`groups/${code}/drw/${fid}/file/${i}`, del:true})), {p:`groups/${code}/drw/${fid}`, del:true}]);
+          if (SH.on && SH.fid === fid){ shStop(); S.fileId = hashText(S.text); autosave(false); }
+          toast('図面を完全に削除しました'); refreshOpenSheet();
+        }
+      } catch(err){ b.disabled = false; toast(shErrMsg(err)); }
+    };
+  });
+}
+const TRASH_T = {d:'寸', n:'メ', v:'表', g:'群'};
+const trashable = d => d && d.gone && TRASH_T[d.k[0]];
+function trashLabel(d){
+  let v = {}; try { v = JSON.parse(d.j || '{}'); } catch(e){}
+  const t = d.k[0];
+  if (t === 'd') return '寸法 ' + fmt(Math.hypot(v.x2 - v.x1, v.y2 - v.y1)) + ' mm' + (v.n > 1 ? `（${v.n}等分）` : '');
+  if (t === 'n') return 'メモ「' + String(v.text || '').slice(0, 24) + '」';
+  if (t === 'v') return '表示の保存「' + (v.name || '') + '」';
+  if (t === 'g') return '寸法グループ「' + (v.name || '') + '」';
+  return d.k;
+}
+function openTrashSheet(){
+  openSheet('ゴミ箱（共有）', body => {
+    const list = [...SH.R.values()].filter(trashable).sort((a, b) => (b.gT || 0) - (a.gT || 0));
+    const own = shOwner();
+    let h = `<div class="note">消した物はここに残ります。「戻す」は誰でもできます。${own ? '「完全削除」すると全員の端末から本当に消えます。' : '本当に消す「完全削除」は、グループを作った人だけができます。'}</div>`;
+    h += list.length ? list.map(d => `<div class="row"><i class="lk">${TRASH_T[d.k[0]]}</i><div class="grow"><div class="nm">${esc(trashLabel(d))}</div><div class="sub">${esc(whoName(d.gBy, true))}が消した ・ ${d.gT ? new Date(d.gT).toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : ''}</div></div>${d.k[0] === 'd' || d.k[0] === 'n' ? `<button class="btn" data-see="${esc(d.k)}">見る</button>` : ''}<button class="btn" data-back="${esc(d.k)}">戻す</button>${own ? `<button class="btn del" data-purge="${esc(d.k)}">完全削除</button>` : ''}</div>`).join('') : '<div class="empty">ゴミ箱は空です</div>';
+    if (own && list.length) h += `<button class="bigbtn sec" data-purgeall>ゴミ箱を全部完全削除（${list.length}）</button>`;
+    body.innerHTML = h;
+    body.onclick = async e => {
+      const b = e.target.closest('[data-see],[data-back],[data-purge],[data-purgeall]'); if (!b) return;
+      const base = drwPath() + '/items/';
+      if (b.dataset.see){ const d = SH.R.get(b.dataset.see); let v = {}; try { v = JSON.parse(d.j); } catch(_){} closeSheet(); if (d.k[0] === 'd') showLog({kind:'dim', label:'消した寸法', detail:trashLabel(d), t:d.gT, dims:[v], gone:true, box:boxOf([[v.x1, v.y1], [v.x2, v.y2]])}); else showLog({kind:'note', label:'消したメモ', detail:String(v.text || '').slice(0, 30), t:d.gT, notes:[v], box:noteBox(v)}); return; }
+      if (b.dataset.back){
+        const d = SH.R.get(b.dataset.back); if (!d) return;
+        let v = null; try { v = JSON.parse(d.j); } catch(_){}
+        if (!v) return;
+        // 戻した記録も残す
+        const t = d.k[0], gd = t === 'd' && !S.dimGroups.some(g => g.id === v.g) ? SH.R.get('g:' + v.g) : null;
+        const gv = gd && gd.j ? JSON.parse(gd.j) : null;
+        exec({kind:t === 'v' ? 'view' : t === 'n' ? 'note' : 'dim', label:'ゴミ箱から戻す',
+          log:{label:'ゴミ箱から戻した', detail:trashLabel(d), box:t === 'd' ? boxOf([[v.x1, v.y1], [v.x2, v.y2]]) : t === 'n' ? noteBox(v) : null},
+          do(){ const k = new Set(); if (gv) applyItem(gd.k, gv, k); applyItem(d.k, v, k); },
+          undo(){ const k = new Set(); applyItem(d.k, null, k); if (gv) applyItem(gd.k, null, k); }});
+        shPush(); toast('戻しました：' + trashLabel(d)); refreshOpenSheet(); return;
+      }
+      if (b.dataset.purge){
+        if (!b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '本当に消す'; return; }
+        const k = b.dataset.purge; SH.R.delete(k);
+        FX.del(base + keyEnc(k)).catch(err => toast(shErrMsg(err))); refreshOpenSheet(); toast('完全に削除しました'); return;
+      }
+      if (b.dataset.purgeall !== undefined){
+        if (!b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '本当に全部消す（戻せません）'; return; }
+        const list2 = [...SH.R.values()].filter(trashable); list2.forEach(d => SH.R.delete(d.k));
+        FX.batch(list2.map(d => ({p:base + keyEnc(d.k), del:true}))).catch(err => toast(shErrMsg(err))); refreshOpenSheet(); toast(`${list2.length} 件を完全に削除しました`);
+      }
+    };
+  });
+}
+
 /* ============ boot ============ */
 readTokens();
 try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readTokens(); renderBase(); renderTabs(); }); } catch(e){}
@@ -2914,11 +3343,15 @@ updateUi();
     if (last && last.fileId){
       let text = last.fileId === 'sample' ? await loadSample() : (await dbGet('files', last.fileId))?.text;
       if (text) opened = await openText(text, last.srcName, {fileId:last.fileId, name:last.name, state:last, projectId:last.projectId, noStore:true});
+      if (opened && last.shared && last.shared.fid) shResume(last.shared).catch(() => {});
     }
   } catch(e){}
   if (!opened){ const t = await loadSample().catch(() => null); if (t) opened = await openText(t, SAMPLE_NAME, {fileId:'sample'}); }
   if (!opened){ $('#loading').hidden = true; openStartSheet(); }
+  const jq = new URLSearchParams(location.search).get('join');
+  if (jq){ try { history.replaceState(null, '', location.pathname); } catch(e){} openShareSheet(jq.toUpperCase()); }
 })();
+$('#bShare').onclick = () => openShareSheet();
 </script>
 
 <script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js",{scope:"./"}).catch(()=>{})}catch(e){}})}</script>

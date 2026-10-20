@@ -546,6 +546,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
     <div class="tbody" id="tutBody"></div>
     <div class="tdots" id="tutDots"></div>
     <button class="tnever" id="tutNever">次回から表示しない</button>
+    <div id="appVer" style="text-align:center;font-size:11.5px;color:#94a3b8;margin:-2px 0 6px"></div>
     <div class="tnav"><button id="tutPrev">◀ 戻る</button><button id="tutNext" class="tnext">次へ ▶</button></div>
   </div>
 </div>
@@ -625,7 +626,22 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 </div>
 <div class="toast" id="toast"></div>
 
-<script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
+<script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){
+ /* オフライン用の登録と、更新の知らせ。
+    ・アプリに戻った時（ホーム画面から開き直した時も）に、新しい版が無いか確かめる
+    ・新しい版に切り替わったら「新しい版があります［更新する］」を出す（入力中の物を消さないよう、自動では読み直さない）
+    ・❓の画面の下に今の版（sw.js の VER）を出す */
+ const SWC=navigator.serviceWorker;let had=!!SWC.controller;
+ const ask=()=>{try{SWC.controller&&SWC.controller.postMessage("ver")}catch(e){}};
+ SWC.addEventListener("message",e=>{const v=e.data&&e.data.ver;if(v){const el=document.getElementById("appVer");if(el)el.textContent="今の版："+v}});
+ SWC.addEventListener("controllerchange",()=>{ask();if(!had){had=true;return}
+  if(document.getElementById("updBar"))return;const b=document.createElement("div");b.id="updBar";
+  b.style.cssText="position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:99;display:flex;align-items:center;gap:10px;background:#0f172af2;color:#fff;border-radius:14px;padding:8px 8px 8px 14px;font-size:15px;font-weight:800;box-shadow:0 6px 20px #0005";
+  b.innerHTML='<span style="flex:1">🔄 新しい版があります</span><button style="height:44px;padding:0 14px;border-radius:12px;background:#22c55e;color:#fff;font-weight:900;font-size:15px">更新する</button><button aria-label="あとで" style="width:44px;height:44px;color:#cbd5e1;font-size:18px">✕</button>';
+  b.children[1].onclick=()=>location.reload();b.children[2].onclick=()=>b.remove();document.body.appendChild(b)});
+ window.addEventListener("load",()=>{try{SWC.register("sw.js",{updateViaCache:"none"}).then(r=>{ask();
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")r.update().catch(()=>{})})}).catch(()=>{})}catch(e){}});
+}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="bend";</script>
 <script src="models.js?v=228"></script>

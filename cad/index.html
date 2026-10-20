@@ -2916,7 +2916,7 @@ window.addEventListener('beforeunload', e => { if (S.dirty){ e.preventDefault();
    groups/{code}/drw/{fid}/file/{i}   {d: base64(gzip(DXF)) の一部}
    groups/{code}/drw/{fid}/items/{key} {k, j(JSON), by, t, gone, gBy, gT}
    変更は「項目ごとの差分」で送る。消した物は gone:true で残し、完全削除（作った人だけ）で本当に消える。 */
-const FB_CFG = null;
+const FB_CFG = {"apiKey":"AIzaSyCnvx6kB7rR9L6QHYrjzS3mEBaqtL7LJnI","authDomain":"setubi-zumen.firebaseapp.com","projectId":"setubi-zumen","storageBucket":"setubi-zumen.firebasestorage.app","messagingSenderId":"337675527486","appId":"1:337675527486:web:3c4d16c3d838b66185386f"};
 const FB_V = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const SH = {on:false, ready:false, code:null, fid:null, name:'', owner:null, gname:'', members:{}, last:new Map(), R:new Map(), unsub:[], pend:false, beat:0, pushT:0, news:[]};
 let FX = null, fxLoading = null;

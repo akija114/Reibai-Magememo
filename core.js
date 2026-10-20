@@ -871,7 +871,8 @@ const LG=[];
  T.GYr=GY;if(SCV&&GY!==null&&!GM){try{scanApply();bb.union(new THREE.Box3().setFromObject(SCAN.obj))}catch(e){}}
  try{updNop()}catch(e){}
  T.gy=st.gnd.on?GY:null;T.cy=CY;T.UN=UN;T.GYr=GY;T.CHh=GY!==null&&CY!==null?CY-GY:st.gnd.ch;
- if(typeof addDrain3D==="function"&&!GM){try{addDrain3D(UN,bb)}catch(e){console.warn("drain",e)}}   // ドレン配管（drain.js）
+ if(typeof addDrain3D==="function"&&!GM&&!EZ){try{addDrain3D(UN,bb)}catch(e){console.warn("drain",e)}}   // ドレン配管（drain.js）。かんたん表示では描かない
+ else if(EZ)T.drSegs=[];   // 描いていないドレンを3Dのタップで選ばないように
  const sz=bb.getSize(new V()),ctr=bb.getCenter(new V());T.ctr=ctr;
  const ext=Math.max(sz.x,sz.y,sz.z,300);
  const Dmax=Math.max(...LG.map(L=>L.D));
@@ -922,7 +923,7 @@ const LG=[];
    s.userData.cat="dim";pxl(s,on?24:20,{t:"perp",a:dm.a,b:dm.b},rd);
    T.grp.add(s);
   });
-  if(st.sup.on&&!GM)L.dims.forEach(dm=>{
+  if(st.sup.on&&!GM&&!EZ)L.dims.forEach(dm=>{   // 支持：かんたん表示では描かない（設定 st.sup.on は変えない）
    const dir=dm.b.clone().sub(dm.a);if(dir.length()<1e-6)return;dir.normalize();
    const p0=dm.b.clone().addScaledVector(dir,-dm.l);
    supPos(dm.l,Math.abs(dir.y)>0.8).forEach(x=>{
@@ -2042,9 +2043,8 @@ function ezUpd(){
  $("#ezMore").hidden=!EZ||!nb;
  $("#ezSteps").innerHTML=`<span class="done">① サイズ ✓</span><span class="${nb?"done":"now"}">② 曲げを作る${nb?" ✓":""}</span><span class="${nb?"now":""}">③ 3Dで確認・保存</span>`;
  if(!EZ){$("#ezSum").innerHTML="";return}
- const c=calc(),L=[`${ezSzName(si)}・曲げ ${nb}か所・合計 ${fmt(c.tot)}${ezU()}`];
- if(!nb)L.push("下の「＋ 曲げを作る」を押してください");
- else{const i=clamp(sel,0,rows.length-1),r=rows[i];L.push(r.a?`${nm(i)} ${fmt(r.l)}${ezU()} → ${r.a}° ${dirName(effT(i))}へ`:`${nm(i)} まっすぐ ${fmt(r.l)}${ezU()}`)}
+ /* 3Dの上には、まとめは出さず、警告がある時だけ出す（曲げの位置・角度・長さは3Dのラベルと下の一覧で見る） */
+ const c=calc(),L=[];
  const ng=c.out.findIndex(o=>o.shoe<0);
  if(ng>=0)L.push(`<span class="w">⚠️ ${nm(ng)} が短すぎて曲げられません</span>`);
  if(c.tot>c.lim)L.push(`<span class="w">⚠️ 定尺（${fmt(c.lim)}${ezU()}）を超えています。つなぎが必要です</span>`);
@@ -2059,7 +2059,7 @@ function ezStep(n){
  if(!DV)return;
  DV.ez=n;$("#dirOv").dataset.ez=n;
  const rows=LR(),i=DV.i,r=rows[i],nx=rows[i+1],U=ezU();
- const Q=[null,["長さを入れる","曲げる所までの まっすぐの長さ（"+(nx?"と、曲げた後の長さ":"")+"）"],["曲げる角度を選ぶ","よく使うのは 90°。180° は Uの字に折り返す"],["曲げる向きを選ぶ","矢印をタップ。ななめは画面の赤い丸を指で回す"],["確認する","よければ下の青いボタン"]][n];
+ const Q=[null,["長さを入れる","曲げる前と後の長さを入力してください"],["曲げる角度を選ぶ","よく使うのは 90°。180° は Uの字に折り返す"],["曲げる向きを選ぶ","矢印をタップ。ななめは画面の赤い丸を指で回す"],["確認する","よければ下の青いボタン"]][n];
  $("#ezQ").innerHTML=`<small>STEP ${n} / 4</small><b>${Q[0]}</b><span>${Q[1]}</span>`;
  $("#ezBack").textContent=n===1?"✕ やめる":"◀ 戻る";
  $("#ezNext").textContent=n<4?"次へ ▶":(DV.add?"✅ これで作る":"✅ これで決定");
@@ -2078,6 +2078,7 @@ if(APP==="bend"){
  const moveSz=()=>{if(EZ)$("#ezSz").appendChild($("#sz"));else $(".top").insertBefore($("#sz"),$("#ezSz"))};moveSz();
  window.setMode=m=>{
   EZ=m==="easy";try{localStorage.setItem("pbm_mode",EZ?"easy":"pro")}catch(e){}
+  if(EZ&&document.body.classList.contains("drmode")){const b=document.querySelector('#mtog [data-m="ref"]');if(b)b.click()}   // 表示だけ冷媒に戻す
   document.documentElement.dataset.mode=EZ?"easy":"pro";moveSz();render();
  };
  $("#modeBtn").onclick=()=>{setMode(EZ?"pro":"easy");toast(EZ?"かんたん表示にしました（入れた曲げはそのまま）":"くわしい表示にしました。上の「🔰 かんたん」でいつでも戻せます")};

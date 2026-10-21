@@ -185,7 +185,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <canvas id="loupe" hidden></canvas>
     <div class="pill" id="pill" hidden></div>
     <div class="hlbar" id="hlBar" hidden></div>
-    <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bHint3" hidden></button><button id="bHint2" hidden></button><button id="bCancelPt" hidden>始点を取消</button></div></div>
+    <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bHint4" hidden>芯出し</button><button id="bHint3" hidden></button><button id="bHint2" hidden></button><button id="bCancelPt" hidden>始点を取消</button></div></div>
     <div class="float" id="layerBar" hidden></div>
     <div class="float" id="dimPanel" hidden></div>
     <div class="float" id="gridPanel" hidden></div>
@@ -1972,7 +1972,7 @@ function updateLayerBar(){
 }
 function updateHint(){
   const h = $('#hint');
-  $('#bHint2').hidden = true; $('#bHint3').hidden = true;
+  $('#bHint2').hidden = true; $('#bHint3').hidden = true; $('#bHint4').hidden = true;
   if (HL){ h.hidden = true; return; }
   if (S.mode === 'note'){ h.hidden = false; $('#hintTxt').textContent = 'メモを置きたい所をタップ（置いたメモはタップで直せます）'; $('#bCancelPt').hidden = true; return; }
   if (S.mode === 'box'){
@@ -1999,6 +1999,7 @@ function updateHint(){
   }
   $('#hintTxt').textContent = MS.p1 ? (S.chain ? '連続：次の点までドラッグ' : '終点までドラッグして離す') : '始点までドラッグして離す';
   $('#bHint3').hidden = false; $('#bHint3').textContent = MS.p1 || lastDimCmd() ? '↶ 戻る' : '芯出し';
+  $('#bHint4').hidden = $('#bHint3').textContent === '芯出し'; // 「↶ 戻る」の時も芯出しに入れるように
   $('#bHint2').hidden = false; $('#bHint2').textContent = S.chain ? '✓ 連続' : '連続';
   $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = MS.p1 ? '始点を取消' : `▾ ${(S.dimGroups.find(g => g.id === S.curDG) || {name:todayName()}).name}`;
   return;
@@ -2055,6 +2056,7 @@ $('#bHint3').onclick = () => {
   if (S.autoDim || (!MS.p1 && !lastDimCmd())){ openAutoDimSheet(); return; }
   dimStepBack();
 };
+$('#bHint4').onclick = () => { if (S.mode === 'dim') openAutoDimSheet(); }; // 置きかけの始点は、芯出しを選んだ時に取り消す
 $('#bHint2').onclick = () => { if (S.mode !== 'dim') return; S.chain = !S.chain; updateUi(); toast(S.chain ? '連続寸法：オン（終点が次の始点に）' : '連続寸法：オフ'); };
 $('#mNote').onclick = () => { S.mode = 'note'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#tSnap').onclick = () => { S.snapOn = !S.snapOn; updateUi(); toast(S.snapOn ? '吸着：オン' : '吸着：オフ'); };

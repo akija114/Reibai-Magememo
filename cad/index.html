@@ -188,6 +188,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bHint3" hidden></button><button id="bHint2" hidden></button><button id="bCancelPt" hidden>始点を取消</button></div></div>
     <div class="float" id="layerBar" hidden></div>
     <div class="float" id="dimPanel" hidden></div>
+    <div class="float" id="gridPanel" hidden></div>
     <div class="float" id="routePanel" hidden></div>
     <div class="float" id="pickBar" hidden></div>
     <div class="loading" id="loading">読み込み中…</div>
@@ -765,7 +766,7 @@ function readableAngle(dx, dy){ let a = Math.atan2(dy, dx); if (a > Math.PI/2 + 
 function labelAt(c, x, y, ang, text, color, bold, below){
   c.save(); c.translate(x, y); c.rotate(ang);
   c.font = `${bold ? 700 : 600} ${bold ? 16 : 14}px "Barlow Condensed","Arial Narrow",${FONT}`;
-  const w = c.measureText(text).width + 10, h = bold ? 19 : 17, oy = below ? 4 : -h - 4;
+  const w = c.measureText(text).width + 10, h = bold ? 19 : 17, oy = below === 'mid' ? -h/2 : below ? 4 : -h - 4;
   c.fillStyle = tok.paper; c.globalAlpha = .9; c.beginPath(); c.roundRect ? c.roundRect(-w/2, oy, w, h, 4) : c.rect(-w/2, oy, w, h); c.fill();
   c.globalAlpha = 1; c.fillStyle = color; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 0, oy + h/2 + 1);
   c.restore();
@@ -785,12 +786,70 @@ function drawDim(c, d, sel){
   }
   const ang = readableAngle(ux, uy);
   if (sl < 24) return;
-  if (n === 1) labelAt(c, (ax+bx)/2, (ay+by)/2, ang, fmt(L), col, true, false);
-  else {
-    if (sl/n > 26) for (let i = 0; i < n; i++){ labelAt(c, ax + ux*(i+.5)/n, ay + uy*(i+.5)/n, ang, fmt(L/n), col, false, false); }
-    labelAt(c, (ax+bx)/2, (ay+by)/2, ang, '計 ' + fmt(L), col, true, true);
-  }
+  const lb = dimLabelBox(d, c);
+  if (n > 1 && sl/n > 26) for (let i = 0; i < n; i++){ labelAt(c, ax + ux*(i+.5)/n, ay + uy*(i+.5)/n, ang, fmt(L/n), col, false, false); }
+  if (lb.F) drawLeader(c, lb, col, sel);
+  labelAt(c, lb.A[0], lb.A[1], ang, dimLabelText(d), col, true, lb.below);
   if (sel){ for (const [x, y] of [[ax, ay], [bx, by]]){ c.beginPath(); c.arc(x, y, 5, 0, Math.PI*2); c.fillStyle = tok.panel; c.fill(); c.lineWidth = 2; c.strokeStyle = col; c.stroke(); } }
+  if (sel && d === S.selDim){ // 数字を動かすつまみ（数字の右）
+    const [hx, hy] = dimHandle(lb); c.save(); c.beginPath(); c.arc(hx, hy, 10, 0, Math.PI*2); c.fillStyle = tok.panel; c.fill(); c.lineWidth = 1.6; c.strokeStyle = col; c.stroke();
+    c.beginPath(); for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ c.moveTo(hx + dx*2, hy + dy*2); c.lineTo(hx + dx*6, hy + dy*6); c.moveTo(hx + dx*6 - dy*2 - dx*2, hy + dy*6 - dx*2 - dy*2); c.lineTo(hx + dx*6, hy + dy*6); c.lineTo(hx + dx*6 + dy*2 - dx*2, hy + dy*6 + dx*2 - dy*2); } c.stroke(); c.restore(); }
+}
+/* ---- 寸法の数字の位置：d.to = 標準の位置（寸法線の真ん中）からのずれ [x, y]（図面の座標）。無ければ今までどおり。
+   寸法線の向きだけのずれ＝文字位置の調整（線の上のまま）。線から離した時＝数字を中心に置き、引出線と矢印で寸法線を指す ---- */
+const LEAD_PX = 30;
+const dimLabelText = d => (d.n || 1) === 1 ? fmt(Math.hypot(d.x2-d.x1, d.y2-d.y1)) : '計 ' + fmt(Math.hypot(d.x2-d.x1, d.y2-d.y1));
+function dimTo(v){ if (!Array.isArray(v) || v.length !== 2) return undefined; const a = +v[0], b = +v[1]; return isFinite(a) && isFinite(b) && (a || b) ? [a, b] : undefined; }
+function dimLead(d){ const to = d.to; if (!to) return false; const dx = d.x2-d.x1, dy = d.y2-d.y1, L = Math.hypot(dx, dy); if (!L) return false; return Math.abs((-dy*to[0] + dx*to[1])/L) > 1e-6*(L + Math.hypot(to[0], to[1])); }
+function dimLeadTip(d, A){ const dx = d.x2-d.x1, dy = d.y2-d.y1, l2 = dx*dx + dy*dy; let t = l2 ? ((A[0]-d.x1)*dx + (A[1]-d.y1)*dy)/l2 : .5; t = Math.max(0.1, Math.min(0.9, t)); return [d.x1 + dx*t, d.y1 + dy*t]; }
+function boxExit(C, F, ang, hw, hh){ const vx = F[0]-C[0], vy = F[1]-C[1], co = Math.cos(ang), si = Math.sin(ang); const lx = Math.abs(vx*co + vy*si), ly = Math.abs(-vx*si + vy*co); const t = Math.min(1, lx ? hw/lx : Infinity, ly ? hh/ly : Infinity); return [C[0] + vx*t, C[1] + vy*t]; }
+function dimLabelBox(d, c){ // 画面での数字の位置：A=基準点、C=数字の箱の真ん中、F=矢印の先（寸法線の上）
+  const [ax, ay] = w2s(d.x1, d.y1), [bx, by] = w2s(d.x2, d.y2), ux = bx-ax, uy = by-ay, sl = Math.hypot(ux, uy);
+  const ang = readableAngle(ux, uy), lead = dimLead(d), to = d.to || [0, 0];
+  const A = [(ax+bx)/2 + to[0]*view.s, (ay+by)/2 - to[1]*view.s];
+  c.font = `700 16px "Barlow Condensed","Arial Narrow",${FONT}`; const w = c.measureText(dimLabelText(d)).width + 10, h = 19;
+  const below = lead ? 'mid' : (d.n || 1) > 1, cy = below === 'mid' ? 0 : below ? 4 + h/2 : -h/2 - 4;
+  const C = [A[0] - Math.sin(ang)*cy, A[1] + Math.cos(ang)*cy];
+  const F = lead ? w2s(...dimLeadTip(d, s2w(A[0], A[1]))) : null;
+  return {A, C, ang, w, h, below, F, sl};
+}
+function drawLeader(c, lb, col, sel){
+  const S0 = boxExit(lb.C, lb.F, lb.ang, lb.w/2, lb.h/2), vx = lb.F[0]-S0[0], vy = lb.F[1]-S0[1], l = Math.hypot(vx, vy); if (l < 6) return;
+  const ex = vx/l, ey = vy/l, a = 9;
+  c.save(); c.strokeStyle = col; c.fillStyle = col; c.lineWidth = sel ? 1.8 : 1.3; c.beginPath(); c.moveTo(S0[0], S0[1]); c.lineTo(lb.F[0] - ex*a*.6, lb.F[1] - ey*a*.6); c.stroke();
+  c.beginPath(); c.moveTo(lb.F[0], lb.F[1]); c.lineTo(lb.F[0] - ex*a - ey*a*.38, lb.F[1] - ey*a + ex*a*.38); c.lineTo(lb.F[0] - ex*a + ey*a*.38, lb.F[1] - ey*a - ex*a*.38); c.closePath(); c.fill(); c.restore();
+}
+const dimHandle = lb => [lb.C[0] + Math.cos(lb.ang)*(lb.w/2 + 16), lb.C[1] + Math.sin(lb.ang)*(lb.w/2 + 16)];
+function dimLabelHit(d, p, what){ // what: 1 数字 / 2 つまみ / 3 両方
+  if (!dimVisible(d)) return false; const lb = dimLabelBox(d, octx); if (lb.sl < 24) return false;
+  if (what & 2){ const H = dimHandle(lb); if (Math.hypot(p[0]-H[0], p[1]-H[1]) < 22) return true; }
+  if (!(what & 1)) return false;
+  const dx = p[0]-lb.C[0], dy = p[1]-lb.C[1], co = Math.cos(lb.ang), si = Math.sin(lb.ang);
+  return Math.abs(dx*co + dy*si) <= lb.w/2 + 8 && Math.abs(-dx*si + dy*co) <= lb.h/2 + 8;
+}
+function cmdDimText(d, nv, label){ const ov = d.to ? d.to.slice() : undefined; nv = nv ? nv.slice() : undefined; return {kind:'dim', label, do(){ d.to = nv ? nv.slice() : undefined; }, undo(){ d.to = ov ? ov.slice() : undefined; }}; }
+function dtextStart(p){
+  const d = S.selDim; if (!d || S.autoDim || !S.dims.includes(d) || !(S.mode === 'pan' || S.mode === 'dim')) return false;
+  if (!dimLabelHit(d, p, S.mode === 'dim' ? 2 : 3)) return false; // 寸法を測る時は、つまみだけで動かす（測る指と取り合わない）
+  gest = {type:'dtext', d, start:p, to0:d.to ? d.to.slice() : undefined, C0:dimLabelBox(d, octx).C, moved:false}; return true;
+}
+function dtextMove(p){
+  const g = gest, dx = p[0]-g.start[0], dy = p[1]-g.start[1];
+  if (!g.moved && Math.hypot(dx, dy) < 8) return; g.moved = true;
+  const d = g.d, [ax, ay] = w2s(d.x1, d.y1), [bx, by] = w2s(d.x2, d.y2), sl = Math.hypot(bx-ax, by-ay) || 1, tx = (bx-ax)/sl, ty = (by-ay)/sl;
+  const M = [(ax+bx)/2, (ay+by)/2], C = [g.C0[0] + dx, g.C0[1] + dy];
+  const along = (C[0]-M[0])*tx + (C[1]-M[1])*ty, perp = -(C[0]-M[0])*ty + (C[1]-M[1])*tx;
+  let to;
+  if (Math.abs(perp) < LEAD_PX){ // 寸法線に沿った小さな動き：線の向きだけずらす（引出線なし）
+    const a = Math.max(-sl/2, Math.min(sl/2, along))/view.s, L = Math.hypot(d.x2-d.x1, d.y2-d.y1); to = [(d.x2-d.x1)/L*a, (d.y2-d.y1)/L*a];
+  } else { const W = s2w(C[0], C[1]); to = [W[0] - (d.x1+d.x2)/2, W[1] - (d.y1+d.y2)/2]; }
+  d.to = Math.hypot(to[0], to[1])*view.s < 0.5 ? undefined : to; drawOverlay();
+}
+function dtextEnd(cancel){
+  const g = gest, d = g.d, nv = d.to, ov = g.to0; d.to = ov;
+  const same = (!nv && !ov) || (nv && ov && Math.abs(nv[0]-ov[0]) < 1e-9 && Math.abs(nv[1]-ov[1]) < 1e-9);
+  if (cancel || !g.moved || same){ drawOverlay(); return; }
+  exec(cmdDimText(d, nv, '寸法の数字を移動')); updateDimPanel();
 }
 function drawSnapMark(c, x, y, type){
   c.strokeStyle = tok.snap; c.lineWidth = 2; c.beginPath();
@@ -810,6 +869,7 @@ function drawOverlay(){
   for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
   drawNotes(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
+  if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
   drawHL(octx);
   const M = MS;
   if (S.mode === 'dim'){
@@ -852,7 +912,8 @@ ov.addEventListener('pointerdown', e => {
   if (!G) return;
   ov.setPointerCapture(e.pointerId); const p = evPos(e); ptrs.set(e.pointerId, p);
   if (ptrs.size === 1){
-    if (S.mode === 'dim'){ gest = {type:'cursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; MS.dragging = true; moveCursor(p); }
+    if (dtextStart(p)){}
+    else if (S.mode === 'dim'){ gest = {type:'cursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; MS.dragging = true; moveCursor(p); }
     else if (S.mode === 'route' && ['a','b','draw'].includes(RS.step)){ gest = {type:'rcursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; RS.dragging = true; updateHint(); moveRCursor(p); }
     else if (S.mode === 'route' && RS.step === 'shape' && RS.pattern !== 'free' && nearRoute(p)){ gest = {type:'roff'}; }
     else if (S.mode === 'box'){ gest = {type:'box', start:p, cur:p}; }
@@ -863,6 +924,7 @@ ov.addEventListener('pointerdown', e => {
   } else if (ptrs.size === 2){
     if (gest && gest.lt) clearTimeout(gest.lt);
     const [a, b] = [...ptrs.values()];
+    if (gest && gest.type === 'dtext'){ gest.d.to = gest.to0; }
     if (gest && gest.type === 'cursor'){ MS.dragging = false; MS.cur = null; MS.finger = null; }
     if (gest && gest.type === 'rcursor'){ RS.dragging = false; RS.cur = null; RS.finger = null; }
     gest = {type:'pinch', d0:Math.hypot(a[0]-b[0], a[1]-b[1]) || 1, c0:[(a[0]+b[0])/2, (a[1]+b[1])/2], v0:{...view}};
@@ -875,6 +937,7 @@ ov.addEventListener('pointermove', e => {
   if (!gest) return;
   if (gest.type === 'box'){ gest.cur = p; drawOverlay(); return; }
   if (gest.type === 'cursor') moveCursor(p);
+  else if (gest.type === 'dtext') dtextMove(p);
   else if (gest.type === 'rcursor') moveRCursor(p);
   else if (gest.type === 'roff') setOffsetFrom(p);
   else if (gest.type === 'pan'){
@@ -907,6 +970,8 @@ function endPtr(e, cancel){
     if (gest.lt) clearTimeout(gest.lt);
     if (!gest.long && !gest.moved && !cancel && performance.now() - gest.t < 500){ if (S.mode === 'route' && RS.step === 'pick') routePick(gest.start); else if (S.mode === 'route'){} else tapSelect(gest.start); }
     gest = null;
+  } else if (gest.type === 'dtext' && ptrs.size === 0){
+    dtextEnd(cancel); gest = null;
   } else if (gest.type === 'pinch'){
     if (ptrs.size === 0) gest = null; else gest = {type:'none'};
   } else if (ptrs.size === 0) gest = null;
@@ -942,6 +1007,7 @@ function tapSelect(p){
   const hitN = noteAt(p); if (hitN){ openNoteEditor(hitN); return; }
   if (S.mode === 'note'){ openNoteEditor(null, s2w(p[0], p[1])); return; }
   let best = null, bd = 22;
+  for (const d of S.dims) if (d.to && dimLabelHit(d, p, 1)){ best = d; bd = 0; } // 動かした数字をタップしても、その寸法を選ぶ
   for (const d of S.dims){
     if (!dimVisible(d)) continue;
     const [ax, ay] = w2s(d.x1, d.y1), [bx, by] = w2s(d.x2, d.y2); const c = closestOnSeg(p[0], p[1], ax, ay, bx, by);
@@ -1429,6 +1495,7 @@ function wallHit(P, dir, broad){ // dir: [1,0] [-1,0] [0,1] [0,-1]; first wall f
 function partCenter(e){ let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const pl of G.eidPolys.get(e) || []){ const a = pl.a; for (let i = 0; i < a.length; i += 2){ if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i+1] < y0) y0 = a[i+1]; if (a[i+1] > y1) y1 = a[i+1]; } } return isFinite(x0) ? [(x0+x1)/2, (y0+y1)/2] : null; }
 function autoDimAt(cur){
   const A = S.autoDim; let P, what = '位置';
+  if (A.to === 'grid4' && A.g4 && A.g4.pickDir){ grid4PickLine(cur); return; }
   if (A.to === 'line' && !A.line){
     const R = 26/view.s, s = G.segs; let best = null, bd = R;
     for (const id of query(IX.sg, IX.segMark, cur.x, cur.y, R)){ const k = id*SS; const c = closestOnSeg(cur.x, cur.y, s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-cur.x, c[1]-cur.y); if (d < bd && s[k+5] === 0){ bd = d; best = [s[k], s[k+1], s[k+2], s[k+3]]; } }
@@ -1440,6 +1507,7 @@ function autoDimAt(cur){
     if (e == null){ toast('ここに機器が見つかりません。機器の線の上で離してください'); MS.cur = null; drawOverlay(); return; }
     P = partCenter(e); what = partName(e);
   } else P = [cur.x, cur.y];
+  if (A.to === 'grid4'){ grid4Open(P, what); return; }
   const recs = []; const msg = [];
   if (A.to === 'line'){
     const [x1, y1, x2, y2] = A.line, dx = x2-x1, dy = y2-y1, l2 = dx*dx + dy*dy, t = ((P[0]-x1)*dx + (P[1]-y1)*dy)/l2;
@@ -1470,17 +1538,149 @@ function openAutoDimSheet(){
   openSheet('芯出し（自動で寸法）', body => {
     const opt = (from, to, t, sub) => `<button class="bigbtn sec" data-f="${from}" data-t="${to}" style="flex-direction:column;height:auto;padding:12px;gap:2px"><span>${t}</span><span style="font-size:12px;font-weight:500;color:var(--muted)">${sub}</span></button>`;
     body.innerHTML = `<div class="note">機器の芯（外形の真ん中）や、選んだ位置から、近い通り芯・壁の面までの寸法を縦と横で自動で入れます。間違えたら「↶ 戻る」で消せます。</div>
+      ${opt('part', 'grid4', '機器の芯 → 通り芯（上下左右）', '機器をタップ → 上・下・左・右の一番近い通り芯までを見てから選んで確定')}
+      ${opt('point', 'grid4', '選んだ芯 → 通り芯（上下左右）', '芯の点までドラッグして離す（中心・交点に吸着）→ 上下左右を見て確定')}
       ${opt('part', 'grid', '機器の芯 → 通り芯', '機器をタップすると、近いX・Yの通り芯から芯までの寸法')}
       ${opt('part', 'wall', '機器の芯 → 壁の面', '機器をタップすると、近い壁の面から芯までの寸法')}
       ${opt('point', 'grid', '選んだ位置 → 通り芯', 'ドラッグして離した位置（端点・交点に吸着）から')}
       ${opt('point', 'wall', '選んだ位置 → 壁の面', 'ドラッグして離した位置から、近い壁の面まで')}
       ${opt('part', 'line', '機器の芯 → 選んだ線', '先に基準の線（壁の面・通り芯など）を選び、機器を次々タップ')}
       ${opt('point', 'line', '選んだ位置 → 選んだ線', '先に基準の線を選び、測りたい位置を次々選ぶ')}
-      <button class="btn" data-a="walls">壁として見るレイヤーを選ぶ</button>`;
-    body.onclick = e => { if (e.target.closest('[data-a="walls"]')){ openWallLayerSheet(); return; } const b = e.target.closest('[data-f]'); if (!b) return; S.autoDim = {from:b.dataset.f, to:b.dataset.t, line:null}; MS.p1 = null; closeSheet(); updateHint(); drawOverlay(); };
+      <button class="btn" data-a="walls">壁として見るレイヤーを選ぶ</button><button class="btn" data-a="grids">通り芯として見るレイヤーを選ぶ</button>`;
+    body.onclick = e => { if (e.target.closest('[data-a="walls"]')){ openWallLayerSheet(); return; } if (e.target.closest('[data-a="grids"]')){ openGridLayerSheet(); return; } const b = e.target.closest('[data-f]'); if (!b) return; S.autoDim = {from:b.dataset.f, to:b.dataset.t, line:null}; MS.p1 = null; closeSheet(); updateHint(); drawOverlay(); };
   });
 }
-function cmdAddDims(recs){ const ds = recs.map((r, i) => ({id:'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,6) + i, x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:r.n || 1, g:(r.g && S.dimGroups.some(x => x.id === r.g)) ? r.g : curDG().id})); return {kind:'dim', label:'寸法を戻す', do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }}; }
+/* ---- 通り芯から上下左右：芯（機器の真ん中・吸着した点）から、上・下・左・右それぞれ一番近い通り芯までの寸法。見てから選んで確定 ----
+   通り芯は ①「通り芯として見るレイヤー」を選んだ時はそのレイヤーの縦横の長い線だけ ②選んでいない時は、名前が通り芯のレイヤーの線と、
+   X1・Y1などの記号がついた長い線（建築・その他のレイヤーの物だけ。壁・配管・ダクト・機器のレイヤーは使わない）。斜めの線は使わない */
+const GRID_RE = /通り?芯|通芯|GRID/i;
+let gridPref = null; try { gridPref = JSON.parse(localStorage.getItem('zumen-gridlayers') || 'null'); } catch(e){}
+const unitMM = () => ({mm:1, cm:10, m:1000, in:25.4, ft:304.8})[S.units] || 1;
+function gridLayerSet(){
+  const live = G.L.filter(l => !l.deleted && l.count);
+  if (gridPref && gridPref.length){ const set = new Set(live.filter(l => gridPref.includes(l.name)).map(l => l.idx)); if (set.size) return {set, by:'pref'}; }
+  return {set:new Set(live.filter(l => GRID_RE.test(l.name.normalize('NFKC'))).map(l => l.idx)), by:'name'};
+}
+function axisLines(set){ // そのレイヤーの縦・横の線を、同じ位置ごとに1本にまとめる（一点鎖線・途中で切れた線も1本）
+  const s = G.baseSegs, tol = 0.5/unitMM(), col = new Map();
+  for (let k = 0; k < s.length; k += SS){
+    if (!set.has(s[k+4]) || gone(s[k+7])) continue;
+    const x1 = s[k], y1 = s[k+1], x2 = s[k+2], y2 = s[k+3], L = Math.hypot(x2-x1, y2-y1); if (!(L > 0)) continue;
+    const vert = Math.abs(x2-x1) <= L*0.002, hor = Math.abs(y2-y1) <= L*0.002; if (!vert && !hor) continue;
+    const c = vert ? (x1+x2)/2 : (y1+y2)/2, key = (vert ? 'v' : 'h') + Math.round(c/tol);
+    let o = col.get(key); if (!o){ o = {dir:vert ? 'v' : 'h', c, lo:Infinity, hi:-Infinity}; col.set(key, o); }
+    o.lo = Math.min(o.lo, vert ? Math.min(y1, y2) : Math.min(x1, x2)); o.hi = Math.max(o.hi, vert ? Math.max(y1, y2) : Math.max(x1, x2));
+  }
+  return [...col.values()];
+}
+function gridCands(){
+  const B = G.bounds, size = Math.min(B.x1 - B.x0, B.y1 - B.y0), tol = 0.5/unitMM();
+  const {set, by} = gridLayerSet(), out = {v:[], h:[], by};
+  for (const a of axisLines(set)) if (a.hi - a.lo >= size*0.15) out[a.dir].push({c:a.c, name:'', lo:a.lo, hi:a.hi});
+  if (by !== 'pref'){
+    const okL = new Set(G.L.filter(l => !l.deleted && (l.g === 'arch' || l.g === 'etc') && (GRID_RE.test(l.name.normalize('NFKC')) || !WALL_RE.test(l.name))).map(l => l.idx));
+    const ax = axisLines(okL), gr = findGrids(), tg = Math.max(tol, S.textH*0.1);
+    for (const dir of ['v', 'h']) for (const g of gr[dir]){ const a = ax.find(a => a.dir === dir && Math.abs(a.c - g.c) <= tg && a.hi - a.lo >= size*0.25); if (a) out[dir].push({c:a.c, name:g.name, lo:a.lo, hi:a.hi}); }
+  }
+  for (const dir of ['v', 'h']){ // 同じ通り芯（分かれた線・2つの見つけ方で重なった物）は1本に
+    const m = [];
+    for (const g of out[dir].sort((a, b) => a.c - b.c)){ const q = m[m.length-1]; if (q && g.c - q.c <= tol){ if (!q.name) q.name = g.name; q.lo = Math.min(q.lo, g.lo); q.hi = Math.max(q.hi, g.hi); } else m.push({...g}); }
+    out[dir] = m;
+  }
+  return out;
+}
+const G4K = ['u', 'd', 'l', 'r'], G4N = {u:'上', d:'下', l:'左', r:'右'};
+function grid4At(P, what){
+  const gc = gridCands(), on = 0.5/unitMM();
+  const side = (arr, k, sg) => arr.filter(g => (g.c - P[k])*sg > on).sort((a, b) => Math.abs(a.c - P[k]) - Math.abs(b.c - P[k]));
+  const C = {u:side(gc.h, 1, 1), d:side(gc.h, 1, -1), l:side(gc.v, 0, -1), r:side(gc.v, 0, 1)};
+  return {P, what, C, i:{u:0, d:0, l:0, r:0}, use:{u:!!C.u.length, d:!!C.d.length, l:!!C.l.length, r:!!C.r.length}, onX:gc.v.find(g => Math.abs(g.c - P[0]) <= on) || null, onY:gc.h.find(g => Math.abs(g.c - P[1]) <= on) || null, by:gc.by, pickDir:null};
+}
+function grid4Recs(g, all){ const out = []; for (const k of G4K){ const c = g.C[k][g.i[k]]; if (!c || (!all && !g.use[k])) continue; out.push(k === 'u' || k === 'd' ? {k, c, x1:g.P[0], y1:c.c, x2:g.P[0], y2:g.P[1]} : {k, c, x1:c.c, y1:g.P[1], x2:g.P[0], y2:g.P[1]}); } return out; }
+function grid4Zoom(g){ // パネルより上の見えている所に、芯と4方向の通り芯が入るように
+  const pts = [g.P]; for (const r of grid4Recs(g, true)) pts.push([r.x1, r.y1]); const b = boxOf(pts); if (!b) return;
+  const gp = $('#gridPanel'), top = $('#hint').hidden ? 12 : 70, bot = gp.hidden ? ch : gp.getBoundingClientRect().top - ov.getBoundingClientRect().top, hh = Math.max(120, bot - top - 8), pad = 36;
+  view.s = Math.min((cw - 2*pad)/Math.max(b[2]-b[0], 1), (hh - 2*pad)/Math.max(b[3]-b[1], 1)); view.tx = cw/2 - (b[0]+b[2])/2*view.s; view.ty = top + hh/2 + (b[1]+b[3])/2*view.s; renderBase();
+}
+function grid4Open(P, what){
+  const g = grid4At(P, what); S.autoDim.g4 = g; MS.cur = null; updatePill();
+  if (!G4K.some(k => g.C[k].length)) toast('通り芯が見つかりません。「基準のレイヤー」で通り芯のレイヤーを選んでください');
+  updateUi(); grid4Zoom(g); drawOverlay();
+}
+function grid4PickLine(cur){ // 選び直し：タップした縦（左右）・横（上下）の線をその向きの通り芯にする
+  const g = S.autoDim.g4, k = g.pickDir, hz = k === 'u' || k === 'd', R = 26/view.s, s = G.segs; let best = null, bd = R;
+  for (const id of query(IX.sg, IX.segMark, cur.x, cur.y, R)){ const q = id*SS, x1 = s[q], y1 = s[q+1], x2 = s[q+2], y2 = s[q+3], L = Math.hypot(x2-x1, y2-y1); if (!(L > 0) || s[q+5] !== 0) continue;
+    if (hz ? Math.abs(y2-y1) > L*0.002 : Math.abs(x2-x1) > L*0.002) continue; const c = closestOnSeg(cur.x, cur.y, x1, y1, x2, y2), d = Math.hypot(c[0]-cur.x, c[1]-cur.y); if (d < bd){ bd = d; best = hz ? (y1+y2)/2 : (x1+x2)/2; } }
+  MS.cur = null; updatePill();
+  if (best == null){ toast(hz ? '横にまっすぐな線の上で離してください' : '縦にまっすぐな線の上で離してください'); drawOverlay(); return; }
+  const on = 0.5/unitMM(), P = hz ? g.P[1] : g.P[0], sg = k === 'u' || k === 'r' ? 1 : -1;
+  if ((best - P)*sg <= on){ toast(`その線は芯の${G4N[k]}側にありません`); drawOverlay(); return; }
+  let i = g.C[k].findIndex(x => Math.abs(x.c - best) <= on); if (i < 0){ g.C[k].unshift({c:best, name:'選んだ線'}); i = 0; }
+  g.i[k] = i; g.use[k] = true; g.pickDir = null; updateUi(); grid4Zoom(g); drawOverlay(); toast(`${G4N[k]}の基準を選び直しました`);
+}
+function grid4Commit(){
+  const A = S.autoDim, g = A.g4; if (S.pdfInfo && S.pdfInfo.guess){ toast('縮尺がまだ仮です。先に縮尺を合わせてください'); return; }
+  const recs = grid4Recs(g); if (!recs.length){ toast('作る寸法がありません（チェックを入れてください）'); return; }
+  const gid = curDG().id, ds = recs.map((r, i) => ({id:'a' + Date.now().toString(36) + Math.random().toString(36).slice(2,6) + i, x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:1, g:gid}));
+  const msg = recs.map(r => `${G4N[r.k]} ${r.c.name || '通り芯'}から ${fmt(Math.hypot(r.x2-r.x1, r.y2-r.y1))}`).join('・');
+  exec({kind:'dim', label:'通り芯から上下左右', dimAdded:ds, log:{label:'通り芯から上下左右', detail:`${g.what}：${msg}`, dims:ds.map(dimRec), box:boxOf(ds.flatMap(d => [[d.x1,d.y1],[d.x2,d.y2]]))},
+    do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }});
+  A.g4 = null; drawOverlay(); updateUi(); toast(`${g.what}：${msg}`);
+}
+function drawGrid4(c, g){
+  const [px, py] = w2s(g.P[0], g.P[1]);
+  for (const r of grid4Recs(g, true)){
+    const on = g.use[r.k], hz = r.k === 'u' || r.k === 'd', q = w2s(r.x1, r.y1);
+    c.save(); c.globalAlpha = on ? .9 : .35; c.strokeStyle = tok.snap; c.lineWidth = on ? 2.2 : 1.4; c.setLineDash([10, 5]); c.beginPath();
+    if (hz){ c.moveTo(0, q[1]); c.lineTo(cw, q[1]); } else { c.moveTo(q[0], 0); c.lineTo(q[0], ch); } c.stroke(); c.setLineDash([]);
+    const nm = (r.c.name || '通り芯') + '（' + G4N[r.k] + '）'; c.font = `700 12px ${FONT}`; const tw = c.measureText(nm).width + 8, tx = hz ? Math.min(cw - tw - 4, Math.max(4, px + 14)) : q[0] + 4, ty = hz ? q[1] + (r.k === 'u' ? -20 : 4) : Math.min(ch - 22, Math.max(4, py + (r.k === 'l' ? 8 : -26)));
+    c.fillStyle = tok.panel; c.fillRect(tx, ty, tw, 16); c.fillStyle = tok.snap; c.textBaseline = 'middle'; c.fillText(nm, tx + 4, ty + 8);
+    if (!on) c.globalAlpha = .4; drawDim(c, {x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:1}, on); c.restore();
+  }
+  c.save(); c.strokeStyle = tok.snap; c.lineWidth = 2; c.beginPath(); c.arc(px, py, 8, 0, Math.PI*2); c.moveTo(px - 12, py); c.lineTo(px + 12, py); c.moveTo(px, py - 12); c.lineTo(px, py + 12); c.stroke(); c.restore();
+}
+function updateGridPanel(){
+  const p = $('#gridPanel'), A = S.autoDim, g = S.mode === 'dim' && A && A.to === 'grid4' ? A.g4 : null;
+  if (!g || g.pickDir){ p.hidden = true; return; }
+  p.hidden = false; $('#layerBar').hidden = true; $('#dimPanel').hidden = true;
+  const guess = S.pdfInfo && S.pdfInfo.guess, n = grid4Recs(g).length;
+  const bs = 'style="height:36px;min-height:36px;padding:0 10px"';
+  const row = k => { const c = g.C[k][g.i[k]], hz = k === 'u' || k === 'd', v = c ? Math.abs((hz ? g.P[1] : g.P[0]) - c.c) : 0;
+    return `<div class="frow" style="gap:6px"><label style="display:flex;align-items:center;gap:6px;min-width:52px;font-weight:700"><input type="checkbox" data-use="${k}" ${c && g.use[k] ? 'checked' : ''} ${c ? '' : 'disabled'} style="width:22px;height:22px">${G4N[k]}</label>
+      <div class="grow" style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c ? `<b style="font-size:17px">${fmt(v)}</b> <span class="lsub">${esc(c.name || '通り芯')}から</span>` : '<span class="lsub">通り芯なし</span>'}</div>
+      ${g.C[k].length > 1 ? `<button class="btn" data-next="${k}" ${bs} aria-label="${G4N[k]}の次の通り芯">次▶</button>` : ''}<button class="btn" data-line="${k}" ${bs}>線を選ぶ</button></div>`; };
+  const onTxt = [g.onX ? `左右は芯が通り芯（${esc(g.onX.name || '縦')}）の上なので0` : '', g.onY ? `上下は芯が通り芯（${esc(g.onY.name || '横')}）の上なので0` : ''].filter(Boolean).join('、');
+  p.innerHTML = `<div class="lsub"><b style="color:var(--ink)">${esc(g.what)} の芯 → 通り芯</b>（${S.units}${g.by === 'pref' ? '・選んだレイヤーの線' : ''}）。使う向きにチェックして確定</div>
+    ${G4K.map(row).join('')}
+    ${onTxt ? `<div class="lsub">${onTxt}（その向きは作りません）</div>` : ''}
+    ${guess ? `<div class="lsub" style="color:var(--danger)">PDFの縮尺がまだ仮（1/${fmt(S.pdfInfo.scale)}）です。寸法を1本測って「この寸法で縮尺を合わせる」をしてから確定してください</div>` : ''}
+    <div class="frow"><button class="btn" data-a="layers">基準のレイヤー</button><button class="btn" data-a="cancel" style="flex:1">やめる</button><button class="btn pri" data-a="ok" style="flex:1.4" ${n && !guess ? '' : 'disabled'}>${n}本 確定</button></div>`;
+  p.onchange = e => { const k = e.target.dataset.use; if (k){ g.use[k] = e.target.checked; drawOverlay(); updateGridPanel(); } };
+  p.onclick = e => {
+    const b = e.target.closest('button'); if (!b) return; const ds = b.dataset;
+    if (ds.next){ const k = ds.next; g.i[k] = (g.i[k] + 1) % g.C[k].length; g.use[k] = true; grid4Zoom(g); drawOverlay(); updateGridPanel(); }
+    else if (ds.line){ g.pickDir = ds.line; drawOverlay(); updateUi(); }
+    else if (ds.a === 'layers') openGridLayerSheet();
+    else if (ds.a === 'cancel'){ S.autoDim.g4 = null; drawOverlay(); updateUi(); }
+    else if (ds.a === 'ok') grid4Commit();
+  };
+}
+function openGridLayerSheet(){
+  openSheet('通り芯として見るレイヤー', body => {
+    const {set, by} = gridLayerSet();
+    body.innerHTML = `<div class="note">「通り芯（上下左右）」で使う線のレイヤーです。選ぶと、そのレイヤーの縦・横の長い線だけを通り芯にします（壁・配管などは選ばないでください）。${by === 'name' ? '今は名前に「通り芯」が入ったレイヤーと、X1・Y1などの記号がついた線を自動で使っています。' : ''}</div>` +
+      G.L.filter(l => !l.deleted && l.count).sort((a, b) => (set.has(b.idx) - set.has(a.idx)) || a.name.localeCompare(b.name, 'ja')).map(l => `<label class="row" style="cursor:pointer"><input type="checkbox" data-gl="${esc(l.name)}" ${by === 'pref' && set.has(l.idx) ? 'checked' : ''} style="width:22px;height:22px"><i class="sw" style="background:${colorCss(l.ck)}"></i><div class="grow"><div class="nm">${esc(l.name)}</div><div class="sub">${gById(l.g).name}${by === 'name' && set.has(l.idx) ? '・自動で使用中' : ''}</div></div></label>`).join('') +
+      `<div class="frow"><button class="btn" data-a="auto" style="flex:1">自動にもどす</button><button class="btn pri" data-a="ok" style="flex:1">これで決める</button></div>`;
+    body.onclick = e => {
+      const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      if (a === 'auto'){ gridPref = null; try { localStorage.removeItem('zumen-gridlayers'); } catch(err){} }
+      else { gridPref = [...body.querySelectorAll('[data-gl]:checked')].map(x => x.dataset.gl); try { localStorage.setItem('zumen-gridlayers', JSON.stringify(gridPref)); } catch(err){} }
+      closeSheet(); const A = S.autoDim; if (A && A.g4){ A.g4 = grid4At(A.g4.P, A.g4.what); updateUi(); grid4Zoom(A.g4); drawOverlay(); }
+      toast(a === 'auto' ? '通り芯は自動で探します' : `通り芯のレイヤーを ${gridPref.length} 個にしました`);
+    };
+  });
+}
+function cmdAddDims(recs){ const ds = recs.map((r, i) => ({id:'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,6) + i, x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:r.n || 1, g:(r.g && S.dimGroups.some(x => x.id === r.g)) ? r.g : curDG().id, ...(dimTo(r.to) ? {to:dimTo(r.to)} : {})})); return {kind:'dim', label:'寸法を戻す', do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }}; }
 function cmdSetRoutes(list, ghostsAdd, ghostsDel){ // list: [sid, verts|null, closed]
   const before = list.map(([sid]) => [sid, S.ov.has(sid) ? S.ov.get(sid) : null]); let removed = [];
   return {kind:'route', label:'ルートを戻す',
@@ -1643,7 +1843,7 @@ function redo(){ const c = S.redo.pop(); if (!c) return; c.do(); if (c.entry) c.
 function boxOf(pts){ let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of pts){ if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return isFinite(x0) ? [x0, y0, x1, y1] : null; }
 function layersBox(names){ const set = new Set(names.map(n => G.L.findIndex(l => l.name === n))); const pts = []; for (const p of G.polys){ if (!set.has(p.li)) continue; const a = p.a; for (let i = 0; i < a.length; i += 2) pts.push([a[i], a[i+1]]); } return boxOf(pts); }
 const short = names => names.slice(0, 3).join('、') + (names.length > 3 ? ` ほか${names.length - 3}` : '');
-const dimRec = d => ({x1:d.x1, y1:d.y1, x2:d.x2, y2:d.y2, n:d.n || 1, g:d.g});
+const dimRec = d => ({x1:d.x1, y1:d.y1, x2:d.x2, y2:d.y2, n:d.n || 1, g:d.g, ...(d.to ? {to:d.to.slice()} : {})});
 function changed(kind){
   if (kind === 'layer'){ buildIndex(); renderBase(); renderTabs(); }
   if (kind === 'route'){ refreshGeom(); buildIndex(); renderBase(); if (S.mode === 'route'){ routeReset(); } }
@@ -1679,7 +1879,7 @@ function updateUi(){
   { const bs = $('#bShare'); if (bs){ bs.classList.toggle('on', SH.on); bs.classList.toggle('wait', SH.on && (SH.pend || navigator.onLine === false)); } }
   $('#mPan').classList.toggle('on', S.mode === 'pan'); $('#mDim').classList.toggle('on', S.mode === 'dim'); $('#mRoute').classList.toggle('on', S.mode === 'route'); $('#mBox').classList.toggle('on', S.mode === 'box');
   $('#tOrtho').classList.toggle('on', S.ortho); $('#mNote').classList.toggle('on', S.mode === 'note'); $('#tSnap').classList.toggle('on', S.snapOn);
-  updateHint(); updateLayerBar(); updateDimPanel(); updateRoutePanel();
+  updateHint(); updateLayerBar(); updateDimPanel(); updateRoutePanel(); updateGridPanel();
 }
 function sortedLayers(){ return G.L.filter(l => l.count > 0).slice().sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ja')); }
 function soloLayers(){
@@ -1785,7 +1985,8 @@ function updateHint(){
   h.hidden = false;
   if (S.autoDim){
     const A = S.autoDim;
-    $('#hintTxt').textContent = A.to === 'line' && !A.line ? '基準にする線（壁の面・通り芯）までドラッグして離す' : `${A.from === 'part' ? '機器をタップ' : '位置までドラッグして離す'} → ${A.to === 'grid' ? '通り芯' : A.to === 'line' ? '選んだ線' : '壁の面'}から寸法`;
+    if (A.g4 && !A.g4.pickDir){ h.hidden = true; return; } // 下のパネルで選ぶ
+    $('#hintTxt').textContent = A.g4 && A.g4.pickDir ? `「${G4N[A.g4.pickDir]}」の通り芯にする${A.g4.pickDir === 'u' || A.g4.pickDir === 'd' ? '横' : '縦'}の線までドラッグして離す` : A.g4 ? '下で向きを選んで確定（別の芯をやり直す時は、もう一度選ぶ）' : A.to === 'line' && !A.line ? '基準にする線（壁の面・通り芯）までドラッグして離す' : `${A.from === 'part' ? '機器をタップ' : '芯の点までドラッグして離す'} → ${A.to === 'grid' ? '通り芯' : A.to === 'grid4' ? '通り芯（上下左右）' : A.to === 'line' ? '選んだ線' : '壁の面'}から寸法`;
     $('#bHint3').hidden = false; $('#bHint3').textContent = '切替';
     $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = 'やめる';
     return;
@@ -1797,7 +1998,7 @@ function updateHint(){
   return;
   $('#bCancelPt').hidden = !MS.p1;
 }
-$('#bCancelPt').onclick = () => { if (S.mode === 'dim' && S.autoDim){ S.autoDim = null; updateHint(); return; } if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
+$('#bCancelPt').onclick = () => { if (S.mode === 'dim' && S.autoDim && S.autoDim.g4 && S.autoDim.g4.pickDir){ S.autoDim.g4.pickDir = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && S.autoDim){ S.autoDim = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
 
 function updateDimPanel(){
   const p = $('#dimPanel'); const d = S.selDim;
@@ -1808,8 +2009,8 @@ function updateDimPanel(){
   const ang = Math.abs(Math.atan2(d.y2-d.y1, d.x2-d.x1)*180/Math.PI); const dir = (ang < .01 || Math.abs(ang-180) < .01) ? '横' : Math.abs(ang-90) < .01 ? '縦' : `斜め ${fmt(ang > 90 ? 180-ang : ang)}°`;
   const segs = n > 1 ? Array.from({length:n}, () => fmt(L/n)).join(' ＋ ') + ` ＝ ${fmt(L)}` : '';
   const pick = [2,3,4,5,6];
-  p.innerHTML = `<div class="frow"><div class="grow"><div class="big">${fmt(L)}<small>${S.units}</small></div><div class="lsub">${dir}${n > 1 ? ` ・ ${n}等分 ＝ ${fmt(L/n)} ずつ` : ''}</div></div>
-    <button class="btn" data-a="close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+  p.innerHTML = `<div class="frow"><div class="grow"><div class="big">${fmt(L)}<small>${S.units}</small></div><div class="lsub">${dir}${n > 1 ? ` ・ ${n}等分 ＝ ${fmt(L/n)} ずつ` : ''} ・ 数字は${S.mode === 'dim' ? '✥で' : '指で'}動かせます</div></div>
+    ${d.to ? '<button class="btn" data-a="tpos">文字位置を戻す</button>' : ''}<button class="btn" data-a="close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     ${segs ? `<div class="segline">${segs}</div>` : ''}
     <div class="divs"><button class="btn ${n === 1 ? 'sel' : ''}" data-n="1">分割なし</button><button class="btn ${n === 2 ? 'sel' : ''}" data-n="2">中心（2等分）</button>${pick.slice(1).map(k => `<button class="btn ${n === k ? 'sel' : ''}" data-n="${k}">${k}等分</button>`).join('')}
     <button class="btn" data-a="minus" aria-label="分割を減らす">−</button><button class="btn" data-a="plus" aria-label="分割を増やす">＋</button></div>
@@ -1824,6 +2025,7 @@ function updateDimPanel(){
     else if (a === 'plus'){ if ((d.n||1) < 50) exec(cmdDiv(d, (d.n||1) + 1)); }
     else if (a === 'del'){ exec(cmdDelDims([d])); S.selDim = null; drawOverlay(); updateDimPanel(); toast('寸法を削除（↶で戻せます）'); }
     else if (a === 'zoom') zoomTo(d);
+    else if (a === 'tpos'){ exec(cmdDimText(d, undefined, '文字位置を戻す')); updateDimPanel(); }
     else if (a === 'cal'){ $('#calRow').innerHTML = `<input id="calIn" type="number" inputmode="decimal" value="${Math.round(L)}" style="flex:1;min-width:0;height:40px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);padding:0 10px;font-size:16px;color:var(--ink)" aria-label="本当の長さ（mm）"><button class="btn pri" data-a="cal2">本当はこの長さ</button>`; const ci = $('#calIn'); ci.focus(); ci.select(); }
     else if (a === 'cal2'){ const v = parseFloat($('#calIn').value); if (!(v > 0)){ toast('長さを入れてください'); return; } calibratePdf(v / L); }
   };
@@ -2111,7 +2313,7 @@ const dbGet = (s, k) => dbOp(s, 'readonly', st => st.get(k));
 const dbPut = (s, v) => dbOp(s, 'readwrite', st => st.put(v));
 const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
-function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n,g}) => ({x1,y1,x2,y2,n:n||1,g})), dimGroups:S.dimGroups, curDG:S.curDG, routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
+function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n,g,to}) => ({x1,y1,x2,y2,n:n||1,g,...(to ? {to:to.slice()} : {})})), dimGroups:S.dimGroups, curDG:S.curDG, routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
 let autoT = 0;
 function autosave(dirty = true){
   if (dirty && G) S.dirty = true;
@@ -2142,7 +2344,7 @@ async function openText(text, srcName, opts = {}){
       const del = new Set(st.deleted || []), hid = new Set(st.hidden || []);
       G.L.forEach(l => { if (del.has(l.name)) l.deleted = true; if (hid.has(l.name)) l.on = false; const gg = st.groups && st.groups[l.name]; if (gg && GROUPS.some(g => g.id === gg)) l.g = gg; });
       S.dimGroups = Array.isArray(st.dimGroups) ? st.dimGroups.map(g => ({...g})) : []; S.curDG = st.curDG || null;
-      S.dims = (st.dims || []).map((d, i) => ({id:'d' + i + Date.now().toString(36), x1:+d.x1, y1:+d.y1, x2:+d.x2, y2:+d.y2, n:+d.n || 1, g:d.g}));
+      S.dims = (st.dims || []).map((d, i) => ({id:'d' + i + Date.now().toString(36), x1:+d.x1, y1:+d.y1, x2:+d.x2, y2:+d.y2, n:+d.n || 1, g:d.g, ...(dimTo(d.to) ? {to:dimTo(d.to)} : {})}));
       if (S.dims.some(d => !d.g || !S.dimGroups.some(g => g.id === d.g))){ let og = S.dimGroups.find(g => g.name === 'これまでの寸法'); if (!og){ og = {id:'g0' + Date.now().toString(36), name:'これまでの寸法', on:true}; S.dimGroups.unshift(og); } S.dims.forEach(d => { if (!d.g || !S.dimGroups.some(g => g.id === d.g)) d.g = og.id; }); }
       S.log = Array.isArray(st.log) ? st.log : [];
       S.notes = Array.isArray(st.notes) ? st.notes.map(n => ({...n})) : [];
@@ -2308,10 +2510,16 @@ function buildExport(name, opt = {}){
     newEnts.push(line(d.x1, d.y1, d.x2, d.y2));
     const tk = th*0.5;
     for (let i = 0; i <= nn; i++){ const px = d.x1 + (d.x2-d.x1)*i/nn, py = d.y1 + (d.y2-d.y1)*i/nn; newEnts.push(line(px - (ux+nx)*tk, py - (uy+ny)*tk, px + (ux+nx)*tk, py + (uy+ny)*tk)); }
-    if (nn === 1) newEnts.push(text((d.x1+d.x2)/2 + nx*th*.4, (d.y1+d.y2)/2 + ny*th*.4, th, deg, fmt(L), 1));
+    const to = d.to || [0, 0], lead = dimLead(d), mx = (d.x1+d.x2)/2 + to[0], my = (d.y1+d.y2)/2 + to[1];
+    if (nn === 1) newEnts.push(lead ? text(mx, my, th, deg, fmt(L), 2) : text(mx + nx*th*.4, my + ny*th*.4, th, deg, fmt(L), 1));
     else {
       for (let i = 0; i < nn; i++){ const px = d.x1 + (d.x2-d.x1)*(i+.5)/nn, py = d.y1 + (d.y2-d.y1)*(i+.5)/nn; newEnts.push(text(px + nx*th*.4, py + ny*th*.4, th, deg, fmt(L/nn), 1)); }
-      newEnts.push(text((d.x1+d.x2)/2 - nx*th*.4, (d.y1+d.y2)/2 - ny*th*.4, th, deg, '計' + fmt(L), 3));
+      newEnts.push(lead ? text(mx, my, th, deg, '計' + fmt(L), 2) : text(mx - nx*th*.4, my - ny*th*.4, th, deg, '計' + fmt(L), 3));
+    }
+    if (lead){ // 引出線と矢印（矢印の先は寸法線の上）
+      const F = dimLeadTip(d, [mx, my]), s0 = boxExit([mx, my], F, ra, (String(nn === 1 ? fmt(L) : '計' + fmt(L)).length*0.7 + 0.6)*th/2, th*0.8);
+      const vx = F[0]-s0[0], vy = F[1]-s0[1], l = Math.hypot(vx, vy);
+      if (l > th*0.3){ const ex = vx/l, ey = vy/l, a = th*0.6; newEnts.push(line(s0[0], s0[1], F[0], F[1]), line(F[0], F[1], F[0] - ex*a - ey*a*.35, F[1] - ey*a + ex*a*.35), line(F[0], F[1], F[0] - ex*a + ey*a*.35, F[1] - ey*a - ex*a*.35)); }
     }
   }
   // changed pipe routes: the original entity is replaced by one polyline on the same layer (so other apps still read it as that pipe)
@@ -2456,7 +2664,7 @@ function pdfRangeWorld(){
   // whole drawing = every visible line and text (exact, not the trimmed view bounds)
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of allPolys()){ const l = G.L[p.li]; if (l.deleted || !l.on) continue; const a = p.a; for (let i = 0; i < a.length; i += 2){ if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i+1] < y0) y0 = a[i+1]; if (a[i+1] > y1) y1 = a[i+1]; } }
-  for (const d of S.dims){ x0 = Math.min(x0, d.x1, d.x2); x1 = Math.max(x1, d.x1, d.x2); y0 = Math.min(y0, d.y1, d.y2); y1 = Math.max(y1, d.y1, d.y2); }
+  for (const d of S.dims){ x0 = Math.min(x0, d.x1, d.x2); x1 = Math.max(x1, d.x1, d.x2); y0 = Math.min(y0, d.y1, d.y2); y1 = Math.max(y1, d.y1, d.y2); if (d.to){ const mx = (d.x1+d.x2)/2 + d.to[0], my = (d.y1+d.y2)/2 + d.to[1]; x0 = Math.min(x0, mx); x1 = Math.max(x1, mx); y0 = Math.min(y0, my); y1 = Math.max(y1, my); } }
   if (!isFinite(x0)){ const B = G.bounds; return {x0:B.x0, y0:B.y0, x1:B.x1, y1:B.y1}; }
   const m = Math.max(x1-x0, y1-y0) * 0.01; return {x0:x0-m, y0:y0-m, x1:x1+m, y1:y1+m};
 }
@@ -2545,6 +2753,11 @@ async function buildPdf(){
     const ux = (bx-ax)/L, uy = (by-ay)/L, nx = -uy, ny = ux, n = d.n || 1;
     out.push(`${f2(ax)} ${f2(ay)} m ${f2(bx)} ${f2(by)} l S`);
     for (let i = 0; i <= n; i++){ const px = ax + (bx-ax)*i/n, py = ay + (by-ay)*i/n; out.push(`${f2(px - (ux+nx)*tk*.7)} ${f2(py - (uy+ny)*tk*.7)} m ${f2(px + (ux+nx)*tk*.7)} ${f2(py + (uy+ny)*tk*.7)} l S`); }
+    if (dimLead(d)){ // 引出線と矢印
+      const A = [(d.x1+d.x2)/2 + d.to[0], (d.y1+d.y2)/2 + d.to[1]], Fw = dimLeadTip(d, A), C = [X(A[0]), Y(A[1])], F = [X(Fw[0]), Y(Fw[1])], hp = 2.8*PT;
+      const s0 = boxExit(C, F, readableAngle(bx-ax, by-ay), dimLabelText(d).length*hp*0.28 + hp*0.3, hp*0.6), vx = F[0]-s0[0], vy = F[1]-s0[1], l = Math.hypot(vx, vy);
+      if (l > hp*0.3){ const ex = vx/l, ey = vy/l, a = 1.6*PT; out.push(`${f2(s0[0])} ${f2(s0[1])} m ${f2(F[0] - ex*a*.6)} ${f2(F[1] - ey*a*.6)} l S`, `${dimC.map(f2).join(' ')} rg ${f2(F[0])} ${f2(F[1])} m ${f2(F[0] - ex*a - ey*a*.38)} ${f2(F[1] - ey*a + ex*a*.38)} l ${f2(F[0] - ex*a + ey*a*.38)} ${f2(F[1] - ey*a - ex*a*.38)} l h f`); }
+    }
   }
   if (S.ghosts.length){ out.push(`0.55 0.58 0.62 RG ${f2(0.18*PT)} w [${f2(1.5*PT)} ${f2(1*PT)}] 0 d`); for (const g of S.ghosts) out.push(`${f2(X(g.x1))} ${f2(Y(g.y1))} m ${f2(X(g.x2))} ${f2(Y(g.y2))} l S`); out.push('[] 0 d'); }
   out.push('Q');
@@ -2574,14 +2787,14 @@ async function buildPdf(){
   // dimension labels
   const lab = (x, y, ang, text, below, bold) => add(dimC, () => {
     g.save(); g.translate(x, y); g.rotate(ang); const hp = (bold ? 2.8 : 2.4)*pxmm; g.font = `${bold ? 700 : 500} ${hp.toFixed(1)}px "Barlow Condensed","Arial Narrow",${FONT}`;
-    g.textAlign = 'center'; g.textBaseline = below ? 'top' : 'bottom'; g.fillText(text, 0, below ? hp*.25 : -hp*.25); g.restore();
+    g.textAlign = 'center'; g.textBaseline = below === 'mid' ? 'middle' : below ? 'top' : 'bottom'; g.fillText(text, 0, below === 'mid' ? 0 : below ? hp*.25 : -hp*.25); g.restore();
   });
   for (const d of S.dims){
     if (!dimVisible(d)) continue;
     const ax = PX(d.x1), ay = PY(d.y1), bx = PX(d.x2), by = PY(d.y2); const Lw = Math.hypot(d.x2-d.x1, d.y2-d.y1), n = d.n || 1; if (!Lw) continue;
-    const ang = readableAngle(bx-ax, by-ay);
-    if (n === 1) lab((ax+bx)/2, (ay+by)/2, ang, fmt(Lw), false, true);
-    else { for (let i = 0; i < n; i++) lab(ax + (bx-ax)*(i+.5)/n, ay + (by-ay)*(i+.5)/n, ang, fmt(Lw/n), false, false); lab((ax+bx)/2, (ay+by)/2, ang, '計 ' + fmt(Lw), true, true); }
+    const ang = readableAngle(bx-ax, by-ay), lead = dimLead(d), mx = d.to ? PX((d.x1+d.x2)/2 + d.to[0]) : (ax+bx)/2, my = d.to ? PY((d.y1+d.y2)/2 + d.to[1]) : (ay+by)/2;
+    if (n === 1) lab(mx, my, ang, fmt(Lw), lead ? 'mid' : false, true);
+    else { for (let i = 0; i < n; i++) lab(ax + (bx-ax)*(i+.5)/n, ay + (by-ay)*(i+.5)/n, ang, fmt(Lw/n), false, false); lab(mx, my, ang, '計 ' + fmt(Lw), lead ? 'mid' : true, true); }
   }
   const noteC = mono ? [0,0,0] : [0.42, 0.29, 0.82];
   for (const nt of S.notes){
@@ -2887,10 +3100,10 @@ function scaleState(st, r){
   const sp = a => a && a.map(v => v*r);
   const sv = v => { if (!v) return v; const o = v.slice(); for (let i = 0; i < o.length; i += 3){ o[i] *= r; o[i+1] *= r; } return o; };
   const sg = g => ({...g, x1:g.x1*r, y1:g.y1*r, x2:g.x2*r, y2:g.y2*r});
-  st.dims = (st.dims || []).map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r}));
+  st.dims = (st.dims || []).map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r, ...(d.to ? {to:d.to.map(v => v*r)} : {})}));
   if (st.routes){ st.routes.ov = (st.routes.ov || []).map(([k, v, c]) => [k, sv(v), c]); st.routes.ghosts = (st.routes.ghosts || []).map(sg); }
   st.notes = (st.notes || []).map(n => ({...n, x:n.x*r, y:n.y*r}));
-  st.log = (st.log || []).map(e => ({...e, box:sp(e.box), dims:e.dims && e.dims.map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r})), routes:e.routes && e.routes.map(W => W.map(q => [q[0]*r, q[1]*r])), ghosts:e.ghosts && e.ghosts.map(sg), prev:e.prev && e.prev.map(([k, v, c]) => [k, sv(v), c]), restore:e.restore && [e.restore[0], sv(e.restore[1]), e.restore[2]]}));
+  st.log = (st.log || []).map(e => ({...e, box:sp(e.box), dims:e.dims && e.dims.map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r, ...(d.to ? {to:d.to.map(v => v*r)} : {})})), routes:e.routes && e.routes.map(W => W.map(q => [q[0]*r, q[1]*r])), ghosts:e.ghosts && e.ghosts.map(sg), prev:e.prev && e.prev.map(([k, v, c]) => [k, sv(v), c]), restore:e.restore && [e.restore[0], sv(e.restore[1]), e.restore[2]]}));
   return st;
 }
 async function calibratePdf(r){
@@ -3014,7 +3227,7 @@ function applyItem(k, v, kinds){
   const t = k[0], id = k.slice(2);
   if (t === 'd'){
     const i = S.dims.findIndex(x => x.id === id);
-    if (v){ const o = {id, x1:+v.x1, y1:+v.y1, x2:+v.x2, y2:+v.y2, n:+v.n || 1, g:v.g}; if (i >= 0) Object.assign(S.dims[i], o); else S.dims.push(o); }
+    if (v){ const o = {id, x1:+v.x1, y1:+v.y1, x2:+v.x2, y2:+v.y2, n:+v.n || 1, g:v.g, to:dimTo(v.to)}; if (i >= 0) Object.assign(S.dims[i], o); else S.dims.push(o); }
     else if (i >= 0) S.dims = S.dims.filter(x => x.id !== id);
     kinds.add('dim');
   } else if (t === 'n'){

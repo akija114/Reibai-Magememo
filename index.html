@@ -330,6 +330,11 @@ html[data-mode="easy"] #ezRoomSt{display:block;position:absolute;left:8px;top:52
 #dirOv[data-ez="4"] .ezconf .nt,#dirOv[data-ez="4"] .ezconf .w{grid-column:1/-1}
 #dirOv[data-ez="3"] .ezview{display:flex;position:absolute;right:10px;top:10px;gap:0;border:1.5px solid var(--line);border-radius:12px;overflow:hidden}
 #dirOv[data-ez="3"] .ezview.small{display:none}
+/* くわしい表示の向きを決める画面：上に全体図・切替ボタンを下のパネルの一番上に（天井・床はかんたん表示だけ） */
+#dirOv:not([data-ez]) .ezview{display:flex;margin:0 0 8px;border:1.5px solid var(--line);border-radius:12px;overflow:hidden}
+#dirOv:not([data-ez]) .ezview button{flex:1}
+#dirOv.ovon:not([data-ez]) .dirtop small,#dirOv.ovon:not([data-ez]) .dirtop br{display:none}
+#dirOv:not([data-ez]) .ezview.small,#dirOv:not([data-ez]) .ezroomb,#dirOv:not([data-ez]) .ezovroom{display:none!important}
 .ezview button{height:44px;padding:0 10px;font-size:13px;font-weight:800;background:var(--bg);color:var(--sub)}
 .ezview button.on{background:#2563eb;color:#fff}
 #dirOv[data-ez="3"] .dirtop small{display:none}
@@ -655,7 +660,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="bend";</script>
 <script src="models.js?v=228"></script>
-<script src="core.js?v=240"></script>
+<script src="core.js?v=241"></script>
 <script src="drain.js?v=228"></script>
 <script src="tanka.js?v=228"></script>
 <script src="mitsumori.js?v=228"></script>

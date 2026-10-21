@@ -17,6 +17,7 @@
 | `models.js` | 機器の模型データ（触るのは機種を足す時だけ） |
 | `drain.js` | ドレン配管 |
 | `zumen.html`/`zumen.js`・`genchou.html`/`genchou.js`・`kiki.html` | 図面・現調・機器（`core.js` を読む） |
+| `genba.html`/`genba.js` | 📋 現場：現場カード（日時・住所・駐車場・メンバー⭐・作業内容）と LINE に送る文章。データは IndexedDB「genba」（sites・photos）。`core.js` は読まない |
 | `sw.js` | オフライン用のキャッシュ |
 | `docs/beginner-mode-plan.md` | 初心者モードの経緯・仕様・テスト結果 |
 

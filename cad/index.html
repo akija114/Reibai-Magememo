@@ -1561,40 +1561,46 @@ function gridLayerSet(){
   if (gridPref && gridPref.length){ const set = new Set(live.filter(l => gridPref.includes(l.name)).map(l => l.idx)); if (set.size) return {set, by:'pref'}; }
   return {set:new Set(live.filter(l => GRID_RE.test(l.name.normalize('NFKC'))).map(l => l.idx)), by:'name'};
 }
-function axisLines(set){ // そのレイヤーの縦・横の線を、同じ位置ごとに1本にまとめる（一点鎖線・途中で切れた線も1本）
-  const s = G.baseSegs, tol = 0.5/unitMM(), col = new Map();
+function axisLines(set){ // そのレイヤーの縦・横の線を、同じ位置ごとに1本にまとめる（一点鎖線・途中で切れた線も1本。離れた所の線は別の区間 iv）
+  const s = G.baseSegs, tol = 0.5/unitMM(), col = new Map(), B = G.bounds, gapMax = Math.min(B.x1 - B.x0, B.y1 - B.y0)*0.05;
   for (let k = 0; k < s.length; k += SS){
     if (!set.has(s[k+4]) || gone(s[k+7])) continue;
     const x1 = s[k], y1 = s[k+1], x2 = s[k+2], y2 = s[k+3], L = Math.hypot(x2-x1, y2-y1); if (!(L > 0)) continue;
     const vert = Math.abs(x2-x1) <= L*0.002, hor = Math.abs(y2-y1) <= L*0.002; if (!vert && !hor) continue;
     const c = vert ? (x1+x2)/2 : (y1+y2)/2, key = (vert ? 'v' : 'h') + Math.round(c/tol);
-    let o = col.get(key); if (!o){ o = {dir:vert ? 'v' : 'h', c, lo:Infinity, hi:-Infinity}; col.set(key, o); }
-    o.lo = Math.min(o.lo, vert ? Math.min(y1, y2) : Math.min(x1, x2)); o.hi = Math.max(o.hi, vert ? Math.max(y1, y2) : Math.max(x1, x2));
+    let o = col.get(key); if (!o){ o = {dir:vert ? 'v' : 'h', c, iv:[]}; col.set(key, o); }
+    o.iv.push(vert ? [Math.min(y1, y2), Math.max(y1, y2)] : [Math.min(x1, x2), Math.max(x1, x2)]);
   }
+  for (const o of col.values()){ const m = []; for (const v of o.iv.sort((a, b) => a[0] - b[0])){ const q = m[m.length-1]; if (q && v[0] <= q[1] + gapMax) q[1] = Math.max(q[1], v[1]); else m.push(v.slice()); } o.iv = m; o.len = Math.max(...m.map(v => v[1] - v[0])); }
   return [...col.values()];
 }
 function gridCands(){
   const B = G.bounds, size = Math.min(B.x1 - B.x0, B.y1 - B.y0), tol = 0.5/unitMM();
   const {set, by} = gridLayerSet(), out = {v:[], h:[], by};
-  for (const a of axisLines(set)) if (a.hi - a.lo >= size*0.15) out[a.dir].push({c:a.c, name:'', lo:a.lo, hi:a.hi});
+  for (const a of axisLines(set)) if (a.len >= size*0.15) out[a.dir].push({c:a.c, name:'', iv:a.iv});
   if (by !== 'pref'){
     const okL = new Set(G.L.filter(l => !l.deleted && (l.g === 'arch' || l.g === 'etc') && (GRID_RE.test(l.name.normalize('NFKC')) || !WALL_RE.test(l.name))).map(l => l.idx));
     const ax = axisLines(okL), gr = findGrids(), tg = Math.max(tol, S.textH*0.1);
-    for (const dir of ['v', 'h']) for (const g of gr[dir]){ const a = ax.find(a => a.dir === dir && Math.abs(a.c - g.c) <= tg && a.hi - a.lo >= size*0.25); if (a) out[dir].push({c:a.c, name:g.name, lo:a.lo, hi:a.hi}); }
+    for (const dir of ['v', 'h']) for (const g of gr[dir]){ const a = ax.find(a => a.dir === dir && Math.abs(a.c - g.c) <= tg && a.len >= size*0.25); if (a) out[dir].push({c:a.c, name:g.name, iv:a.iv}); }
   }
   for (const dir of ['v', 'h']){ // 同じ通り芯（分かれた線・2つの見つけ方で重なった物）は1本に
     const m = [];
-    for (const g of out[dir].sort((a, b) => a.c - b.c)){ const q = m[m.length-1]; if (q && g.c - q.c <= tol){ if (!q.name) q.name = g.name; q.lo = Math.min(q.lo, g.lo); q.hi = Math.max(q.hi, g.hi); } else m.push({...g}); }
+    for (const g of out[dir].sort((a, b) => a.c - b.c)){ const q = m[m.length-1]; if (q && g.c - q.c <= tol){ if (!q.name) q.name = g.name; q.iv = q.iv.concat(g.iv); } else m.push({...g}); }
     out[dir] = m;
   }
   return out;
 }
 const G4K = ['u', 'd', 'l', 'r'], G4N = {u:'上', d:'下', l:'左', r:'右'};
 function grid4At(P, what){
-  const gc = gridCands(), on = 0.5/unitMM();
+  const gc = gridCands(), on = 0.5/unitMM(), mg = Math.max(S.textH*6, 300/unitMM());
+  // 同じ平面図の通り芯だけ使う。1枚に図が並んでいると X1・X2・X1・X2 のように記号がくり返すので、そこで図を分け、芯のある（近い）図の通り芯にする
+  const cov = (g, v) => g.iv.some(([lo, hi]) => v >= lo - mg && v <= hi + mg); // 線が芯の所まで引かれている
+  const plan = (arr, v) => { const gs = [[]]; for (const g of arr){ const cur = gs[gs.length-1]; if (g.name && cur.some(x => x.name === g.name)) gs.push([g]); else cur.push(g); }
+    if (gs.length < 2) return arr; const d = grp => v < grp[0].c ? grp[0].c - v : v > grp[grp.length-1].c ? v - grp[grp.length-1].c : 0; return gs.reduce((a, b) => d(b) < d(a) ? b : a); };
+  const V = plan(gc.v.filter(g => cov(g, P[1])), P[0]), H = plan(gc.h.filter(g => cov(g, P[0])), P[1]);
   const side = (arr, k, sg) => arr.filter(g => (g.c - P[k])*sg > on).sort((a, b) => Math.abs(a.c - P[k]) - Math.abs(b.c - P[k]));
-  const C = {u:side(gc.h, 1, 1), d:side(gc.h, 1, -1), l:side(gc.v, 0, -1), r:side(gc.v, 0, 1)};
-  return {P, what, C, i:{u:0, d:0, l:0, r:0}, use:{u:!!C.u.length, d:!!C.d.length, l:!!C.l.length, r:!!C.r.length}, onX:gc.v.find(g => Math.abs(g.c - P[0]) <= on) || null, onY:gc.h.find(g => Math.abs(g.c - P[1]) <= on) || null, by:gc.by, pickDir:null};
+  const C = {u:side(H, 1, 1), d:side(H, 1, -1), l:side(V, 0, -1), r:side(V, 0, 1)};
+  return {P, what, C, i:{u:0, d:0, l:0, r:0}, use:{u:!!C.u.length, d:!!C.d.length, l:!!C.l.length, r:!!C.r.length}, onX:V.find(g => Math.abs(g.c - P[0]) <= on) || null, onY:H.find(g => Math.abs(g.c - P[1]) <= on) || null, by:gc.by, pickDir:null};
 }
 function grid4Recs(g, all){ const out = []; for (const k of G4K){ const c = g.C[k][g.i[k]]; if (!c || (!all && !g.use[k])) continue; out.push(k === 'u' || k === 'd' ? {k, c, x1:g.P[0], y1:c.c, x2:g.P[0], y2:g.P[1]} : {k, c, x1:c.c, y1:g.P[1], x2:g.P[0], y2:g.P[1]}); } return out; }
 function grid4Zoom(g){ // パネルより上の見えている所に、芯と4方向の通り芯が入るように

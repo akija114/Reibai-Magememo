@@ -1493,6 +1493,25 @@ function wallHit(P, dir, broad){ // dir: [1,0] [-1,0] [0,1] [0,-1]; first wall f
   return null;
 }
 function partCenter(e){ let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const pl of G.eidPolys.get(e) || []){ const a = pl.a; for (let i = 0; i < a.length; i += 2){ if (a[i] < x0) x0 = a[i]; if (a[i] > x1) x1 = a[i]; if (a[i+1] < y0) y0 = a[i+1]; if (a[i+1] > y1) y1 = a[i+1]; } } return isFinite(x0) ? [(x0+x1)/2, (y0+y1)/2] : null; }
+/* 機械芯：①芯（交点・中心）に吸着して選んだ時はその点 ②機器の中の「基準線・中心線・芯」レイヤーの縦横の線の交点（図面に描いてある機械芯）
+   ③どちらも無い時は外形の真ん中。外形の真ん中だけだと、配管口などの出っ張りの分だけ芯からずれる */
+const CEN_RE = /基準線|中心線|芯/;
+function machineCenter(e, cur){
+  const b = G.pbox.get(e), C = partCenter(e); if (!b || !C) return C;
+  const mx = (b[2]-b[0])*0.15, my = (b[3]-b[1])*0.15, inner = (x, y) => x > b[0] + mx && x < b[2] - mx && y > b[1] + my && y < b[3] - my;
+  if (cur && (cur.type === 'int' || cur.type === 'cen') && inner(cur.x, cur.y)) return [cur.x, cur.y];
+  const s = G.segs, V = [], H = [];
+  for (let k = 0; k < s.length; k += SS){
+    const l = G.L[s[k+4]]; if (l.deleted || !CEN_RE.test(l.name.normalize('NFKC')) || GRID_RE.test(l.name.normalize('NFKC')) || gone(s[k+7])) continue;
+    const x1 = s[k], y1 = s[k+1], x2 = s[k+2], y2 = s[k+3], L = Math.hypot(x2-x1, y2-y1); if (!(L > 0)) continue;
+    const own = s[k+7] === e ? 0 : 1; // 同じ部品の線を優先
+    if (Math.abs(x2-x1) <= L*0.002){ const x = (x1+x2)/2; if (inner(x, C[1]) && Math.min(y1, y2) <= b[1] + my && Math.max(y1, y2) >= b[3] - my) V.push([own, x]); }
+    else if (Math.abs(y2-y1) <= L*0.002){ const y = (y1+y2)/2; if (inner(C[0], y) && Math.min(x1, x2) <= b[0] + mx && Math.max(x1, x2) >= b[2] - mx) H.push([own, y]); }
+  }
+  if (!V.length || !H.length) return C;
+  const pick = (A, c) => A.sort((p, q) => p[0] - q[0] || Math.abs(p[1] - c) - Math.abs(q[1] - c))[0][1];
+  return [pick(V, C[0]), pick(H, C[1])];
+}
 function autoDimAt(cur){
   const A = S.autoDim; let P, what = '位置';
   if (A.to === 'grid4' && A.g4 && A.g4.pickDir){ grid4PickLine(cur); return; }
@@ -1503,9 +1522,9 @@ function autoDimAt(cur){
     A.line = best; MS.cur = null; drawOverlay(); updateHint(); toast('基準の線を決めました。次は' + (A.from === 'part' ? '機器をタップ' : '位置を選ぶ') + '（何個でも続けられます）'); return;
   }
   if (A.from === 'part'){
-    const h = hitsAt(w2s(cur.x, cur.y)); const e = h.parts.find(x => G.eidPolys.has(x));
+    const h = hitsAt(w2s(cur.x, cur.y)), ps = h.parts.filter(x => G.eidPolys.has(x)); const e = ps.find(x => [...((G.pbox.get(x) || [])[4] || [])].some(i => G.L[i].g === 'ac')) ?? ps[0]; // 重なった時は空調（機器）の部品を優先
     if (e == null){ toast('ここに機器が見つかりません。機器の線の上で離してください'); MS.cur = null; drawOverlay(); return; }
-    P = partCenter(e); what = partName(e);
+    P = machineCenter(e, cur); what = partName(e);
   } else P = [cur.x, cur.y];
   if (A.to === 'grid4'){ grid4Open(P, what); return; }
   const recs = []; const msg = [];

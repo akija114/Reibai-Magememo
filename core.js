@@ -1010,7 +1010,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   const s=label(txt,ext*0.05,bg,fg);s.position.copy(pt);s.position.y+=h;s.userData.cat="flag";pxl(s,26,{t:"up"},rad*0.8);T.grp.add(s);
  };
  if(typeof PLAN!=="undefined"&&PLAN&&PLAN.show&&(PLAN.map||(PLAN.img&&PLAN.mmpp&&PLAN.org))&&!GM){try{addPlan3D()}catch(e){console.warn("plan3d",e)}}
- if(CY!==null){ // 天井（青みのある白・半透明）
+ if(CY!==null&&!EZ){ // 天井（青みのある白・半透明）。かんたん表示は ezRoom で描く
   const size=Math.max(sz.x,sz.z)*1.5+1500;
   if(THREE.PlaneGeometry){
    const pl=new THREE.Mesh(new THREE.PlaneGeometry(size,size),new THREE.MeshBasicMaterial({color:0x93c5fd,transparent:true,opacity:.16,side:THREE.DoubleSide,depthWrite:false}));
@@ -1043,7 +1043,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    const m=label("↕ 地面→ネコ "+fmt(H),ext*0.035,"#fef9c3f2","#713f12","neko");m.position.set(ax,GY+H/2,az);m.userData.cat="neko";pxl(m,18);T.grp.add(m);
   }
  });
- if(GY!==null&&st.gnd.on){
+ if(GY!==null&&st.gnd.on&&!EZ){   // 地面。かんたん表示は ezRoom で描く
   const size=Math.max(sz.x,sz.z)*1.5+1500;
   if(THREE.PlaneGeometry){
    const pl=new THREE.Mesh(new THREE.PlaneGeometry(size,size),new THREE.MeshBasicMaterial({color:0x7c8f5a,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
@@ -1078,6 +1078,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   });
 
  }
+ if(EZ&&!GM&&EZROOM)ezRoom(GY,CY,!!C2,ext);   // かんたん表示：天井面・床面（表示用）
  if(!GM&&!HIDX.has("m"))flag(new V(),"🟢 起点","#dcfce7f2","#14532d",0x16a34a);
  LEAF.filter(L=>!GM&&!HIDX.has(L.id)).forEach(L=>flag(L.pos,br?"🔴 終点"+L.tag:"🔴 終点","#fee2e2f2","#7f1d1d",0xdc2626));
  const anyOver=LG.some(L=>L.over);
@@ -1809,13 +1810,18 @@ $("#gdH").onchange=()=>{const v=uParse($("#gdH").value);if(v>0){GUIDE_H=Math.min
 function benChanged(){try{localStorage.setItem("pbm_bender",BENDER);localStorage.setItem("pbm_bown",JSON.stringify(BOWN));localStorage.setItem("pbm_myR",JSON.stringify(MYR))}catch(e){}try{upd()}catch(e){}if(T){try{build3D();T.dirty=true}catch(e){}}if(GUIDE)showGuideStep()}
 function renderBenSheet(){
  $("#benTtl").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:26px;height:26px;vertical-align:-7px;margin-right:6px">使うベンダー`;
- const L=$("#benList");L.innerHTML='<div style="font-size:13px;color:#475569;margin:0 0 8px">名前をタップ＝<b>メイン</b>（いちばん先に使う）。右の「持っている」を外すと、そのベンダーは使いません。配管のサイズごとに、<b>メイン → 持っている物を上から順</b>で、そのサイズに使える物を選びます。</div>';
- Object.keys(BENDERS).forEach(k=>{const b=BENDERS[k],own=BOWN.includes(k)||k===BENDER,row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-bottom:6px;align-items:stretch";
-  const e=document.createElement("button");e.className="ubtn";
-  e.style.cssText="flex:1;height:auto;min-height:54px;margin:0;flex-direction:column;align-items:flex-start;justify-content:center;padding:4px 12px;font-size:14.5px;text-align:left"+(BENDER===k?";background:#2563eb;color:#fff;border-color:#2563eb":own?"":";opacity:.45");
-  e.innerHTML=(BENDER===k?"⭐ メイン：":"")+b.n+'<small style="font-weight:600;opacity:.8">'+b.sub+'</small>';e.onclick=()=>{BENDER=k;if(!BOWN.includes(k))BOWN.push(k);benChanged();renderBenSheet()};
+ /* 今の配管サイズ（曲げ手順の配管）。「この配管サイズで使える」と「持っている」は別：
+    使える＝ベンダーの対応サイズ（S）に今のサイズがある（S の無い機種は対応扱いにしない。マイベンダーは自分でRを入れるので全サイズ）。
+    非対応の物はメインに選べない（グレー）。「持っている」はサイズに関係なく、いつでも付け外しでき、自動で外さない */
+ const D0=GUIDE?SIZES[legSize(GUIDE.g)][1]:cur().D,UK=benFor(D0);
+ const L=$("#benList");L.innerHTML=`<div style="font-size:13px;color:#475569;margin:0 0 8px">今の配管：<b>${szName(D0)}</b>　→ この配管で使うベンダー：<b>${UK?BENDERS[UK].n:"なし（標準の外径×4で計算）"}</b><br>名前をタップ＝<b>メイン</b>（いちばん先に使う）。この配管サイズに<b>非対応</b>の物はグレーで選べません。右の「持っている」はサイズに関係なく付け外しできます（外すと、そのベンダーは他の配管サイズでも使いません）。</div>`;
+ Object.keys(BENDERS).forEach(k=>{const b=BENDERS[k],own=BOWN.includes(k),fit=benFits(k,D0),row=document.createElement("div");row.style.cssText="display:flex;gap:6px;margin-bottom:6px;align-items:stretch";
+  const e=document.createElement("button");e.className="ubtn";e.disabled=!fit;
+  e.style.cssText="flex:1;height:auto;min-height:54px;margin:0;flex-direction:column;align-items:flex-start;justify-content:center;padding:4px 12px;font-size:14.5px;text-align:left"+(!fit?";opacity:.45;background:#e2e8f0;color:#64748b":BENDER===k?";background:#2563eb;color:#fff;border-color:#2563eb":own?"":";opacity:.6");
+  e.innerHTML=(BENDER===k?(fit?"⭐ メイン：":"⭐ メイン（この配管では使わない）："):"")+(UK===k&&BENDER!==k?"🔧 この配管で使う：":"")+b.n+'<small style="font-weight:600;opacity:.8">'+b.sub+'</small>'+(fit?"":'<small style="font-weight:800;color:#b91c1c">🚫 この配管サイズには非対応</small>');
+  e.onclick=()=>{if(!benFits(k,D0))return;BENDER=k;if(!BOWN.includes(k))BOWN.push(k);benChanged();renderBenSheet()};
   const o=document.createElement("button");o.className="ubtn";o.style.cssText="width:74px;height:auto;margin:0;font-size:12.5px;padding:0 4px;flex-direction:column;justify-content:center"+(own?";background:#dcfce7;border-color:#16a34a;color:#166534":"");
-  o.innerHTML=(own?"✅":"⬜")+"<small>持っている</small>";o.disabled=k===BENDER;o.onclick=()=>{BOWN=own?BOWN.filter(x=>x!==k):BOWN.concat([k]);benChanged();renderBenSheet()};
+  o.innerHTML=(own?"✅":"⬜")+"<small>持っている</small>";o.onclick=()=>{BOWN=BOWN.includes(k)?BOWN.filter(x=>x!==k):BOWN.concat([k]);benChanged();renderBenSheet()};
   row.appendChild(e);row.appendChild(o);L.appendChild(row)});
  const T2=$("#benTbl");let h='<div class="ctitle" style="margin-top:10px">サイズごとに使うベンダー</div><table style="width:100%;border-collapse:collapse;font-size:14px">';
  h+='<tr style="color:#64748b;font-size:12px"><td>サイズ</td><td>ベンダー</td><td>R</td><td style="text-align:right">印の合わせ方</td></tr>';
@@ -2100,6 +2106,7 @@ function ezOvLayout(){
  /* 拡大の3Dは、曲げ位置が全体図の下の真ん中に来るようにカメラの中心をずらす（カメラの位置・向きはそのまま） */
  const d=Math.round(cy-H/2);if(!(T.voff==="ov"&&T.cam.view&&T.cam.view.enabled&&T.cam.view.offsetY===-d))T.cam.setViewOffset(W,H,0,-d,W,H);T.voff="ov";
  const fr=(T.legFr&&T.legFr[DV.g]||[])[DV.i];if(fr){T.cam.updateMatrixWorld();const v=fr.c.clone().project(T.cam);DV.cx=(v.x*.5+.5)*W;DV.cy=(-v.y*.5+.5)*H}
+ ezOvLegend();
  const f=$("#ezOvF");f.style.cssText=`display:block;left:${T.ovr.x}px;top:${y0}px;width:${T.ovr.w}px;height:${oh}px`;
  T.dirty=true;
 }
@@ -2116,13 +2123,19 @@ function ezFitOne(pts,th,ph,tv,a){
  return{c,dist};
 }
 function ezPts(segs){const pts=[];(segs||[]).forEach(sg=>{pts.push(sg.a,sg.b)});return pts}
+/* 天井面・床面も入れて写す時の点。入りきらない時は、配管の 2/3 の大きさまで引いて写す（配管を優先・天井床は見える範囲で） */
+function ezRoomPts(pts){const R=EZROOM&&T.ezRoomY;if(!R||!pts.length)return null;const b=new THREE.Box3();pts.forEach(p=>b.expandByPoint(p));const c=b.getCenter(new THREE.Vector3());return pts.concat([new THREE.Vector3(c.x,R.fy,c.z),new THREE.Vector3(c.x,R.cy,c.z)])}
 /* どの水平の向きに回しても入る距離（12方向で調べて一番遠い物）。中心は配管の箱の真ん中（回しても動かない） */
-function ezFitAll(segs,ph,tv,a){
+function ezFitAll(segs,ph,tv,a,noRoom){
  const pts=ezPts(segs);if(!pts.length)return null;
+ if(!noRoom){const rp=ezRoomPts(pts);if(rp){const F0=ezFitAll(segs,ph,tv,a,true),F1=ezFitAll2(rp,ph,tv,a);return F1.dist<=F0.dist*1.25?F1:Object.assign({},F0,{dist:F0.dist*1.25})}}   // 全体図は小さいので引くのは 1.25 倍まで
+ return ezFitAll2(pts,ph,tv,a,segs);
+}
+function ezFitAll2(pts,ph,tv,a,segs){
  const b=new THREE.Box3();pts.forEach(p=>b.expandByPoint(p));const c=b.getCenter(new THREE.Vector3());
  let dist=1;for(let k=0;k<12;k++){const {bk,rt,up}=ezBasis(k*Math.PI/6,ph);pts.forEach(p=>{const d=p.clone().sub(c),z=d.dot(bk);dist=Math.max(dist,Math.abs(d.dot(rt))/(tv*a)+z,Math.abs(d.dot(up))/tv+z)})}
  dist=Math.max(dist,(T.ext||1000)*0.05)*1.03;
- return{segs,ph,a,c,dist};
+ return{segs:T.segs,ph,a,c,dist};
 }
 /* かんたん表示の STEP 1・2・4：斜めから配管全体（入力中の物・追加する物も入る）。上の説明バーと下の入力パネルの間に収める。
    カメラだけを動かす（配管の座標・向きのデータは変えない）。force でない時は、はみ出す・小さすぎる時だけ距離を変える */
@@ -2132,17 +2145,49 @@ function ezFitMain(force){
  const sr=$("#stage").getBoundingClientRect(),tb=$("#dirTop").getBoundingClientRect().bottom-sr.top,bt=$("#dirOv .dirbot").getBoundingClientRect().top-sr.top;
  const W=T.w,H=T.h,top=Math.max(0,tb+8),bot=Math.min(H,bt-8),rh=Math.max(60,bot-top);
  if(DV.ez===4&&!force&&DV.fit4)return;   // STEP 4 は自由に回せるので、入った後は合わせ直さない
- const mv=ezView0(),tv=Math.tan(T.cam.fov*Math.PI/360)*(rh/H)*0.84,F=ezFitOne(pts,mv.th,mv.ph,tv,(W-24)/rh);
+ const mv=ezView0(),tv=Math.tan(T.cam.fov*Math.PI/360)*(rh/H)*0.84;let F=ezFitOne(pts,mv.th,mv.ph,tv,(W-24)/rh);
+ {const rp=ezRoomPts(pts);if(rp){const F1=ezFitOne(rp,mv.th,mv.ph,tv,(W-24)/rh);F=F1.dist<=F.dist*1.5?F1:{c:F.c,dist:F.dist*1.5}}}   // 天井・床も入るなら入れる。入りきらない時は少し引くだけ（配管優先）
  let dist=F.dist;if(!force&&DV.mdist&&dist<=DV.mdist&&dist>=DV.mdist*0.6)dist=DV.mdist;   // ちょっとの変化では大きさを変えない
  DV.mdist=dist;if(DV.ez===4)DV.fit4=1;
  T.custom=null;T.tg.copy(F.c);T.th=mv.th;T.ph=mv.ph;T.dist=dist;
  const d=Math.round((top+bot)/2-H/2);T.cam.setViewOffset(W,H,0,-d,W,H);T.voff="main";   // 入る所の真ん中に写す
  T.dirty=true;
 }
+/* ===== かんたん表示の天井面・床面（表示用。st には何も書かない・計算に使わない）=====
+   床：配管の床からの高さが分かる時（地面と天井の設定の基準が「起点・配管・機器」、または2方向カセットがある）はその位置。分からない時は仮の位置。
+   天井：天井高の設定がある時（地面と天井の設定で天井を表示、または2方向カセットの天井面）はその値。無い時は仮に 2,200。
+   高さが分からない時は「仮」と書き、離隔の数字は出さない。全体図（レイヤー1）にも出す。世界の上下（y）に水平に置くので、全体図を回しても水平 */
+let EZROOM=true;try{EZROOM=localStorage.getItem("pbm_ezroom")!=="0"}catch(e){}
+const EZ_CH0=2200;   // 仮の天井高（表示だけ）
+function ezRoom(GY,CY,c2,ext){
+ const pts=ezPts(T.segs);if(!pts.length)return;
+ const V=THREE.Vector3,b=new THREE.Box3();pts.forEach(p=>b.expandByPoint(p));
+ const known=GY!==null&&(st.gnd.mode!=="auto"||c2);   // 床からの高さが分かる
+ const chSet=CY!==null&&GY!==null?CY-GY:st.gnd.c?st.gnd.ch:null;   // 天井高の設定（無ければ null）
+ const CH=chSet||EZ_CH0;
+ let fy,cy;
+ if(known){fy=GY;cy=CY!==null?CY:GY+CH}
+ else{const sp=b.max.y-b.min.y;if(sp+200<=CH){fy=(b.min.y+b.max.y)/2-CH/2}else fy=b.min.y-100;cy=Math.max(fy+CH,b.max.y+100)}
+ const c=b.getCenter(new V()),sz=b.getSize(new V()),size=Math.max(sz.x,sz.z)*1.4+1500;
+ const lab1=(txt,y,bg,fg)=>{const s=label(txt,ext*0.04,bg,fg);s.position.set(b.min.x,y,c.z);s.userData.cat="room";pxl(s,17,{t:"up",dn:y!==fy});T.grp.add(s)};
+ [[fy,0xd1d5db,0x9ca3af,.28],[cy,0xbfdbfe,0x60a5fa,.18]].forEach(([y,col,ecol,op])=>{
+  const g=new THREE.PlaneGeometry(size,size),pl=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op,side:THREE.DoubleSide,depthWrite:false}));
+  pl.rotation.x=-Math.PI/2;pl.position.set(c.x,y,c.z);pl.renderOrder=-2;pl.userData.room=1;pl.layers.enable(1);T.grp.add(pl);
+  const ed=new THREE.LineSegments(new THREE.EdgesGeometry(g),new THREE.LineBasicMaterial({color:ecol,transparent:true,opacity:.8}));
+  ed.rotation.x=-Math.PI/2;ed.position.copy(pl.position);ed.userData.room=1;ed.layers.enable(1);T.grp.add(ed);
+ });
+ const ft=known?"床・地面":"床・地面（仮の位置）";
+ const ct=known&&chSet?"天井（床から "+fmt(CH)+"）":known?"天井（仮・床から "+fmt(CH)+"）":chSet?"天井（仮の位置・天井高 "+fmt(CH)+"）":"天井（仮の位置）";
+ lab1(ft,fy,"#f3f4f6f2","#374151");lab1(ct,cy,"#dbeafef2","#1e3a8a");
+ T.ezRoomY={fy,cy,known,ch:CH,chSet:!!chSet,ft,ct};   // 全体図の説明・確認用
+}
+function ezRoomSet(on){EZROOM=on;try{localStorage.setItem("pbm_ezroom",on?"1":"0")}catch(e){}[...document.querySelectorAll(".ezroomb")].forEach(b=>b.classList.toggle("on",on));if(T){build3D();T.dirty=true;if(DV&&DV.ez===3){T.ovFit=null;drawDial()}}}
+/* 全体図の枠の説明：天井・床（3Dの中の文字は全体図では小さすぎるので枠に書く） */
+function ezOvLegend(){const e=$("#ezOvRoom");if(!e)return;const R=EZROOM&&T&&T.ezRoomY;e.style.display=R?"":"none";if(R)e.innerHTML=`<i style="background:#9ca3af"></i>${R.ft}　<i style="background:#60a5fa"></i>${R.ct}`}
 /* ラベルなどの出し分け（かんたん表示の曲げ入力中）：寸法は入力中の曲げの前後だけ、角度は今の曲げだけ。向きの矢印・目印は STEP 3 だけ */
 function ezDvFilter(){
  T.grp.children.forEach(o=>{const u=o.userData||{};
-  if(u.lab)o.visible=u.g===DV.g&&((u.cat==="dim"&&(u.ri===DV.i||u.ri===DV.i+1))||(u.cat==="ang"&&u.ri===DV.i));
+  if(u.lab)o.visible=u.cat==="room"||u.g===DV.g&&((u.cat==="dim"&&(u.ri===DV.i||u.ri===DV.i+1))||(u.cat==="ang"&&u.ri===DV.i));
   else if(u.ezk)o.visible=DV.ez===3;
  });
 }
@@ -2204,10 +2249,11 @@ if(APP==="bend"){
  };
  $("#ezBack").onclick=()=>{if(!DV)return;const n=DV.ez||1;if(n===1)closeDirView(false);else ezStep(n-1)};
  {let od=null;const ov=$("#dirOv");
-  ov.addEventListener("pointerdown",e=>{if(!EZ||!DV||DV.ez!==3||!ezOvHit(e)||e.target.closest("#ezOvR"))return;od={x:e.clientX,id:e.pointerId};try{ov.setPointerCapture(e.pointerId)}catch(x){}});
+  ov.addEventListener("pointerdown",e=>{if(!EZ||!DV||DV.ez!==3||!ezOvHit(e)||e.target.closest("#ezOvR,.ezroomb"))return;od={x:e.clientX,id:e.pointerId};try{ov.setPointerCapture(e.pointerId)}catch(x){}});
   ov.addEventListener("pointermove",e=>{if(!od||e.pointerId!==od.id||!DV)return;const dx=e.clientX-od.x;od.x=e.clientX;DV.oth=(DV.oth!=null?DV.oth:ezView0().th)-dx*0.01;T.dirty=true});   // カメラだけ回す（向きの選択・配管は変わらない）
   const end=()=>{od=null};ov.addEventListener("pointerup",end);ov.addEventListener("pointercancel",end);
   $("#ezOvR").onclick=()=>{if(DV){DV.oth=null;T.dirty=true}};}
+ document.querySelectorAll(".ezroomb").forEach(b=>{b.classList.toggle("on",EZROOM);b.onclick=e=>{e.stopPropagation();ezRoomSet(!EZROOM)}});
  const ovSeg=()=>[...$("#ezView").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===EZOV));ovSeg();
  $("#ezView").onclick=e=>{const b=e.target.closest("button");if(!b||!DV)return;EZOV=b.dataset.v==="1";try{localStorage.setItem("pbm_ezov",EZOV?"1":"0")}catch(x){}ovSeg();
   if(!EZOV)ezOvOff();placeDirCam();drawDial()};

@@ -2554,7 +2554,7 @@ function openSaveSheet(){
     const del = G.L.filter(l => l.deleted).length;
     body.innerHTML = `<div class="field"><label for="saveName">名前</label><input id="saveName" value="${esc(S.projectId ? S.name : (S.name.endsWith('_修正') ? S.name : S.name + '_修正'))}" enterkeyhint="done"></div>
       <button class="bigbtn pri" id="svMage"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>曲げ共有で開く</button>
-      <div class="note" id="mageNote">${ON_MAGE_SITE ? `削除したレイヤーを除いた図面と寸法を、曲げ共有の図面画面にそのまま渡します。非表示のレイヤー ${G.L.filter(l => !l.on && !l.deleted).length} 件は、向こうでも隠した状態で開きます。` : `曲げ共有へ渡すボタンは、曲げ共有と同じサイトに置いたCAD図面編集でだけ使えます：<br><span style="-webkit-user-select:text;user-select:text">${MAGE_BASE}cad/</span>`}</div>
+      <div class="note" id="mageNote">${ON_MAGE_SITE ? `削除したレイヤーを除いた図面と寸法を、曲げ共有の図面画面にそのまま渡します。非表示のレイヤー ${G.L.filter(l => !l.on && !l.deleted).length} 件は、向こうでも隠した状態で開きます。` : `曲げ共有へ渡すボタンは、曲げ共有と同じサイトに置いたCAD図面編集でだけ使えます：<br><span style="-webkit-user-select:text;user-select:text">${MAGE_BASE}cad/</span>`}</div>${mageCheckHtml()}
       <div class="grp">この端末・ファイルに保存</div>
       <div class="note">削除したレイヤー ${del} 件・追加した寸法 ${S.dims.length} 本が保存されます。元のファイルはそのままです。</div>
       ${S.projectId ? '<button class="bigbtn sec" id="sv1">上書き保存（この端末）</button><button class="bigbtn sec" id="sv2">別名で保存（この端末）</button>' : '<button class="bigbtn sec" id="sv2">この端末に保存</button>'}
@@ -2713,6 +2713,24 @@ function buildExport(name, opt = {}){
     return res.join(S.eol) + S.eol;
   }
   return out.join(S.eol) + S.eol;
+}
+/* 曲げ共有へ渡す前の見立て：渡す図面（削除・非表示のレイヤーを除く）の文字とレイヤーから、3Dに要る物がありそうかを見る。
+   くわしいチェックは、曲げ共有の図面画面で「全部自動」した後に出る（読み取りチェック） */
+function mageCheckHtml(){
+  const live = G.L.filter(l => !l.deleted && l.on && l.count), tx = [];
+  for (const l of live) for (const t of G.textsBy[l.idx]) for (const ln of t.lines) tx.push({s:ln.normalize('NFKC'), g:l.g});
+  const has = (re, noDS) => tx.find(t => (!noDS || (t.g !== 'duct' && t.g !== 'san')) && re.test(t.s.replace(/\s+/g, '')));   // noDS：ダクト・衛生の文字は使わない（FL+3700 などを配管の高さと間違えない）
+  const ind = has(/^(PLZ?|PKZ?|PCZ?|PEZ?|PMZ?|FDTC?|FDE|FDU|FDK|RC[IBS]|RP[IK]|SZ|SS|FH|FF|FX|AI|AK|GP|SE|PA|PZ|RCID)[A-Z]{0,5}-?[A-Z]{0,5}\d{2,3}[A-Z0-9-]*$/, true), fl = (() => { const v = []; [...tx.filter(t => t.g === 'ac'), ...tx.filter(t => t.g !== 'ac' && t.g !== 'duct' && t.g !== 'san')].forEach(t => { const m = t.s.replace(/\s+/g, '').match(/FL\+(\d{3,4})/); if (m && !v.includes(m[1])) v.push(m[1]); }); return v.length ? {s:v.slice(0, 3).map(x => 'FL+' + x).join('・') + (v.length > 3 ? ' など' : '')} : null; })(), ch = has(/C\.?H=?[1-6]\d{3}|天井高/);
+  const ref = live.filter(l => /冷媒/.test(l.name.normalize('NFKC'))), out = live.some(l => /室外機|屋外機/.test(l.name)) || has(/室外機|屋外機/) || has(/^(PUZ|PUHY|PU|SUZ|MUZ|RZA?|RZRP|RXY|RAS|ROA|FDC|RAC|ROU|RCU)[A-Z]{0,5}-?[A-Z]{0,5}\d{2,3}[A-Z0-9-]*$/);
+  const gr = findGrids(), walls = wallLayerSet().size, door = live.some(l => /建具|扉|窓|点検口/.test(l.name));
+  const it = [[25, '室内機の品番', !!ind, ind && ind.s, '室内機の品番（例 PL-ZRP80HA5）の文字が見つかりません'], [25, '冷媒管のレイヤー', ref.length > 0, ref.map(l => l.name).join('・'), '名前に「冷媒」が入ったレイヤーがありません（消していないか確認）'],
+    [10, '配管の高さ（FL+○○）', !!fl, fl && fl.s, '「FL+3200」などの文字がありません'], [10, '室外機', out, '室外機の文字・レイヤーあり', '室外機の文字・品番・レイヤーが見つかりません（曲げ共有では、配管の端の近くにある機器の箱を室外機として探します）'],
+    [10, '天井高（CH=○○）', !!ch, ch && ch.s, '「CH=3000」などの文字がありません'], [10, '壁のレイヤー', walls > 0, walls + 'レイヤー', '壁のレイヤーが見つかりません'],
+    [5, '通り芯', gr.v.length > 0 && gr.h.length > 0, [...new Set(gr.v.concat(gr.h).map(g => g.name))].join('・'), 'X1・Y1などの記号のついた通り芯が見つかりません'], [5, '扉・窓・点検口', door, '建具などのレイヤーあり', '建具・扉・窓のレイヤーが見つかりません']];
+  const pc = it.reduce((a, x) => a + (x[2] ? x[0] : 0), 0), col = pc >= 80 ? '#15803d' : pc >= 50 ? '#b45309' : 'var(--danger)';
+  return `<div class="note" id="mageChk" style="margin-top:6px"><b style="color:var(--ink)">3Dにできそう度（見立て）</b> <b style="font-size:18px;color:${col}">${pc}%</b><br>` +
+    it.map(([w, nm, ok, v, how]) => `${ok ? '✅' : '⚠️'} ${nm}${ok ? (v ? '：' + esc(String(v).slice(0, 40)) : '') : `<br><span style="color:#b45309">　${how}</span>`}`).join('<br>') +
+    `<br><span style="font-size:11.5px">文字とレイヤーからの見立てです。曲げ共有で「全部自動」すると、くわしい読み取りチェックが出ます。</span></div>`;
 }
 /* 曲げ共有（同じサイト akija114.github.io）の図面画面へ渡す：IndexedDB pbmShare / f / "dxf" → zumen.html?from=fix */
 async function sendToMage(name){

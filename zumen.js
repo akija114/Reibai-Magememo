@@ -1872,7 +1872,8 @@ let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.war
  let ni=0,ndl="",neq=[];if(r){try{ni=planAutoIns(I)}catch(e){console.warn("ins",e)}try{neq=planAutoEquip(r)}catch(e){console.warn("eq",e)}
   try{const D=planDrawLines&&planDrawLines();const hk=D?DL_KINDS.filter(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)):[];if(hk.length){st.dln=D;ndl=hk.map(([k,n])=>n).join("・");save()}}catch(e){console.warn("dl",e)}
   try{if(T){build3D();T.dirty=true}else if(typeof dlBar==="function")dlBar()}catch(e){}}
- if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+(ni?"・点検口 "+ni+"個":"")+(neq.length?"・機器 "+neq.join("・"):"")+(ndl?"・図面の"+ndl:"")+"。違う所は図面画面で直せます"),400)}
+ if(r&&typeof yomiCheck==="function")setTimeout(()=>{try{yomiCheck(r,{nw,nh,nl,nc,nd,nwn,ni,neq,ndl})}catch(e){console.warn("yomi",e)}},400);   // 📋 読み取りチェック（yomi.js）
+ else if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+(ni?"・点検口 "+ni+"個":"")+(neq.length?"・機器 "+neq.join("・"):"")+(ndl?"・図面の"+ndl:"")+"。違う所は図面画面で直せます"),400)}
  return r}
 
 /* 読み込み終わったら、建物・図面・スキャンを3Dに出し直す */

@@ -2552,6 +2552,8 @@ const BLD_TG=[["wall","壁"],["col","柱"],["beam","梁"],["box","障害物"],["
 const bldHid=k=>!!(st.bhid&&st.bhid[k]);
 function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
  const sMat={duct:new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.35,metalness:.55})},eMat=DL_SUB.map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.5,metalness:.1}));
+ /* 図面の空調ドレン（床から上）は、アプリの空調ドレンと同じ色（材料） */
+ try{if(typeof DR_MAT!=="undefined"&&st.drain&&typeof DRN==="function"&&DR_MAT[DRN().mat])eMat[4]=new THREE.MeshStandardMaterial({color:DR_MAT[DRN().mat].col,roughness:.6})}catch(e){}
  DLK.forEach(([k,n,col])=>{if(!dlOnOf(k))return;
   /* [9]＝終わりの高さ（たて管）、[10]＝終わりの太さ（口の所の広がる管） */
   const S=D[k+"S"];if(Array.isArray(S))S.forEach(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,h2=typeof s[9]==="number"?s[9]:h,w2=typeof s[10]==="number"?s[10]:w,a=new THREE.Vector3(x1,GY+h,z1),b=new THREE.Vector3(x2,GY+h2,z2),len=a.distanceTo(b);if(len<5)return;
@@ -2572,6 +2574,9 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
    if(k==="eisei"&&!q[7]&&(q[9]===1||q[9]===2)){const P=new THREE.Vector3(x,GY+h,z),mw=q[14]||w,bw=q[15]||w,md=new THREE.Vector3(q[10],0,q[11]).normalize(),bd=q[16]?new THREE.Vector3(0,1,0):new THREE.Vector3(q[12],0,q[13]).normalize();   // q[16]：枝が上から入るチーズ
     const cyl=(r,len,dir,c)=>{const g=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,14,1),mt);g.position.copy(c);g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);g.userData.dl=k;T.grp.add(g)};
     cyl(mw/2+6,mw*2.2,md,P);cyl(bw/2+6,bw*1.4,bd,P.clone().addScaledVector(bd,bw*0.7+mw*0.3));return}
+   /* 図面の空調ドレンのたて管の上：アプリの空調ドレンの端が近ければ、エルボでつなぐ（玉にしない） */
+   if(k==="eisei"&&sub===4&&!q[7]&&T.drSegs&&T.drSegs.length){const y=GY+h;let e0=null,bd=500;T.drSegs.forEach(d=>[d.a,d.b].forEach(p=>{const dd=Math.hypot(p.x-x,p.z-z);if(dd<bd&&Math.abs(p.y-y)<300){bd=dd;e0=p}}));
+    if(e0&&bd>5){const r=Math.min(Math.max(w*1.5,60),bd),cv=new THREE.QuadraticBezierCurve3(new THREE.Vector3(x,e0.y-r,z),new THREE.Vector3(x,e0.y,z),e0.clone());/* たて管の上の端で曲がって、ドレンの端へ */m=new THREE.Mesh(new THREE.TubeGeometry(cv,12,w/2,12,false),mt);m.userData.dl=k;T.grp.add(m);return}}
    m=sh===1?new THREE.Mesh(new THREE.BoxGeometry(w,hh,w),mt):new THREE.Mesh(new THREE.SphereGeometry(w/2,k==="duct"?20:12,k==="duct"?14:8),mt);m.position.set(x,GY+h,z);if(sh===1&&q[8])m.rotation.y=q[8];m.userData.dl=k;T.grp.add(m)});
   const L=D[k];if(!Array.isArray(L)||!L.length)return;
   const P=[];L.forEach(s=>{P.push(s[0],GY+s[4],s[1],s[2],GY+s[4],s[3])});const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(P,3));

@@ -422,8 +422,22 @@ function dlEisei(S,J){
   if(Math.min(h1,h2)<0&&s[0]===s[2]&&s[1]===s[3]){const lo=Math.min(h1,h2),hi=Math.max(h1,h2);s[4]=0;s[9]=hi;add.push([s[0],s[1],s[2],s[3],lo,s[5],s[6],s[7],1,0])}});
  S.push(...add);
  const dS=(x,z,t)=>{const dx=t[2]-t[0],dz=t[3]-t[1],l2=dx*dx+dz*dz;let u=l2?((x-t[0])*dx+(z-t[1])*dz)/l2:0;u=Math.max(0,Math.min(1,u));return Math.hypot(t[0]+dx*u-x,t[1]+dz*u-z)};
- /* ③ 上から合流（高さの差が本管の太さより小さい時は、勾配で横から入るチーズ） */
  const hz=t=>!(t[0]===t[2]&&t[1]===t[3]),hEnd=(t,e)=>e?(typeof t[9]==="number"?t[9]:t[4]):t[4],gone=new Set();
+ const E=(t,e)=>e?[t[2],t[3]]:[t[0],t[1]],setH=(t,e,h)=>{if(typeof t[9]!=="number")t[9]=t[4];if(e)t[9]=h;else t[4]=h};
+ /* 管の端を r だけ短くする（曲がりの分）。[向き（端から管の中へ）, 短くした長さ] */
+ const cut=(t,e,r)=>{const [x,z]=E(t,e),[ox,oz]=E(t,1-e),L=Math.hypot(ox-x,oz-z);if(L<1)return[[0,0],0];const u=[(ox-x)/L,(oz-z)/L],rr=Math.round(Math.min(r,L*0.45));if(e){t[2]=Math.round(x+u[0]*rr);t[3]=Math.round(z+u[1]*rr)}else{t[0]=Math.round(x+u[0]*rr);t[1]=Math.round(z+u[1]*rr)}return[u,rr]};
+ /* 曲がり（エルボ）の継手：a＝横の向き（角から管の中へ）、b＝もう片方の向き [x,上下,z] */
+ const elb=(x,z,h,a,b,w,sub,r)=>[x,z,h,0,w,w,sub,1,+a[0].toFixed(4),+a[1].toFixed(4),+b[0].toFixed(4),+b[2].toFixed(4),r,0,b[1]];
+ /* ④ 分岐の継手の直し（汚水・排水・通気）：
+    ・2本の管の端が同じ点で会うだけ（突き抜ける管が無い）＝曲がり → エルボ（45°の曲がりもエルボ。Y・チーズにしない）
+    ・本管が通る所＝チーズ・Y → 継手は本管の高さ。枝は勾配で本管の高さまで下げて入る（継手が本管から浮かない） */
+ J.slice().forEach(q=>{if(q[7]||!(q[9]===1||q[9]===2)||q[16]||(q[6]!==1&&q[6]!==2))return;const p=[q[0],q[1]],tol=Math.max(q[4]*0.6,40),ends=[],thru=[];
+  S.forEach(t=>{if(!hz(t)||(t[8]!==1&&t[8]!==2))return;let en=false;[0,1].forEach(e=>{const [x,z]=E(t,e);if(Math.hypot(x-p[0],z-p[1])<tol){ends.push([t,e]);en=true}});if(!en&&dS(p[0],p[1],t)<tol)thru.push(t)});
+  if(ends.length===2&&!thru.length){const [[t1,e1],[t2,e2]]=ends,L1=Math.hypot(t1[2]-t1[0],t1[3]-t1[1]),L2=Math.hypot(t2[2]-t2[0],t2[3]-t2[1]),r=Math.min(0.8*Math.max(t1[6],t2[6]),L1*0.45,L2*0.45);if(r<5)return;
+   const [u1,r1]=cut(t1,e1,r),[u2]=cut(t2,e2,r1);J[J.indexOf(q)]=elb(q[0],q[1],q[2],u1,[u2[0],0,u2[1]],q[4],q[6],r1);return}
+  if(thru.length){const M=thru[0],dx=M[2]-M[0],dz=M[3]-M[1],l2=dx*dx+dz*dz,u=Math.max(0,Math.min(1,((p[0]-M[0])*dx+(p[1]-M[1])*dz)/l2)),mh=Math.round(M[4]+(hEnd(M,1)-M[4])*u);q[2]=mh;
+   ends.forEach(([t,e])=>{const he=hEnd(t,e);if(he>mh&&he-mh<600)setH(t,e,mh)})}});
+ /* ③ 上から合流（高さの差が本管の太さより小さい時は、勾配で横から入るチーズ） */
  const nE=S.length;for(let i=0;i<nE;i++){const s=S[i];if(gone.has(s)||!hz(s)||(s[8]!==1&&s[8]!==2))continue;
   [0,1].forEach(e=>{if(gone.has(s))return;let x=e?s[2]:s[0],z=e?s[3]:s[1];const h=hEnd(s,e),tol=Math.max(s[6],60);
    if(J.some(q=>Math.hypot(q[0]-x,q[1]-z)<tol&&Math.abs(q[2]-h)<Math.max(30,s[6])))return;   // もう継手がある
@@ -434,20 +448,29 @@ function dlEisei(S,J){
    const ox=e?s[0]:s[2],oz=e?s[1]:s[3],sL=Math.hypot(s[2]-s[0],s[3]-s[1]),T2=Math.max(best[6],s[6],60);
    let side=e;if(sL<Math.max(3*s[6],250)&&dS(ox,oz,best)<T2){const k=J.findIndex(q=>Math.hypot(q[0]-ox,q[1]-oz)<tol&&Math.abs(q[2]-h)<Math.max(30,s[6]));if(k>=0){x=J[k][0];z=J[k][1];J.splice(k,1);gone.add(s);side=null}}   // 角（曲がりの所）で下ろす
    const dx=best[2]-best[0],dz=best[3]-best[1],l2=dx*dx+dz*dz,u=Math.max(0,Math.min(1,((x-best[0])*dx+(z-best[1])*dz)/l2)),px=Math.round(best[0]+dx*u),pz=Math.round(best[1]+dz*u),mh=Math.round(best[4]+(hEnd(best,1)-best[4])*u),l=Math.sqrt(l2),mw=Math.max(best[6],s[6]);
-   if(side!==null){if(side){s[2]=px;s[3]=pz}else{s[0]=px;s[1]=pz}}   // 横の管の端を本管の真上に
-   else{let t=null,td=2*tol;S.forEach(q=>{if(gone.has(q)||!hz(q)||q===s||q[8]!==s[8])return;const d=Math.min(Math.hypot(q[0]-x,q[1]-z),Math.hypot(q[2]-x,q[3]-z));if(d<td){td=d;t=q}});if(t){if(Math.hypot(t[0]-x,t[1]-z)<Math.hypot(t[2]-x,t[3]-z)){t[0]=px;t[1]=pz}else{t[2]=px;t[3]=pz}}}   // 角の手前の管を本管の真上まで
+   let pr=null,pe=0;   // 本管の真上まで来る横の管とその端（下ろす所の曲がりのため）
+   if(side!==null){if(side){s[2]=px;s[3]=pz}else{s[0]=px;s[1]=pz}pr=s;pe=side}   // 横の管の端を本管の真上に
+   else{let t=null,td=2*tol;S.forEach(q=>{if(gone.has(q)||!hz(q)||q===s||q[8]!==s[8])return;const d=Math.min(Math.hypot(q[0]-x,q[1]-z),Math.hypot(q[2]-x,q[3]-z));if(d<td){td=d;t=q}});if(t){if(Math.hypot(t[0]-x,t[1]-z)<Math.hypot(t[2]-x,t[3]-z)){t[0]=px;t[1]=pz;pe=0}else{t[2]=px;t[3]=pz;pe=1}pr=t}}   // 角の手前の管を本管の真上まで
    if(h-mh<best[6]&&side!==null){   // 少しだけ高い：勾配で下げて、横から入るチーズ
     if(side){if(typeof s[9]!=="number")s[9]=s[4];s[9]=mh}else{if(typeof s[9]!=="number")s[9]=s[4];s[4]=mh}
     const fx=side?s[0]:s[2],fz=side?s[1]:s[3],bl=Math.hypot(fx-px,fz-pz)||1;
     J.push([px,pz,mh,0,mw,mw,1,0,0,1,+(dx/l).toFixed(4),+(dz/l).toFixed(4),+((fx-px)/bl).toFixed(4),+((fz-pz)/bl).toFixed(4),best[6],s[6]]);return}
    if(S.some(q=>!hz(q)&&q[8]===s[8]&&Math.hypot(q[0]-px,q[1]-pz)<tol))return;   // もう下ろしてある
-   S.push([px,pz,px,pz,mh,0,s[6],s[6],s[8],h]);
-   J.push([px,pz,h,0,Math.round(s[6]*1.15),Math.round(s[6]*1.15),s[8],0,0]);   // 横 → 下の曲がり
+   const [ud,rd]=pr?cut(pr,pe,Math.min(0.8*s[6],(h-mh)*0.45)):[[0,0],0];
+   S.push([px,pz,px,pz,mh,0,s[6],s[6],s[8],h-rd]);
+   J.push(rd?elb(px,pz,h,ud,[0,-1,0],s[6],s[8],rd):[px,pz,h,0,Math.round(s[6]*1.15),Math.round(s[6]*1.15),s[8],0,0]);   // 横 → 下の曲がり（エルボ）
    J.push([px,pz,mh,0,mw,mw,1,0,0,1,+(dx/l).toFixed(4),+(dz/l).toFixed(4),0,0,best[6],s[6],1])})}   // 本管に上から入るチーズ
  for(let i=S.length-1;i>=0;i--)if(gone.has(S[i]))S.splice(i,1);
- const n=S.length;for(let i=0;i<n;i++){const s=S[i];if(s[8]!==1||s[4]>=0||(s[0]===s[2]&&s[1]===s[3]))continue;const tol=Math.max(s[6],60);
-  [[s[0],s[1],s[4]],[s[2],s[3],hEnd(s,1)]].forEach(([x,z,h])=>{if(J.some(q=>Math.hypot(q[0]-x,q[1]-z)<tol))return;if(S.some((t,j)=>j!==i&&dS(x,z,t)<tol))return;   // 端ごとの高さ（勾配の管）
-   S.push([x,z,x,z,h,0,s[6],s[6],1,100,s[6],"fl"]);J.push([x,z,h,0,s[6],s[6],1,0,0])})}}
+ /* ② 器具への立ち上がり（汚水・排水・通気の、どこにもつながっていない床下の端）：エルボで曲げて床から100mm。
+    つながっている＝継手がある・エルボの口がある・同じ種類の管が近い（給水など別の管が近いだけではつながっていない） */
+ const elEnds=q=>[[q[0]+q[8]*q[12],q[1]+q[9]*q[12]],[q[0]+q[10]*q[12],q[1]+q[11]*q[12]]];
+ const n=S.length;for(let i=0;i<n;i++){const s=S[i];if((s[8]!==1&&s[8]!==2)||!hz(s))continue;const tol=Math.max(s[6],60);
+  [0,1].forEach(e=>{const [x,z]=E(s,e),h=hEnd(s,e);if(h>=0)return;
+   if(J.some(q=>q[7]!==1&&Math.hypot(q[0]-x,q[1]-z)<tol))return;
+   if(J.some(q=>q[7]===1&&q.length>=13&&elEnds(q).some(([a,b])=>Math.hypot(a-x,b-z)<tol)))return;
+   if(S.some((t,j)=>j!==i&&t[8]===s[8]&&dS(x,z,t)<tol))return;
+   const [u,r]=cut(s,e,Math.min(0.8*s[6],(100-h)*0.45));
+   S.push([x,z,x,z,h+r,0,s[6],s[6],s[8],100,s[6],"fl"]);J.push(r?elb(x,z,h,u,[0,1,0],s[6],s[8],r):[x,z,h,0,s[6],s[6],s[8],0,0])})}}
 /* ===== 図面の配管・ダクトを3D用に取り出す（冷媒・ドレン・ダクト・衛生）=====
    ・図面に「平面図」「天井伏図」など何枚も描いてある時は、通り芯の記号（X1・Y2…）で図をわけ、原点のある図に合わせる
    ・原点のある図に無い種類（例：衛生配管は平面図だけ）は、ほかの図から通り芯でずらして持ってくる

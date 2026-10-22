@@ -10,6 +10,13 @@ service cloud.firestore {
     function isMember(code) { return signedIn() && exists(/databases/$(database)/documents/groups/$(code)/members/$(request.auth.uid)); }
     function isOwner(code) { return signedIn() && get(/databases/$(database)/documents/groups/$(code)).data.owner == request.auth.uid; }
 
+    // 曲げ共有の短いリンク（…/?s=番号）：番号を知っている人だけが読める（一覧は出せない）。作るだけで、直す・消すはできない
+    match /links/{id} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['z','at']) && request.resource.data.z is string && request.resource.data.z.size() < 300000;
+      allow update, delete: if false;
+    }
     function tMember(tid) { return signedIn() && exists(/databases/$(database)/documents/teams/$(tid)/members/$(request.auth.uid)); }
     match /teams/{tid} {
       allow get: if signedIn();

@@ -30,6 +30,7 @@
 - **3D表示**：`build3D()`（中身は `build3D0`）、`loop()`、`fitT()`、曲げ入力 `openDirView`／`placeDirCam`／`drawDial`／`closeDirView`、曲げ手順 `openGuide`
 - **ベンダー**：「持っている」（`BOWN`／`pbm_bown`）と「その配管サイズで使える」（`benFits`）は別。所持は自動で外さない。計算で使うベンダーは `benFor`（変えない）
 - **チーム・既読**（`team.js`）：今までの「リンクにデータを入れて送る」は残す（足すだけ）。保存するのは仕事用の名前・時刻・送った曲げデータだけ（LINEのアイコン・ID・LINEの名前は保存しない）。テストは `__LIFFMOCK`・`__FXMOCK` で本物につながずに行う
+- **短いリンク**（`team.js`）：「LINEなどで送る」等のリンクは `shareLinkZ` を包んで `…/?s=番号`（曲げデータは Firebase の links）。作れない時は今までの長いリンク（`#z=`）。📤・保存の画面を開いた時に先に作る（iPhone の共有画面は押してすぐでないと出ない）
 - **保存・共有・元に戻す**：`save()`、`histGo()`、`openCloud`、`initLocal`
 - **詳細モード**：今までの画面・操作そのもの。初心者モード用の変更は必ず `EZ` が真の時だけ動くようにする
 - **初心者モード**（`EZ`）：`ezUpd`・`ezStep`（STEP 1〜4）・`ezFitMain`（斜めから全体）・`ezOvLayout`／`ezOvRender`（STEP 3 の全体図。くわしい表示の向きを決める画面でも同じ物を出す）・`ezDvFilter`・`ezRoom`（天井面・床面。表示だけで st に書かない）。表示の切替だけで、データ・計算は詳細モードと同じ物を使う

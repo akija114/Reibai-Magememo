@@ -167,6 +167,22 @@ if(PAGE==="bend"){
  /* 曲げ共有：📤（送る・読み込む）と 保存・共有の画面に足す */
  const add=after=>{const a=q(after);if(a)a.after(mk("sharebtn tmSend","👥 チームに送る（誰が見たか分かる・LINE）","background:#06c755;color:#fff",sendTeam),mk("sharebtn tmStat","👀 見た人を確認","background:#ecfdf5;color:#065f46",openStatus))};
  add("#shSend");add("#shareLink");
+ /* 短いリンク：今までの長いリンク（#z= に曲げデータを全部入れた物）は、LINE で途中が「…」と切られて Android で開けない。
+    曲げデータを Firebase に置いて「…/?s=番号」の短いリンクにする。作れない時（電波が無い等）は今までの長いリンクのまま。
+    iPhone は押してから時間がたつと共有画面を出せないので、📤・保存の画面を開いた時に先に作っておく */
+ const longLink=shareLinkZ,SL={code:"",url:"",p:null};
+ const wait=(p,ms)=>Promise.race([p,new Promise((_,ng)=>setTimeout(()=>ng(new Error("timeout")),ms))]);
+ const makeShort=code=>{if(SL.code===code&&(SL.url||SL.p))return SL.p||Promise.resolve(SL.url);SL.code=code;SL.url="";
+  SL.p=(async()=>{const f=await fx(),id=rid(10);await f.set("links/"+id,{z:code,at:Date.now()});SL.url=APP_URL+"?s="+id;return SL.url})().catch(e=>{if(SL.code===code)SL.code="";throw e}).finally(()=>{SL.p=null});return SL.p};
+ window.shareLinkZ=async function(){const L=await longLink(),code=L.split("#z=")[1];if(!code)return L;try{return await wait(makeShort(code),2500)}catch(e){return L}};
+ const pre=async()=>{try{const L=await longLink();makeShort(L.split("#z=")[1]).catch(()=>{})}catch(e){}};
+ ["#shareOv","#cloudOv"].forEach(s=>{const e=q(s);if(e)new MutationObserver(()=>{if(e.classList.contains("on"))pre()}).observe(e,{attributes:true,attributeFilter:["class"]})});
+ /* 短いリンクを開いた時 */
+ const sid=new URLSearchParams(location.search).get("s");
+ if(/^[A-Za-z0-9]{6,20}$/.test(sid||""))setTimeout(async()=>{
+  try{const f=await fx(),x=await f.get("links/"+sid);if(!x||!x.z){say("リンクの曲げデータが見つかりません");return}
+   if(applyData(await decZ(x.z))){try{history.replaceState(null,"",location.pathname)}catch(e){}say("送られたプランを開きました")}else say("リンクのデータを読めませんでした")}
+  catch(e){console.warn("short link",e);say("開けませんでした（電波を確かめてください）")}},200);
 }else{
  /* 現場：カードの下の段に「👥 チームに送る」、一覧に「👀 見た人を確認」（genba.js の画面作りの後に足す） */
  const re=renderEdit,rl=renderList;

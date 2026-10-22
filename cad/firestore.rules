@@ -2,12 +2,35 @@ rules_version = '2';
 // CAD図面編集「仲間と共有」用のルール
 // ・合言葉を知っている人だけが参加できる（参加した人＝メンバーだけが中身を読める・書ける）
 // ・消した物は残る（gone:true）。本当に消す「完全削除」はグループを作った人だけ
+// 曲げ共有「チームに送る」用（teams）：送ったリンク（チームの番号入り）を開いた人がメンバーになる。メンバーだけが中身・既読を読める。
+// 既読（views）は自分の分だけ書ける。送った物を直す・消すのは送った人だけ
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function isMember(code) { return signedIn() && exists(/databases/$(database)/documents/groups/$(code)/members/$(request.auth.uid)); }
     function isOwner(code) { return signedIn() && get(/databases/$(database)/documents/groups/$(code)).data.owner == request.auth.uid; }
 
+    function tMember(tid) { return signedIn() && exists(/databases/$(database)/documents/teams/$(tid)/members/$(request.auth.uid)); }
+    match /teams/{tid} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.owner == request.auth.uid;
+      match /members/{uid} {
+        allow read: if tMember(tid);
+        allow create, update: if signedIn() && request.auth.uid == uid && exists(/databases/$(database)/documents/teams/$(tid));
+        allow delete: if signedIn() && (request.auth.uid == uid || get(/databases/$(database)/documents/teams/$(tid)).data.owner == request.auth.uid);
+      }
+      match /shares/{sid} {
+        allow read: if tMember(tid);
+        allow create: if tMember(tid) && request.resource.data.by == request.auth.uid;
+        allow update, delete: if tMember(tid) && resource.data.by == request.auth.uid;
+        match /views/{uid} {
+          allow read: if tMember(tid);
+          allow create, update: if tMember(tid) && request.auth.uid == uid;
+        }
+      }
+    }
     match /groups/{code} {
       allow get: if signedIn();
       allow list: if false;

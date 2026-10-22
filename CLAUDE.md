@@ -17,6 +17,7 @@
 | `models.js` | 機器の模型データ（触るのは機種を足す時だけ） |
 | `drain.js` | ドレン配管 |
 | `zumen.html`/`zumen.js`・`genchou.html`/`genchou.js`・`kiki.html` | 図面・現調・機器（`core.js` を読む） |
+| `shita.js` | 🚽 下の図面（図面画面）：衛生などのDXFをもう1枚、3Dの床に映す（今の図面は天井へ・`PLAN.atCeil`）。通り芯の記号で位置合わせ。`PLAN2`、IndexedDB pbmPlanDB の "f2" |
 | `genba.html`/`genba.js` | 📋 現場：現場カード（日時・住所・駐車場・メンバー⭐・作業内容）と LINE に送る文章。データは IndexedDB「genba」（sites・photos）。`core.js` は読まない |
 | `sw.js` | オフライン用のキャッシュ |
 | `docs/beginner-mode-plan.md` | 初心者モードの経緯・仕様・テスト結果 |

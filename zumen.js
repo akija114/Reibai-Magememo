@@ -1386,7 +1386,7 @@ function addPlan3D(){
  if(!P.tex){P.tex=new THREE.CanvasTexture(P.img)}
  const g=new THREE.PlaneGeometry(w,h);g.rotateX(-Math.PI/2);
  /* 図面は「地面（床）」に映す。半透明の度合いは P.planOp（ボタンで変える） */
- const floorY=T&&T.GYr!=null?T.GYr:fy,op=P.planOp!=null?P.planOp:.4;
+ const CYp=P.atCeil&&typeof ceilY==="function"?ceilY():null,floorY=CYp!=null?CYp-3:(T&&T.GYr!=null?T.GYr:fy),op=P.planOp!=null?P.planOp:.4;   // 下の図面がある時は天井の高さへ（P.atCeil）
  const pl=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:P.tex,transparent:true,opacity:op,side:THREE.DoubleSide,depthWrite:false}));
  const c=XF.c;pl.position.set(c[0],floorY+2,c[1]);pl.rotation.y=XF.th;pl.renderOrder=-2;pl.userData.planFloor=true;T.grp.add(pl);
  if(M&&P.walls.length&&!(st.bld&&st.bld.some(o=>o.k==="wall"))){const CH=P.CH||2500,wm=new THREE.MeshStandardMaterial({color:0xcbd5e1,transparent:true,opacity:.35,depthWrite:false});

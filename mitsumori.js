@@ -50,6 +50,17 @@ function mtCollect(){const G=[];const sec=(t,items,note)=>{if(items.length)G.pus
   dSup=Object.values(bs).reduce((a,b)=>a+b,0);
   Dl.push({n:ac?"AC用 接着剤・テープ":"塩ビ用 接着剤",q:1,u:"缶",d:"在庫があれば不要"})}
  sec("ドレン配管",Dl,"");
+ /* --- 図面の衛生配管（図面画面で読んだ物）：管の長さ・エルボ・チーズ（本管×枝）・Y（45°合流）・床からの立ち上がり。空調ドレンの床から上は空調で別に --- */
+ try{const D=st.dln,S=D&&D.eiseiS,J=(D&&D.eiseiJ)||[];if(Array.isArray(S)&&S.length){
+  const OD=[[21.7,15],[27.2,20],[34,25],[42.7,32],[48.6,40],[60.5,50],[76.3,65],[89.1,80],[114.3,100],[139.8,125],[165.2,150],[216.3,200]],A=od=>OD.reduce((p,q)=>Math.abs(q[0]-od)<Math.abs(p[0]-od)?q:p)[1];
+  const SN=["給水・給湯","汚水・排水","通気","その他","空調ドレン（床から上）"],len={},cnt={},put=(m,k,v)=>{m[k]=(m[k]||0)+v};
+  S.forEach(s=>{const h2=typeof s[9]==="number"?s[9]:s[4],L=Math.hypot(s[2]-s[0],s[3]-s[1],h2-s[4]);if(L<1)return;put(len,(s[8]||0)+"|"+A(s[6]),L);if(s[11]==="fl")put(cnt,"立ち上がり|"+(s[8]||0)+"|"+A(s[6]),1)});
+  J.forEach(q=>{const sb=q[6]||0;if(q[7]===1)put(cnt,"エルボ|"+sb+"|"+A(q[4]),1);else if(q[9]===1||q[9]===2){const m=A(q[14]||q[4]),b=A(q[15]||q[4]);put(cnt,(q[9]===1?"チーズ":"Y（45°合流）")+"|"+sb+"|"+(m===b?m:m+"×"+b),1)}});
+  const Es=[],Ac=[],to=sb=>+sb===4?Ac:Es;
+  Object.keys(len).sort().forEach(k=>{const[sb,a]=k.split("|");to(sb).push({n:`${SN[sb]||"衛生"} ${a}A`,q:Math.round(len[k]/100)/10,u:"m",d:`図面から ${fmtM?fmtM(len[k]):Math.round(len[k])+"mm"}（定尺4mなら ${Math.ceil(len[k]/4000)}本）`})});
+  Object.keys(cnt).sort().forEach(k=>{const[t,sb,sz]=k.split("|");to(sb).push({n:`${t==="立ち上がり"?"床からの立ち上がり（器具へ・床から100mm）":t} ${sz}${/×/.test(sz)?"":"A"}（${SN[sb]||"衛生"}）`,q:cnt[k],u:t==="立ち上がり"?"か所":"個",d:""})});
+  sec("衛生配管（図面から）",Es,"図面の衛生配管を読んだ数です。空調ドレンの床下の部分も衛生に入れています");
+  sec("空調ドレン（図面から・床から上）",Ac,"床から上は空調の仕事")}}catch(e){console.warn("mt eisei",e)}
  /* --- 吊り（冷媒＋ドレン） --- */
  const hang=sup.h+dSup,Hg=[];if(hang){Hg.push({n:"全ねじ W3/8",q:hang,u:"本",d:"長さは現場（スラブ・梁から）"});Hg.push({n:"ナット W3/8",q:hang*2,u:"個",d:"1本に2個"});Hg.push({n:"吊り元（インサート・ダクター用金具など）",q:hang,u:"個",d:"現場の吊り元に合わせて"})}
  sec("吊り・支持の金物",Hg,"");

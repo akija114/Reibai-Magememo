@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja" data-app="genba">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>現場 - 冷媒配管の曲げ共有</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="曲げ共有 v1.00">
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--panel:#e2e8f0;--danger:#dc2626;--line2:#06c755}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171}
+*,*:before,*:after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 90px)}
+.apps{display:flex;gap:4px;margin:0 0 10px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:3px}
+.apps a{flex:1;text-align:center;padding:7px 0;border-radius:9px;font-size:13px;font-weight:800;color:var(--sub);text-decoration:none;white-space:nowrap}
+.apps a.on{background:var(--acc);color:#fff}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-top:10px}
+h1{font-size:19px;margin:4px 2px 0;display:flex;align-items:center;gap:8px}h1 .grow{flex:1}
+h2{font-size:15px;margin:0 0 8px}
+.note{font-size:12.5px;color:var(--sub);line-height:1.55;margin-top:6px}
+label.f{display:block;font-size:12.5px;font-weight:800;color:var(--sub);margin:10px 0 4px}label.f:first-of-type{margin-top:0}
+input,textarea,select{width:100%;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px;padding:9px 10px}
+input{height:44px}textarea{min-height:84px;line-height:1.5;resize:vertical}
+.row{display:flex;gap:8px;align-items:center}.row > *{min-width:0}
+.btn{height:42px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:14px;padding:0 12px;white-space:nowrap}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}.btn.line{background:var(--line2);border-color:var(--line2);color:#fff}.btn.del{color:var(--danger)}
+.btn.sm{height:34px;font-size:13px;padding:0 10px}.btn:disabled{opacity:.45}
+.grow{flex:1}
+.site{display:block;width:100%;text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-top:8px;color:var(--ink);font:inherit}
+.site b{font-size:17px}.site .sub{color:var(--sub);font-size:13px;margin-top:3px}
+.empty{color:var(--sub);text-align:center;padding:28px 8px;font-size:14px;line-height:1.7}
+.mem{display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid var(--line)}.mem:first-child{border-top:0}
+.mem .nm{flex:1;font-size:16px;font-weight:700}
+.star{width:40px;height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);font-size:20px;filter:grayscale(1);opacity:.4}.star.on{filter:none;opacity:1;border-color:#f5b301}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chip{border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:6px 11px;font:inherit;font-size:13.5px;font-weight:700}
+.photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.ph{position:relative;width:96px;height:96px;border-radius:10px;overflow:hidden;border:1.5px solid var(--line)}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}.ph button{position:absolute;right:3px;top:3px;width:28px;height:28px;border-radius:14px;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:15px}
+pre.out{white-space:pre-wrap;word-break:break-all;font:inherit;font-size:14px;line-height:1.6;margin:0;background:var(--bg);border-radius:10px;padding:10px;max-height:46vh;overflow:auto}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1.5px solid var(--line);padding:8px 12px calc(env(safe-area-inset-bottom,0px) + 8px);display:flex;gap:8px;z-index:5}.bar .btn{flex:1;height:48px;font-size:15px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 78px);transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:88vw;text-align:center;z-index:9;line-height:1.5}
+a.map{color:var(--acc);font-weight:700;font-size:13.5px;word-break:break-all}
+</style>
+</head>
+<body>
+<nav class="apps"><a href="index.html">🔧 曲げ共有</a><a href="zumen.html">📐 図面</a><a href="genchou.html">📹 現調</a><a href="kiki.html">🔩 機器</a><a href="genba.html" class="on">📋 現場</a></nav>
+<div id="app"></div>
+<script src="genba.js?v=1"></script>
+<script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
+</body>
+</html>

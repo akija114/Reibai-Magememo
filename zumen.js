@@ -1381,12 +1381,14 @@ function planMake(){
 function addPlan3D(){
  const P=PLAN,M=P.map,H=P.H||2400,fy=-H;
  /* 図面の映し方：古い方式（配管をなぞった P.map）か、今の方式（縮尺・原点＝btWx と同じ座標）のどちらか */
- const XF=M?{c:planToWorld([P.W/2,P.H0/2]),th:M.th}:{c:btWx([P.W/2,P.H0/2]),th:xfOf().r*Math.PI/180};
- const w=P.W*P.mmpp,h=P.H0*P.mmpp;
- if(!P.tex){P.tex=new THREE.CanvasTexture(P.img)}
+ /* 1枚に床と天井の図が並んでいて分けた時（shita.js）は、天井の方（P.crop3）だけを貼る */
+ const CR=!M&&P.crop3?P.crop3:null,cx0=CR?(CR.x0+CR.x1)/2:P.W/2,cy0=CR?(CR.y0+CR.y1)/2:P.H0/2;
+ const XF=M?{c:planToWorld([P.W/2,P.H0/2]),th:M.th}:{c:btWx([cx0,cy0]),th:xfOf().r*Math.PI/180};
+ const w=(CR?CR.x1-CR.x0:P.W)*P.mmpp,h=(CR?CR.y1-CR.y0:P.H0)*P.mmpp;
+ if(!P.tex){P.tex=new THREE.CanvasTexture(CR?shitaCrop(P.img,CR):P.img)}
  const g=new THREE.PlaneGeometry(w,h);g.rotateX(-Math.PI/2);
  /* 図面は「地面（床）」に映す。半透明の度合いは P.planOp（ボタンで変える） */
- const floorY=T&&T.GYr!=null?T.GYr:fy,op=P.planOp!=null?P.planOp:.4;
+ const CYp=P.atCeil&&typeof ceilY==="function"?ceilY():null,floorY=CYp!=null?CYp-3:(T&&T.GYr!=null?T.GYr:fy),op=P.planOp!=null?P.planOp:.4;   // 下の図面がある時は天井の高さへ（P.atCeil）
  const pl=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:P.tex,transparent:true,opacity:op,side:THREE.DoubleSide,depthWrite:false}));
  const c=XF.c;pl.position.set(c[0],floorY+2,c[1]);pl.rotation.y=XF.th;pl.renderOrder=-2;pl.userData.planFloor=true;T.grp.add(pl);
  if(M&&P.walls.length&&!(st.bld&&st.bld.some(o=>o.k==="wall"))){const CH=P.CH||2500,wm=new THREE.MeshStandardMaterial({color:0xcbd5e1,transparent:true,opacity:.35,depthWrite:false});
@@ -1447,6 +1449,9 @@ function planRefHeights(route,pipeH){const P=PLAN,mm=P.mmpp,px=v=>v/mm,S=[0];for
   const ang=pts.map(p=>Math.atan2(p[1]-c[1],p[0]-c[0])).sort((a,b)=>a-b);let gap=ang[0]+2*Math.PI-ang[ang.length-1];for(let k=1;k<ang.length;k++)gap=Math.max(gap,ang[k]-ang[k-1]);
   if(gap>4.1)continue;   // 4分の1の円（曲げの角、すき間約270°）は除く。半円（管の丸い端、少し欠けても可）と丸
   let bj=-1,bd=1e18;route.forEach((q,j)=>{const d=v2l(v2s(q,c));if(d<bd){bd=d;bj=j}});if(bj>=0&&bd*mm<=300&&!caps.includes(bj))caps.push(bj)}
+ /* DXF：丸い端は円弧（ARC）のまま P.arcs に入っている（線には入れていない）ので、半円の円弧も見る */
+ (P.arcs||[]).forEach(o=>{if(!isMag(o.col))return;const c=fitCircle([o.a,o.m,o.b]);if(!c||c.r*mm<10||c.r*mm>70)return;if(v2l(v2s(o.a,o.b))<c.r*1.9)return;   // 弦が直径に近い＝半円（4分の1の曲げの円弧は除く）
+  let bj=-1,bd=1e18;route.forEach((q,j)=>{const d=v2l(v2s(q,c));if(d<bd){bd=d;bj=j}});if(bj>=0&&bd*mm<=300&&!caps.includes(bj))caps.push(bj)});
  caps.sort((a,b)=>a-b);return{s:S,labs,caps}}
 /* 室外機側の上げ下げの位置：外壁を出たら、すぐに室外機の配管口の高さへ上げ下げする。
    図面は平面なので「どこで下りるか」は描いてない。外で横に回してから下りると、外壁から離れた空中を走ってしまうため。
@@ -1869,7 +1874,8 @@ let nl=0;try{if(r&&typeof kzLgs==="function")nl=kzLgs(true)}catch(e){console.war
  let ni=0,ndl="",neq=[];if(r){try{ni=planAutoIns(I)}catch(e){console.warn("ins",e)}try{neq=planAutoEquip(r)}catch(e){console.warn("eq",e)}
   try{const D=planDrawLines&&planDrawLines();const hk=D?DL_KINDS.filter(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)):[];if(hk.length){st.dln=D;ndl=hk.map(([k,n])=>n).join("・");save()}}catch(e){console.warn("dl",e)}
   try{if(T){build3D();T.dirty=true}else if(typeof dlBar==="function")dlBar()}catch(e){}}
- if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+(ni?"・点検口 "+ni+"個":"")+(neq.length?"・機器 "+neq.join("・"):"")+(ndl?"・図面の"+ndl:"")+"。違う所は図面画面で直せます"),400)}
+ if(r&&typeof yomiCheck==="function")setTimeout(()=>{try{yomiCheck(r,{nw,nh,nl,nc,nd,nwn,ni,neq,ndl})}catch(e){console.warn("yomi",e)}},400);   // 📋 読み取りチェック（yomi.js）
+ else if(r){setTimeout(()=>toast("全部自動で読みました：室内機 "+r.ind+"・天井 "+fmt(r.CH)+(r.out?"・室外機 "+fmt(r.out[0])+"×"+fmt(r.out[1]):"")+"・配管 FL+"+(r.pipeH||"?")+"・壁 "+nw+"本"+(nh?"・H鋼の柱 "+nh+"本":"")+(nl?"・軽量壁 "+nl+"枚":"")+(nrm?"（前の読み込みの壁 "+nrm+"枚は消しました）":"")+(nc?"・天井高の範囲 "+st.bld.filter(o=>o.k==="ceil"&&o.auto==="ch").map(o=>(o.n||"")+"CH"+fmt(o.h)).join("/"):"")+(nd?"・扉 "+nd+"か所":"")+(nwn?"・窓 "+nwn+"か所":"")+(ni?"・点検口 "+ni+"個":"")+(neq.length?"・機器 "+neq.join("・"):"")+(ndl?"・図面の"+ndl:"")+"。違う所は図面画面で直せます"),400)}
  return r}
 
 /* 読み込み終わったら、建物・図面・スキャンを3Dに出し直す */

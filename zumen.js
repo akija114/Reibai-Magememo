@@ -1447,6 +1447,9 @@ function planRefHeights(route,pipeH){const P=PLAN,mm=P.mmpp,px=v=>v/mm,S=[0];for
   const ang=pts.map(p=>Math.atan2(p[1]-c[1],p[0]-c[0])).sort((a,b)=>a-b);let gap=ang[0]+2*Math.PI-ang[ang.length-1];for(let k=1;k<ang.length;k++)gap=Math.max(gap,ang[k]-ang[k-1]);
   if(gap>4.1)continue;   // 4分の1の円（曲げの角、すき間約270°）は除く。半円（管の丸い端、少し欠けても可）と丸
   let bj=-1,bd=1e18;route.forEach((q,j)=>{const d=v2l(v2s(q,c));if(d<bd){bd=d;bj=j}});if(bj>=0&&bd*mm<=300&&!caps.includes(bj))caps.push(bj)}
+ /* DXF：丸い端は円弧（ARC）のまま P.arcs に入っている（線には入れていない）ので、半円の円弧も見る */
+ (P.arcs||[]).forEach(o=>{if(!isMag(o.col))return;const c=fitCircle([o.a,o.m,o.b]);if(!c||c.r*mm<10||c.r*mm>70)return;if(v2l(v2s(o.a,o.b))<c.r*1.9)return;   // 弦が直径に近い＝半円（4分の1の曲げの円弧は除く）
+  let bj=-1,bd=1e18;route.forEach((q,j)=>{const d=v2l(v2s(q,c));if(d<bd){bd=d;bj=j}});if(bj>=0&&bd*mm<=300&&!caps.includes(bj))caps.push(bj)});
  caps.sort((a,b)=>a-b);return{s:S,labs,caps}}
 /* 室外機側の上げ下げの位置：外壁を出たら、すぐに室外機の配管口の高さへ上げ下げする。
    図面は平面なので「どこで下りるか」は描いてない。外で横に回してから下りると、外壁から離れた空中を走ってしまうため。

@@ -412,13 +412,29 @@ S.forEach((o,i)=>{if(!keep[i]||o.L<5||o.hide)return;let a=o.a,b=o.b,w2=null;
  return{S:outS,J:outJ}}
 /* ===== 衛生の仕上げ（S：管 [x1,z1,x2,z2,h,sh,w,hh,sub,h2,w2,印]・J：継手）=====
    ① 空調ドレン（図面の・sub4）の床下（FL±0より下）は衛生の仕事 → 衛生の排水（sub1）にする。床をまたぐたて管は床で分ける（床から上は空調）
-   ② 床下の汚水・排水の管の、どこにもつながっていない端＝器具（便器・流し・洗面など）への立ち上がり → 床から100mm出す（印 "fl"） */
+   ② 床下の汚水・排水の管の、どこにもつながっていない端＝器具（便器・流し・洗面など）への立ち上がり → 床から100mm出す（印 "fl"）
+   ③（②の前にする）汚水・排水・通気の管の、どこにもつながっていない端が、平面で「もっと低い汚水・排水の管」の上にある所
+      （図面のたて管の丸＝下の本管にチーズで合流）→ そこで本管の高さまで下ろして、本管に上から入るチーズ（J[16]=1 枝が上向き）。
+      汚水は上流から必ず下り勾配で流れてくるので、本管より高い所から来た物は上から合流する */
 function dlEisei(S,J){
  const add=[];S.forEach(s=>{if(s[8]!==4)return;const h1=s[4],h2=typeof s[9]==="number"?s[9]:h1;
   if(Math.max(h1,h2)<=0){s[8]=1;return}
   if(Math.min(h1,h2)<0&&s[0]===s[2]&&s[1]===s[3]){const lo=Math.min(h1,h2),hi=Math.max(h1,h2);s[4]=0;s[9]=hi;add.push([s[0],s[1],s[2],s[3],lo,s[5],s[6],s[7],1,0])}});
  S.push(...add);
  const dS=(x,z,t)=>{const dx=t[2]-t[0],dz=t[3]-t[1],l2=dx*dx+dz*dz;let u=l2?((x-t[0])*dx+(z-t[1])*dz)/l2:0;u=Math.max(0,Math.min(1,u));return Math.hypot(t[0]+dx*u-x,t[1]+dz*u-z)};
+ /* ③ 上から合流 */
+ const hz=t=>!(t[0]===t[2]&&t[1]===t[3]),hEnd=(t,e)=>e?(typeof t[9]==="number"?t[9]:t[4]):t[4];
+ const nE=S.length;for(let i=0;i<nE;i++){const s=S[i];if(!hz(s)||(s[8]!==1&&s[8]!==2))continue;
+  [0,1].forEach(e=>{const x=e?s[2]:s[0],z=e?s[3]:s[1],h=hEnd(s,e),tol=Math.max(s[6],60);
+   if(J.some(q=>Math.hypot(q[0]-x,q[1]-z)<tol&&Math.abs(q[2]-h)<Math.max(30,s[6])))return;   // もう継手がある
+   if(S.some((t,j)=>j!==i&&(t[0]===x&&t[1]===z||t[2]===x&&t[3]===z||Math.hypot(t[0]-x,t[1]-z)<tol&&Math.abs(t[4]-h)<30||Math.hypot(t[2]-x,t[3]-z)<tol&&Math.abs(hEnd(t,1)-h)<30)))return;   // 同じ高さでつながっている
+   let best=null,bd=1e9;S.forEach((t,j)=>{if(j===i||!hz(t)||t[8]!==1)return;const th=Math.max(t[4],hEnd(t,1));if(th>h-30)return;const T2=Math.max(t[6],s[6],60),d=dS(x,z,t);if(d<T2&&d<bd){bd=d;best=t}});
+   if(!best)return;
+   const dx=best[2]-best[0],dz=best[3]-best[1],l2=dx*dx+dz*dz,u=Math.max(0,Math.min(1,((x-best[0])*dx+(z-best[1])*dz)/l2)),px=Math.round(best[0]+dx*u),pz=Math.round(best[1]+dz*u),mh=Math.round(best[4]+(hEnd(best,1)-best[4])*u),l=Math.sqrt(l2);
+   if(e){s[2]=px;s[3]=pz}else{s[0]=px;s[1]=pz}   // 横の管の端を本管の真上に
+   S.push([px,pz,px,pz,mh,0,s[6],s[6],s[8],h]);
+   J.push([px,pz,h,0,Math.round(s[6]*1.15),Math.round(s[6]*1.15),s[8],0,0]);   // 横 → 下の曲がり
+   J.push([px,pz,mh,0,Math.max(best[6],s[6]),Math.max(best[6],s[6]),1,0,0,1,+(dx/l).toFixed(4),+(dz/l).toFixed(4),0,0,best[6],s[6],1])})}   // 本管に上から入るチーズ
  const n=S.length;for(let i=0;i<n;i++){const s=S[i];if(s[8]!==1||s[4]>=0||(s[0]===s[2]&&s[1]===s[3]))continue;const tol=Math.max(s[6],60);
   [[s[0],s[1]],[s[2],s[3]]].forEach(([x,z])=>{if(J.some(q=>Math.hypot(q[0]-x,q[1]-z)<tol))return;if(S.some((t,j)=>j!==i&&dS(x,z,t)<tol))return;
    S.push([x,z,x,z,s[4],0,s[6],s[6],1,100,s[6],"fl"]);J.push([x,z,s[4],0,s[6],s[6],1,0,0])})}}

@@ -2569,7 +2569,7 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
     if(k==="duct")[[P0,[q[8],ay,q[9]]],[P2,[q[10],by,q[11]]]].forEach(([p,u])=>{const r=new THREE.Mesh(new THREE.CylinderGeometry(w/2+6,w/2+6,Math.min(30,w*0.2),20,1),mt);r.position.copy(p);r.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(u[0],u[1],u[2]).normalize());r.userData.dl=k;T.grp.add(r)});
     return}
    /* 衛生のチーズ（q[9]=1）・Y（45°合流・q[9]=2）：本管の向きの短い管＋枝の向きの短い管（継手なので少し太く） */
-   if(k==="eisei"&&!q[7]&&(q[9]===1||q[9]===2)){const P=new THREE.Vector3(x,GY+h,z),mw=q[14]||w,bw=q[15]||w,md=new THREE.Vector3(q[10],0,q[11]).normalize(),bd=new THREE.Vector3(q[12],0,q[13]).normalize();
+   if(k==="eisei"&&!q[7]&&(q[9]===1||q[9]===2)){const P=new THREE.Vector3(x,GY+h,z),mw=q[14]||w,bw=q[15]||w,md=new THREE.Vector3(q[10],0,q[11]).normalize(),bd=q[16]?new THREE.Vector3(0,1,0):new THREE.Vector3(q[12],0,q[13]).normalize();   // q[16]：枝が上から入るチーズ
     const cyl=(r,len,dir,c)=>{const g=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,14,1),mt);g.position.copy(c);g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);g.userData.dl=k;T.grp.add(g)};
     cyl(mw/2+6,mw*2.2,md,P);cyl(bw/2+6,bw*1.4,bd,P.clone().addScaledVector(bd,bw*0.7+mw*0.3));return}
    m=sh===1?new THREE.Mesh(new THREE.BoxGeometry(w,hh,w),mt):new THREE.Mesh(new THREE.SphereGeometry(w/2,k==="duct"?20:12,k==="duct"?14:8),mt);m.position.set(x,GY+h,z);if(sh===1&&q[8])m.rotation.y=q[8];m.userData.dl=k;T.grp.add(m)});

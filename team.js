@@ -10,7 +10,7 @@
 const PAGE=typeof APP!=="undefined"&&APP==="bend"?"bend":(typeof renderEdit==="function"&&typeof putSite==="function"?"genba":"");
 if(!PAGE)return;
 const LIFF_IDS={dev:"2012159797-ecQ5rVYs",pub:"2012159799-UhRKMF8r"};
-const LIFF_ID=LIFF_IDS.dev;   // LINE Developers で「公開（Published）」にしたら pub に変える（dev は自分とテスターだけ使える）
+const LIFF_ID=LIFF_IDS.pub;   // 公開用（だれでも使える）。dev は自分とテスターだけ（公開用で始められない時だけ dev で続ける）
 const LIFF_SDK="https://static.line-scdn.net/liff/edge/2/sdk.js";
 const FB_CFG={"apiKey":"AIzaSyCnvx6kB7rR9L6QHYrjzS3mEBaqtL7LJnI","authDomain":"setubi-zumen.firebaseapp.com","projectId":"setubi-zumen","storageBucket":"setubi-zumen.firebasestorage.app","messagingSenderId":"337675527486","appId":"1:337675527486:web:3c4d16c3d838b66185386f"};
 const FB_V="https://www.gstatic.com/firebasejs/10.14.1/";
@@ -46,7 +46,7 @@ let LF=null;
 function liffSdk(){if(window.__LIFFMOCK)return Promise.resolve(window.__LIFFMOCK);if(window.liff)return Promise.resolve(window.liff);
  return new Promise((res,rej)=>{const s=document.createElement("script");s.src=LIFF_SDK;s.onload=()=>res(window.liff);s.onerror=rej;document.head.appendChild(s)})}
 async function liffName(){
- const l=await liffSdk();if(!LF){await l.init({liffId:LIFF_ID});LF=l}
+ const l=await liffSdk();if(!LF){try{await l.init({liffId:LIFF_ID})}catch(e){console.warn("liff pub",e);await l.init({liffId:LIFF_IDS.dev})}LF=l}
  if(!l.isLoggedIn()){l.login({redirectUri:location.href});return new Promise(()=>{})}   // LINEのログインへ（戻ってきたら続きから）
  try{const p=await l.getProfile();return p.displayName||""}catch(e){return ""}
 }

@@ -27,9 +27,12 @@ function sheet(html,btns){const ov=document.createElement("div");ov.className="t
  const B=ov.querySelector(".smb");btns.forEach(([t,f,bg,fg])=>{const b=document.createElement("button");b.textContent=t;b.style.cssText=`min-height:48px;border-radius:12px;font-weight:800;font-size:15px;border:0;background:${bg||"#e2e8f0"};color:${fg||"#0f172a"}`;b.onclick=()=>{ov.remove();f&&f()};B.appendChild(b)});
  document.body.appendChild(ov);return ov}
 
+/* うまくいかない時：すぐ消えるお知らせではなく、理由が残る画面（スクリーンショットで原因が分かるように） */
+function fail(msg,e){const r=e&&(e.code||e.message)||String(e||"");sheet(`<b style="font-size:17px">⚠️ ${esc(msg)}</b><p style="margin-top:6px">電波を確かめて、もう一度押してください。続く時は、この画面のスクリーンショットを送ってください。</p><p style="font-size:12.5px;color:#64748b;word-break:break-all">理由：${esc(r)}</p>`,[["閉じる"]])}
 /* ---------- Firebase（匿名でログイン。この端末の印だけで、個人の情報は入らない） ---------- */
 let FX=null,fxP=null;
-function fx(){if(FX)return Promise.resolve(FX);if(!fxP)fxP=(window.__FXMOCK?window.__FXMOCK():fxReal()).then(f=>FX=f).catch(e=>{fxP=null;throw e});return fxP}
+const wait=(p,ms)=>Promise.race([p,new Promise((_,ng)=>setTimeout(()=>ng(new Error("時間切れ（電波が弱い・つながらない）")),ms))]);
+function fx(){if(FX)return Promise.resolve(FX);if(!fxP)fxP=wait(window.__FXMOCK?window.__FXMOCK():fxReal(),15000).then(f=>FX=f).catch(e=>{fxP=null;throw e});return fxP}
 async function fxReal(){
  const [A,Au,F]=await Promise.all([import(FB_V+"firebase-app.js"),import(FB_V+"firebase-auth.js"),import(FB_V+"firebase-firestore.js")]);
  const app=A.initializeApp(FB_CFG,"team"),db=F.getFirestore(app),auth=Au.getAuth(app);
@@ -45,20 +48,23 @@ async function fxReal(){
 let LF=null;
 function liffSdk(){if(window.__LIFFMOCK)return Promise.resolve(window.__LIFFMOCK);if(window.liff)return Promise.resolve(window.liff);
  return new Promise((res,rej)=>{const s=document.createElement("script");s.src=LIFF_SDK;s.onload=()=>res(window.liff);s.onerror=rej;document.head.appendChild(s)})}
+/* LINEの中で開いている時だけ使う（LINEの中はログイン済み）。Safari・Chrome ではLINEのログインに移らない
+   （移ると戻ってきた時に「送る」の続きができず、何も出ない・エラーになるため） */
+const inLINE=()=>/ Line\//i.test(navigator.userAgent);
 async function liffName(){
  const l=await liffSdk();if(!LF){try{await l.init({liffId:LIFF_ID})}catch(e){console.warn("liff pub",e);await l.init({liffId:LIFF_IDS.dev})}LF=l}
- if(!l.isLoggedIn()){l.login({redirectUri:location.href});return new Promise(()=>{})}   // LINEのログインへ（戻ってきたら続きから）
+ if(!l.isLoggedIn())return "";
  try{const p=await l.getProfile();return p.displayName||""}catch(e){return ""}
 }
 
 /* ---------- 仕事用の名前（最初だけLINEの名前を出して、そのまま／書き換え） ---------- */
 const myName=()=>ls("pbm_me");
-function askName(def,first){return new Promise(res=>{let inp=null;
+function askName(def,first){return new Promise(res=>{let inp=null;first=first&&!!def;
  const ok=()=>{const v=(inp.value||"").trim().slice(0,20)||def||"名前なし";ls("pbm_me",v);res(v)};
  const ov=sheet(`<b style="font-size:17px">👤 仕事で使う名前</b><p style="margin:4px 0 8px">チームの人に見える名前です。${first?"LINEの名前のままでよければ、そのまま押してください。":""}あとから「👀 見た人を確認」で変えられます。</p><input id="tmName" maxlength="20" value="${esc(def)}" placeholder="例：山田（設備）" style="width:100%;height:50px;border:1.5px solid #cbd5e1;border-radius:12px;padding:0 12px;font-size:17px;color:#0f172a;background:#fff">`,[["✅ この名前にする",ok,"#16a34a","#fff"]]);
  inp=ov.querySelector("#tmName");inp.addEventListener("keydown",e=>{if(e.key==="Enter"){ov.remove();ok()}});
 })}
-async function ready(){if(myName())return myName();const n=await liffName();return askName(n,true)}
+async function ready(){if(myName())return myName();let n="";if(inLINE()){try{n=await wait(liffName(),6000)}catch(e){console.warn("liff",e)}}return askName(n,true)}   // 名前はLINEの中ならLINEの名前を最初に入れておく。ほかはその場で入れる
 
 /* ---------- チーム（送ったリンクを開いた人が入る） ---------- */
 async function joinTeam(tid){const f=await fx();await f.set(`teams/${tid}/members/${f.uid}`,{name:myName(),at:Date.now()},true);ls("pbm_team",tid)}
@@ -87,7 +93,7 @@ async function sendTeam(){
   /* LINEを開くのはボタンを押した時（iPhoneは、押した直後でないとLINEへ移れない）。アプリの画面はそのまま残す */
   sheet(`<b style="font-size:17px">👥 チームに送る準備ができました</b><p style="margin-top:6px">LINEで送り先（グループなど）を選んでください。開いた人は自動でチームに入り、誰が見たかが「👀 見た人を確認」で分かります。</p>`,
    [["LINEで送る",()=>{const u="https://line.me/R/share?text="+encodeURIComponent(text);let w=null;try{w=window.open(u,"_blank")}catch(e){}if(!w)location.href=u},"#06c755","#fff"],["📋 リンクをコピー",async()=>{try{await navigator.clipboard.writeText(text);say("コピーしました")}catch(e){say("コピーできませんでした")}}],["閉じる"]]);
- }catch(e){console.warn("team send",e);say("送れませんでした（電波・LINEのログインを確かめてください）")}
+ }catch(e){console.warn("team send",e);fail("送れませんでした",e)}
 }
 
 /* ---------- 開いた時（送られたリンク）：読み込み・開いた記録・いま見ています・確認しましたボタン ---------- */
@@ -117,7 +123,7 @@ async function openShared(tid,sid,k){
   await f.set(vp,{name:myName(),open:v&&v.open||now,last:now,ok:CUR.ok},true);   // 開いた（ボタンを押さなくても記録）
   banner();beat();
   say("送られた「"+s.title+"」を開きました");
- }catch(e){console.warn("team open",e);say("開けませんでした（電波を確かめてください）")}
+ }catch(e){console.warn("team open",e);fail("開けませんでした",e)}
 }
 async function beat(){clearTimeout(beatT);if(!CUR)return;if(!document.hidden){try{const f=await fx();await f.set(CUR.vp,{last:Date.now(),name:myName()},true)}catch(e){}}beatT=setTimeout(beat,30000)}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&CUR)beat()});

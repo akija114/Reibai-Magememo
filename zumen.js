@@ -1381,9 +1381,11 @@ function planMake(){
 function addPlan3D(){
  const P=PLAN,M=P.map,H=P.H||2400,fy=-H;
  /* 図面の映し方：古い方式（配管をなぞった P.map）か、今の方式（縮尺・原点＝btWx と同じ座標）のどちらか */
- const XF=M?{c:planToWorld([P.W/2,P.H0/2]),th:M.th}:{c:btWx([P.W/2,P.H0/2]),th:xfOf().r*Math.PI/180};
- const w=P.W*P.mmpp,h=P.H0*P.mmpp;
- if(!P.tex){P.tex=new THREE.CanvasTexture(P.img)}
+ /* 1枚に床と天井の図が並んでいて分けた時（shita.js）は、天井の方（P.crop3）だけを貼る */
+ const CR=!M&&P.crop3?P.crop3:null,cx0=CR?(CR.x0+CR.x1)/2:P.W/2,cy0=CR?(CR.y0+CR.y1)/2:P.H0/2;
+ const XF=M?{c:planToWorld([P.W/2,P.H0/2]),th:M.th}:{c:btWx([cx0,cy0]),th:xfOf().r*Math.PI/180};
+ const w=(CR?CR.x1-CR.x0:P.W)*P.mmpp,h=(CR?CR.y1-CR.y0:P.H0)*P.mmpp;
+ if(!P.tex){P.tex=new THREE.CanvasTexture(CR?shitaCrop(P.img,CR):P.img)}
  const g=new THREE.PlaneGeometry(w,h);g.rotateX(-Math.PI/2);
  /* 図面は「地面（床）」に映す。半透明の度合いは P.planOp（ボタンで変える） */
  const CYp=P.atCeil&&typeof ceilY==="function"?ceilY():null,floorY=CYp!=null?CYp-3:(T&&T.GYr!=null?T.GYr:fy),op=P.planOp!=null?P.planOp:.4;   // 下の図面がある時は天井の高さへ（P.atCeil）

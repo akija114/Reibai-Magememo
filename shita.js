@@ -6,12 +6,12 @@
 let PLAN2=null;
 function shitaLabels(X){return(X.textsAll||X.texts||[]).map(t=>{const n=String(t.s).normalize("NFKC").replace(/\s+/g,"").toUpperCase();return /^[XY]\d{1,2}$/.test(n)?{n,x:(t.x+(t.w||0)/2)*X.mmpp,y:(t.y-(t.h||0)/2)*X.mmpp}:null}).filter(Boolean)}
 /* 下の図面の点（その図面の px×mmpp）＋off＝今の図面の px×mmpp */
-function shitaAlign(P,Q){
- const A=shitaLabels(P),B=shitaLabels(Q),vote=new Map();
+function shitaAlign(P,Q,A0,B0){
+ const A=A0||shitaLabels(P),B=B0||shitaLabels(Q),vote=new Map();
  for(const a of A)for(const b of B){if(a.n!==b.n)continue;const d=[a.x-b.x,a.y-b.y],k=Math.round(d[0]/300)+","+Math.round(d[1]/300);const v=vote.get(k)||{n:0,x:0,y:0};v.n++;v.x+=d[0];v.y+=d[1];vote.set(k,v)}
  let best=null;for(const v of vote.values())if(!best||v.n>best.n)best=v;
  if(best&&best.n>=2)return{o:[best.x/best.n,best.y/best.n],by:"記号 "+best.n+"か所"};
- if(P.dX0!=null&&Q.dX0!=null)return{o:[Q.dX0-P.dX0,P.dY1-Q.dY1],by:"DXFの座標"};   // 同じ建物の図面なら、DXFの座標はそろっていることが多い
+ if(!A0&&P.dX0!=null&&Q.dX0!=null)return{o:[Q.dX0-P.dX0,P.dY1-Q.dY1],by:"DXFの座標"};   // 同じ建物の図面なら、DXFの座標はそろっていることが多い
  return null}
 async function shitaLoad(f,quiet){
  const P=typeof PLAN!=="undefined"?PLAN:null;
@@ -19,13 +19,34 @@ async function shitaLoad(f,quiet){
  if(!/\.dxf$/i.test(f.name)){if(!quiet)toast("下の図面は、今はDXFだけ読めます");return false}
  try{const G=await dxfRead(f),Q=dxfToPlan(G,f),al=shitaAlign(P,Q);
   if(!al){if(!quiet)toast("2枚の図面に同じ通り芯の記号（X1・Y2など）が見つからず、位置を合わせられませんでした");return false}
-  PLAN2={img:Q.img,W:Q.W,H0:Q.H0,mmpp:Q.mmpp,off:al.o,show:true,name:f.name,tex:null};
+  PLAN2={img:Q.img,W:Q.W,H0:Q.H0,mmpp:Q.mmpp,off:al.o,show:true,name:f.name,tex:null};if(P.crop3){P.crop3=null;P.tex=null}
   let ceil=true;try{ceil=localStorage.getItem("pbm_plan_ceil")!=="0"}catch(e){}P.atCeil=ceil;
   if(!quiet){try{plDB("readwrite",o=>o.put({blob:f,name:f.name,type:f.type,t:Date.now()},"f2")).catch(()=>{})}catch(e){}toast(`下の図面「${f.name}」を床に映しました（${al.by}で位置合わせ）。今の図面は天井の高さへ`)}
   shitaRedraw();return true}
  catch(e){console.warn(e);if(!quiet)toast("下の図面を読み込めませんでした");return false}}
 function shitaRedraw(){try{save()}catch(e){}try{if(window.zUpFloor)zUpFloor()}catch(e){}if(typeof build3D==="function"&&T){build3D();T.dirty=true}else if(typeof dlBar==="function")dlBar()}
-function shitaRemove(){PLAN2=null;if(PLAN)PLAN.atCeil=false;try{plDB("readwrite",o=>o.delete("f2")).catch(()=>{})}catch(e){}shitaRedraw();toast("下の図面を外しました。今の図面は床に戻しました")}
+function shitaRemove(){PLAN2=null;if(PLAN){PLAN.atCeil=false;PLAN.crop3=null;PLAN.tex=null}try{plDB("readwrite",o=>o.delete("f2")).catch(()=>{})}catch(e){}shitaRedraw();toast("下の図面を外しました。今の図面は床に戻しました")}
+/* ===== 1枚の図面に「床」と「天井」の平面図が並んでいる時（右が天井伏図・左が床の平面図など） =====
+   通り芯の記号が X1・X2・X1・X2 とくり返す所で2つに分け、冷媒管の多い方を天井・もう一方を床に。床の方は同じ記号が重なるようにずらして床に映す */
+function shitaGroups(P){const L=shitaLabels(P);
+ for(const ax of["X","Y"]){const k=ax==="X"?"x":"y",o=ax==="X"?"y":"x",A0=L.filter(l=>l.n[0]===ax),cnt=new Map();A0.forEach(l=>{const b=Math.round(l[o]/1000);cnt.set(b,(cnt.get(b)||0)+1)});   // 平面図の上（横）にそろって並んだ記号だけ（断面図などの記号は除く）
+  const mb=[...cnt].sort((p,q)=>q[1]-p[1])[0];const A=mb?A0.filter(l=>Math.abs(Math.round(l[o]/1000)-mb[0])<=1).sort((a,b)=>a[k]-b[k]):[],gs=[[]];
+  for(const l of A){const g=gs[gs.length-1];if(g.some(q=>q.n===l.n))gs.push([l]);else g.push(l)}
+  if(gs.length===2&&gs[0].length&&gs[1].length)return{k,cut:(Math.max(...gs[0].map(l=>l[k]))+Math.min(...gs[1].map(l=>l[k])))/2}}
+ return null}
+function shitaCrop(img,R){const c=document.createElement("canvas");c.width=Math.max(1,Math.round(R.x1-R.x0));c.height=Math.max(1,Math.round(R.y1-R.y0));c.getContext("2d").drawImage(img,-R.x0,-R.y0);return c}
+function shitaSplit(quiet,swap){
+ const P=typeof PLAN!=="undefined"?PLAN:null;if(!(P&&P.img&&P.mmpp))return false;const sp=shitaGroups(P);
+ if(!sp){if(!quiet)toast("この図面には、通り芯の記号（X1・X2…）がくり返す2つの図が見つかりませんでした");return false}
+ const cutPx=sp.cut/P.mmpp,R0=sp.k==="x"?{x0:0,y0:0,x1:cutPx,y1:P.H0}:{x0:0,y0:0,x1:P.W,y1:cutPx},R1=sp.k==="x"?{x0:cutPx,y0:0,x1:P.W,y1:P.H0}:{x0:0,y0:cutPx,x1:P.W,y1:P.H0};
+ const inR=(R,x,y)=>x>=R.x0&&x<R.x1&&y>=R.y0&&y<R.y1,mag=R=>(P.segs||[]).filter(s=>typeof isMag==="function"&&isMag(s[4])&&inR(R,(s[0]+s[2])/2,(s[1]+s[3])/2)).length;
+ let C=R1,F=R0;if(mag(R0)>mag(R1)){C=R0;F=R1}if(swap){const t=C;C=F;F=t}   // 冷媒管（ピンク）の多い方が天井
+ const L=shitaLabels(P),inMm=(R,l)=>inR(R,l.x/P.mmpp,l.y/P.mmpp),al=shitaAlign({textsAll:[],mmpp:1},{textsAll:[],mmpp:1},L.filter(l=>inMm(C,l)),L.filter(l=>inMm(F,l)));
+ if(!al){if(!quiet)toast("2つの図で同じ通り芯の記号が見つからず、重ねられませんでした");return false}
+ PLAN2={img:shitaCrop(P.img,F),W:Math.round(F.x1-F.x0),H0:Math.round(F.y1-F.y0),mmpp:P.mmpp,off:[F.x0*P.mmpp+al.o[0],F.y0*P.mmpp+al.o[1]],show:true,name:"この図面の床の図",split:true,swap:!!swap,tex:null};
+ P.crop3=C;P.tex=null;P.atCeil=true;
+ if(!quiet){try{plDB("readwrite",o=>o.put({split:true,swap:!!swap,t:Date.now()},"f2")).catch(()=>{})}catch(e){}toast(`この図面を2つに分けて、${sp.k==="x"?(C===R1?"右":"左"):(C===R1?"下":"上")}の図を天井、もう一方を床に映しました（${al.by}で重ねる）`)}
+ shitaRedraw();return true}
 /* 3Dに映す（core.js の build3D から呼ぶ） */
 function addPlan3D2(){const P=PLAN,Q=PLAN2;if(!Q||!Q.show||!P||P.map||!P.mmpp||!P.org)return;
  const cx=(Q.W/2*Q.mmpp+Q.off[0])/P.mmpp,cy=(Q.H0/2*Q.mmpp+Q.off[1])/P.mmpp,c=btWx([cx,cy]),th=xfOf().r*Math.PI/180;
@@ -36,17 +57,19 @@ function addPlan3D2(){const P=PLAN,Q=PLAN2;if(!Q||!Q.show||!P||P.map||!P.mmpp||!
 /* 図面画面の「🚽 下の図面」ボタン */
 function shitaMenu(){
  const pick=()=>{const i=document.createElement("input");i.type="file";i.accept=".dxf";i.onchange=()=>{const f=i.files[0];if(f)shitaLoad(f)};i.click()};
- if(!PLAN2){pick();return}
+ const P0=typeof PLAN!=="undefined"?PLAN:null,canSplit=!!(P0&&P0.img&&P0.mmpp&&shitaGroups(P0));
+ if(!PLAN2&&!canSplit){pick();return}
  const P=PLAN,ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:60;background:rgba(15,23,42,.45);display:flex;align-items:flex-end;justify-content:center";
  const b=(a,t,c)=>`<button data-a="${a}" style="width:100%;height:48px;margin-top:8px;border-radius:12px;border:1.5px solid ${c||"#cbd5e1"};background:#fff;color:${c||"#0f172a"};font:inherit;font-weight:800;font-size:15px">${t}</button>`;
- ov.innerHTML=`<div style="background:#fff;color:#0f172a;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 14px)"><div style="font-weight:800;font-size:16px">🚽 下の図面：${String(PLAN2.name).replace(/[<>&]/g,"")}</div>
-  ${b("show",PLAN2.show?"🙈 下の図面を隠す":"🗺 下の図面を映す")}${b("ceil",P&&P.atCeil?"⬇ 今の図面を床に戻す":"⬆ 今の図面を天井へ")}${b("re","📄 別の下の図面を読み込む")}${b("rm","🗑 下の図面を外す","#dc2626")}${b("x","閉じる")}</div>`;
+ ov.innerHTML=`<div style="background:#fff;color:#0f172a;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 14px)"><div style="font-weight:800;font-size:16px">🚽 下の図面${PLAN2?"："+String(PLAN2.name).replace(/[<>&]/g,""):""}</div>
+  ${PLAN2?b("show",PLAN2.show?"🙈 下の図面を隠す":"🗺 下の図面を映す"):""}${PLAN2&&PLAN2.split?b("swap","🔁 床と天井を入れ替える"):""}${PLAN2&&!PLAN2.split?b("ceil",P&&P.atCeil?"⬇ 今の図面を床に戻す":"⬆ 今の図面を天井へ"):""}${canSplit&&!(PLAN2&&PLAN2.split)?b("split","✂ この図面の2つの図を、天井と床に分ける","#0369a1"):""}${b("re","📄 "+(PLAN2?"別の":"")+"下の図面（DXF）を読み込む")}${PLAN2?b("rm","🗑 下の図面を外す","#dc2626"):""}${b("x","閉じる")}</div>`;
  document.body.appendChild(ov);
  ov.onclick=e=>{const a=e.target===ov?"x":e.target.closest("[data-a]")?.dataset.a;if(!a)return;ov.remove();
   if(a==="show"){PLAN2.show=!PLAN2.show;shitaRedraw()}
   else if(a==="ceil"&&P){P.atCeil=!P.atCeil;try{localStorage.setItem("pbm_plan_ceil",P.atCeil?"1":"0")}catch(err){}shitaRedraw()}
+  else if(a==="split")shitaSplit(false,false);else if(a==="swap")shitaSplit(false,!PLAN2.swap);
   else if(a==="re")pick();else if(a==="rm")shitaRemove()};
 }
 /* 今の図面を開いた（開き直した）時に、覚えておいた下の図面も一緒に開く */
 (function(){if(typeof planLoad!=="function")return;const o=planLoad;
- planLoad=async function(...a){PLAN2=null;const r=await o.apply(this,a);try{const s=await plDB("readonly",q=>q.get("f2"));if(s&&s.blob&&PLAN&&PLAN.mmpp)await shitaLoad(new File([s.blob],s.name,{type:s.type||"application/dxf"}),true)}catch(e){}return r}})();
+ planLoad=async function(...a){PLAN2=null;const r=await o.apply(this,a);try{const s=await plDB("readonly",q=>q.get("f2"));if(s&&s.split&&PLAN&&PLAN.mmpp)shitaSplit(true,!!s.swap);else if(s&&s.blob&&PLAN&&PLAN.mmpp)await shitaLoad(new File([s.blob],s.name,{type:s.type||"application/dxf"}),true)}catch(e){}return r}})();

@@ -403,8 +403,25 @@ S.forEach((o,i)=>{if(!keep[i]||o.L<5||o.hide)return;let a=o.a,b=o.b,w2=null;
   if(outJ.some(o=>!o[7]&&Math.hypot(o[0]-q.p[0],o[1]-q.p[1])<w*0.6))return;
   /* 角ダクトの曲がりは、角の箱をダクトの向きにそろえる */
   const ang=A.sh===1?Math.atan2(A.u[0],A.u[1]):0;
-  outJ.push([R0(q.p[0]),R0(q.p[1]),R0(A.h),A.sh,w,R0(Math.max(A.hh,B.hh)),A.sub,0,f4(ang)])});
+  /* 衛生の分岐：端が分かれ目にある方＝枝管、まん中に当たる方＝本管。直角＝チーズ（1）、斜め＝Y（45°合流・2）。[9]種類 [10,11]本管の向き [12,13]枝の向き [14]本管の太さ [15]枝の太さ */
+  let ex=[];if(ES&&!A.sh&&!B.sh){const dE=o=>Math.min(Math.hypot(o.a[0]-q.p[0],o.a[1]-q.p[1]),Math.hypot(o.b[0]-q.p[0],o.b[1]-q.p[1])),bA=dE(A)<=dE(B),Br=bA?A:B,Mn=bA?B:A;
+   const far=Math.hypot(Br.a[0]-q.p[0],Br.a[1]-q.p[1])>Math.hypot(Br.b[0]-q.p[0],Br.b[1]-q.p[1])?Br.a:Br.b,bl=Math.hypot(far[0]-q.p[0],far[1]-q.p[1])||1,bu=[(far[0]-q.p[0])/bl,(far[1]-q.p[1])/bl];
+   const ml=Math.hypot(Mn.b[0]-Mn.a[0],Mn.b[1]-Mn.a[1])||1,mu=[(Mn.b[0]-Mn.a[0])/ml,(Mn.b[1]-Mn.a[1])/ml],c=Math.abs(mu[0]*bu[0]+mu[1]*bu[1]);
+   if(c<0.95)ex=[c<0.35?1:2,f4(mu[0]),f4(mu[1]),f4(bu[0]),f4(bu[1]),R0(Mn.w),R0(Br.w)]}
+  outJ.push([R0(q.p[0]),R0(q.p[1]),R0(A.h),A.sh,w,R0(Math.max(A.hh,B.hh)),A.sub,0,f4(ang),...ex])});
  return{S:outS,J:outJ}}
+/* ===== 衛生の仕上げ（S：管 [x1,z1,x2,z2,h,sh,w,hh,sub,h2,w2,印]・J：継手）=====
+   ① 空調ドレン（図面の・sub4）の床下（FL±0より下）は衛生の仕事 → 衛生の排水（sub1）にする。床をまたぐたて管は床で分ける（床から上は空調）
+   ② 床下の汚水・排水の管の、どこにもつながっていない端＝器具（便器・流し・洗面など）への立ち上がり → 床から100mm出す（印 "fl"） */
+function dlEisei(S,J){
+ const add=[];S.forEach(s=>{if(s[8]!==4)return;const h1=s[4],h2=typeof s[9]==="number"?s[9]:h1;
+  if(Math.max(h1,h2)<=0){s[8]=1;return}
+  if(Math.min(h1,h2)<0&&s[0]===s[2]&&s[1]===s[3]){const lo=Math.min(h1,h2),hi=Math.max(h1,h2);s[4]=0;s[9]=hi;add.push([s[0],s[1],s[2],s[3],lo,s[5],s[6],s[7],1,0])}});
+ S.push(...add);
+ const dS=(x,z,t)=>{const dx=t[2]-t[0],dz=t[3]-t[1],l2=dx*dx+dz*dz;let u=l2?((x-t[0])*dx+(z-t[1])*dz)/l2:0;u=Math.max(0,Math.min(1,u));return Math.hypot(t[0]+dx*u-x,t[1]+dz*u-z)};
+ const n=S.length;for(let i=0;i<n;i++){const s=S[i];if(s[8]!==1||s[4]>=0||(s[0]===s[2]&&s[1]===s[3]))continue;const tol=Math.max(s[6],60);
+  [[s[0],s[1]],[s[2],s[3]]].forEach(([x,z])=>{if(J.some(q=>Math.hypot(q[0]-x,q[1]-z)<tol))return;if(S.some((t,j)=>j!==i&&dS(x,z,t)<tol))return;
+   S.push([x,z,x,z,s[4],0,s[6],s[6],1,100,s[6],"fl"]);J.push([x,z,s[4],0,s[6],s[6],1,0,0])})}}
 /* ===== 図面の配管・ダクトを3D用に取り出す（冷媒・ドレン・ダクト・衛生）=====
    ・図面に「平面図」「天井伏図」など何枚も描いてある時は、通り芯の記号（X1・Y2…）で図をわけ、原点のある図に合わせる
    ・原点のある図に無い種類（例：衛生配管は平面図だけ）は、ほかの図から通り芯でずらして持ってくる
@@ -525,7 +542,7 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
   /* 登録のない機械（換気扇など）：口は近くのダクトの所に作る（高さは箱の真ん中） */
   EQ.forEach((e,n)=>{const o=(st.bld||[]).filter(q=>q.k==="eq")[n];if(o&&!e.P.length){e.fan=1;e.py=Math.round((o.y||0)+(o.h||250)/2);e.pd=o.pd||0}});
   LB.rs=RS;
-  const T=dlTidy(solids,k,EQ,LB);out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});
+  const T=dlTidy(solids,k,EQ,LB);if(k==="eisei")try{dlEisei(T.S,T.J)}catch(e){console.warn("eisei",e)}out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});
  /* ベントキャップ（「VC200(FD)」「VC150」など）：文字のいちばん近くの、どこにもつながっていないダクト・配管の端に付ける。
     向きは管の先（外向き）。out.vc＝[x, z, 高さ, 向きx, 向きz, 呼び径, FD付き(1/0), 種類] */
  try{const VT=(P.textsAll||[]).map(t=>{const z=String(t.s).replace(/[０-９Ａ-Ｚ（）]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/\s/g,"");const m=z.match(/^VC(\d{2,3})(.*)$/i);if(!m)return null;

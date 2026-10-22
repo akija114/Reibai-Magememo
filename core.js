@@ -1389,14 +1389,16 @@ $("#viewBtn").onclick=()=>{
 /* 文字のオンオフ */
 const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["ubolt","@udim|吊りピッチ（紫の矢印）"],["uopen","@udim|天井開口（オレンジの矢印）"],["upanel","@udim|パネル（青の矢印）"],["upipe","@udim|ガス・液・ドレンの位置"],["udim","@udim|その他の機器の寸法"],["neko","@neko|ネコ（吊り金具）の高さ"],["bld","🧱 建物・障害物の名前と大きさ"],["drl","💧 ドレンの寸法（💧①350・掃除口など）"],["drh","💧 ドレンの高さ（支 FL+・出口 FL）"],["sgap","🔩 冷媒の支持の間隔（↔1,000）"],["drs","💧 ドレンの支持の間隔（↔1,000）"],["kabe","📏 配管の位置（壁から何mm）"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
 let LABC={};
-const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=["dim","ang","udim","neko","ubolt","uopen","upipe","bld","drl","drh","drs","sgap","kabe"].includes(k));return o};
-try{const v=localStorage.getItem("pbm_labc");LABC=Object.assign(LABDEF(),v?(JSON.parse(v)||{}):{})}catch(e){LABC=LABDEF()}
+/* 曲げ共有の3Dは、初期を「寸法と角度だけ」（文字だらけで見えないので）。設定は曲げ共有だけ別に保存（図面・現調は今までどおり） */
+const LABKEY=APP==="bend"?"pbm_labc_bend":"pbm_labc";
+const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=(APP==="bend"?["dim","ang"]:["dim","ang","udim","neko","ubolt","uopen","upipe","bld","drl","drh","drs","sgap","kabe"]).includes(k));return o};
+try{const v=localStorage.getItem(LABKEY);LABC=Object.assign(LABDEF(),v?(JSON.parse(v)||{}):{})}catch(e){LABC=LABDEF()}
 const labShow=o=>LABC[o.userData.cat||"other"]!==false;
 function applyLabels(){
  if(T){T.grp.traverse(o=>{if(o.userData&&o.userData.lab)o.visible=labShow(o);else if(o.userData&&o.userData.dimcat)o.visible=LABC[o.userData.dimcat]!==false});T.dirty=true}
  const any=LABCATS.some(([k])=>LABC[k]!==false);
  $("#labBtn").style.opacity=any?1:.55;renderInfo();
- try{localStorage.setItem("pbm_labc",JSON.stringify(LABC))}catch(e){}
+ try{localStorage.setItem(LABKEY,JSON.stringify(LABC))}catch(e){}
 }
 function renderLabSheet(){
  const box=$("#labList");box.innerHTML="";

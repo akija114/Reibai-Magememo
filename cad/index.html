@@ -876,6 +876,7 @@ function drawOverlay(){
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.first){ const f = S.autoDim.first, [px, py] = w2s(f.P[0], f.P[1]), b = G.pbox.get(f.e); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; if (b){ const p = w2s(b[0], b[3]), q = w2s(b[2], b[1]); octx.setLineDash([6, 4]); octx.strokeRect(p[0], p[1], q[0]-p[0], q[1]-p[1]); octx.setLineDash([]); } octx.beginPath(); octx.arc(px, py, 8, 0, Math.PI*2); octx.moveTo(px - 12, py); octx.lineTo(px + 12, py); octx.moveTo(px, py - 12); octx.lineTo(px, py + 12); octx.stroke(); octx.restore(); }
+  if (S.lpick) drawLpick(octx);
   drawHL(octx);
   const M = MS;
   if (S.mode === 'dim'){
@@ -961,7 +962,7 @@ function endPtr(e, cancel){
   if (!gest) return;
   if (gest.type === 'cursor' && ptrs.size === 0){
     MS.dragging = false; MS.finger = null;
-    if (!cancel && MS.cur){ if (S.autoDim) autoDimAt(MS.cur); else placePoint(MS.cur); } else { MS.cur = null; drawOverlay(); }
+    if (!cancel && MS.cur){ if (S.lpick) lpickAt(MS.cur); else if (S.autoDim) autoDimAt(MS.cur); else placePoint(MS.cur); } else { MS.cur = null; drawOverlay(); }
     gest = null;
   } else if (gest.type === 'rcursor' && ptrs.size === 0){
     RS.dragging = false; RS.finger = null;
@@ -1470,14 +1471,42 @@ function wallLayerSet(){
   if (!ls.length) ls = live.filter(l => l.g === 'arch' && !WALL_EX.test(l.name));
   return new Set(ls.map(l => l.idx));
 }
+/* ---- 壁・通り芯のレイヤーを、図面の線をタップして選ぶ。選んだレイヤーの線を太く光らせる。もう一度タップで外す → 「決定」 ---- */
+function lpickStart(kind){
+  const names = kind === 'wall' ? [...wallLayerSet()].map(i => G.L[i].name) : [...gridLayerSet().set].map(i => G.L[i].name);
+  S.lpick = {kind, set:new Set(names)}; if (S.mode !== 'dim'){ S.mode = 'dim'; S.selDim = null; routeReset(); }
+  MS.p1 = null; MS.cur = null; drawOverlay(); updateUi();
+}
+function lpickAt(cur){
+  const R = 26/view.s, s = G.segs; let best = null, bd = R; MS.cur = null;
+  for (const id of query(IX.sg, IX.segMark, cur.x, cur.y, R)){ const k = id*SS; const c = closestOnSeg(cur.x, cur.y, s[k], s[k+1], s[k+2], s[k+3]), d = Math.hypot(c[0]-cur.x, c[1]-cur.y); if (d < bd){ bd = d; best = G.L[s[k+4]]; } }
+  if (!best){ toast('線の上で離してください'); drawOverlay(); return; }
+  const P = S.lpick, on = !P.set.has(best.name); if (on) P.set.add(best.name); else P.set.delete(best.name);
+  drawOverlay(); updateHint(); toast(`「${best.name}」を${P.kind === 'wall' ? '壁' : '通り芯'}${on ? 'に入れました' : 'から外しました'}`);
+}
+function lpickDone(ok){
+  const P = S.lpick; S.lpick = null; if (!P){ return; }
+  if (ok){ const v = [...P.set];
+    if (P.kind === 'wall'){ wallPref = v; try { localStorage.setItem('zumen-walls', JSON.stringify(v)); } catch(e){} }
+    else { gridPref = v; try { localStorage.setItem('zumen-gridlayers', JSON.stringify(v)); } catch(e){} const A = S.autoDim; if (A && A.g4){ A.g4 = grid4At(A.g4.P, A.g4.what); } }
+    toast(`${P.kind === 'wall' ? '壁' : '通り芯'}のレイヤーを ${v.length} 個にしました`); }
+  drawOverlay(); updateUi(); const A = S.autoDim; if (A && A.g4) grid4Zoom(A.g4), drawOverlay();
+}
+function drawLpick(c){
+  const P = S.lpick, idx = new Set(G.L.filter(l => P.set.has(l.name)).map(l => l.idx)), s = G.segs; if (!idx.size) return;
+  c.save(); c.strokeStyle = tok.snap; c.globalAlpha = .75; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath();
+  for (let k = 0; k < s.length; k += SS){ if (!idx.has(s[k+4]) || gone(s[k+7])) continue; const a = w2s(s[k], s[k+1]), b = w2s(s[k+2], s[k+3]); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); }
+  c.stroke(); c.restore();
+}
 function openWallLayerSheet(){
   openSheet('壁として見るレイヤー', body => {
     const set = wallLayerSet();
-    body.innerHTML = `<div class="note">「壁の面から」の時に、壁の線として使うレイヤーです。二重線（厚さ4〜26cm）の手前の線を壁の面として測ります。</div>` +
+    body.innerHTML = `<button class="btn pri" data-a="pick" style="width:100%;height:46px;margin-bottom:8px">👆 図面の線をタップして選ぶ</button><div class="note">「壁の面から」の時に、壁の線として使うレイヤーです。二重線（厚さ4〜26cm）の手前の線を壁の面として測ります。</div>` +
       G.L.filter(l => !l.deleted && l.count).sort((a, b) => (set.has(b.idx) - set.has(a.idx)) || a.name.localeCompare(b.name, 'ja')).map(l => `<label class="row" style="cursor:pointer"><input type="checkbox" data-wl="${esc(l.name)}" ${set.has(l.idx) ? 'checked' : ''} style="width:22px;height:22px"><i class="sw" style="background:${colorCss(l.ck)}"></i><div class="grow"><div class="nm">${esc(l.name)}</div><div class="sub">${gById(l.g).name}</div></div></label>`).join('') +
       `<div class="frow"><button class="btn" data-a="auto" style="flex:1">自動にもどす</button><button class="btn pri" data-a="ok" style="flex:1">これで決める</button></div>`;
     body.onclick = e => {
       const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      if (a === 'pick'){ closeSheet(); lpickStart('wall'); return; }
       if (a === 'auto'){ wallPref = null; try { localStorage.removeItem('zumen-walls'); } catch(err){} refreshOpenSheet(); return; }
       wallPref = [...body.querySelectorAll('[data-wl]:checked')].map(x => x.dataset.wl); try { localStorage.setItem('zumen-walls', JSON.stringify(wallPref)); } catch(err){} closeSheet(); toast(`壁のレイヤーを ${wallPref.length} 個にしました`);
     };
@@ -1636,6 +1665,10 @@ function gridCands(){
   const B = G.bounds, size = Math.min(B.x1 - B.x0, B.y1 - B.y0), tol = 0.5/unitMM();
   const {set, by} = gridLayerSet(), out = {v:[], h:[], by};
   for (const a of axisLines(set)) if (a.len >= size*0.15) out[a.dir].push({c:a.c, name:'', iv:a.iv});
+  if (by === 'pref'){ // 選んだレイヤーに補助線も入っている時のため：X1・Y1などの記号がついた線があれば、その向きはその線だけにする
+    const gr = findGrids(), tg = Math.max(tol, S.textH*0.1);
+    for (const dir of ['v', 'h']){ const lab = []; for (const a of out[dir]){ const g = gr[dir].find(g => Math.abs(g.c - a.c) <= tg); if (g) lab.push({...a, name:g.name}); } if (lab.length) out[dir] = lab; }
+  }
   if (by !== 'pref'){
     const okL = new Set(G.L.filter(l => !l.deleted && (l.g === 'arch' || l.g === 'etc') && (GRID_RE.test(l.name.normalize('NFKC')) || !WALL_RE.test(l.name))).map(l => l.idx));
     const ax = axisLines(okL), gr = findGrids(), tg = Math.max(tol, S.textH*0.1);
@@ -1705,7 +1738,7 @@ function drawGrid4(c, g){
 }
 function updateGridPanel(){
   const p = $('#gridPanel'), A = S.autoDim, g = S.mode === 'dim' && A && A.to === 'grid4' ? A.g4 : null;
-  if (!g || g.pickDir){ p.hidden = true; return; }
+  if (!g || g.pickDir || S.lpick){ p.hidden = true; return; }
   p.hidden = false; $('#layerBar').hidden = true; $('#dimPanel').hidden = true;
   const guess = S.pdfInfo && S.pdfInfo.guess, n = grid4Recs(g).length;
   const bs = 'style="height:36px;min-height:36px;padding:0 10px"';
@@ -1732,11 +1765,12 @@ function updateGridPanel(){
 function openGridLayerSheet(){
   openSheet('通り芯として見るレイヤー', body => {
     const {set, by} = gridLayerSet();
-    body.innerHTML = `<div class="note">「通り芯（上下左右）」で使う線のレイヤーです。選ぶと、そのレイヤーの縦・横の長い線だけを通り芯にします（壁・配管などは選ばないでください）。${by === 'name' ? '今は名前に「通り芯」が入ったレイヤーと、X1・Y1などの記号がついた線を自動で使っています。' : ''}</div>` +
+    body.innerHTML = `<button class="btn pri" data-a="pick" style="width:100%;height:46px;margin-bottom:8px">👆 図面の線をタップして選ぶ</button><div class="note">「通り芯（上下左右）」で使う線のレイヤーです。選ぶと、そのレイヤーの縦・横の長い線だけを通り芯にします（壁・配管などは選ばないでください）。${by === 'name' ? '今は名前に「通り芯」が入ったレイヤーと、X1・Y1などの記号がついた線を自動で使っています。' : ''}</div>` +
       G.L.filter(l => !l.deleted && l.count).sort((a, b) => (set.has(b.idx) - set.has(a.idx)) || a.name.localeCompare(b.name, 'ja')).map(l => `<label class="row" style="cursor:pointer"><input type="checkbox" data-gl="${esc(l.name)}" ${by === 'pref' && set.has(l.idx) ? 'checked' : ''} style="width:22px;height:22px"><i class="sw" style="background:${colorCss(l.ck)}"></i><div class="grow"><div class="nm">${esc(l.name)}</div><div class="sub">${gById(l.g).name}${by === 'name' && set.has(l.idx) ? '・自動で使用中' : ''}</div></div></label>`).join('') +
       `<div class="frow"><button class="btn" data-a="auto" style="flex:1">自動にもどす</button><button class="btn pri" data-a="ok" style="flex:1">これで決める</button></div>`;
     body.onclick = e => {
       const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      if (a === 'pick'){ closeSheet(); lpickStart('grid'); return; }
       if (a === 'auto'){ gridPref = null; try { localStorage.removeItem('zumen-gridlayers'); } catch(err){} }
       else { gridPref = [...body.querySelectorAll('[data-gl]:checked')].map(x => x.dataset.gl); try { localStorage.setItem('zumen-gridlayers', JSON.stringify(gridPref)); } catch(err){} }
       closeSheet(); const A = S.autoDim; if (A && A.g4){ A.g4 = grid4At(A.g4.P, A.g4.what); updateUi(); grid4Zoom(A.g4); drawOverlay(); }
@@ -2032,6 +2066,8 @@ function updateHint(){
   const h = $('#hint');
   $('#bHint2').hidden = true; $('#bHint3').hidden = true; $('#bHint4').hidden = true;
   if (HL){ h.hidden = true; return; }
+  if (S.lpick && S.mode !== 'dim') S.lpick = null; // ほかのモードにしたら、選ぶのはやめる
+  if (S.lpick){ if (MS.dragging){ h.hidden = true; return; } h.hidden = false; $('#hintTxt').textContent = `${S.lpick.kind === 'wall' ? '壁' : '通り芯'}の線をタップ（光っている線＝選んだレイヤー・${S.lpick.set.size}個。もう一度で外す）`; $('#bHint3').hidden = false; $('#bHint3').textContent = '✓ 決定'; $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = 'やめる'; return; }
   if (S.mode === 'note'){ h.hidden = false; $('#hintTxt').textContent = 'メモを置きたい所をタップ（置いたメモはタップで直せます）'; $('#bCancelPt').hidden = true; return; }
   if (S.mode === 'box'){
     h.hidden = false; $('#hintTxt').textContent = '指でなぞって四角で囲む（2本指で移動）';
@@ -2063,7 +2099,7 @@ function updateHint(){
   return;
   $('#bCancelPt').hidden = !MS.p1;
 }
-$('#bCancelPt').onclick = () => { if (S.mode === 'dim' && S.autoDim && S.autoDim.g4 && S.autoDim.g4.pickDir){ S.autoDim.g4.pickDir = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && S.autoDim){ S.autoDim = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
+$('#bCancelPt').onclick = () => { if (S.lpick){ lpickDone(false); return; } if (S.mode === 'dim' && S.autoDim && S.autoDim.g4 && S.autoDim.g4.pickDir){ S.autoDim.g4.pickDir = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && S.autoDim){ S.autoDim = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
 
 function updateDimPanel(){
   const p = $('#dimPanel'); const d = S.selDim;
@@ -2110,6 +2146,7 @@ $('#mBox').onclick = () => { S.mode = 'box'; S.selDim = null; MS.p1 = null; MS.c
 $('#mRoute').onclick = () => { S.mode = 'route'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#tOrtho').onclick = () => { S.ortho = !S.ortho; updateUi(); toast(S.ortho ? '縦横まっすぐ：オン' : '縦横まっすぐ：オフ'); };
 $('#bHint3').onclick = () => {
+  if (S.lpick){ lpickDone(true); return; }
   if (S.mode !== 'dim') return;
   if (S.autoDim || (!MS.p1 && !lastDimCmd())){ openAutoDimSheet(); return; }
   dimStepBack();
@@ -2403,7 +2440,7 @@ async function openText(text, srcName, opts = {}){
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat);
     const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], dimGroups:doc.meta.dimGroups, curDG:doc.meta.curDG, groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views, notes:doc.meta.notes} : null);
-    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; S.dimGroups = []; S.curDG = null; S.autoDim = null; routeReset();
+    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; S.dimGroups = []; S.curDG = null; S.autoDim = null; S.lpick = null; routeReset();
     for (const [k, t] of Object.entries(G.parts)) if (t.inv) S.hideObj.add(+k);
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){

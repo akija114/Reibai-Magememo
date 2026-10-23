@@ -10,6 +10,9 @@ const DR_MAT={
  AC:{n:"ACドレン（保温付き）",s:"AC",col:0x7dd3fc,od:{25:40,30:46,40:56,50:68},
   f:{e90:"AC用 90°エルボ",e45:"AC用 45°エルボ",tee:"AC用 チーズ",rtee:"AC用 異径チーズ",sock:"AC用 ソケット",red:"AC用 異径ソケット",co:"掃除口（CO）"}}};
 const DR_SIZES=[25,30,40,50];
+/* 図面の空調ドレンのたて管（外へ出る所）の VP の太さ。ACドレンの外径は1つ上の VP と同じ（AC40＝VP50）なので、ACはエルボで立ち下げて1つ上の VP のソケットで切りかえ */
+function drVPinfo(){try{if(!st.drain)return null;const D=DRN();if(D.show===false||!D.rows.length)return null;let sz=D.sz;D.rows.forEach(r=>{if(r.sz)sz=r.sz});const ac=D.mat==="AC",up={25:30,30:40,40:50,50:65}[sz]||sz,v=ac?up:sz;
+ return{ac,acSz:sz,sz:v,od:DR_MAT.VP.od[v]||({65:76})[v]||60,acOd:ac?DR_MAT.AC.od[sz]:0}}catch(e){return null}}
 /* ドレンの支持のルール（変えられる）。横の「支持の間隔の上限」は D.span */
 const DRSPD={h0:50,h1:500,off:200,v0:150,v1:600,voff:300,vgap:1500,top:1000};
 function drNormSp(x){x=x||{};const o={};Object.keys(DRSPD).forEach(k=>{const v=Math.round(+x[k]);o[k]=isFinite(v)&&v>=0&&v<=20000?v:DRSPD[k]});o.vgap=Math.max(100,o.vgap);return o}

@@ -539,6 +539,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 (function(){
  const d=document.createElement("div");d.id="zdock";
  d.innerHTML=`<button class="main" data-z="plan">📄 図面（PDF・DXF・写真）を読み込む・なぞる</button>
+<button class="main" data-z="more" id="zMore" style="background:#fff;color:#0f172a;border:2px dashed #94a3b8;min-height:52px"></button>
 <button data-z="bld">🧱 柱・壁・梁・<br>室内機を置く</button><button data-z="route">🧭 ルート<br>おまかせ</button>
 <button data-z="scan">📡 部屋の<br>スキャン</button><button data-z="new">🆕 新しく作る<br><small>（模型・機械から）</small></button>
 <button data-z="floor" id="zFloor" style="font-size:13.5px"></button><button data-z="floorop" id="zFloorOp" style="font-size:13.5px"></button>
@@ -547,6 +548,9 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <button class="main" data-z="mt" style="background:#b45309;border-color:#b45309">🧾 材料拾い・見積もり・単価表</button>
 <button class="zgo" data-z="go">🔧 曲げ共有で長さ・曲げを見る ▶</button>`;
  $("#legbar").before(d);
+ /* ふだんは「図面を読み込む」だけ。ほかの機能は「▼ ほかの機能」で開く（開け閉めはこの端末に覚える） */
+ const cs=document.createElement("style");cs.textContent='#zdock.less button:not([data-z="plan"]):not([data-z="more"]){display:none}';document.head.appendChild(cs);
+ const mOn=()=>{try{return localStorage.getItem("pbm_zmore")==="1"}catch(e){return false}},upMore=()=>{d.classList.toggle("less",!mOn());$("#zMore").textContent=mOn()?"▲ ほかの機能をしまう":"▼ ほかの機能（ルートおまかせ・柱や壁・材料拾い など）"};upMore();
  /* 🗺 地面に図面を映す：表示のON/OFFと濃さ（図面を読み込んだ後に使える） */
  const PL=()=>(typeof PLAN!=="undefined"&&PLAN)?PLAN:null,PLok=P=>!!(P&&P.img&&P.mmpp&&P.org);
  const fl=()=>{const P=PL(),w=P&&P.atCeil?"天井":"地面";return(P&&P.show)?"🙈 "+w+"の図面を隠す":"🗺 "+w+"に図面を映す"};
@@ -558,6 +562,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
   if(z==="floor"||z==="floorop"){const P=PL();if(!PLok(P)){toast("先に「📄 図面」で図面を読み込んで、縮尺と原点を決めてください");return}
    if(z==="floor")P.show=!P.show;else{const L=[.2,.4,.6,.8],cur=P.planOp!=null?P.planOp:.4;P.planOp=L[(L.findIndex(v=>Math.abs(v-cur)<.05)+1)%L.length]}
    try{save()}catch(err){}if(typeof build3D==="function"&&T){build3D();T.dirty=true}upFl();return}
+  if(z==="more"){try{localStorage.setItem("pbm_zmore",mOn()?"0":"1")}catch(err){}upMore();setTimeout(sizeT,30);return}
   if(z==="floor2"){if(typeof shitaMenu==="function")shitaMenu();return}
   if(z==="plan")openDraw();else if(z==="route")openRoute();else if(z==="scan")openScan();else if(z==="new")openNew();else if(z==="photo")openShashin();else if(z==="mt"){if(typeof mtOpen==="function")mtOpen()}
   else if(z==="go")location.href="index.html";

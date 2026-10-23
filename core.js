@@ -2672,11 +2672,11 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
 /* 3Dの下の切りかえボタン：図面のダクト・衛生と、障害物の種類 */
 /* 衛生の種類ごとの出し入れ（0 給水・給湯／1 汚水・排水／2 通気／3 その他。4 空調ドレンはドレンの続きなのでいつも出す） */
 const ES_SUB=[[0,"給水・給湯","#2563eb"],[1,"汚水・排水","#a16207"],[2,"通気","#6b7280"],[3,"その他","#16a34a"]],esOn=sb=>!(st.dlSub&&st.dlSub[sb]===false);
-let DLG=null;   // 3Dの下のボタン：開いているグループ（null＝グループの一覧）
+let DLG=null,DLX=false;   // DLX：下のボタンを開いているか（ふだんは「🗂 表示」1つだけ。要る時だけ開く）   // 3Dの下のボタン：開いているグループ（null＝グループの一覧）
 function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=st.dln;
  const dk=DLK.filter(([k])=>D&&((D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))),bk=(st.bld&&st.bld.length&&!st.bldHide)?BLD_TG.filter(([k])=>st.bld.some(o=>o.k===k)):[];
  const PLf=typeof PLAN!=="undefined"&&PLAN&&PLAN.img&&PLAN.mmpp&&PLAN.org?PLAN:null,PL2=PLf&&typeof PLAN2!=="undefined"&&PLAN2?PLAN2:null;   // 床に映す図面（図面のページだけ）・下の図面（shita.js）
- const big=APP!=="bend"||!!(T&&T.full);let hd=false;try{hd=big&&!EZ&&st.drain&&typeof DRN==="function"&&DRN().show!==false&&DRN().rows.length>0}catch(e){}   // アプリのドレンがある時も「🎨継手」を出す（曲げ共有は大きい3Dの時だけ）
+ const big=!!(T&&T.full);   // 全画面の時だけ大きく（図面の画面の小さい3Dでも小さく）let hd=false;try{hd=big&&!EZ&&st.drain&&typeof DRN==="function"&&DRN().show!==false&&DRN().rows.length>0}catch(e){}   // アプリのドレンがある時も「🎨継手」を出す（曲げ共有は大きい3Dの時だけ）
  if(!dk.length&&!bk.length&&!PLf&&!hd){if(b)b.remove();const lg=document.getElementById("dlLeg");if(lg)lg.remove();return}
  /* 1列で横にスクロール（前と同じ）。右下の向きの矢印（右・上・前）に重ならないように：
     小さい3D＝今までの大きさで、目のボタンと矢印の間。大きい3D（全画面）＝少し大きくして、矢印のすぐ上に横いっぱい */
@@ -2700,11 +2700,13 @@ function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b
  const GR=[["ac","❄️空調","#0369a1"],["duct","🌀ダクト","#64748b"],["eisei","🚽衛生","#16a34a"],["arch","🧱建築","#92400e"]].filter(([g])=>IT.some(t=>t[0]===g));
  if(DLG&&!GR.some(([g])=>g===DLG))DLG=null;
  const fcB=dk.length||hd?btn("fc","1","🎨継手","#be123c",fitOn()):"";
- if(!DLG)b.innerHTML=GR.map(([g,n,col])=>{const L=IT.filter(t=>t[0]===g),on=L.filter(t=>t[2]).length;return`<button data-grp="${g}" style="flex:none;height:${big?40:32}px;padding:0 ${big?13:9}px;border-radius:${big?20:16}px;font-weight:800;font-size:${big?14:12.5}px;border:2px solid ${col};background:${on?col:"#ffffffee"};color:${on?"#fff":col};box-shadow:0 1px 4px #0002">${n}${big?` ${on}/${L.length}`:""} ▸</button>`}).join("")+fcB;
+ if(!DLX)b.innerHTML=`<button data-gx="1" style="flex:none;height:${big?40:32}px;padding:0 ${big?13:11}px;border-radius:${big?20:16}px;font-weight:800;font-size:${big?14:12.5}px;border:2px solid #334155;background:#ffffffee;color:#334155;box-shadow:0 1px 4px #0002">🗂 表示 ▸</button>`;
+ else if(!DLG)b.innerHTML=`<button data-gx="0" style="flex:none;height:${big?40:32}px;padding:0 ${big?12:10}px;border-radius:${big?20:16}px;font-weight:800;font-size:${big?14:12.5}px;border:2px solid #334155;background:#334155;color:#fff;box-shadow:0 1px 4px #0002">✕</button>`+GR.map(([g,n,col])=>{const L=IT.filter(t=>t[0]===g),on=L.filter(t=>t[2]).length;return`<button data-grp="${g}" style="flex:none;height:${big?40:32}px;padding:0 ${big?13:9}px;border-radius:${big?20:16}px;font-weight:800;font-size:${big?14:12.5}px;border:2px solid ${col};background:${on?col:"#ffffffee"};color:${on?"#fff":col};box-shadow:0 1px 4px #0002">${n}${big?` ${on}/${L.length}`:""} ▸</button>`}).join("")+fcB;
  else{const [g,n,col]=GR.find(x=>x[0]===DLG),L=IT.filter(t=>t[0]===g),on=L.some(t=>t[2]);
   b.innerHTML=`<button data-gback="1" style="flex:none;height:${big?40:32}px;padding:0 ${big?13:9}px;border-radius:${big?20:16}px;font-weight:800;font-size:${big?14:12.5}px;border:2px solid ${col};background:${col};color:#fff;box-shadow:0 1px 4px #0002">‹ ${n}</button>`+btn("gall",g,on?"全部消す":"全部出す",col,false).replace(/>[✓－]/,">")+L.map(t=>t[1]).join("")+(g==="duct"||g==="eisei"?fcB:"")}
  b.scrollLeft=DLG===b.dataset.g?sl:0;b.dataset.g=DLG||"";
  const redo=()=>{save();if(T){build3D();T.dirty=true}else dlBar()};
+ b.querySelectorAll("[data-gx]").forEach(x=>x.onclick=e=>{e.stopPropagation();DLX=x.dataset.gx==="1";DLG=null;dlBar()});
  b.querySelectorAll("[data-grp]").forEach(x=>x.onclick=e=>{e.stopPropagation();DLG=x.dataset.grp;dlBar()});
  b.querySelectorAll("[data-gback]").forEach(x=>x.onclick=e=>{e.stopPropagation();DLG=null;dlBar()});
  b.querySelectorAll("[data-gall]").forEach(x=>x.onclick=e=>{e.stopPropagation();const L=IT.filter(t=>t[0]===DLG),v=!L.some(t=>t[2]);L.forEach(t=>t[3](v));redo()});
@@ -2714,7 +2716,7 @@ function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b
  b.querySelectorAll("[data-fl2]").forEach(x=>x.onclick=e=>{e.stopPropagation();PL2.show=!PL2.show;redo()});
  b.querySelectorAll("[data-fc]").forEach(x=>x.onclick=e=>{e.stopPropagation();try{localStorage.setItem("pbm_fitcol",fitOn()?"0":"1")}catch(err){}redo()});
  /* 継手の色の見本（色分けが入っている時だけ・バーの上） */
- let lg=document.getElementById("dlLeg");const lgOn=big&&fitOn()&&(hd||dk.some(([k])=>dlOnOf(k)));
+ let lg=document.getElementById("dlLeg");const lgOn=big&&DLX&&fitOn()&&(hd||dk.some(([k])=>dlOnOf(k)));
  if(!lgOn){if(lg)lg.remove()}else{if(!lg){lg=document.createElement("div");lg.id="dlLeg";lg.style.cssText=`position:absolute;left:62px;bottom:14px;z-index:6;display:flex;gap:8px;flex-wrap:wrap;padding:3px 8px;border-radius:10px;background:#ffffffd9;font-size:11.5px;font-weight:800;color:#334155;pointer-events:none;width:max-content;max-width:calc(100% - ${62+gz}px)`;stg.appendChild(lg)}
   lg.innerHTML=Object.values(FIT_COL).map(([n,c])=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#${c.toString(16).padStart(6,"0")};vertical-align:-1px"></span> ${n}</span>`).join("")}
  b.querySelectorAll("[data-bh]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.bh;st.bhid={...(st.bhid||{}),[k]:!bldHid(k)};redo()})}

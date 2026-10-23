@@ -1126,9 +1126,16 @@ function rpSvg(G,routes,W,H,small){
  s+=`<circle cx="${P(pI)[0]}" cy="${P(pI)[1]}" r="${small?4:6}" fill="#16a34a"/><circle cx="${P(pE)[0]}" cy="${P(pE)[1]}" r="${small?4:6}" fill="#dc2626"/></svg>`;
  return{s,toMap:(px,py)=>[(px-ox)/sc+mnx,(py-oy)/sc+mny]};
 }
-let RPLIVE=false;
+let RPLIVE=false,RPB="";
+/* 図面で室外機を置いてある時は、その位置・高さ・正面の向き・機種を使う（別の室外機を作らない）。置いた室外機が変わった時だけ入れ直す（図をタップして動かした分は残す） */
+const rpOutB=()=>(st.bld||[]).find(o=>o.k==="out");
+function rpFromBld(R){const o=rpOutB();if(!o)return false;const key=[o.x,o.z,o.y,o.r,o.m].join("|");if(key===RPB)return true;RPB=key;
+ try{if(typeof OUTM!=="undefined"&&OUTM[o.m])R.oe=o.m;R.ox=outAllow(R.oe).includes(R.ox)?R.ox:outAllow(R.oe)[0];
+  const G0=rpGeom(),ci=G0.bi.getCenter(new THREE.Vector3()),m=G0.w2m(o.x-ci.x,o.z-ci.z),r50=v=>Math.round(v/50)*50;R.mx=r50(m[0]);R.mz=r50(-m[1]);
+  const t=(o.r||0)*Math.PI/180,fm=G0.w2m(-Math.sin(t),Math.cos(t));let bi=0,bd=-9;MDIR.forEach((d,i)=>{const v=d[0]*fm[0]+d[1]*fm[1];if(v>bd){bd=v;bi=i}});R.of=bi;   // 正面＝箱の +z（回転 r）
+  R.hs=(o.y||0)<0?-1:1;R.hb=Math.abs(Math.round(o.y||0));rpSave()}catch(e){console.warn("rpFromBld",e)}return true}
 function openRoutePos(){
- const box=$("#routeIn"),R=RP;
+ const box=$("#routeIn"),R=RP,useB=rpFromBld(R);
  const opt=(a,v)=>a.map(([k,t])=>`<option value="${k}"${k===v?" selected":""}>${t}</option>`).join("");
  const dirs=(k,v)=>`<div class="seg" data-dir="${k}" style="margin-bottom:8px">${["↑","→","↓","←"].map((t,i)=>`<button data-v="${i}" class="${i===v?"on":""}" style="height:42px">${t}</button>`).join("")}</div>`;
  const num=(k,lab,v)=>`<div class="field" style="margin-bottom:8px"><label>${lab}</label><input data-n="${k}" inputmode="numeric" value="${uVal(v)}"></div>`;
@@ -1149,6 +1156,7 @@ function openRoutePos(){
   ${sgn("mx","室内機の真ん中から（図で見て）",[[1,"右へ"],[-1,"左へ"]],Math.abs(R.mx),R.mx<0?-1:1)}
   ${sgn("mz","（奥・手前）",[[1,"奥（図の上）へ"],[-1,"手前（図の下）へ"]],Math.abs(R.mz),R.mz<0?-1:1)}
   ${sgn("hb","室外機を置く面（床からの高さ・mm）",[[1,"上へ"],[-1,"下へ"]],R.hb,R.hs)}
+  ${useB?`<div class="note" style="margin:0 0 6px;background:#ecfdf5;border:1.5px solid #10b981;border-radius:10px;padding:6px 8px;color:#065f46;font-weight:700">📍 図面で置いた室外機の位置・高さ・向きを使っています（ルートを作ると、その室外機につなぎます）</div>`:""}
   <div id="rpMap" style="margin:6px 0 4px"></div><div class="note" style="margin:0 0 10px">図をタップすると、そこに室外機を置きます（50mmきざみ）。緑＝室内機の配管口、赤＝室外機の配管口</div>
   <div class="ctitle">③ ルート</div>
   ${num("S","室内機の配管口から最初の曲げまで（mm）",R.S)}${num("S2","室外機の配管口の手前のまっすぐ（mm）",R.S2)}
@@ -1173,7 +1181,7 @@ function openRoutePos(){
  $("#rpGo").onclick=()=>{rd();draw();if(!G)return;
   const L=autoRoutes2(G.loc(G.Ap),G.loc(G.E),{stub:R.S,d45:R.d45});draw(L);
   renderRoutes(L,{proj:r=>rpIso(G,r,150,96,true,0),big:(r,rot)=>rpIso(G,r,340,250,false,rot),note:"斜め上から見た図（青＝室内機、赤＝室外機、灰色の面＝床）。押すと大きく見られて、「実行」すると機器・地面・天井もこの置き方にします（↩️で戻せます）。",
-   apply:()=>{RPLIVE=false;rpApply()}})};
+   apply:()=>{RPLIVE=false;rpApply();const ob=rpOutB();if(ob){st.bld=st.bld.filter(o=>o!==ob);RPB=""}}})};   // 図面の室外機はアプリの室外機（配管がつながる物）に置きかえる（2台にしない）
  draw();
 }
 /* ===== 部屋のスキャン（OBJ・STL・GLB）を3Dの背景に読み込む。形はこの端末（IndexedDB）に保存 ===== */

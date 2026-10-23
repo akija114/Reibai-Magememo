@@ -78,7 +78,7 @@ function mtCollect(){const G=[];const sec=(t,items,note)=>{if(items.length)G.pus
    if(Math.abs(w2-s[6])>1){put(cnt,"径違い（レジューサ）|"+nm(s[5],Math.max(s[6],w2),s[7])+"×"+Math.round(Math.min(s[6],w2)),1);joint+=2;return}
    if(L<1)return;put(len,s[5]+"|"+nm(s[5],s[6],s[7]),L)});
   J.forEach(q=>{if(q[7]===1&&q.length>=13){put(cnt,elbDeg(q,[90,60,45,30,15])+"°エルボ|"+nm(q[3],q[4],q[5]),1);joint+=2}else{put(cnt,"分岐・つなぎ（図面で確認）|"+nm(q[3],q[4],q[5]),1);joint+=3}});
-  (D.eq2||[]).forEach(e=>{put(cnt,(e[7]==="g"?"吹出口・吸込口":"ダクトの機器")+"|"+e[8],1);joint++});   // 図面の機器の文字から（VHS-200□・換気扇など）
+  (D.eq2||[]).forEach(e=>{put(cnt,(e[7]==="g"?"吹出口・吸込口":"ダクトの機器")+"|"+e[8],1);joint++;if(e[7]==="g"){put(cnt,"フレキダクト（機器のつなぎ・約1m）|φ"+(e[10]||150),1);joint++}});   // 図面の機器の文字から（VHS-200□・換気扇など）
   (D.vc||[]).forEach(v=>{if(v[7]!=="duct")return;put(cnt,"ベントキャップ（深型"+(v[6]?"・FD付":"")+"）|φ"+v[5],1);joint++});
   Object.keys(len).sort().forEach(k=>{const[sh,n]=k.split("|"),L=len[k];Dt.push({n:`${+sh===1?"角ダクト":"スパイラルダクト"} ${n}`,q:Math.round(L/100)/10,u:"m",d:`図面から ${fmtM?fmtM(L):Math.round(L)+"mm"}${+sh===1?"":`（定尺4mなら ${Math.ceil(L/4000)}本）`}`})});
   Object.keys(cnt).sort().forEach(k=>{const[t,n]=k.split("|");Dt.push({n:`${t} ${n}`,q:cnt[k],u:"個",d:""})});

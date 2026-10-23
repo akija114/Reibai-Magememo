@@ -534,7 +534,7 @@ function dlEisei(S,J,CS){
    ・高さ：同じ種類の近くの「FL+3200」などの文字。無ければ天井の少し下（ダクトは天井の上） */
 const DL_KINDS=[["duct","ダクト"],["eisei","衛生"]];
 /* 読み方の版：衛生・ダクトの読み方を直したら1つ上げる（図面の画面で前の図面を開いた時、古い版で作った3Dは自動で読み直す） */
-const DL_VER=4;window.DL_VER=DL_VER;
+const DL_VER=5;window.DL_VER=DL_VER;
 window.DL_KINDS=DL_KINDS;
 function segCat(s){if(s[5]!==undefined)return dxfCat(s[5]);const c=s[4]||"";if(c.length<7)return"";const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
  return r>200&&g<80&&b>200?"ref":r>200&&g>90&&g<170&&b<60?"drain":""}   // PDF：赤紫＝冷媒、オレンジ＝ドレン（#ff7f00・#ff7e00 など少し違っても）
@@ -686,6 +686,6 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
   const CH0=(st.gnd&&st.gnd.ch)||P.CH||2700,taken=new Set();out.eq2=[];
   EQT.forEach(t=>{let b=null,bd=1500;E.forEach((e,i)=>{if(taken.has(i))return;const d=Math.hypot(e.x-t.x,e.z-t.z);if(d<bd){bd=d;b=i}});if(b===null)return;taken.add(b);const e=E[b];
    let cm=null,cd=900;CM.forEach(c=>{const d=Math.hypot(c.x-t.x,c.z-t.z);if(d<cd){cd=d;cm=c}});
-   out.eq2.push([Math.round(e.x),Math.round(e.z),Math.round(e.h),+e.u[0].toFixed(4),+e.u[1].toFixed(4),t.w,t.d,t.g?"g":"f",t.s+(cm?" "+cm.s:""),CH0])})}catch(err){console.warn("eq2",err)}
+   out.eq2.push([Math.round(e.x),Math.round(e.z),Math.round(e.h),+e.u[0].toFixed(4),+e.u[1].toFixed(4),t.w,t.d,t.g?"g":"f",t.s+(cm?" "+cm.s:""),CH0,Math.round(e.w)])})}catch(err){console.warn("eq2",err)}
  out.ver=DL_VER;return out};
 })();

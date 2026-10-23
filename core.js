@@ -2580,6 +2580,7 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
  let drOn=false;try{drOn=!!(st.drain&&typeof DRN==="function"&&DRN().show!==false&&DRN().rows.length)}catch(e){}
  /* たて管の太さ：ACドレンの外径は1つ上の VP と同じ（AC40＝VP50）なので、AC40 はエルボで立ち下げて VP50 のソケットで切りかえ。VPのドレンならそのままの太さ */
  const VPI=typeof drVPinfo==="function"?drVPinfo():null;
+ const flT=L0=>Math.min(500,L0*0.4);   // 吹出口の手前でダクトを止める長さ（そこからフレキ）
  const fc=fitOn(),fMat={};Object.keys(FIT_COL).forEach(t=>fMat[t]=new THREE.MeshStandardMaterial({color:FIT_COL[t][1],roughness:.45,metalness:.15}));
  DLK.forEach(([k,n,col])=>{const dOnly=k==="eisei"&&!dlOnOf(k)&&drOn;if(!dlOnOf(k)&&!dOnly)return;   // dOnly：空調ドレンのたて管だけ
   /* [9]＝終わりの高さ（たて管）、[10]＝終わりの太さ（口の所の広がる管） */
@@ -2587,7 +2588,9 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
   const mouths=(D[k+"J"]||[]).filter(q=>q[7]===1&&q.length>=13).flatMap(q=>[[q[0]+q[8]*q[12],q[2]+(q[13]||0)*q[12],q[1]+q[9]*q[12],q[12]],[q[0]+q[10]*q[12],q[2]+(q[14]||0)*q[12],q[1]+q[11]*q[12],q[12]]]);
   const tees=(D[k+"J"]||[]).filter(q=>!q[7]&&(q[9]===1||q[9]===2));
   const ext1=(x,y,z)=>{const m=mouths.find(m=>Math.hypot(m[0]-x,m[1]-y,m[2]-z)<6);return m?m[3]:0};
-  let vpN=0;const S=Array.isArray(D[k+"S"])&&k==="eisei"&&VPI?D[k+"S"].map(s=>{if(s[8]!==4||Math.max(s[4],typeof s[9]==="number"?s[9]:s[4])<=0)return s;const t=s.slice();t[6]=t[7]=VPI.od;if(typeof t[10]==="number")t[10]=VPI.od;return t}):D[k+"S"];if(Array.isArray(S))S.forEach(s=>{if(dOnly&&s[8]!==4||k==="eisei"&&!esOn(s[8]))return;const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,h2=typeof s[9]==="number"?s[9]:h,w2=typeof s[10]==="number"?s[10]:w,a=new THREE.Vector3(x1,GY+h,z1),b=new THREE.Vector3(x2,GY+h2,z2),len=a.distanceTo(b);if(len<5)return;
+  /* 吹出口・吸込口（図面の機器）の手前でダクトを止める（そこからフレキダクトで機器へ）：FLX＝[ダクトの端, 止める長さ] */
+  const FLX=k==="duct"?(D.eq2||[]).filter(e=>e[7]==="g").map(e=>[e[0],e[1]]):[];
+  let vpN=0;const S=k==="duct"&&FLX.length&&Array.isArray(D.ductS)?D.ductS.map(s=>{const L0=Math.hypot(s[2]-s[0],s[3]-s[1]);if(L0<1)return s;for(const[fx,fz]of FLX){[[0,1,2,3],[2,3,0,1]].forEach(([a,b,c,d])=>{if(Math.hypot(s[a]-fx,s[b]-fz)<5){const t=s.slice(),T0=flT(L0);t[a]=Math.round(s[a]+(s[c]-s[a])/L0*T0);t[b]=Math.round(s[b]+(s[d]-s[b])/L0*T0);s=t}})}return s}):Array.isArray(D[k+"S"])&&k==="eisei"&&VPI?D[k+"S"].map(s=>{if(s[8]!==4||Math.max(s[4],typeof s[9]==="number"?s[9]:s[4])<=0)return s;const t=s.slice();t[6]=t[7]=VPI.od;if(typeof t[10]==="number")t[10]=VPI.od;return t}):D[k+"S"];if(Array.isArray(S))S.forEach(s=>{if(dOnly&&s[8]!==4||k==="eisei"&&!esOn(s[8]))return;const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,h2=typeof s[9]==="number"?s[9]:h,w2=typeof s[10]==="number"?s[10]:w,a=new THREE.Vector3(x1,GY+h,z1),b=new THREE.Vector3(x2,GY+h2,z2),len=a.distanceTo(b);if(len<5)return;
    const mt=fc&&Math.abs(w2-w)>1?fMat.red:k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;const vert=Math.abs(h2-h)>len*0.7;
    if(sh===1){m=new THREE.Mesh(new THREE.BoxGeometry(w,vert?len:hh,vert?hh:len),mt);m.position.copy(a).add(b).multiplyScalar(.5);if(!vert)m.rotation.y=Math.atan2(x2-x1,z2-z1)}
    else{m=new THREE.Mesh(new THREE.CylinderGeometry(w2/2,w/2,len,k==="duct"?20:12,1),mt);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize())}
@@ -2629,14 +2632,25 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
  /* ベントキャップ（VC深型フード・FD付）：ダクトの先（外壁）に。寸法は宇佐美工業 VC100・VC150 の外形図、ほかの大きさは同じ割合で
     A フードの高さ、C 出、H 下の水切りの幅、J ツバの高さ、K ツバの幅、M フードの幅、O 芯からツバの上まで、E 差し込みの長さ、B 差し込みの外径 */
  /* ダクトの機器（図面の文字から・dxf.js の out.eq2）：吹出口・吸込口＝天井の白い面とその上の箱、そのほか（換気扇など）＝箱。形は箱でよい（大きさは文字の□・×、無ければ300角） */
- if(dlOnOf("duct"))(D.eq2||[]).forEach(([x,z,h,ux,uz,w,d,ty,txt,ch])=>{try{const g=new THREE.Group(),M=c=>new THREE.MeshStandardMaterial({color:c,roughness:.5}),th=-Math.atan2(uz,ux);
-  if(ty==="g"){const top=GY+Math.max(h,ch+60),bot=GY+ch,bx=new THREE.Mesh(new THREE.BoxGeometry(w,Math.max(40,top-bot),d),M(0xcbd5e1));bx.position.set(0,(top+bot)/2,0);g.add(bx);
-   const pn=new THREE.Mesh(new THREE.BoxGeometry(w+100,16,d+100),M(0xf8fafc));pn.position.set(0,bot+8,0);g.add(pn);
-   const gr=new THREE.Mesh(new THREE.BoxGeometry(w,4,d),M(0x64748b));gr.position.set(0,bot-1,0);g.add(gr)}   // 天井の面（白）と羽根（灰）
+ if(dlOnOf("duct"))(D.eq2||[]).forEach(([x,z,h,ux,uz,w,d,ty,txt,ch,e10])=>{try{const g=new THREE.Group(),M=c=>new THREE.MeshStandardMaterial({color:c,roughness:.5}),th=-Math.atan2(uz,ux);
+  /* 天井換気扇・吹出口の形（メーカーの写真のような）：天井の白い四角い面＋上の黒い本体＋横の丸い口（ダクトの方を向く）。
+     ダクトはその手前で止めて、フレキダクト（銀色・じゃばら）で口までつなぐ */
+  if(ty==="g"){const fw=e10||150,bot=GY+ch,bh=Math.max(fw+50,180),cx=w/2+90;   // cx：機器の真ん中（ダクトの端から先へ）
+   const pn=new THREE.Mesh(new THREE.BoxGeometry(w+80,14,d+80),M(0xf8fafc));pn.position.set(cx,bot-7,0);g.add(pn);
+   const gr=new THREE.Mesh(new THREE.BoxGeometry(w-20,3,d-20),M(0xcbd5e1));gr.position.set(cx,bot-15,0);g.add(gr);   // 格子
+   const bd=new THREE.Mesh(new THREE.BoxGeometry(w,bh,d),M(0x1f2937));bd.position.set(cx,bot+bh/2,0);g.add(bd);   // 本体（黒）
+   const sp=new THREE.Mesh(new THREE.CylinderGeometry(fw/2,fw/2,70,24),M(0x111827));sp.rotation.z=Math.PI/2;sp.position.set(cx-w/2-35,bot+bh/2,0);g.add(sp);   // 横の丸い口
+   /* フレキダクト：止めたダクトの端 → 口の先。曲がった管＋じゃばらの輪 */
+   const L0=(()=>{const r=(D.ductS||[]).find(s=>Math.hypot(s[0]-x,s[1]-z)<5||Math.hypot(s[2]-x,s[3]-z)<5);return r?Math.hypot(r[2]-r[0],r[3]-r[1]):800})(),T0=flT(L0);
+   const P0=new THREE.Vector3(-T0,GY+h,0),P3=new THREE.Vector3(cx-w/2-70,bot+bh/2,0),dl=P3.x-P0.x+Math.abs(P3.y-P0.y);
+   const cv=new THREE.CubicBezierCurve3(P0,new THREE.Vector3(P0.x+dl*0.45,P0.y,0),new THREE.Vector3(P3.x-dl*0.45,P3.y,0),P3),fm=new THREE.MeshStandardMaterial({color:0xd1d5db,roughness:.35,metalness:.6});
+   g.add(new THREE.Mesh(new THREE.TubeGeometry(cv,40,fw/2,16,false),fm));
+   const rg=new THREE.TorusGeometry(fw/2+3,4,6,20),FL=cv.getLength();for(let s2=30;s2<FL-20;s2+=40){const t=s2/FL,q=cv.getPointAt(t),r=new THREE.Mesh(rg,fm);r.position.copy(q);r.lookAt(q.clone().add(cv.getTangentAt(t)));g.add(r)}
+   try{const lf=label("〰 フレキダクト φ"+fw+" 約"+fmt(Math.ceil((FL+100)/100)*100),ext*0.02,"#f1f5f9f2","#334155","bld");lf.position.copy(cv.getPointAt(0.5)).add(new THREE.Vector3(0,fw,0));lf.userData.cat="ductEq";pxl(lf,11);g.add(lf)}catch(err){}}
   else{const bx=new THREE.Mesh(new THREE.BoxGeometry(Math.max(w,200),250,Math.max(d,200)),M(0xe2e8f0));bx.position.set(Math.max(w,200)/2,GY+h,0);g.add(bx);
    const e2=new THREE.LineSegments(new THREE.EdgesGeometry(bx.geometry),new THREE.LineBasicMaterial({color:0x475569}));e2.position.copy(bx.position);g.add(e2)}
   g.position.set(x,0,z);g.rotation.y=th;g.userData.dl="duct";T.grp.add(g);
-  const lb=label("🌀 "+txt,ext*0.022,"#f1f5f9f2","#334155","bld");lb.position.set(x,GY+(ty==="g"?ch-120:h+220),z);lb.userData.cat="ductEq";pxl(lb,12);T.grp.add(lb)}catch(err){console.warn("eq2",err)}});
+  const lb=label("🌀 "+txt,ext*0.022,"#f1f5f9f2","#334155","bld");lb.position.set(x+(ty==="g"?ux*(w/2+90):0),GY+(ty==="g"?ch-120:h+220),z+(ty==="g"?uz*(w/2+90):0));lb.userData.cat="ductEq";pxl(lb,12);T.grp.add(lb)}catch(err){console.warn("eq2",err)}});
  (D.vc||[]).forEach(([x,z,h,ux,uz,n,fd,k])=>{if(!dlOnOf(k))return;const r=(n-100)/50,L=(a,b)=>Math.max(a*0.45,a+(b-a)*r);
   const A=L(152,197),C=L(81,124),Hd=L(154,212),Jt=L(179,234),K=L(147,200),M=L(134,186),O=L(105,132),E=L(47,56)+(fd?L(8,23):0),B=Math.max(n*0.97,L(97,145)),F=7;
   const g=new THREE.Group(),ss=new THREE.MeshStandardMaterial({color:0xe8ecf0,roughness:.35,metalness:.3,side:THREE.DoubleSide}),dk=new THREE.MeshStandardMaterial({color:0x334155,roughness:.6});

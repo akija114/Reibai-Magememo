@@ -2652,11 +2652,12 @@ function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b
  const PLf=typeof PLAN!=="undefined"&&PLAN&&PLAN.img&&PLAN.mmpp&&PLAN.org?PLAN:null,PL2=PLf&&typeof PLAN2!=="undefined"&&PLAN2?PLAN2:null;   // 床に映す図面（図面のページだけ）・下の図面（shita.js）
  const big=APP!=="bend"||!!(T&&T.full);let hd=false;try{hd=big&&!EZ&&st.drain&&typeof DRN==="function"&&DRN().show!==false&&DRN().rows.length>0}catch(e){}   // アプリのドレンがある時も「🎨継手」を出す（曲げ共有は大きい3Dの時だけ）
  if(!dk.length&&!bk.length&&!PLf&&!hd){if(b)b.remove();const lg=document.getElementById("dlLeg");if(lg)lg.remove();return}
- /* iPhone で押しやすいように大きく（高さ44）。右下の向きの矢印（右・上・前）より上に、横いっぱいに並べる（入らない時は2段） */
+ /* 1列で横にスクロール（前と同じ）。右下の向きの矢印（右・上・前）に重ならないように：
+    小さい3D＝今までの大きさで、目のボタンと矢印の間。大きい3D（全画面）＝少し大きくして、矢印のすぐ上に横いっぱい */
  const gz=Math.round(Math.min(104,Math.min(stg.clientWidth||390,stg.clientHeight||600)*0.34))+14;
  if(!b){b=document.createElement("div");b.id="dlBar";stg.appendChild(b)}
- b.style.cssText=`position:absolute;left:10px;right:10px;bottom:${gz}px;z-index:6;display:flex;flex-wrap:wrap;gap:8px;pointer-events:auto;padding:2px 0`;
- const sl=b.scrollLeft,btn=(a,k,n,col,on)=>`<button data-${a}="${k}" style="flex:none;height:44px;min-width:64px;padding:0 14px;border-radius:22px;font-weight:800;font-size:15px;border:2px solid ${col};background:${on?col:"#ffffffee"};color:${on?"#fff":col};box-shadow:0 1px 4px #0002">${on?"✓":"－"}${n}</button>`;
+ b.style.cssText=`position:absolute;left:${big?10:62}px;right:${big?10:gz}px;bottom:${big?gz:10}px;z-index:6;display:flex;gap:${big?8:6}px;overflow-x:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;scrollbar-width:none;padding:2px 0`;
+ const sl=b.scrollLeft,btn=(a,k,n,col,on)=>`<button data-${a}="${k}" style="flex:none;height:${big?40:32}px;padding:0 ${big?13:9}px;border-radius:${big?20:16}px;font-weight:800;font-size:${big?14:12.5}px;border:2px solid ${col};background:${on?col:"#ffffffee"};color:${on?"#fff":col};box-shadow:0 1px 4px #0002">${on?"✓":"－"}${n}</button>`;
  b.innerHTML=(PLf?btn("fl","1",PLf.atCeil?"天井の図面":"床の図面","#a16207",!!PLf.show):"")+(PL2?btn("fl2","1","下の図面","#0f766e",!!PL2.show):"")+dk.map(([k,n,col])=>btn("dl",k,n,col,dlOnOf(k))).join("")+(dk.length||hd?btn("fc","1","🎨継手","#be123c",fitOn()):"")+bk.map(([k,n])=>btn("bh",k,n,"#475569",!bldHid(k))).join("");b.scrollLeft=sl;
  const redo=()=>{save();if(T){build3D();T.dirty=true}else dlBar()};
  b.querySelectorAll("[data-dl]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.dl;st.dlOn={...(st.dlOn||{}),[k]:!dlOnOf(k)};redo()});

@@ -2647,6 +2647,7 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
   g.position.set(x,GY+h,z);g.rotation.y=Math.atan2(-uz,ux);g.userData.dl=k;g.traverse(q=>{q.userData.dl=k});T.grp.add(g);
   try{const lb=label("VC"+n+(fd?"(FD)":""),ext*0.02,"#f1f5f9f2","#334155","bld");lb.position.set(x+ux*(C+60),GY+h+A*0.6+60,z+uz*(C+60));lb.userData.dl=k;lb.userData.cat="ductEq";pxl(lb,12);T.grp.add(lb)}catch(err){}})}
 /* 3Dの下の切りかえボタン：図面のダクト・衛生と、障害物の種類 */
+let DLG=null;   // 3Dの下のボタン：開いているグループ（null＝グループの一覧）
 function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=st.dln;
  const dk=DLK.filter(([k])=>D&&((D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))),bk=(st.bld&&st.bld.length&&!st.bldHide)?BLD_TG.filter(([k])=>st.bld.some(o=>o.k===k)):[];
  const PLf=typeof PLAN!=="undefined"&&PLAN&&PLAN.img&&PLAN.mmpp&&PLAN.org?PLAN:null,PL2=PLf&&typeof PLAN2!=="undefined"&&PLAN2?PLAN2:null;   // 床に映す図面（図面のページだけ）・下の図面（shita.js）
@@ -2658,8 +2659,23 @@ function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b
  if(!b){b=document.createElement("div");b.id="dlBar";stg.appendChild(b)}
  b.style.cssText=`position:absolute;left:${big?10:62}px;right:${big?10:gz}px;bottom:${big?gz:10}px;z-index:6;display:flex;gap:${big?8:6}px;overflow-x:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;scrollbar-width:none;padding:2px 0`;
  const sl=b.scrollLeft,btn=(a,k,n,col,on)=>`<button data-${a}="${k}" style="flex:none;height:${big?40:32}px;padding:0 ${big?13:9}px;border-radius:${big?20:16}px;font-weight:800;font-size:${big?14:12.5}px;border:2px solid ${col};background:${on?col:"#ffffffee"};color:${on?"#fff":col};box-shadow:0 1px 4px #0002">${on?"✓":"－"}${n}</button>`;
- b.innerHTML=(PLf?btn("fl","1",PLf.atCeil?"天井の図面":"床の図面","#a16207",!!PLf.show):"")+(PL2?btn("fl2","1","下の図面","#0f766e",!!PL2.show):"")+dk.map(([k,n,col])=>btn("dl",k,n,col,dlOnOf(k))).join("")+(dk.length||hd?btn("fc","1","🎨継手","#be123c",fitOn()):"")+bk.map(([k,n])=>btn("bh",k,n,"#475569",!bldHid(k))).join("");b.scrollLeft=sl;
+ /* グループ分け（レイヤーのように）：空調・ダクト・衛生・建築。グループを押すと中身が出る（‹ で戻る・「全部」でまとめて出し入れ） */
+ const IT=[];   // [グループ, 部品のhtml, 表示中か, 表示にする/消す]
+ if(PLf)IT.push(["arch",btn("fl","1",PLf.atCeil?"天井の図面":"床の図面","#a16207",!!PLf.show),!!PLf.show,v=>{PLf.show=v;try{if(window.zUpFloor)zUpFloor()}catch(err){}}]);
+ if(PL2)IT.push(["eisei",btn("fl2","1","下の図面","#0f766e",!!PL2.show),!!PL2.show,v=>{PL2.show=v}]);
+ dk.forEach(([k,n,col])=>IT.push([k,btn("dl",k,n,col,dlOnOf(k)),dlOnOf(k),v=>{st.dlOn={...(st.dlOn||{}),[k]:v}}]));
+ bk.forEach(([k,n])=>IT.push([k==="out"?"ac":k==="eq"?"duct":"arch",btn("bh",k,n,"#475569",!bldHid(k)),!bldHid(k),v=>{st.bhid={...(st.bhid||{}),[k]:!v}}]));
+ const GR=[["ac","❄️空調","#0369a1"],["duct","🌀ダクト","#64748b"],["eisei","🚽衛生","#16a34a"],["arch","🧱建築","#92400e"]].filter(([g])=>IT.some(t=>t[0]===g));
+ if(DLG&&!GR.some(([g])=>g===DLG))DLG=null;
+ const fcB=dk.length||hd?btn("fc","1","🎨継手","#be123c",fitOn()):"";
+ if(!DLG)b.innerHTML=GR.map(([g,n,col])=>{const L=IT.filter(t=>t[0]===g),on=L.filter(t=>t[2]).length;return`<button data-grp="${g}" style="flex:none;height:${big?40:32}px;padding:0 ${big?13:9}px;border-radius:${big?20:16}px;font-weight:800;font-size:${big?14:12.5}px;border:2px solid ${col};background:${on?col:"#ffffffee"};color:${on?"#fff":col};box-shadow:0 1px 4px #0002">${n}${big?` ${on}/${L.length}`:""} ▸</button>`}).join("")+fcB;
+ else{const [g,n,col]=GR.find(x=>x[0]===DLG),L=IT.filter(t=>t[0]===g),on=L.some(t=>t[2]);
+  b.innerHTML=`<button data-gback="1" style="flex:none;height:${big?40:32}px;padding:0 ${big?13:9}px;border-radius:${big?20:16}px;font-weight:800;font-size:${big?14:12.5}px;border:2px solid ${col};background:${col};color:#fff;box-shadow:0 1px 4px #0002">‹ ${n}</button>`+btn("gall",g,on?"全部消す":"全部出す",col,false).replace(/>[✓－]/,">")+L.map(t=>t[1]).join("")+(g==="duct"||g==="eisei"?fcB:"")}
+ b.scrollLeft=DLG===b.dataset.g?sl:0;b.dataset.g=DLG||"";
  const redo=()=>{save();if(T){build3D();T.dirty=true}else dlBar()};
+ b.querySelectorAll("[data-grp]").forEach(x=>x.onclick=e=>{e.stopPropagation();DLG=x.dataset.grp;dlBar()});
+ b.querySelectorAll("[data-gback]").forEach(x=>x.onclick=e=>{e.stopPropagation();DLG=null;dlBar()});
+ b.querySelectorAll("[data-gall]").forEach(x=>x.onclick=e=>{e.stopPropagation();const L=IT.filter(t=>t[0]===DLG),v=!L.some(t=>t[2]);L.forEach(t=>t[3](v));redo()});
  b.querySelectorAll("[data-dl]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.dl;st.dlOn={...(st.dlOn||{}),[k]:!dlOnOf(k)};redo()});
  b.querySelectorAll("[data-fl]").forEach(x=>x.onclick=e=>{e.stopPropagation();PLf.show=!PLf.show;try{if(window.zUpFloor)zUpFloor()}catch(err){}redo()});
  b.querySelectorAll("[data-fl2]").forEach(x=>x.onclick=e=>{e.stopPropagation();PL2.show=!PL2.show;redo()});

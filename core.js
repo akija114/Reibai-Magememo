@@ -1387,11 +1387,11 @@ $("#viewBtn").onclick=()=>{
  const v=VIEWS[T.vi];fitT(true);T.th=v[1];T.ph=v[2];T.dirty=true;toast("🔄 "+v[0]);
 };
 /* 文字のオンオフ */
-const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["ubolt","@udim|吊りピッチ（紫の矢印）"],["uopen","@udim|天井開口（オレンジの矢印）"],["upanel","@udim|パネル（青の矢印）"],["upipe","@udim|ガス・液・ドレンの位置"],["udim","@udim|その他の機器の寸法"],["neko","@neko|ネコ（吊り金具）の高さ"],["bld","🧱 建物・障害物の名前と大きさ"],["drl","💧 ドレンの寸法（💧①350・掃除口など）"],["drh","💧 ドレンの高さ（支 FL+・出口 FL）"],["sgap","🔩 冷媒の支持の間隔（↔1,000）"],["drs","💧 ドレンの支持の間隔（↔1,000）"],["dlenE","🚽 衛生の寸法（芯から芯）"],["fitE","🚽 衛生の継手の名前（エルボ・チーズ）"],["dlenD","🌀 ダクトの寸法（芯から芯）"],["fitD","🌀 ダクトの継手の名前（エルボ・径違い）"],["kabe","📏 配管の位置（壁から何mm）"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
+const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["ubolt","@udim|吊りピッチ（紫の矢印）"],["uopen","@udim|天井開口（オレンジの矢印）"],["upanel","@udim|パネル（青の矢印）"],["upipe","@udim|ガス・液・ドレンの位置"],["udim","@udim|その他の機器の寸法"],["neko","@neko|ネコ（吊り金具）の高さ"],["bld","🧱 建物・障害物の名前と大きさ"],["drl","💧 ドレンの寸法（💧①350・掃除口など）"],["drh","💧 ドレンの高さ（支 FL+・出口 FL）"],["sgap","🔩 冷媒の支持の間隔（↔1,000）"],["drs","💧 ドレンの支持の間隔（↔1,000）"],["dlenE","🚽 衛生の寸法（芯から芯）"],["fitE","🚽 衛生の継手の名前（エルボ・チーズ）"],["dlenD","🌀 ダクトの寸法（芯から芯）"],["fitD","🌀 ダクトの継手の名前（エルボ・径違い）"],["ductEq","🌀 ダクトの機器（ロスナイ・ベントキャップなど）"],["kabe","📏 配管の位置（壁から何mm）"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
 let LABC={};
 /* 曲げ共有の3Dは、初期を「寸法と角度だけ」（文字だらけで見えないので）。設定は曲げ共有だけ別に保存（図面・現調は今までどおり） */
 const LABKEY=APP==="bend"?"pbm_labc_bend":"pbm_labc";
-const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=(APP==="bend"?["dim","ang","dlenE","dlenD","fitE","fitD"]:["dim","ang","dlenE","dlenD","fitE","fitD","udim","neko","ubolt","uopen","upipe","bld","drl","drh","drs","sgap","kabe"]).includes(k));return o};
+const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=(APP==="bend"?["dim","ang","dlenE","dlenD","fitE","fitD","ductEq"]:["dim","ang","dlenE","dlenD","fitE","fitD","ductEq","udim","neko","ubolt","uopen","upipe","bld","drl","drh","drs","sgap","kabe"]).includes(k));return o};
 try{const v=localStorage.getItem(LABKEY);LABC=Object.assign(LABDEF(),v?(JSON.parse(v)||{}):{})}catch(e){LABC=LABDEF()}
 const labShow=o=>LABC[o.userData.cat||"other"]!==false;
 function applyLabels(){
@@ -1400,14 +1400,24 @@ function applyLabels(){
  $("#labBtn").style.opacity=any?1:.55;renderInfo();
  try{localStorage.setItem(LABKEY,JSON.stringify(LABC))}catch(e){}
 }
+/* 文字の種類のグループ（レイヤーのように）：空調（機器・冷媒配管・ドレン）／ダクト／衛生／建物・そのほか。見出しを押すと開け閉め、右のボタンでまとめて表示・非表示 */
+const LABGRP=[["ac","❄️ 空調",[["機器",["unit","udim","ubolt","uopen","upanel","upipe","neko"]],["冷媒配管",["dim","ang","size","ofs","bend","sgap","kabe","flag"]],["ドレン",["drl","drh","drs"]]]],
+ ["duct","🌀 ダクト",[["",["dlenD","fitD","ductEq"]]]],["eisei","🚽 衛生",[["",["dlenE","fitE"]]]],["etc","🧱 建物・そのほか",[["",["bld","gnd","info"]]]]];
+let LABOPEN={};try{LABOPEN=JSON.parse(localStorage.getItem("pbm_labopen")||"{}")||{}}catch(e){}
 function renderLabSheet(){
- const box=$("#labList");box.innerHTML="";
- LABCATS.forEach(([k,n])=>{
-  const on=LABC[k]!==false,r=document.createElement("div");r.className="labrow";
-  r.innerHTML=`<span>${n[0]==="@"?NI(n.slice(1,n.indexOf("|")))+n.slice(n.indexOf("|")+1):n}</span><button class="lsw${on?" on":""}">${on?"表示":"非表示"}</button>`;
-  r.querySelector("button").onclick=()=>{LABC[k]=!on;applyLabels();renderLabSheet()};
-  box.appendChild(r);
- });
+ const box=$("#labList");box.innerHTML="";const NM={};LABCATS.forEach(([k,n])=>NM[k]=n[0]==="@"?NI(n.slice(1,n.indexOf("|")))+n.slice(n.indexOf("|")+1):n);
+ const used=new Set();LABGRP.forEach(g=>g[2].forEach(sg=>sg[1].forEach(k=>used.add(k))));const rest=LABCATS.map(c=>c[0]).filter(k=>!used.has(k));   // グループに入っていない物は「そのほか」へ
+ LABGRP.forEach(([gk,gn,subs])=>{const ks=subs.flatMap(sg=>sg[1]).concat(gk==="etc"?rest:[]).filter(k=>NM[k]),nOn=ks.filter(k=>LABC[k]!==false).length,op=!!LABOPEN[gk];
+  const h=document.createElement("div");h.className="labgrp";h.style.cssText="display:flex;align-items:center;gap:8px;margin:10px 0 4px;padding:10px 12px;border-radius:12px;background:#e0f2fe;font-weight:800;font-size:16px";
+  h.innerHTML=`<span style="flex:1">${op?"▼":"▶"} ${gn} <small style="font-weight:600;color:#475569">${nOn}/${ks.length}</small></span><button class="lsw${nOn?" on":""}" style="min-width:96px">${nOn?"全部消す":"全部出す"}</button>`;
+  h.querySelector("span").onclick=()=>{LABOPEN[gk]=!op;try{localStorage.setItem("pbm_labopen",JSON.stringify(LABOPEN))}catch(e){}renderLabSheet()};
+  h.querySelector("button").onclick=()=>{const v=!nOn;ks.forEach(k=>LABC[k]=v);applyLabels();renderLabSheet()};box.appendChild(h);
+  if(!op)return;
+  subs.forEach(([sn,sk],si)=>{const list=sk.concat(gk==="etc"&&si===subs.length-1?rest:[]).filter(k=>NM[k]);if(!list.length)return;
+   if(sn){const s2=document.createElement("div");s2.style.cssText="margin:8px 0 2px 8px;font-weight:800;color:#0369a1;font-size:14px";s2.textContent="― "+sn;box.appendChild(s2)}
+   list.forEach(k=>{const on=LABC[k]!==false,r=document.createElement("div");r.className="labrow";r.style.marginLeft="8px";
+    r.innerHTML=`<span>${NM[k]}</span><button class="lsw${on?" on":""}">${on?"表示":"非表示"}</button>`;
+    r.querySelector("button").onclick=()=>{LABC[k]=!on;applyLabels();renderLabSheet()};box.appendChild(r)})})});
 }
 $("#labBtn").onclick=()=>{renderLabSheet();$("#labOv").classList.add("on")};
 [...$("#unitSw").children].forEach(b=>{b.classList.toggle("on",b.dataset.v===UNIT);b.onclick=()=>{if(b.dataset.v!==UNIT)setUnit(b.dataset.v)}});
@@ -2635,15 +2645,18 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
   const ins=new THREE.Mesh(new THREE.CircleGeometry(B/2,24),dk);ins.rotation.y=Math.PI/2;ins.position.x=F+1;g.add(ins);
   const sp=new THREE.Mesh(new THREE.CylinderGeometry(B/2,B/2,E,24,1,true),ss);sp.rotation.z=Math.PI/2;sp.position.x=-E/2;g.add(sp);
   g.position.set(x,GY+h,z);g.rotation.y=Math.atan2(-uz,ux);g.userData.dl=k;g.traverse(q=>{q.userData.dl=k});T.grp.add(g);
-  try{const lb=label("VC"+n+(fd?"(FD)":""),ext*0.02,"#f1f5f9f2","#334155","bld");lb.position.set(x+ux*(C+60),GY+h+A*0.6+60,z+uz*(C+60));lb.userData.dl=k;pxl(lb,12);T.grp.add(lb)}catch(err){}})}
+  try{const lb=label("VC"+n+(fd?"(FD)":""),ext*0.02,"#f1f5f9f2","#334155","bld");lb.position.set(x+ux*(C+60),GY+h+A*0.6+60,z+uz*(C+60));lb.userData.dl=k;lb.userData.cat="ductEq";pxl(lb,12);T.grp.add(lb)}catch(err){}})}
 /* 3Dの下の切りかえボタン：図面のダクト・衛生と、障害物の種類 */
 function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=st.dln;
  const dk=DLK.filter(([k])=>D&&((D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))),bk=(st.bld&&st.bld.length&&!st.bldHide)?BLD_TG.filter(([k])=>st.bld.some(o=>o.k===k)):[];
  const PLf=typeof PLAN!=="undefined"&&PLAN&&PLAN.img&&PLAN.mmpp&&PLAN.org?PLAN:null,PL2=PLf&&typeof PLAN2!=="undefined"&&PLAN2?PLAN2:null;   // 床に映す図面（図面のページだけ）・下の図面（shita.js）
  const big=APP!=="bend"||!!(T&&T.full);let hd=false;try{hd=big&&!EZ&&st.drain&&typeof DRN==="function"&&DRN().show!==false&&DRN().rows.length>0}catch(e){}   // アプリのドレンがある時も「🎨継手」を出す（曲げ共有は大きい3Dの時だけ）
  if(!dk.length&&!bk.length&&!PLf&&!hd){if(b)b.remove();const lg=document.getElementById("dlLeg");if(lg)lg.remove();return}
- if(!b){b=document.createElement("div");b.id="dlBar";b.style.cssText="position:absolute;left:62px;right:8px;bottom:12px;z-index:6;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;pointer-events:auto;scrollbar-width:none";stg.appendChild(b)}
- const sl=b.scrollLeft,btn=(a,k,n,col,on)=>`<button data-${a}="${k}" style="flex:none;height:32px;padding:0 9px;border-radius:16px;font-weight:800;font-size:12.5px;border:2px solid ${col};background:${on?col:"#ffffffe6"};color:${on?"#fff":col}">${on?"✓":"－"}${n}</button>`;
+ /* iPhone で押しやすいように大きく（高さ44）。右下の向きの矢印（右・上・前）より上に、横いっぱいに並べる（入らない時は2段） */
+ const gz=Math.round(Math.min(104,Math.min(stg.clientWidth||390,stg.clientHeight||600)*0.34))+14;
+ if(!b){b=document.createElement("div");b.id="dlBar";stg.appendChild(b)}
+ b.style.cssText=`position:absolute;left:10px;right:10px;bottom:${gz}px;z-index:6;display:flex;flex-wrap:wrap;gap:8px;pointer-events:auto;padding:2px 0`;
+ const sl=b.scrollLeft,btn=(a,k,n,col,on)=>`<button data-${a}="${k}" style="flex:none;height:44px;min-width:64px;padding:0 14px;border-radius:22px;font-weight:800;font-size:15px;border:2px solid ${col};background:${on?col:"#ffffffee"};color:${on?"#fff":col};box-shadow:0 1px 4px #0002">${on?"✓":"－"}${n}</button>`;
  b.innerHTML=(PLf?btn("fl","1",PLf.atCeil?"天井の図面":"床の図面","#a16207",!!PLf.show):"")+(PL2?btn("fl2","1","下の図面","#0f766e",!!PL2.show):"")+dk.map(([k,n,col])=>btn("dl",k,n,col,dlOnOf(k))).join("")+(dk.length||hd?btn("fc","1","🎨継手","#be123c",fitOn()):"")+bk.map(([k,n])=>btn("bh",k,n,"#475569",!bldHid(k))).join("");b.scrollLeft=sl;
  const redo=()=>{save();if(T){build3D();T.dirty=true}else dlBar()};
  b.querySelectorAll("[data-dl]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.dl;st.dlOn={...(st.dlOn||{}),[k]:!dlOnOf(k)};redo()});
@@ -2652,7 +2665,7 @@ function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b
  b.querySelectorAll("[data-fc]").forEach(x=>x.onclick=e=>{e.stopPropagation();try{localStorage.setItem("pbm_fitcol",fitOn()?"0":"1")}catch(err){}redo()});
  /* 継手の色の見本（色分けが入っている時だけ・バーの上） */
  let lg=document.getElementById("dlLeg");const lgOn=big&&fitOn()&&(hd||dk.some(([k])=>dlOnOf(k)));
- if(!lgOn){if(lg)lg.remove()}else{if(!lg){lg=document.createElement("div");lg.id="dlLeg";lg.style.cssText="position:absolute;left:62px;bottom:50px;z-index:6;display:flex;gap:8px;flex-wrap:wrap;padding:3px 8px;border-radius:10px;background:#ffffffd9;font-size:11.5px;font-weight:800;color:#334155;pointer-events:none";stg.appendChild(lg)}
+ if(!lgOn){if(lg)lg.remove()}else{if(!lg){lg=document.createElement("div");lg.id="dlLeg";lg.style.cssText=`position:absolute;left:62px;bottom:14px;z-index:6;display:flex;gap:8px;flex-wrap:wrap;padding:3px 8px;border-radius:10px;background:#ffffffd9;font-size:11.5px;font-weight:800;color:#334155;pointer-events:none;width:max-content;max-width:calc(100% - ${62+gz}px)`;stg.appendChild(lg)}
   lg.innerHTML=Object.values(FIT_COL).map(([n,c])=>`<span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#${c.toString(16).padStart(6,"0")};vertical-align:-1px"></span> ${n}</span>`).join("")}
  b.querySelectorAll("[data-bh]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.bh;st.bhid={...(st.bhid||{}),[k]:!bldHid(k)};redo()})}
 /* 3Dに描く（build3Dから呼ぶ。GY＝床の高さ） */
@@ -2697,10 +2710,10 @@ function addBld3D(GY,CH,ext){
     const ins=new THREE.Mesh(new THREE.CircleGeometry(V.G/2,24),new THREE.MeshBasicMaterial({color:0x1f2937,side:THREE.DoubleSide}));ins.rotation.y=Math.PI/2;ins.position.set(sx*(a/2+jl-6),dy,zc);g.add(ins);
     [0,1,2,3].forEach(q=>{const t2=q*Math.PI/2+Math.PI/4,sc=new THREE.Mesh(new THREE.SphereGeometry(4,6,4),MT(0x334155));sc.position.set(sx*(a/2+11),dy+Math.sin(t2)*(R+7),zc+Math.cos(t2)*(R+7));g.add(sc)});
     const rg=new THREE.Mesh(new THREE.TorusGeometry(R+3,4,6,24),new THREE.MeshBasicMaterial({color:col}));rg.rotation.y=Math.PI/2;rg.position.set(sx*(a/2+jl),dy,zc);g.add(rg);
-    const lb=label(nm,ext*0.022,"#ffffffee","#"+col.toString(16).padStart(6,"0"),"bld");lb.position.set(sx*(a/2+jl+60),dy+R+40,zc);lb.userData.cat="bld";pxl(lb,13);g.add(lb)});
+    const lb=label(nm,ext*0.022,"#ffffffee","#"+col.toString(16).padStart(6,"0"),"bld");lb.position.set(sx*(a/2+jl+60),dy+R+40,zc);lb.userData.cat="ductEq";pxl(lb,13);g.add(lb)});
    g.position.set(o.x,y0e,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;g.traverse(q=>{if(!q.isSprite)q.userData.bld=i+1});T.grp.add(g);
    const hw=(o.r%180?B:A)/2+V.J,hd=(o.r%180?A:B)/2;T.bldM.push({i,k:"eq",c:new THREE.Vector3(o.x,y0e+C/2,o.z),hw:A/2+V.J,hd:B/2+110,hh:C/2,r:o.r,y0:y0e,h:C});
-   const s0=label("🌀 ロスナイ "+V.n+"（"+f0(A)+"×"+f0(B)+"×"+f0(C)+" 下端FL+"+f0(o.y)+"）",ext*0.028,"#f1f5f9f2","#334155","bld");s0.position.set(o.x,y0e+C+80,o.z);s0.userData.cat="bld";pxl(s0,15);T.grp.add(s0);return}
+   const s0=label("🌀 ロスナイ "+V.n+"（"+f0(A)+"×"+f0(B)+"×"+f0(C)+" 下端FL+"+f0(o.y)+"）",ext*0.028,"#f1f5f9f2","#334155","bld");s0.position.set(o.x,y0e+C+80,o.z);s0.userData.cat="ductEq";pxl(s0,15);T.grp.add(s0);return}
   if(o.k==="hole"){const g=new THREE.Group(),L=o.d+30,cy=new THREE.Mesh(new THREE.CylinderGeometry(o.w/2,o.w/2,L,28),new THREE.MeshBasicMaterial({color:0x111827}));cy.rotation.x=Math.PI/2;g.add(cy);
    [-1,1].forEach(sg=>{const t=new THREE.Mesh(new THREE.TorusGeometry(o.w/2,Math.max(4,o.w*.07),8,28),new THREE.MeshBasicMaterial({color:0xfacc15}));t.position.z=sg*(o.d/2+16);g.add(t)});
    g.position.set(o.x,GY+o.y,o.z);g.rotation.y=-o.r*Math.PI/180;g.userData.bld=i+1;T.grp.add(g);

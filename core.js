@@ -988,7 +988,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   });
  }
  UN.forEach(u=>{
-  T.grp.add(u.g);
+  T.grp.add(u.g);try{u.g.visible=!bldHid(["cas","cas2","ceil","wall","flr"].includes(st.units[u.t])?"ind":"out")}catch(e){}   // 3Dの下の「空調」の室内機・室外機ボタン
   const rd=u.L.rad;
   try{
    const sq=new THREE.Quaternion().setFromUnitVectors(Y,u.f.ex);
@@ -2669,7 +2669,11 @@ function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b
  dk.forEach(([k,n,col])=>{if(k!=="eisei"){IT.push([k,btn("dl",k,n,col,dlOnOf(k)),dlOnOf(k),v=>{st.dlOn={...(st.dlOn||{}),[k]:v}}]);return}
   /* 衛生は種類ごと（図面にある種類だけ） */
   const has=new Set((D.eiseiS||[]).map(s=>s[8]));ES_SUB.forEach(([sb,n2,c2])=>{if(!has.has(sb))return;const on=dlOnOf("eisei")&&esOn(sb);IT.push(["eisei",btn("es",sb,n2,c2,on),on,v=>{st.dlSub={...(st.dlSub||{}),[sb]:v};if(v)st.dlOn={...(st.dlOn||{}),eisei:true}}])})});
- bk.forEach(([k,n])=>IT.push([k==="out"?"ac":k==="eq"?"duct":"arch",btn("bh",k,n,"#475569",!bldHid(k)),!bldHid(k),v=>{st.bhid={...(st.bhid||{}),[k]:!v}}]));
+ /* 空調：室内機・室外機（図面に置いた物とアプリの機器の模型） */
+ let apI=false,apO=false;try{if(st.units&&st.units.on)Object.keys(st.units).forEach(t=>{const v=st.units[t];if(/^(s|e|L.+)$/.test(t)){if(["cas","cas2","ceil","wall","flr"].includes(v))apI=true;if(v==="out")apO=true}})}catch(e){}
+ const hasB=k=>!st.bldHide&&st.bld&&st.bld.some(o=>o.k===k);
+ [["ind","室内機",hasB("ind")||apI],["out","室外機",hasB("out")||apO]].forEach(([k,n,has])=>{if(has)IT.push(["ac",btn("bh",k,n,"#0369a1",!bldHid(k)),!bldHid(k),v=>{st.bhid={...(st.bhid||{}),[k]:!v}}])});
+ bk.forEach(([k,n])=>{if(k==="out")return;IT.push([k==="eq"?"duct":"arch",btn("bh",k,n,"#475569",!bldHid(k)),!bldHid(k),v=>{st.bhid={...(st.bhid||{}),[k]:!v}}])});
  const GR=[["ac","❄️空調","#0369a1"],["duct","🌀ダクト","#64748b"],["eisei","🚽衛生","#16a34a"],["arch","🧱建築","#92400e"]].filter(([g])=>IT.some(t=>t[0]===g));
  if(DLG&&!GR.some(([g])=>g===DLG))DLG=null;
  const fcB=dk.length||hd?btn("fc","1","🎨継手","#be123c",fitOn()):"";
@@ -2826,7 +2830,7 @@ function indMesh(o,CYd){const V=THREE.Vector3,th=-o.r*Math.PI/180;
   return{g,cx:o.x,cz:o.z,hw:o.w/2,hd:o.d/2,h,y0:CYd-o.y-h,port:null}}
  const mk=makeUnit("cas2",{kind:st.info.kind,mm:o.m,ck:st.units.cs}),g=mk.g;
  g.rotation.y=0;g.position.set(0,0,0);g.updateMatrixWorld(true);
- const c0=g.localToWorld(new V(...mk.c2.ceil)),b0=uBox(g),bc=b0.getCenter(new V()),ox=bc.x-c0.x,oz=bc.z-c0.z,hw=(b0.max.x-b0.min.x)/2,hd=(b0.max.z-b0.min.z)/2,hy0=b0.min.y-c0.y,hy1=b0.max.y-c0.y;
+ const c0=g.localToWorld(new V(...mk.c2.ceil)),b0=(typeof uBox==="function"?uBox:g2=>{g2.updateMatrixWorld(true);const b=new THREE.Box3();g2.traverse(o2=>{if(o2.geometry&&!(o2.userData&&(o2.userData.dimcat||o2.userData.lab)))b.union(new THREE.Box3().setFromObject(o2))});return b})(g),bc=b0.getCenter(new V()),ox=bc.x-c0.x,oz=bc.z-c0.z,hw=(b0.max.x-b0.min.x)/2,hd=(b0.max.z-b0.min.z)/2,hy0=b0.min.y-c0.y,hy1=b0.max.y-c0.y;
  g.rotation.y=th;g.updateMatrixWorld(true);
  const c=g.localToWorld(new V(...mk.c2.ceil));g.position.set(o.x-c.x,CYd-c.y,o.z-c.z);g.updateMatrixWorld(true);
  const co=Math.cos(-th),si=Math.sin(-th);   // 向き r（度）で回した先

@@ -14,6 +14,8 @@ const bandUp=sz=>BANDS[Math.min(BANDS.length-1,BANDS.indexOf(sz)+1)]||sz;   // A
 const bun=i=>{const n=SIZES[i]?SIZES[i][0]:"?";return n.replace(/\s*\(.*\)/,"")};
 const phi=i=>SIZES[i]?SIZES[i][1]:0;
 const esc=s=>String(s).replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+/* 図面の曲がり（エルボ）の角度：売っている角度のいちばん近い物に（衛生 90・45・22.5°、ダクト 90・60・45・30・15°）。q[8..11]・q[13..14]＝角から管の中への向き */
+const elbDeg=(q,D=[90,45,22.5])=>{const a=[q[8],q[13]||0,q[9]],b=[q[10],q[14]||0,q[11]],la=Math.hypot(...a)||1,lb=Math.hypot(...b)||1,c=(a[0]*b[0]+a[1]*b[1]+a[2]*b[2])/la/lb,d=180-Math.acos(Math.max(-1,Math.min(1,c)))*180/Math.PI;return D.reduce((p,x)=>Math.abs(x-d)<Math.abs(p-d)?x:p)};
 const nPipe=(len,unit)=>len>0?Math.ceil(len*(1+MT.cut/100)/unit-1e-9):0;   // 切りしろを足して、半端なら1本多く
 
 /* ===== 数える ===== */
@@ -55,12 +57,25 @@ function mtCollect(){const G=[];const sec=(t,items,note)=>{if(items.length)G.pus
   const OD=[[21.7,15],[27.2,20],[34,25],[42.7,32],[48.6,40],[60.5,50],[76.3,65],[89.1,80],[114.3,100],[139.8,125],[165.2,150],[216.3,200]],A=od=>OD.reduce((p,q)=>Math.abs(q[0]-od)<Math.abs(p[0]-od)?q:p)[1];
   const SN=["給水・給湯","汚水・排水","通気","その他","空調ドレン（床から上）"],len={},cnt={},put=(m,k,v)=>{m[k]=(m[k]||0)+v};
   S.forEach(s=>{const h2=typeof s[9]==="number"?s[9]:s[4],L=Math.hypot(s[2]-s[0],s[3]-s[1],h2-s[4]);if(L<1)return;put(len,(s[8]||0)+"|"+A(s[6]),L);if(s[11]==="fl")put(cnt,"立ち上がり|"+(s[8]||0)+"|"+A(s[6]),1)});
-  J.forEach(q=>{const sb=q[6]||0;if(q[7]===1)put(cnt,"エルボ|"+sb+"|"+A(q[4]),1);else if(q[9]===1||q[9]===2){const m=A(q[14]||q[4]),b=A(q[15]||q[4]);put(cnt,(q[9]===1?"チーズ":"Y（45°合流）")+"|"+sb+"|"+(m===b?m:m+"×"+b),1)}});
+  /* 排水（汚水・排水）は排水用の継手（DV）：90°は大曲がりエルボ、チーズは90°Y。通気・給水はふつうのエルボ・チーズ */
+  J.forEach(q=>{const sb=q[6]||0,dv=+sb===1;if(q[7]===1){const a=elbDeg(q);put(cnt,(a===90&&dv?"90°大曲がりエルボ（DV）":a+"°エルボ")+"|"+sb+"|"+A(q[4]),1)}else if(q[9]===1||q[9]===2){const m=A(q[14]||q[4]),b=A(q[15]||q[4]);put(cnt,(q[9]===1?(dv?"90°Y（DV・排水のチーズ）":"チーズ"):"45°Y（合流）")+"|"+sb+"|"+(m===b?m:m+"×"+b),1)}});
   const Es=[],Ac=[],to=sb=>+sb===4?Ac:Es;
   Object.keys(len).sort().forEach(k=>{const[sb,a]=k.split("|");to(sb).push({n:`${SN[sb]||"衛生"} ${a}A`,q:Math.round(len[k]/100)/10,u:"m",d:`図面から ${fmtM?fmtM(len[k]):Math.round(len[k])+"mm"}（定尺4mなら ${Math.ceil(len[k]/4000)}本）`})});
   Object.keys(cnt).sort().forEach(k=>{const[t,sb,sz]=k.split("|");to(sb).push({n:`${t==="立ち上がり"?"床からの立ち上がり（器具へ・床から100mm）":t} ${sz}${/×/.test(sz)?"":"A"}（${SN[sb]||"衛生"}）`,q:cnt[k],u:t==="立ち上がり"?"か所":"個",d:""})});
   sec("衛生配管（図面から）",Es,"図面の衛生配管を読んだ数です。空調ドレンの床下の部分も衛生に入れています");
   sec("空調ドレン（図面から・床から上）",Ac,"床から上は空調の仕事")}}catch(e){console.warn("mt eisei",e)}
+ /* --- 図面のダクト（図面画面で読んだ物）：丸＝スパイラルダクト、角＝角ダクト。長さ・エルボ（角度ごと）・径違い・ベントキャップ・つなぎ目 --- */
+ try{const D=st.dln,S=D&&D.ductS,J=(D&&D.ductJ)||[];if(Array.isArray(S)&&S.length){const Dt=[],len={},cnt={},put=(m,k,v)=>{m[k]=(m[k]||0)+v};let joint=0;
+  const nm=(sh,w,hh)=>sh===1?`${Math.round(w)}×${Math.round(hh)}`:`φ${Math.round(w)}`;
+  S.forEach(s=>{const h2=typeof s[9]==="number"?s[9]:s[4],w2=typeof s[10]==="number"?s[10]:s[6],L=Math.hypot(s[2]-s[0],s[3]-s[1],h2-s[4]);
+   if(Math.abs(w2-s[6])>1){put(cnt,"径違い（レジューサ）|"+nm(s[5],Math.max(s[6],w2),s[7])+"×"+Math.round(Math.min(s[6],w2)),1);joint+=2;return}
+   if(L<1)return;put(len,s[5]+"|"+nm(s[5],s[6],s[7]),L)});
+  J.forEach(q=>{if(q[7]===1&&q.length>=13){put(cnt,elbDeg(q,[90,60,45,30,15])+"°エルボ|"+nm(q[3],q[4],q[5]),1);joint+=2}else{put(cnt,"分岐・つなぎ（図面で確認）|"+nm(q[3],q[4],q[5]),1);joint+=3}});
+  (D.vc||[]).forEach(v=>{if(v[7]!=="duct")return;put(cnt,"ベントキャップ（深型"+(v[6]?"・FD付":"")+"）|φ"+v[5],1);joint++});
+  Object.keys(len).sort().forEach(k=>{const[sh,n]=k.split("|"),L=len[k];Dt.push({n:`${+sh===1?"角ダクト":"スパイラルダクト"} ${n}`,q:Math.round(L/100)/10,u:"m",d:`図面から ${fmtM?fmtM(L):Math.round(L)+"mm"}${+sh===1?"":`（定尺4mなら ${Math.ceil(L/4000)}本）`}`})});
+  Object.keys(cnt).sort().forEach(k=>{const[t,n]=k.split("|");Dt.push({n:`${t} ${n}`,q:cnt[k],u:"個",d:""})});
+  if(joint)Dt.push({n:"つなぎ目（差し込み・ビス止め・アルミテープ巻き）",q:joint,u:"か所",d:"アルミテープ・ビスの量の目安"});
+  sec("ダクト（図面から）",Dt,"図面のダクトを読んだ数です。吊り（間隔）・保温・フレキは現場の仕様書で確認してください")}}catch(e){console.warn("mt duct",e)}
  /* --- 吊り（冷媒＋ドレン） --- */
  const hang=sup.h+dSup,Hg=[];if(hang){Hg.push({n:"全ねじ W3/8",q:hang,u:"本",d:"長さは現場（スラブ・梁から）"});Hg.push({n:"ナット W3/8",q:hang*2,u:"個",d:"1本に2個"});Hg.push({n:"吊り元（インサート・ダクター用金具など）",q:hang,u:"個",d:"現場の吊り元に合わせて"})}
  sec("吊り・支持の金物",Hg,"");

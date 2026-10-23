@@ -2555,20 +2555,24 @@ const BLD_TG=[["wall","壁"],["col","柱"],["beam","梁"],["box","障害物"],["
 const bldHid=k=>!!(st.bhid&&st.bhid[k]);
 function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
  const sMat={duct:new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.35,metalness:.55})},eMat=DL_SUB.map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.5,metalness:.1}));
- /* 図面の空調ドレン（床から上）は、アプリの空調ドレンと同じ色（材料） */
- try{if(typeof DR_MAT!=="undefined"&&st.drain&&typeof DRN==="function"&&DR_MAT[DRN().mat])eMat[4]=new THREE.MeshStandardMaterial({color:DR_MAT[DRN().mat].col,roughness:.6})}catch(e){}
+ /* 図面の空調ドレンのたて管（アプリのドレンの端から床へ）：外に出る管なので VP（保温付きの ACドレンから変更）。色も VP。
+    アプリのドレンを出している時は、衛生を消していてもドレンの続きとして出す */
+ try{if(typeof DR_MAT!=="undefined")eMat[4]=new THREE.MeshStandardMaterial({color:DR_MAT.VP.col,roughness:.6})}catch(e){}
+ let drOn=false;try{drOn=!!(st.drain&&typeof DRN==="function"&&DRN().show!==false&&DRN().rows.length)}catch(e){}
  const fc=fitOn(),fMat={};Object.keys(FIT_COL).forEach(t=>fMat[t]=new THREE.MeshStandardMaterial({color:FIT_COL[t][1],roughness:.45,metalness:.15}));
- DLK.forEach(([k,n,col])=>{if(!dlOnOf(k))return;
+ DLK.forEach(([k,n,col])=>{const dOnly=k==="eisei"&&!dlOnOf(k)&&drOn;if(!dlOnOf(k)&&!dOnly)return;   // dOnly：空調ドレンのたて管だけ
   /* [9]＝終わりの高さ（たて管）、[10]＝終わりの太さ（口の所の広がる管） */
   /* 寸法（芯から芯）：管の端がエルボの口なら、エルボの角（芯の交わる所）まで足して測る */
   const mouths=(D[k+"J"]||[]).filter(q=>q[7]===1&&q.length>=13).flatMap(q=>[[q[0]+q[8]*q[12],q[2]+(q[13]||0)*q[12],q[1]+q[9]*q[12],q[12]],[q[0]+q[10]*q[12],q[2]+(q[14]||0)*q[12],q[1]+q[11]*q[12],q[12]]]);
   const tees=(D[k+"J"]||[]).filter(q=>!q[7]&&(q[9]===1||q[9]===2));
   const ext1=(x,y,z)=>{const m=mouths.find(m=>Math.hypot(m[0]-x,m[1]-y,m[2]-z)<6);return m?m[3]:0};
-  const S=D[k+"S"];if(Array.isArray(S))S.forEach(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,h2=typeof s[9]==="number"?s[9]:h,w2=typeof s[10]==="number"?s[10]:w,a=new THREE.Vector3(x1,GY+h,z1),b=new THREE.Vector3(x2,GY+h2,z2),len=a.distanceTo(b);if(len<5)return;
+  let vpN=0;const S=D[k+"S"];if(Array.isArray(S))S.forEach(s=>{if(dOnly&&s[8]!==4)return;const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,h2=typeof s[9]==="number"?s[9]:h,w2=typeof s[10]==="number"?s[10]:w,a=new THREE.Vector3(x1,GY+h,z1),b=new THREE.Vector3(x2,GY+h2,z2),len=a.distanceTo(b);if(len<5)return;
    const mt=fc&&Math.abs(w2-w)>1?fMat.red:k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;const vert=Math.abs(h2-h)>len*0.7;
    if(sh===1){m=new THREE.Mesh(new THREE.BoxGeometry(w,vert?len:hh,vert?hh:len),mt);m.position.copy(a).add(b).multiplyScalar(.5);if(!vert)m.rotation.y=Math.atan2(x2-x1,z2-z1)}
    else{m=new THREE.Mesh(new THREE.CylinderGeometry(w2/2,w/2,len,k==="duct"?20:12,1),mt);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize())}
    m.userData.dl=k;T.grp.add(m);
+   /* 変わった所の印：空調ドレンのたて管は VP（外へ出るので ACドレンから変更） */
+   if(k==="eisei"&&sub===4&&vert&&Math.max(h,h2)>0&&!vpN++)try{const lb=label("🔁 VP"+([[32,25],[38,30],[49,40],[61,50],[76,65]].reduce((p,q)=>Math.abs(q[0]-w)<Math.abs(p[0]-w)?q:p)[1])+"に変更（外へ出るので ACドレン→VP）",ext*0.026,"#fef3c7f2","#92400e");lb.position.set(x1,GY+Math.max(h,h2)-200,z1);lb.userData.cat="dlen";pxl(lb,14,{t:"out",o:new THREE.Vector3(1,0,0)},w/2);T.grp.add(lb)}catch(err){}
    /* 本管の途中にチーズ・Yがある時は、チーズからチーズまでに分けて出す */
    if(Math.abs(w2-w)<=1)try{const e1=ext1(x1,h,z1),e2=ext1(x2,h2,z2),u=b.clone().sub(a).normalize(),A=a.clone().addScaledVector(u,-e1),L0=len+e1+e2;
     const cut=[0,...(vert?[]:tees.map(q=>new THREE.Vector3(q[0],0,q[1]).sub(A).dot(new THREE.Vector3(u.x,0,u.z).normalize())).filter((t,i)=>t>w&&t<L0-w&&Math.abs(new THREE.Vector3(tees[i][0]-A.x,0,tees[i][1]-A.z).cross(new THREE.Vector3(u.x,0,u.z)).y)<Math.max(w,30))).sort((p,q)=>p-q),L0];
@@ -2577,7 +2581,7 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
    try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry,30),new THREE.LineBasicMaterial({color:k==="duct"?0x475569:0x14532d,transparent:true,opacity:.5}));e.position.copy(m.position);e.quaternion.copy(m.quaternion);e.rotation.copy(m.rotation);T.grp.add(e)}catch(err){}});
   /* 曲がり・分岐の継手 */
   /* 丸い物の曲がり（エルボ）は、まっすぐの管の端から端まで曲がった管でつなぐ（[..., 1, 向きA, 向きB, 曲がりの長さ]） */
-  const Jt=D[k+"J"];if(Array.isArray(Jt))Jt.forEach(q=>{const[x,z,h,sh,w,hh,sub]=q,ft=!fc?"":q[7]===1&&q.length>=13?"elb":k==="eisei"&&q[9]===1?"tee":k==="eisei"&&q[9]===2?"y":"",mt=ft?fMat[ft]:k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;
+  const Jt=D[k+"J"];if(Array.isArray(Jt))Jt.forEach(q=>{if(dOnly&&q[6]!==4)return;const[x,z,h,sh,w,hh,sub]=q,ft=!fc?"":q[7]===1&&q.length>=13?"elb":k==="eisei"&&q[9]===1?"tee":k==="eisei"&&q[9]===2?"y":"",mt=ft?fMat[ft]:k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;
    if(q[7]===1&&q.length>=13){const tl=q[12],y=GY+h,ay=q[13]||0,by=q[14]||0,P0=new THREE.Vector3(x+q[8]*tl,y+ay*tl,z+q[9]*tl),P1=new THREE.Vector3(x,y,z),P2=new THREE.Vector3(x+q[10]*tl,y+by*tl,z+q[11]*tl);
     const cv=new THREE.QuadraticBezierCurve3(P0,P1,P2);m=new THREE.Mesh(new THREE.TubeGeometry(cv,k==="duct"?16:10,w/2,k==="duct"?20:12,false),mt);m.userData.dl=k;T.grp.add(m);
     /* 継ぎ目の帯（ダクトの差し込み） */
@@ -2591,7 +2595,7 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
    if(k==="eisei"&&sub===4&&!q[7]&&T.drSegs&&T.drSegs.length){const y=GY+h;let e0=null,bd=500;T.drSegs.forEach(d=>[d.a,d.b].forEach(p=>{const dd=Math.hypot(p.x-x,p.z-z);if(dd<bd&&Math.abs(p.y-y)<300){bd=dd;e0=p}}));
     if(e0&&bd>5){const r=Math.min(Math.max(w*1.5,60),bd),cv=new THREE.QuadraticBezierCurve3(new THREE.Vector3(x,e0.y-r,z),new THREE.Vector3(x,e0.y,z),e0.clone());/* たて管の上の端で曲がって、ドレンの端へ */m=new THREE.Mesh(new THREE.TubeGeometry(cv,12,w/2,12,false),fc?fMat.elb:mt);m.userData.dl=k;T.grp.add(m);return}}
    m=sh===1?new THREE.Mesh(new THREE.BoxGeometry(w,hh,w),mt):new THREE.Mesh(new THREE.SphereGeometry(w/2,k==="duct"?20:12,k==="duct"?14:8),mt);m.position.set(x,GY+h,z);if(sh===1&&q[8])m.rotation.y=q[8];m.userData.dl=k;T.grp.add(m)});
-  const L=D[k];if(!Array.isArray(L)||!L.length)return;
+  const L=D[k];if(dOnly||!Array.isArray(L)||!L.length)return;
   const P=[];L.forEach(s=>{P.push(s[0],GY+s[4],s[1],s[2],GY+s[4],s[3])});const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(P,3));
   const ls=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.55}));ls.userData.dl=k;T.grp.add(ls)});
  /* ベントキャップ（VC深型フード・FD付）：ダクトの先（外壁）に。寸法は宇佐美工業 VC100・VC150 の外形図、ほかの大きさは同じ割合で

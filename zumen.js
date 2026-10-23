@@ -120,7 +120,9 @@ function wzSync(){if(!W.on)return;const P=PLAN;if(!P||!P.img||W.img===P.img)retu
   [["消してから始める",()=>{st.bld=[];st.bldXf=null;st.bldKey=wzKey();BT.stack=[];bldChanged();wzRender();planDraw();toast("前の物を消しました")},"#dc2626","#fff"],["残して続ける",()=>{st.bldKey=wzKey();save()}]]),400);
  const m=wzMem()[wzKey()];
  if(W.resume&&m&&m.mmpp&&m.org){W.resume=false;P.mmpp=m.mmpp;P.den=m.den||0;P.autoScale=0;try{$("#plDen").value=m.den||""}catch(e){}try{planWalls()}catch(e){}P.org=m.org.slice();if(m.CH)P.CH=m.CH;
-  toast("前の図面の続きから開きました（縮尺・原点もそのまま）");setTimeout(()=>wzGo("menu"),0);return}
+  toast("前の図面の続きから開きました（縮尺・原点もそのまま）");setTimeout(()=>wzGo("menu"),0);
+  /* 3Dに出した衛生・ダクトが古い読み方の時は、今の読み方で出し直す（直したことが3Dに出るように） */
+  setTimeout(()=>{try{if(st.dln&&st.dln.ver!==window.DL_VER&&window.planDrawLines){const D=planDrawLines();if(D&&DL_KINDS.some(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))){st.dln=D;save();try{if(T){build3D();T.dirty=true}}catch(e){}toast("図面の衛生・ダクトを新しい読み方で3Dに出し直しました")}}}catch(e){console.warn("dl redo",e)}},800);return}
  W.resume=false;
  /* 図面に「1/60」などが書いてあって、前回の縮尺と違う時は、図面の表記を使う（前回の値が古い・間違いのことがある） */
  if(m&&m.mmpp&&P.denTxt&&P.den&&m.den!==P.den){if(m.org&&!P.org)P.org=m.org.slice();setTimeout(()=>wzGo("scale"),0)}

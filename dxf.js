@@ -428,6 +428,17 @@ function dlEisei(S,J){
  const cut=(t,e,r)=>{const [x,z]=E(t,e),[ox,oz]=E(t,1-e),L=Math.hypot(ox-x,oz-z);if(L<1)return[[0,0],0];const u=[(ox-x)/L,(oz-z)/L],rr=Math.round(Math.min(r,L*0.45));if(e){t[2]=Math.round(x+u[0]*rr);t[3]=Math.round(z+u[1]*rr)}else{t[0]=Math.round(x+u[0]*rr);t[1]=Math.round(z+u[1]*rr)}return[u,rr]};
  /* 曲がり（エルボ）の継手：a＝横の向き（角から管の中へ）、b＝もう片方の向き [x,上下,z] */
  const elb=(x,z,h,a,b,w,sub,r)=>[x,z,h,0,w,w,sub,1,+a[0].toFixed(4),+a[1].toFixed(4),+b[0].toFixed(4),+b[2].toFixed(4),r,0,b[1]];
+ /* ⑤ 通気管の床下と天井の中を1本に：通気の端どうしが平面でほぼ同じ所（30cm以内・図面のたて管の丸）にあって、高さが50cm以上ちがう時は、
+    上の管の端を下の端の真上にそろえて、低い方から高い方までたて管を立てる（上下はエルボ）。丸の中の短いかけら（15cm未満）は相手にしない */
+ {const V=S.filter(t=>t[8]===2&&hz(t)),used=new Set();
+  V.forEach((a,i)=>[0,1].forEach(ea=>{if(used.has(i+":"+ea))return;const pa=E(a,ea),ha=hEnd(a,ea);let best=null,bd=300;
+   V.forEach((b,j)=>{if(j===i||Math.hypot(b[2]-b[0],b[3]-b[1])<150)return;[0,1].forEach(eb=>{if(used.has(j+":"+eb))return;const pb=E(b,eb),d=Math.hypot(pb[0]-pa[0],pb[1]-pa[1]);if(d<=bd&&Math.abs(hEnd(b,eb)-ha)>=500){bd=d;best={b,j,eb}}})});
+   if(!best)return;used.add(i+":"+ea);used.add(best.j+":"+best.eb);
+   let lo={t:a,e:ea},hi={t:best.b,e:best.eb};if(hEnd(hi.t,hi.e)<hEnd(lo.t,lo.e)){const x=lo;lo=hi;hi=x}
+   const [x,z]=E(lo.t,lo.e),hL=hEnd(lo.t,lo.e),hH=hEnd(hi.t,hi.e),w=Math.max(lo.t[6],hi.t[6]);
+   if(hi.e){hi.t[2]=x;hi.t[3]=z}else{hi.t[0]=x;hi.t[1]=z}
+   const r=Math.round(w*1.2),[ul,rl]=cut(lo.t,lo.e,r),[uh,rh]=cut(hi.t,hi.e,r);
+   S.push([x,z,x,z,hL+rl,0,w,w,2,hH-rh,w]);J.push(elb(x,z,hL,ul,[0,1,0],w,2,rl),elb(x,z,hH,uh,[0,-1,0],w,2,rh))}))}
  /* ④ 分岐の継手の直し（汚水・排水・通気）：
     ・2本の管の端が同じ点で会うだけ（突き抜ける管が無い）＝曲がり → エルボ（45°の曲がりもエルボ。Y・チーズにしない）
     ・本管が通る所＝チーズ・Y → 継手は本管の高さ。枝は勾配で本管の高さまで下げて入る（継手が本管から浮かない） */
@@ -526,6 +537,9 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
     L=L.concat(G.filter(q=>q.v===ev).map(q=>({s:[q.s[0]+d[0],q.s[1]+d[1],q.s[2]+d[0],q.s[3]+d[1]],v:main,moved:1,o:q.s,lay:q.lay+"#下",c:q.c})));
     /* たて管の丸（ドレンの線の上の小さい円）：ここでドレンが天井から下りてくる */
     (P.circ||[]).forEach(c=>{if(c.lay!==G[0].lay||c.x<ev.b[0]||c.x>ev.b[2]||c.y<ev.b[1]||c.y>ev.b[3])return;const rm=c.r*P.mmpp;if(rm<15||rm>200)return;const w=btWx([c.x+d[0],c.y+d[1]]);if(!RS.some(r=>Math.hypot(r.x-w[0],r.z-w[1])<60))RS.push({x:w[0],z:w[1]})})})}
+  /* 通気管：床の図（床下）と天井の図（天井の中）に分けて描いてある1本の管。選んだ図のほかの図の通気も「#他」として持ってくる（高さは元の図の文字で）。つなぐのは dlEisei ⑤ */
+  if(k==="eisei"&&main)Object.values(gs).forEach(G=>{if(!/通気/.test(G[0].lay||""))return;const lv=layV[G[0].lay];if(!lv)return;
+   [...new Set(G.map(q=>q.v))].forEach(v=>{if(!v||v===lv.v)return;const d=off(v);if(!d)return;L=L.concat(G.filter(q=>q.v===v).map(q=>v===main?{...q,lay:q.lay+"#他"}:{s:[q.s[0]+d[0],q.s[1]+d[1],q.s[2]+d[0],q.s[3]+d[1]],v:main,moved:1,o:q.s,lay:q.lay+"#他",c:q.c}))})});
   const near=(x,y,src)=>{let b=null,bd=2500/P.mmpp;FLt.forEach(t=>{if(t.k&&t.k!==k)return;if(!t.k&&P.dxf)return;const d=Math.hypot(t.x-x,t.y-y);if(d<bd){bd=d;b=t}});return b};
   /* 大きさの文字：「200φ」＝丸、「300×150」＝角（幅×高さ）。近く（1.5m）の同じ種類の文字 */
   const SZ=(P.textsAll||P.texts||[]).map(t=>{const z=String(t.s).replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/[Φø]/g,"φ");let m=z.match(/(\d{2,4})\s*[×xX*＊]\s*(\d{2,4})/);if(m&&!/H-|C-|下端/.test(z))return{x:t.x,y:t.y,r:0,a:+m[1],b:+m[2],k:txtCat(t)};m=z.match(/(\d{2,4})\s*φ/);return m?{x:t.x,y:t.y,r:1,a:+m[1],k:txtCat(t)}:null}).filter(Boolean);

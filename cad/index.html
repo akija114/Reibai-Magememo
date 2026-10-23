@@ -921,7 +921,7 @@ ov.addEventListener('pointerdown', e => {
   if (!G) return;
   ov.setPointerCapture(e.pointerId); const p = evPos(e); ptrs.set(e.pointerId, p);
   if (ptrs.size === 1){
-    if (S.mvg){ gest = {type:'mvg', start:p, d0:[S.mvg.dx, S.mvg.dy]}; }
+    if (S.mvg && !S.sinPick){ gest = {type:'mvg', start:p, d0:[S.mvg.dx, S.mvg.dy]}; }
     else if (dtextStart(p)){}
     else if (S.mode === 'dim'){ gest = {type:'cursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; MS.dragging = true; moveCursor(p); }
     else if (S.mode === 'route' && ['a','b','draw'].includes(RS.step)){ gest = {type:'rcursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; RS.dragging = true; updateHint(); moveRCursor(p); }
@@ -1017,6 +1017,7 @@ function placePoint(pt){
   drawOverlay(); updateHint(); updatePill(); updateDimPanel();
 }
 function tapSelect(p){
+  if (S.sinPick){ sinPickAt(p); return; }
   const hitN = noteAt(p); if (hitN){ openNoteEditor(hitN); return; }
   if (S.mode === 'note'){ openNoteEditor(null, s2w(p[0], p[1])); return; }
   if (S.mode === 'kiki'){ kikiPut(s2w(p[0], p[1])); return; }
@@ -1304,7 +1305,7 @@ function mvgDrag(p){
 }
 const sinCs = (m, dir) => S.sins.filter(s => s.dir === dir).map(s => s.c).concat((m.grid || {})[dir] ? m.grid[dir].map(g => g.c) : []);
 function sinGrids(P){ const g = grid4At(P), nm = (a, w) => a.map((x, i) => ({c:x.c, name:x.name || `${w}${i + 1}本目`})); return {v:nm([...g.C.l].reverse().concat(g.onX ? [g.onX] : [], g.C.r), '左から'), h:nm([...g.C.d].reverse().concat(g.onY ? [g.onY] : [], g.C.u), '下から')}; }
-const sinName = s => `${s.base}から${s.dir === 'v' ? (s.off >= 0 ? '右' : '左') : (s.off >= 0 ? '上' : '下')}${fmt(Math.abs(s.off))}`;
+const sinName = s => s.pt && !s.off ? `${s.base}の真ん中` : `${s.base}から${s.dir === 'v' ? (s.off >= 0 ? '右' : '左') : (s.off >= 0 ? '上' : '下')}${fmt(Math.abs(s.off))}`;
 function cmdSin(op, s){ const lab = op === 'add' ? '芯を出す' : '芯を消す'; return {kind:'note', label:lab, log:{label:lab, detail:sinName(s), sins:[{...s}], gone:op === 'del'}, do(){ if (op === 'add') S.sins.push(s); else S.sins = S.sins.filter(x => x !== s); }, undo(){ if (op === 'add') S.sins = S.sins.filter(x => x !== s); else S.sins.push(s); }}; }
 function drawSins(c){ // 通り芯から出した芯：点線（一点鎖線）と「X2から右1500」
   if (!S.sins.length || !G) return; c.save(); c.strokeStyle = '#c026d3'; c.lineWidth = 1.6; c.setLineDash([12, 4, 2, 4]); c.font = `600 11px ${FONT}`; c.textBaseline = 'middle';
@@ -1313,32 +1314,71 @@ function drawSins(c){ // 通り芯から出した芯：点線（一点鎖線）�
   for (const s of S.sins){ const q = w2s(s.c, s.c), t = '芯 ' + sinName(s), w = c.measureText(t).width + 10, x = s.dir === 'v' ? q[0] + 4 : 6, y = s.dir === 'v' ? 64 : q[1] - 12; c.fillStyle = '#c026d3'; c.fillRect(x, y - 9, w, 18); c.fillStyle = '#fff'; c.fillText(t, x + 5, y); }
   c.restore();
 }
-function openSinSheet(m){ // 通り芯から ○mm の所に芯を出す。移動の時は機器の真ん中を合わせられる
-  const P = m ? m.C : s2w(cw/2, ch/2), gg = sinGrids(P); let dir = gg.v.length || !gg.h.length ? 'v' : 'h';
-  openSheet('通り芯から芯を出す', body => {
+function sinPickAt(p){ // 芯の基準をタップで選ぶ：壁・線（縦横の線の位置）／照明・器具（その真ん中）
+  const k = S.sinPick, w = s2w(p[0], p[1]); S.sinPick = null; updateUi(); const open = (m, pre) => setTimeout(() => openSinSheet(m, pre), 380); // 指を離した後のクリックで画面がすぐ閉じないように少し待つ
+  if (k.kind === 'line'){
+    const R = 24/view.s, s = G.segs; let best = null, bd = R;
+    for (const id of query(IX.sg, IX.segMark, w[0], w[1], R)){ const q = id*SS, x1 = s[q], y1 = s[q+1], x2 = s[q+2], y2 = s[q+3], L = Math.hypot(x2 - x1, y2 - y1); if (L < 1 || !G.L[s[q+4]].on) continue;
+      const v = Math.abs(x2 - x1) <= L*0.002, h = Math.abs(y2 - y1) <= L*0.002; if (!v && !h) continue; const c = closestOnSeg(w[0], w[1], x1, y1, x2, y2), d = Math.hypot(c[0] - w[0], c[1] - w[1]); if (d < bd){ bd = d; best = {dir:v ? 'v' : 'h', c:v ? (x1 + x2)/2 : (y1 + y2)/2, li:s[q+4]}; } }
+    if (!best){ toast('縦か横の線が見つかりません。壁の線の上をタップしてください'); open(k.m); return; }
+    const l = G.L[best.li], nm = wallLayerSet().has(best.li) || WALL_RE.test(l.name) ? '壁' : GRID_RE.test(l.name.normalize('NFKC')) ? '通り芯' : '線（' + l.name + '）';
+    open(k.m, {kind:'line', dir:best.dir, c:best.c, name:nm});
+  } else {
+    const mv = new Set(k.m ? mvgList(k.m) : []), ps = hitsAt(p).parts.filter(e => !mv.has(e) && G.pbox.has(e));
+    const isL = e => [...G.pbox.get(e)[4]].some(i => G.L[i].g === 'elec' || /照明|器具|灯|ライト|LIGHT/i.test(G.L[i].name)) || /照明|ライト|灯|LIGHT|ダウン/i.test(partName(e));
+    const e = ps.find(isL) ?? ps.find(x => !/^文字/.test(partName(x)));
+    if (e === undefined){ toast('器具が見つかりません。照明などの器具の線の上をタップしてください'); open(k.m); return; }
+    let c = null; try { c = machineCenter(e, null); } catch(err){} if (!c) c = partCenter(e);
+    open(k.m, {kind:'pt', x:c[0], y:c[1], name:isL(e) ? '照明' : partName(e).replace(/\s+/g, ' ').slice(0, 12)});
+  }
+}
+function openSinSheet(m, pre){ // 通り芯・壁・照明などから ○mm の所に芯を出す。移動の時は機器の真ん中を合わせられる
+  const P = m ? m.C : s2w(cw/2, ch/2), gg = sinGrids(P); let dir = pre && pre.kind === 'line' ? pre.dir : gg.v.length || !gg.h.length ? 'v' : 'h', base = pre ? pre.kind : 'grid';
+  const ip = (id, ph, v) => `<input id="${id}" type="number" ${v != null ? `value="${v}"` : ''} placeholder="${ph}" style="flex:1;min-width:0;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 10px;font:16px var(--font-ui);color:var(--ink)">`;
+  const sl = (id, o) => `<select id="${id}" style="height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:16px var(--font-ui)">${o}</select>`;
+  openSheet('芯を出す', body => {
     const draw = () => {
-      const gs = gg[dir];
-      body.innerHTML = `<div class="note">通り芯から何mmの所に芯（点線）を出します。機器を「✥ 移動」する時、機器の真ん中がこの芯と通り芯にくっつきます。</div>
-        <div class="seg2"><button class="btn ${dir === 'v' ? 'sel' : ''}" data-d="v">縦の芯（左右の位置）</button><button class="btn ${dir === 'h' ? 'sel' : ''}" data-d="h">横の芯（上下の位置）</button></div>
-        ${gs.length ? `<div class="frow" style="align-items:center"><select id="sinG" style="flex:1;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:16px var(--font-ui)">${gs.map((g, i) => `<option value="${i}">${esc(g.name)}</option>`).join('')}</select><span style="font-size:14px">から</span>
-          <select id="sinS" style="width:76px;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:16px var(--font-ui)">${dir === 'v' ? '<option value="1">右へ</option><option value="-1">左へ</option>' : '<option value="1">上へ</option><option value="-1">下へ</option>'}</select></div>
-          <div class="frow" style="align-items:center"><input id="sinD" type="number" min="0" placeholder="例 1500" style="flex:1;min-width:0;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 10px;font:16px var(--font-ui);color:var(--ink)"><span style="font-size:14px">mm</span></div>
-          <div class="frow"><button class="btn ${m ? '' : 'pri'}" data-a="add" style="flex:1;height:46px">芯を出す</button>${m ? '<button class="btn pri" data-a="addm" style="flex:1.4;height:46px;white-space:normal;line-height:1.2">芯を出して機器の真ん中を合わせる</button>' : ''}</div>`
-        : `<div class="note" style="color:var(--danger)">この向きの通り芯が見つかりません。「寸法」→「芯出し」の画面で通り芯のレイヤーを選ぶと見つかるようになります。</div>`}
-        ${S.sins.length ? '<div class="grp">出した芯</div>' + S.sins.map(s => `<div class="row"><div class="grow"><div class="nm">${s.dir === 'v' ? '縦' : '横'}の芯：${esc(sinName(s))}</div></div>${m ? `<button class="btn" data-g="${s.id}">合わせる</button>` : ''}<button class="btn" data-x="${s.id}" aria-label="消す">✕</button></div>`).join('') : ''}`;
+      const gs = gg[dir], lr = dir === 'v' ? '<option value="1">右へ</option><option value="-1">左へ</option>' : '<option value="1">上へ</option><option value="-1">下へ</option>';
+      const btns = `<div class="frow"><button class="btn ${m ? '' : 'pri'}" data-a="add" style="flex:1;height:46px">芯を出す</button>${m ? '<button class="btn pri" data-a="addm" style="flex:1.4;height:46px;white-space:normal;line-height:1.2">芯を出して機器の真ん中を合わせる</button>' : ''}</div>`;
+      let h = `<div class="note">通り芯・壁・照明などから何mmの所に芯（点線）を出します。機器を「✥ 移動」する時、機器の真ん中が芯にくっつきます。</div>
+        <div class="seg2"><button class="btn ${base === 'grid' ? 'sel' : ''}" data-b="grid">通り芯</button><button class="btn ${base === 'line' ? 'sel' : ''}" data-b="line">壁・線</button><button class="btn ${base === 'pt' ? 'sel' : ''}" data-b="pt">照明・器具</button></div>`;
+      if (base === 'grid'){
+        h += `<div class="seg2"><button class="btn ${dir === 'v' ? 'sel' : ''}" data-d="v">縦の芯（左右の位置）</button><button class="btn ${dir === 'h' ? 'sel' : ''}" data-d="h">横の芯（上下の位置）</button></div>`;
+        h += gs.length ? `<div class="frow" style="align-items:center">${sl('sinG', gs.map((g, i) => `<option value="${i}">${esc(g.name)}</option>`).join('')).replace('style="', 'style="flex:1;')}<span style="font-size:14px">から</span>${sl('sinS', lr)}</div><div class="frow" style="align-items:center">${ip('sinD', '例 1500')}<span style="font-size:14px">mm</span></div>${btns}`
+          : `<div class="note" style="color:var(--danger)">この向きの通り芯が見つかりません。「寸法」→「芯出し」の画面で通り芯のレイヤーを選ぶと見つかるようになります。</div>`;
+      } else if (base === 'line'){
+        h += pre && pre.kind === 'line' ? `<div class="note"><b>${esc(pre.name)}</b>（${pre.dir === 'v' ? '縦' : '横'}の線）を選びました。</div><div class="frow" style="align-items:center"><span style="font-size:14px">から</span>${sl('sinS', lr)}${ip('sinD', '例 1500')}<span style="font-size:14px">mm</span></div>${btns}<div class="frow"><button class="btn" data-a="tap" style="flex:1">ほかの線を選び直す</button></div>`
+          : `<div class="note">基準にする壁の線（縦か横の線）を図面でタップします。</div><div class="frow"><button class="btn pri" data-a="tap" style="flex:1;height:46px">図面で壁・線をタップ</button></div>`;
+      } else {
+        h += pre && pre.kind === 'pt' ? `<div class="note"><b>${esc(pre.name)}</b>の真ん中を選びました。0 のままなら真ん中にそろえます。</div>
+          <div class="frow" style="align-items:center"><label style="font-size:14px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="sinPV" checked style="width:20px;height:20px">縦の芯</label><span style="font-size:14px">右へ</span>${ip('sinPX', '0', 0)}<span style="font-size:14px">mm</span></div>
+          <div class="frow" style="align-items:center"><label style="font-size:14px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="sinPH" checked style="width:20px;height:20px">横の芯</label><span style="font-size:14px">上へ</span>${ip('sinPY', '0', 0)}<span style="font-size:14px">mm</span></div>${btns}<div class="frow"><button class="btn" data-a="tap" style="flex:1">ほかの器具を選び直す</button></div>`
+          : `<div class="note">照明などの器具を図面でタップすると、その真ん中を基準にします。</div><div class="frow"><button class="btn pri" data-a="tap" style="flex:1;height:46px">図面で照明・器具をタップ</button></div>`;
+      }
+      h += S.sins.length ? '<div class="grp">出した芯</div>' + S.sins.map(s => `<div class="row"><div class="grow"><div class="nm">${s.dir === 'v' ? '縦' : '横'}の芯：${esc(sinName(s))}</div></div>${m ? `<button class="btn" data-g="${s.id}">合わせる</button>` : ''}<button class="btn" data-x="${s.id}" aria-label="消す">✕</button></div>`).join('') : '';
+      body.innerHTML = h;
     };
     draw();
     body.onclick = e => {
-      const b = e.target.closest('[data-d],[data-a],[data-x],[data-g]'); if (!b) return;
+      const b = e.target.closest('[data-d],[data-a],[data-x],[data-g],[data-b]'); if (!b) return;
+      if (b.dataset.b){ base = b.dataset.b; if (pre && pre.kind !== base) pre = null; draw(); return; }
       if (b.dataset.d){ dir = b.dataset.d; draw(); return; }
       if (b.dataset.x){ const s = S.sins.find(x => x.id === b.dataset.x); if (s){ exec(cmdSin('del', s)); toast('芯を消しました（↶で戻せます）'); } draw(); return; }
-      const fit = s => { if (s.dir === 'v') m.dx = Math.round((s.c - m.C[0])*10)/10; else m.dy = Math.round((s.c - m.C[1])*10)/10; closeSheet(); updatePickBar(); drawOverlay(); toast(`機器の真ん中を「${sinName(s)}」に合わせました。よければ「ここに決める」`); };
-      if (b.dataset.g){ const s = S.sins.find(x => x.id === b.dataset.g); if (s) fit(s); return; }
-      const g = gg[dir][+body.querySelector('#sinG').value], mm = +body.querySelector('#sinD').value, sg = +body.querySelector('#sinS').value;
-      if (!g || !(mm >= 0) || body.querySelector('#sinD').value === ''){ toast('通り芯からの距離を mm で入れてください'); return; }
-      const s = {id:'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), dir, c:g.c + sg*mm/unitMM(), base:g.name, off:sg*mm, t:Date.now()};
-      exec(cmdSin('add', s)); toast(`芯を出しました：${sinName(s)}`);
-      if (b.dataset.a === 'addm' && m) fit(s); else draw();
+      const fit = ss => { for (const s of ss){ if (s.dir === 'v') m.dx = Math.round((s.c - m.C[0])*10)/10; else m.dy = Math.round((s.c - m.C[1])*10)/10; } closeSheet(); updatePickBar(); drawOverlay(); toast(`機器の真ん中を「${ss.map(sinName).join('・')}」に合わせました。よければ「ここに決める」`); };
+      if (b.dataset.g){ const s = S.sins.find(x => x.id === b.dataset.g); if (s) fit([s]); return; }
+      if (b.dataset.a === 'tap'){ closeSheet(); S.sinPick = {kind:base, m}; updateUi(); return; }
+      const mk = (d, c, nm, off) => ({id:'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), dir:d, c, base:nm, off, t:Date.now()}), out = [];
+      if (base === 'pt'){
+        const x = +body.querySelector('#sinPX').value || 0, y = +body.querySelector('#sinPY').value || 0;
+        if (body.querySelector('#sinPV').checked) out.push({...mk('v', pre.x + x/unitMM(), pre.name, x), pt:1}); if (body.querySelector('#sinPH').checked) out.push({...mk('h', pre.y + y/unitMM(), pre.name, y), pt:1});
+        if (!out.length){ toast('縦の芯か横の芯を選んでください'); return; }
+      } else {
+        const d = body.querySelector('#sinD'), mm = +d.value, sg = +body.querySelector('#sinS').value, g = base === 'grid' ? gg[dir][+body.querySelector('#sinG').value] : {c:pre.c, name:pre.name};
+        if (!g || d.value === '' || !(mm >= 0)){ toast('距離を mm で入れてください'); return; }
+        out.push(mk(base === 'grid' ? dir : pre.dir, g.c + sg*mm/unitMM(), g.name, sg*mm));
+      }
+      for (const s of out) exec(cmdSin('add', s)); toast(`芯を出しました：${out.map(sinName).join('・')}`);
+      if (b.dataset.a === 'addm' && m) fit(out); else draw();
     };
   });
 }
@@ -2358,6 +2398,7 @@ function updateHint(){
   if (HL){ h.hidden = true; return; }
   if (S.lpick && S.mode !== 'dim') S.lpick = null; // ほかのモードにしたら、選ぶのはやめる
   if (S.lpick){ if (MS.dragging){ h.hidden = true; return; } h.hidden = false; $('#hintTxt').textContent = `${S.lpick.kind === 'wall' ? '壁' : '通り芯'}の線をタップ（光っている線＝選んだレイヤー・${S.lpick.set.size}個。もう一度で外す）`; $('#bHint3').hidden = false; $('#bHint3').textContent = '✓ 決定'; $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = 'やめる'; return; }
+  if (S.sinPick){ h.hidden = false; $('#hintTxt').textContent = S.sinPick.kind === 'line' ? '基準にする壁の線（縦か横）をタップ' : '基準にする照明・器具をタップ（その真ん中）'; $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = 'やめる'; return; }
   if (S.mode === 'kiki'){ h.hidden = false; $('#hintTxt').textContent = `「${S.kput ? S.kput.nm : ''}」を置く所（機器の真ん中）をタップ`; $('#bCancelPt').hidden = true; return; }
   if (S.mode === 'note'){ h.hidden = false; $('#hintTxt').textContent = 'メモを置きたい所をタップ（置いたメモはタップで直せます）'; $('#bCancelPt').hidden = true; return; }
   if (S.mode === 'box'){
@@ -2390,7 +2431,7 @@ function updateHint(){
   return;
   $('#bCancelPt').hidden = !MS.p1;
 }
-$('#bCancelPt').onclick = () => { if (S.lpick){ lpickDone(false); return; } if (S.mode === 'dim' && S.autoDim && S.autoDim.g4 && S.autoDim.g4.pickDir){ S.autoDim.g4.pickDir = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && S.autoDim){ S.autoDim = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
+$('#bCancelPt').onclick = () => { if (S.sinPick){ const m = S.sinPick.m; S.sinPick = null; updateUi(); openSinSheet(m); return; } if (S.lpick){ lpickDone(false); return; } if (S.mode === 'dim' && S.autoDim && S.autoDim.g4 && S.autoDim.g4.pickDir){ S.autoDim.g4.pickDir = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && S.autoDim){ S.autoDim = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
 
 function updateDimPanel(){
   const p = $('#dimPanel'); const d = S.selDim;

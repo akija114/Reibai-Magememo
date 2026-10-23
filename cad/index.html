@@ -217,7 +217,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 const DIM_LAYER = '追加寸法';
 const GHOST_LAYER = '変更前ルート';
 const NOTE_LAYER = 'メモ';
-const KIKI_LAYER = '追加機器', KB = 900000000; // 追加した機器のレイヤー・部品番号（KB＋no）
+const KIKI_LAYER = '追加機器', KB = 900000000, SIN_LAYER = '芯出し'; // 追加した機器のレイヤー・部品番号（KB＋no）
 const SS = 8, PS = 6; // stride of segs (x1,y1,x2,y2,layer,kind,shape,part) / pts (x,y,layer,type,shape,part)
 const META = 'WADA_ZUMEN:';
 const PDFSRC = 'PDF_SOURCE:';
@@ -245,7 +245,7 @@ const S = {
   text:'', eol:'\r\n', srcName:'', name:'', fileId:'', projectId:null,
   units:'mm', geo:null, layers:[], dims:[], selDim:null,
   mode:'pan', ortho:true, chain:false, snapOn:true, tab:null, group:null, pick:null,
-  undo:[], redo:[], textH:150, notes:[], dimGroups:[], curDG:null, views:[], viewId:null, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(), mov:new Map(), kiki:[], grps:[], mvg:null,
+  undo:[], redo:[], textH:150, notes:[], dimGroups:[], curDG:null, views:[], viewId:null, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(), mov:new Map(), kiki:[], grps:[], sins:[], mvg:null,
 };
 let view = {s:1, tx:0, ty:0}, bview = {s:1, tx:0, ty:0};
 let cw = 0, ch = 0, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -420,7 +420,7 @@ function flatten(doc){
       if (o[67] !== undefined && parseInt(o[67]) === 1) continue;
       let ln = (o[8] || '0').trim();
       if (ln === '0' && inhL != null) ln = inhL;
-      if (skipDim && (ln === DIM_LAYER || ln.startsWith(DIM_LAYER + '_') || ln === NOTE_LAYER || ln === KIKI_LAYER)){ if (T === 'POLYLINE') while (k+1 < ents.length && ents[k+1].type !== 'SEQEND') k++; continue; }
+      if (skipDim && (ln === DIM_LAYER || ln.startsWith(DIM_LAYER + '_') || ln === NOTE_LAYER || ln === KIKI_LAYER || ln === SIN_LAYER)){ if (T === 'POLYLINE') while (k+1 < ents.length && ents[k+1].type !== 'SEQEND') k++; continue; }
       const li = lay(ln);
       if (depth === 0){ curEid = k; const TN = {LINE:'線', ARC:'円弧', CIRCLE:'円', ELLIPSE:'だ円', LWPOLYLINE:'ポリライン', POLYLINE:'ポリライン', TEXT:'文字', MTEXT:'文字', HATCH:'塗り', SOLID:'塗り', SPLINE:'曲線', DIMENSION:'寸法'};
         parts[k] = {name: T === 'INSERT' ? (o[2] || '').trim() : (T === 'TEXT' || T === 'MTEXT') ? '文字「' + cleanMtext(o[1] || '').slice(0, 14) + '」' : (TN[T] || T), h:o[5] ? o[5].trim() : null, inv: parseInt(o[60]) === 1, li}; }
@@ -874,7 +874,7 @@ function drawOverlay(){
   drawPick(octx); drawMvg(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
-  drawNotes(octx);
+  drawNotes(octx); drawSins(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.first){ const f = S.autoDim.first, [px, py] = w2s(f.P[0], f.P[1]), b = G.pbox.get(f.e); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; if (b){ const p = w2s(b[0], b[3]), q = w2s(b[2], b[1]); octx.setLineDash([6, 4]); octx.strokeRect(p[0], p[1], q[0]-p[0], q[1]-p[1]); octx.setLineDash([]); } octx.beginPath(); octx.arc(px, py, 8, 0, Math.PI*2); octx.moveTo(px - 12, py); octx.lineTo(px + 12, py); octx.moveTo(px, py - 12); octx.lineTo(px, py + 12); octx.stroke(); octx.restore(); }
@@ -1287,17 +1287,64 @@ function mvgStart(eids){
   const list = [...eids], b = outlineBox(list), g = S.grps.find(x => gKey(x.main) === gKey(list)); // 前に一緒に動かした文字・印・配管は覚えておいて、それだけ使う（動かした先の別の文字を拾わない）
   const used = new Set(S.grps.filter(x => x !== g).flatMap(x => x.main.concat(x.comp)));
   const comp = g ? g.comp.filter(e => G.parts[e] && !gone(e)) : compOf(list).filter(e => !used.has(e)), mov = new Set(list.concat(comp));
-  S.mvg = {eids:list, comp, g, useC:true, useS:true, dx:0, dy:0, rot:0, C:b ? [(b[0] + b[2])/2, (b[1] + b[3])/2] : [0, 0], sc:stretchCands(list, mov, g)};
+  let C = b ? [(b[0] + b[2])/2, (b[1] + b[3])/2] : [0, 0]; if (list.length === 1 && !isKiki(list[0])){ try { const mc = machineCenter(list[0], null); if (mc) C = mc; } catch(e){} } // 機器の芯（基準線の交わる所）
+  S.mvg = {eids:list, comp, g, useC:true, useS:true, dx:0, dy:0, rot:0, C, sc:stretchCands(list, mov, g), snap:true, on:[null, null], grid:(() => { try { return sinGrids(C); } catch(e){ return null; } })()};
   S.selDim = null; updatePickBar(); drawOverlay();
 }
 function mvgDrag(p){
   const m = S.mvg; if (!m) return; let dx = (p[0] - gest.start[0])/view.s, dy = -(p[1] - gest.start[1])/view.s;
   if (S.ortho){ if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
-  m.dx = Math.round((gest.d0[0] + dx)/10)*10; m.dy = Math.round((gest.d0[1] + dy)/10)*10;
+  let nx = gest.d0[0] + dx, ny = gest.d0[1] + dy; m.on = [null, null];
+  if (m.snap){ // 機器の真ん中を、近くの芯（出した芯・通り芯）にくっつける
+    const R = 22/view.s, near = (cs, v) => cs.reduce((b, c) => Math.abs(c - v) < R && (b === null || Math.abs(c - v) < Math.abs(b - v)) ? c : b, null);
+    const bx = near(sinCs(m, 'v'), m.C[0] + nx), by = near(sinCs(m, 'h'), m.C[1] + ny); if (bx !== null){ nx = bx - m.C[0]; m.on[0] = bx; } if (by !== null){ ny = by - m.C[1]; m.on[1] = by; }
+  }
+  m.dx = m.on[0] !== null ? Math.round(nx*10)/10 : Math.round(nx/10)*10; m.dy = m.on[1] !== null ? Math.round(ny*10)/10 : Math.round(ny/10)*10;
   const ix = $('#mvX'), iy = $('#mvY'); if (ix) ix.value = m.dx; if (iy) iy.value = m.dy; drawOverlay();
 }
+const sinCs = (m, dir) => S.sins.filter(s => s.dir === dir).map(s => s.c).concat((m.grid || {})[dir] ? m.grid[dir].map(g => g.c) : []);
+function sinGrids(P){ const g = grid4At(P), nm = (a, w) => a.map((x, i) => ({c:x.c, name:x.name || `${w}${i + 1}本目`})); return {v:nm([...g.C.l].reverse().concat(g.onX ? [g.onX] : [], g.C.r), '左から'), h:nm([...g.C.d].reverse().concat(g.onY ? [g.onY] : [], g.C.u), '下から')}; }
+const sinName = s => `${s.base}から${s.dir === 'v' ? (s.off >= 0 ? '右' : '左') : (s.off >= 0 ? '上' : '下')}${fmt(Math.abs(s.off))}`;
+function cmdSin(op, s){ const lab = op === 'add' ? '芯を出す' : '芯を消す'; return {kind:'note', label:lab, log:{label:lab, detail:sinName(s), sins:[{...s}], gone:op === 'del'}, do(){ if (op === 'add') S.sins.push(s); else S.sins = S.sins.filter(x => x !== s); }, undo(){ if (op === 'add') S.sins = S.sins.filter(x => x !== s); else S.sins.push(s); }}; }
+function drawSins(c){ // 通り芯から出した芯：点線（一点鎖線）と「X2から右1500」
+  if (!S.sins.length || !G) return; c.save(); c.strokeStyle = '#c026d3'; c.lineWidth = 1.6; c.setLineDash([12, 4, 2, 4]); c.font = `600 11px ${FONT}`; c.textBaseline = 'middle';
+  for (const s of S.sins){ const q = w2s(s.c, s.c); c.beginPath(); if (s.dir === 'v'){ c.moveTo(q[0], 0); c.lineTo(q[0], ch); } else { c.moveTo(0, q[1]); c.lineTo(cw, q[1]); } c.stroke(); }
+  c.setLineDash([]);
+  for (const s of S.sins){ const q = w2s(s.c, s.c), t = '芯 ' + sinName(s), w = c.measureText(t).width + 10, x = s.dir === 'v' ? q[0] + 4 : 6, y = s.dir === 'v' ? 64 : q[1] - 12; c.fillStyle = '#c026d3'; c.fillRect(x, y - 9, w, 18); c.fillStyle = '#fff'; c.fillText(t, x + 5, y); }
+  c.restore();
+}
+function openSinSheet(m){ // 通り芯から ○mm の所に芯を出す。移動の時は機器の真ん中を合わせられる
+  const P = m ? m.C : s2w(cw/2, ch/2), gg = sinGrids(P); let dir = gg.v.length || !gg.h.length ? 'v' : 'h';
+  openSheet('通り芯から芯を出す', body => {
+    const draw = () => {
+      const gs = gg[dir];
+      body.innerHTML = `<div class="note">通り芯から何mmの所に芯（点線）を出します。機器を「✥ 移動」する時、機器の真ん中がこの芯と通り芯にくっつきます。</div>
+        <div class="seg2"><button class="btn ${dir === 'v' ? 'sel' : ''}" data-d="v">縦の芯（左右の位置）</button><button class="btn ${dir === 'h' ? 'sel' : ''}" data-d="h">横の芯（上下の位置）</button></div>
+        ${gs.length ? `<div class="frow" style="align-items:center"><select id="sinG" style="flex:1;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:16px var(--font-ui)">${gs.map((g, i) => `<option value="${i}">${esc(g.name)}</option>`).join('')}</select><span style="font-size:14px">から</span>
+          <select id="sinS" style="width:76px;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:16px var(--font-ui)">${dir === 'v' ? '<option value="1">右へ</option><option value="-1">左へ</option>' : '<option value="1">上へ</option><option value="-1">下へ</option>'}</select></div>
+          <div class="frow" style="align-items:center"><input id="sinD" type="number" min="0" placeholder="例 1500" style="flex:1;min-width:0;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 10px;font:16px var(--font-ui);color:var(--ink)"><span style="font-size:14px">mm</span></div>
+          <div class="frow"><button class="btn ${m ? '' : 'pri'}" data-a="add" style="flex:1;height:46px">芯を出す</button>${m ? '<button class="btn pri" data-a="addm" style="flex:1.4;height:46px;white-space:normal;line-height:1.2">芯を出して機器の真ん中を合わせる</button>' : ''}</div>`
+        : `<div class="note" style="color:var(--danger)">この向きの通り芯が見つかりません。「寸法」→「芯出し」の画面で通り芯のレイヤーを選ぶと見つかるようになります。</div>`}
+        ${S.sins.length ? '<div class="grp">出した芯</div>' + S.sins.map(s => `<div class="row"><div class="grow"><div class="nm">${s.dir === 'v' ? '縦' : '横'}の芯：${esc(sinName(s))}</div></div>${m ? `<button class="btn" data-g="${s.id}">合わせる</button>` : ''}<button class="btn" data-x="${s.id}" aria-label="消す">✕</button></div>`).join('') : ''}`;
+    };
+    draw();
+    body.onclick = e => {
+      const b = e.target.closest('[data-d],[data-a],[data-x],[data-g]'); if (!b) return;
+      if (b.dataset.d){ dir = b.dataset.d; draw(); return; }
+      if (b.dataset.x){ const s = S.sins.find(x => x.id === b.dataset.x); if (s){ exec(cmdSin('del', s)); toast('芯を消しました（↶で戻せます）'); } draw(); return; }
+      const fit = s => { if (s.dir === 'v') m.dx = Math.round((s.c - m.C[0])*10)/10; else m.dy = Math.round((s.c - m.C[1])*10)/10; closeSheet(); updatePickBar(); drawOverlay(); toast(`機器の真ん中を「${sinName(s)}」に合わせました。よければ「ここに決める」`); };
+      if (b.dataset.g){ const s = S.sins.find(x => x.id === b.dataset.g); if (s) fit(s); return; }
+      const g = gg[dir][+body.querySelector('#sinG').value], mm = +body.querySelector('#sinD').value, sg = +body.querySelector('#sinS').value;
+      if (!g || !(mm >= 0) || body.querySelector('#sinD').value === ''){ toast('通り芯からの距離を mm で入れてください'); return; }
+      const s = {id:'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), dir, c:g.c + sg*mm/unitMM(), base:g.name, off:sg*mm, t:Date.now()};
+      exec(cmdSin('add', s)); toast(`芯を出しました：${sinName(s)}`);
+      if (b.dataset.a === 'addm' && m) fit(s); else draw();
+    };
+  });
+}
 function drawMvg(c){
-  const m = S.mvg; if (!m || !G) return; const T = mvgT(m), pth = (a, st) => { let q = w2s(...tAp(T, a[0], a[1])); c.moveTo(q[0], q[1]); for (let i = st; i + 1 < a.length; i += st){ q = w2s(...tAp(T, a[i], a[i+1])); c.lineTo(q[0], q[1]); } };
+  const m = S.mvg; if (!m || !G) return;
+  if (m.on && (m.on[0] !== null || m.on[1] !== null)){ const q = w2s(m.C[0] + m.dx, m.C[1] + m.dy); c.save(); c.strokeStyle = '#c026d3'; c.lineWidth = 2.5; c.beginPath(); c.arc(q[0], q[1], 9, 0, Math.PI*2); c.moveTo(q[0] - 16, q[1]); c.lineTo(q[0] + 16, q[1]); c.moveTo(q[0], q[1] - 16); c.lineTo(q[0], q[1] + 16); c.stroke(); c.restore(); } const T = mvgT(m), pth = (a, st) => { let q = w2s(...tAp(T, a[0], a[1])); c.moveTo(q[0], q[1]); for (let i = st; i + 1 < a.length; i += st){ q = w2s(...tAp(T, a[i], a[i+1])); c.lineTo(q[0], q[1]); } };
   c.save(); c.strokeStyle = tok.snap; c.lineWidth = 2; c.lineCap = 'round'; c.beginPath();
   for (const e of mvgList(m)){ const pls = (G.eidPolys.get(e) || []).filter(pl => !(pl.sid >= 0 && S.ov.has(pl.sid))).concat((G.ovPolys || []).filter(pl => pl.eid === e && pl.sid >= 0));
     if (!pls.length){ const b = G.pbox.get(e); if (b) pls.push({a:[b[0], b[1], b[2], b[1], b[2], b[3], b[0], b[3], b[0], b[1]]}); }
@@ -1313,7 +1360,7 @@ function openKikiSheet(){ // 機器を追加：登録した機器から選ぶ／
   openSheet('機器を追加', body => {
     const draw = () => {
       const list = kikiList();
-      body.innerHTML = `${list.length ? `<div class="grp">登録した機器（押すと図面に置けます）</div>` + list.map((k, i) => `<div class="row"><div class="grow" data-k="${i}" style="cursor:pointer"><div class="nm">${esc(k.nm)}</div><div class="sub">幅 ${fmt(k.w)} × 奥行 ${fmt(k.d)}${k.h ? ' × 高さ ' + fmt(k.h) : ''}${k.memo ? ' ・ ' + esc(k.memo) : ''}</div></div><button class="btn pri" data-k="${i}">置く</button><button class="btn" data-kx="${i}" aria-label="登録を消す">✕</button></div>`).join('') : '<div class="note">まだ登録した機器がありません。下で品番と寸法を入れて登録してください。</div>'}
+      body.innerHTML = `<div class="frow"><button class="btn" data-a="sin" style="flex:1">📍 通り芯から芯を出す（${S.sins.length}本）</button></div>${list.length ? `<div class="grp">登録した機器（押すと図面に置けます）</div>` + list.map((k, i) => `<div class="row"><div class="grow" data-k="${i}" style="cursor:pointer"><div class="nm">${esc(k.nm)}</div><div class="sub">幅 ${fmt(k.w)} × 奥行 ${fmt(k.d)}${k.h ? ' × 高さ ' + fmt(k.h) : ''}${k.memo ? ' ・ ' + esc(k.memo) : ''}</div></div><button class="btn pri" data-k="${i}">置く</button><button class="btn" data-kx="${i}" aria-label="登録を消す">✕</button></div>`).join('') : '<div class="note">まだ登録した機器がありません。下で品番と寸法を入れて登録してください。</div>'}
         <div class="grp">新しく登録する</div>
         <div class="note">品番を入れて「🔍 ネットで調べる」→ メーカーのページやカタログの<b>外形寸法</b>（上から見た幅×奥行）を下に入れてください。図面には上から見た四角で置きます。</div>
         <input id="kNm" placeholder="品番（例 PLFY-P56EEM）" autocomplete="off" style="width:100%;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 12px;font:16px var(--font-ui);color:var(--ink);margin:6px 0">
@@ -1327,6 +1374,7 @@ function openKikiSheet(){ // 機器を追加：登録した機器から選ぶ／
       const b = e.target.closest('[data-k],[data-kx],[data-a]'); if (!b) return; const list = kikiList();
       if (b.dataset.kx != null){ if (!b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '消す'; b.classList.add('del'); return; } list.splice(+b.dataset.kx, 1); kikiSave(list); draw(); return; }
       if (b.dataset.k != null){ const k = list[+b.dataset.k]; if (k){ closeSheet(); kikiArm(k); } return; }
+      if (b.dataset.a === 'sin'){ closeSheet(); openSinSheet(null); return; }
       const nm = body.querySelector('#kNm').value.trim();
       if (b.dataset.a === 'web'){ if (!nm){ toast('先に品番を入れてください'); return; } window.open('https://www.google.com/search?q=' + encodeURIComponent(nm + ' 外形寸法'), '_blank'); return; }
       if (b.dataset.a === 'reg'){
@@ -1353,6 +1401,7 @@ function updatePickBar(){
     bar.innerHTML = `<div class="frow"><div class="grow"><div class="lname">移動：${esc(m.eids.length === 1 ? partName(m.eids[0]) : m.eids.length + '個の部品')}</div><div class="lsub">図面を1本指でずらす（2本指で拡大・縦横ボタンでまっすぐ）・数字で mm も入れられます</div></div></div>
       <div class="frow" style="align-items:center"><span style="font-size:13px">右へ</span>${inp('mvX', m.dx)}<span style="font-size:13px">上へ</span>${inp('mvY', m.dy)}</div>
       <div class="frow"><button class="btn" data-a="mvl" style="flex:1">↺ 90°</button><div style="flex:1;text-align:center;font-size:13px;align-self:center">向き ${[0, 90, 180, 270][m.rot]}°</div><button class="btn" data-a="mvr" style="flex:1">↻ 90°</button></div>
+      <div class="frow"><button class="btn ${m.snap ? 'sel' : ''}" data-a="mvsn" style="flex:1;white-space:normal;line-height:1.25">${m.snap ? '✓ ' : ''}📍 芯に合わせる</button><button class="btn" data-a="mvsin" style="flex:1;white-space:normal;line-height:1.25">＋ 通り芯から芯を出す</button></div>
       <div class="frow"><button class="btn ${m.useC ? 'sel' : ''}" data-a="mvc" style="flex:1;white-space:normal;line-height:1.25">${m.useC ? '✓ ' : ''}文字・印も一緒（${m.comp.length}）</button><button class="btn ${m.useS ? 'sel' : ''}" data-a="mvs" style="flex:1;white-space:normal;line-height:1.25">${m.useS ? '✓ ' : ''}配管・ダクトをつなぐ（<span id="mvSn">${mvgPlan(m).length}</span>本）</button></div>
       <div class="frow"><button class="btn" data-a="mvno" style="flex:1">やめる</button><button class="btn pri" data-a="mvok" style="flex:2">ここに決める</button></div>`;
     bar.oninput = e => { if (e.target.id === 'mvX') m.dx = +e.target.value || 0; if (e.target.id === 'mvY') m.dy = +e.target.value || 0; drawOverlay(); };
@@ -1361,6 +1410,8 @@ function updatePickBar(){
       if (a === 'mvl' || a === 'mvr'){ m.rot = (m.rot + (a === 'mvl' ? 1 : 3)) % 4; if (!m.rotT && m.useS){ m.rotT = true; m.useS = false; toast('回す時は配管・ダクトのつなぎ直しを切りました（線が斜めに引っぱられるため）。「配管・ダクトをつなぐ」でオンにもできます'); } }
       else if (a === 'mvc'){ m.useC = !m.useC; m.sc = stretchCands(m.eids, new Set(mvgList(m)), m.g); }
       else if (a === 'mvs'){ m.useS = !m.useS; }
+      else if (a === 'mvsn'){ m.snap = !m.snap; m.on = [null, null]; }
+      else if (a === 'mvsin'){ openSinSheet(m); return; }
       else if (a === 'mvok'){ S.mvg = null; if (m.dx || m.dy || m.rot){ const list = mvgList(m), ovs = mvgPlan(m), nm = m.eids.length === 1 ? partName(m.eids[0]) : m.eids.length + '個';
         const g0 = m.g, base = {...(g0 ? g0.base : {})}, last = {...(g0 ? g0.last : {})}; for (const [sid, v] of ovs){ if (!(sid in base)) base[sid] = m.sc.vOf(sid); last[sid] = v; }
         const gN = {id:g0 ? g0.id : 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), main:m.eids.slice(), comp:m.useC ? m.comp.slice() : [], R:m.sc ? m.sc.R : (g0 && g0.R), base, last, T:tMul(mvgT(m), g0 ? g0.T : TID)};
@@ -2031,6 +2082,7 @@ function inverseOf(e){
     if (e.restore) return cmdSetRoutes([e.restore], (e.ghosts || []).map(g => ({...g})), []);
     return null;
   }
+  if (e.kind === 'note' && e.sins){ const r = e.sins[0], cur = S.sins.find(s => s.id === r.id); return e.label === '芯を出す' ? (cur ? cmdSin('del', cur) : null) : (cur ? null : cmdSin('add', {...r})); }
   if (e.kind === 'note' && e.notes){
     const r = e.notes[0], cur = S.notes.find(n => n.id === r.id);
     if (e.label === 'メモを追加') return cur ? cmdNote('del', cur) : null;
@@ -2656,7 +2708,7 @@ const dbGet = (s, k) => dbOp(s, 'readonly', st => st.get(k));
 const dbPut = (s, v) => dbOp(s, 'readwrite', st => st.put(v));
 const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
-function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n,g,to,c}) => ({x1,y1,x2,y2,n:n||1,g,...(to ? {to:to.slice()} : {}),...(c != null ? {c} : {})})), dimGroups:S.dimGroups, curDG:S.curDG, routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, mov:{n:G.shapes.length, list:[...S.mov].map(([e, d]) => [e, ...d])}, kiki:S.kiki, grps:S.grps, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
+function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n,g,to,c}) => ({x1,y1,x2,y2,n:n||1,g,...(to ? {to:to.slice()} : {}),...(c != null ? {c} : {})})), dimGroups:S.dimGroups, curDG:S.curDG, routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, mov:{n:G.shapes.length, list:[...S.mov].map(([e, d]) => [e, ...d])}, kiki:S.kiki, grps:S.grps, sins:S.sins, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
 let autoT = 0;
 function autosave(dirty = true){
   if (dirty && G) S.dirty = true;
@@ -2679,8 +2731,8 @@ async function openText(text, srcName, opts = {}){
     S.fileId = opts.fileId || hashText(text);
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat); G.kkSkip = !!doc.meta;
-    const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], dimGroups:doc.meta.dimGroups, curDG:doc.meta.curDG, groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views, notes:doc.meta.notes, kiki:doc.meta.kiki} : null);
-    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; S.dimGroups = []; S.curDG = null; S.autoDim = null; S.lpick = null; S.mov = new Map(); S.kiki = []; S.grps = []; S.mvg = null; S.kput = null; routeReset();
+    const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], dimGroups:doc.meta.dimGroups, curDG:doc.meta.curDG, groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views, notes:doc.meta.notes, kiki:doc.meta.kiki, sins:doc.meta.sins} : null);
+    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; S.dimGroups = []; S.curDG = null; S.autoDim = null; S.lpick = null; S.mov = new Map(); S.kiki = []; S.grps = []; S.sins = []; S.mvg = null; S.kput = null; routeReset();
     for (const [k, t] of Object.entries(G.parts)) if (t.inv) S.hideObj.add(+k);
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){
@@ -2691,6 +2743,7 @@ async function openText(text, srcName, opts = {}){
       if (S.dims.some(d => !d.g || !S.dimGroups.some(g => g.id === d.g))){ let og = S.dimGroups.find(g => g.name === 'これまでの寸法'); if (!og){ og = {id:'g0' + Date.now().toString(36), name:'これまでの寸法', on:true}; S.dimGroups.unshift(og); } S.dims.forEach(d => { if (!d.g || !S.dimGroups.some(g => g.id === d.g)) d.g = og.id; }); }
       S.log = Array.isArray(st.log) ? st.log : [];
       S.notes = Array.isArray(st.notes) ? st.notes.map(n => ({...n})) : [];
+      S.sins = Array.isArray(st.sins) ? st.sins.filter(s => s && (s.dir === 'v' || s.dir === 'h') && isFinite(s.c)).map(s => ({...s})) : [];
       if (st.views && Array.isArray(st.views.list)){
         if (st.views.n === G.shapes.length) S.views = st.views.list;
         else if (st.views.byHandle){ const hmap = new Map(); for (const [k, t] of Object.entries(G.parts)) if (t.h) hmap.set(t.h, +k); S.views = st.views.list.map(v => ({...v, hide:(v.hideH || []).map(h => hmap.get(h)).filter(x => x !== undefined)})); }
@@ -2821,7 +2874,7 @@ function openSaveSheet(){
 }
 function buildExport(name, opt = {}){
   const {codes, vals, n} = toPairs(S.text);
-  const del = new Set(G.L.filter(l => l.deleted).map(l => l.name)); del.add(DIM_LAYER); del.add(NOTE_LAYER); if (G.kkSkip) del.add(KIKI_LAYER);
+  const del = new Set(G.L.filter(l => l.deleted).map(l => l.name)); del.add(DIM_LAYER); del.add(NOTE_LAYER); if (G.kkSkip){ del.add(KIKI_LAYER); del.add(SIN_LAYER); }
   // pre-scan
   let seed = 0, layerTbl = null, msHandle = null, plotStyle = null, inTable = null, dimLayerExists = false; const exLayers = new Set();
   for (let i = 0; i < n; i++){
@@ -2901,9 +2954,11 @@ function buildExport(name, opt = {}){
       newEnts.push(ent('LWPOLYLINE', 'AcDbPolyline', [...P(90, 4), ...P(70, 1), ...[[x0, y0], [x1, y0], [x1, y1], [x0, y1]].flatMap(([x, y]) => [...P(10, num(x)), ...P(20, num(y))])], KIKI_LAYER));
       newEnts.push(text(k.x - (up ? kh*0.8 : 0), k.y + (up ? 0 : kh*0.8), kh, up ? 90 : 0, k.nm, 2), text(k.x + (up ? kh*0.8 : 0), k.y - (up ? 0 : kh*0.8), kh, up ? 90 : 0, `${fmt(k.w)}×${fmt(k.d)}`, 2));
     }
+    DL = SIN_LAYER; const B = G.bounds;
+    for (const s of S.sins){ newEnts.push(s.dir === 'v' ? line(s.c, B.y0, s.c, B.y1) : line(B.x0, s.c, B.x1, s.c)); newEnts.push(s.dir === 'v' ? text(s.c + th*0.8, B.y1 - th*2, th, 90, sinName(s), 2) : text(B.x0 + th*8, s.c + th*0.8, th, 0, sinName(s), 2)); } // 芯出し：図面の端から端までの線と「X2から右1500」
     DL = dl0; DX = dx0; }
   const needLayers = S.dimGroups.filter(g => S.dims.some(d => d.g === g.id)).map(g => [dgLayer(g), g.on === false ? -1 : 1]);
-  if (S.dims.some(d => !dgOf(d))) needLayers.push([DIM_LAYER, 1]); if (S.ghosts.length) needLayers.push([GHOST_LAYER, 8]); if (S.notes.length) needLayers.push([NOTE_LAYER, 6]); if (kks.length) needLayers.push([KIKI_LAYER, 1]);
+  if (S.dims.some(d => !dgOf(d))) needLayers.push([DIM_LAYER, 1]); if (S.ghosts.length) needLayers.push([GHOST_LAYER, 8]); if (S.notes.length) needLayers.push([NOTE_LAYER, 6]); if (kks.length) needLayers.push([KIKI_LAYER, 1]); if (S.sins.length) needLayers.push([SIN_LAYER, 6]);
   for (const [lname, lcol] of needLayers){
     if (exLayers.has(lname)) continue;
     let r = P(0, 'LAYER');
@@ -2912,7 +2967,7 @@ function buildExport(name, opt = {}){
     if (modern){ r = r.concat(P(370, -3)); if (plotStyle) r = r.concat(P(390, plotStyle)); }
     layerRec = layerRec.concat(r);
   }
-  const meta = {v:1, name, notes:S.notes.map(noteRec), kiki:kks, dimGroups:S.dimGroups, curDG:S.curDG, dims:stateRecord().dims, groups:stateRecord().groups, log:S.log, views:{byHandle:true, list:S.views.map(v => ({id:v.id, name:v.name, on:v.on, t:v.t, hideH:v.hide.map(e => G.parts[e] && G.parts[e].h).filter(Boolean)}))}, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
+  const meta = {v:1, name, notes:S.notes.map(noteRec), kiki:kks, sins:S.sins, dimGroups:S.dimGroups, curDG:S.curDG, dims:stateRecord().dims, groups:stateRecord().groups, log:S.log, views:{byHandle:true, list:S.views.map(v => ({id:v.id, name:v.name, on:v.on, t:v.t, hideH:v.hide.map(e => G.parts[e] && G.parts[e].h).filter(Boolean)}))}, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
   const out = [...P(999, META + JSON.stringify(meta))];
   let section = null, table = null, dropSeq = false, curBlock = null, movSeq = null;
   let i = 0;
@@ -3147,6 +3202,7 @@ async function buildPdf(){
       if (l > hp*0.3){ const ex = vx/l, ey = vy/l, a = 1.6*PT; out.push(`${f2(s0[0])} ${f2(s0[1])} m ${f2(F[0] - ex*a*.6)} ${f2(F[1] - ey*a*.6)} l S`, `${dimC.map(f2).join(' ')} rg ${f2(F[0])} ${f2(F[1])} m ${f2(F[0] - ex*a - ey*a*.38)} ${f2(F[1] - ey*a + ex*a*.38)} l ${f2(F[0] - ex*a + ey*a*.38)} ${f2(F[1] - ey*a - ex*a*.38)} l h f`); }
     }
   }
+  if (S.sins.length){ const B = G.bounds; out.push(`0.75 0.15 0.83 RG ${f2(0.18*PT)} w [${f2(3*PT)} ${f2(1*PT)} ${f2(0.5*PT)} ${f2(1*PT)}] 0 d`); for (const s of S.sins) out.push(s.dir === 'v' ? `${f2(X(s.c))} ${f2(Y(B.y0))} m ${f2(X(s.c))} ${f2(Y(B.y1))} l S` : `${f2(X(B.x0))} ${f2(Y(s.c))} m ${f2(X(B.x1))} ${f2(Y(s.c))} l S`); out.push('[] 0 d'); }
   if (S.ghosts.length){ out.push(`0.55 0.58 0.62 RG ${f2(0.18*PT)} w [${f2(1.5*PT)} ${f2(1*PT)}] 0 d`); for (const g of S.ghosts) out.push(`${f2(X(g.x1))} ${f2(Y(g.y1))} m ${f2(X(g.x2))} ${f2(Y(g.y2))} l S`); out.push('[] 0 d'); }
   out.push('Q');
   // frame + title strip
@@ -3491,7 +3547,7 @@ function scaleState(st, r){
   const sg = g => ({...g, x1:g.x1*r, y1:g.y1*r, x2:g.x2*r, y2:g.y2*r});
   st.dims = (st.dims || []).map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r, ...(d.to ? {to:d.to.map(v => v*r)} : {})}));
   if (st.routes){ st.routes.ov = (st.routes.ov || []).map(([k, v, c]) => [k, sv(v), c]); st.routes.ghosts = (st.routes.ghosts || []).map(sg); }
-  st.notes = (st.notes || []).map(n => ({...n, x:n.x*r, y:n.y*r}));
+  st.notes = (st.notes || []).map(n => ({...n, x:n.x*r, y:n.y*r})); st.sins = (st.sins || []).map(s => ({...s, c:s.c*r}));
   const svO = o => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, sv(v)])); st.grps = (st.grps || []).map(g => ({...g, R:sp(g.R), base:svO(g.base), last:svO(g.last), T:[g.T[0], g.T[1], g.T[2]*r, g.T[3]*r]}));
   if (st.mov) st.mov.list = (st.mov.list || []).map(([e, ...d]) => { const T = tOf(d); return [e, T[0], T[1], T[2]*r, T[3]*r]; }); st.log = (st.log || []).map(x => x.tr ? {...x, tr:[x.tr[0], x.tr[1], x.tr[2]*r, x.tr[3]*r]} : x); st.kiki = (st.kiki || []).map(k => ({...k, x:k.x*r, y:k.y*r}));
   st.log = (st.log || []).map(e => ({...e, box:sp(e.box), dims:e.dims && e.dims.map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r, ...(d.to ? {to:d.to.map(v => v*r)} : {})})), routes:e.routes && e.routes.map(W => W.map(q => [q[0]*r, q[1]*r])), ghosts:e.ghosts && e.ghosts.map(sg), prev:e.prev && e.prev.map(([k, v, c]) => [k, sv(v), c]), restore:e.restore && [e.restore[0], sv(e.restore[1]), e.restore[2]]}));
@@ -3592,6 +3648,7 @@ function sharedState(){
   const m = new Map();
   for (const d of S.dims){ if (!d.id) d.id = rid('r'); m.set('d:' + d.id, JSON.stringify(dimRec(d))); }
   for (const n of S.notes){ if (!n.id) n.id = rid('n'); m.set('n:' + n.id, JSON.stringify(noteRec(n))); }
+  for (const s of S.sins) m.set('c:' + s.id, JSON.stringify(s));
   for (const g of S.dimGroups) m.set('g:' + g.id, JSON.stringify({name:g.name}));
   for (const l of G.L) if (l.deleted) m.set('L:' + l.name, '1');
   for (const e of S.delObj) m.set('o:' + e, '1');
@@ -3624,6 +3681,8 @@ function applyItem(k, v, kinds){
     if (v){ const o = {id, x1:+v.x1, y1:+v.y1, x2:+v.x2, y2:+v.y2, n:+v.n || 1, g:v.g, to:dimTo(v.to), c:Number.isInteger(+v.c) && v.c != null && v.c !== '' ? +v.c : undefined}; if (i >= 0) Object.assign(S.dims[i], o); else S.dims.push(o); }
     else if (i >= 0) S.dims = S.dims.filter(x => x.id !== id);
     kinds.add('dim');
+  } else if (t === 'c'){
+    S.sins = S.sins.filter(x => x.id !== id); if (v) S.sins.push(v); kinds.add('note');
   } else if (t === 'n'){
     const n = S.notes.find(x => x.id === id);
     if (v){ if (n) Object.assign(n, v); else S.notes.push({...v}); } else if (n) S.notes = S.notes.filter(x => x !== n);
@@ -3663,6 +3722,7 @@ function applyItem(k, v, kinds){
 }
 function shReset(){
   for (const e of [...S.mov.keys()]) setMov(e, TID); S.kiki = []; S.grps = []; S.mvg = null;
+  S.sins = [];
   S.dims = []; S.notes = []; S.ov = new Map(); S.ghosts = []; S.views = []; S.log = []; S.delObj = new Set(); S.selDim = null;
   const keepOn = new Map(S.dimGroups.map(g => [g.id, g.on])); S.dimGroups = []; SH.keepOn = keepOn;
   G.L.forEach(l => l.deleted = false);

@@ -450,11 +450,12 @@ function dlEisei(S,J,CS){
  /* ④ 分岐の継手の直し（汚水・排水・通気）：
     ・2本の管の端が同じ点で会うだけ（突き抜ける管が無い）＝曲がり → エルボ（45°の曲がりもエルボ。Y・チーズにしない）
     ・本管が通る所＝チーズ・Y → 継手は本管の高さ。枝は勾配で本管の高さまで下げて入る（継手が本管から浮かない） */
- J.slice().forEach(q=>{if(q[7]||!(q[9]===1||q[9]===2)||q[16]||(q[6]!==1&&q[6]!==2))return;const p=[q[0],q[1]],tol=Math.max(q[4]*0.6,40),ends=[],thru=[];
-  S.forEach(t=>{if(!hz(t)||(t[8]!==1&&t[8]!==2))return;let en=false;[0,1].forEach(e=>{const [x,z]=E(t,e);if(Math.hypot(x-p[0],z-p[1])<tol){ends.push([t,e]);en=true}});if(!en&&dS(p[0],p[1],t)<tol)thru.push(t)});
-  if(ends.length===2&&!thru.length){const [[t1,e1],[t2,e2]]=ends,L1=Math.hypot(t1[2]-t1[0],t1[3]-t1[1]),L2=Math.hypot(t2[2]-t2[0],t2[3]-t2[1]),r=Math.min(0.8*Math.max(t1[6],t2[6]),L1*0.45,L2*0.45);if(r<5)return;
+ /* 給水・給湯も、2本の管の端が会うだけ（同じ高さ・突き抜ける管が無い）の所はエルボ（チーズにしない）。本管の高さの直しは汚水・通気だけ */
+ J.slice().forEach(q=>{const W0=q[6]===0;if(q[7]||!(q[9]===1||q[9]===2)||q[16]||q[17]||(q[6]!==1&&q[6]!==2&&!W0))return;const p=[q[0],q[1]],tol=Math.max(q[4]*0.6,40),ends=[],thru=[];
+  S.forEach(t=>{if(W0?t[8]!==0||(!hz(t)&&Math.hypot(t[0]-p[0],t[1]-p[1])<tol&&thru.push(t)):!hz(t)||(t[8]!==1&&t[8]!==2))return;let en=false;[0,1].forEach(e=>{const [x,z]=E(t,e);if(Math.hypot(x-p[0],z-p[1])<tol){ends.push([t,e]);en=true}});if(!en&&dS(p[0],p[1],t)<tol)thru.push(t)});
+  if(ends.length===2&&!thru.length&&(!W0||ends.every(([t,e])=>Math.abs(hEnd(t,e)-q[2])<30))){const [[t1,e1],[t2,e2]]=ends,L1=Math.hypot(t1[2]-t1[0],t1[3]-t1[1]),L2=Math.hypot(t2[2]-t2[0],t2[3]-t2[1]),r=Math.min(0.8*Math.max(t1[6],t2[6]),L1*0.45,L2*0.45);if(r<5)return;
    const [u1,r1]=cut(t1,e1,r),[u2]=cut(t2,e2,r1);J[J.indexOf(q)]=elb(q[0],q[1],q[2],u1,[u2[0],0,u2[1]],q[4],q[6],r1);return}
-  if(thru.length){const M=thru[0],dx=M[2]-M[0],dz=M[3]-M[1],l2=dx*dx+dz*dz,u=Math.max(0,Math.min(1,((p[0]-M[0])*dx+(p[1]-M[1])*dz)/l2)),mh=Math.round(M[4]+(hEnd(M,1)-M[4])*u);q[2]=mh;
+  if(thru.length&&!W0){const M=thru[0],dx=M[2]-M[0],dz=M[3]-M[1],l2=dx*dx+dz*dz,u=Math.max(0,Math.min(1,((p[0]-M[0])*dx+(p[1]-M[1])*dz)/l2)),mh=Math.round(M[4]+(hEnd(M,1)-M[4])*u);q[2]=mh;
    ends.forEach(([t,e])=>{const he=hEnd(t,e);if(he>mh&&he-mh<600)setH(t,e,mh)})}});
  /* ③ 上から合流（高さの差が本管の太さより小さい時は、勾配で横から入るチーズ） */
  const nE=S.length;for(let i=0;i<nE;i++){const s=S[i];if(gone.has(s)||!hz(s)||(s[8]!==1&&s[8]!==2))continue;
@@ -533,7 +534,7 @@ function dlEisei(S,J,CS){
    ・高さ：同じ種類の近くの「FL+3200」などの文字。無ければ天井の少し下（ダクトは天井の上） */
 const DL_KINDS=[["duct","ダクト"],["eisei","衛生"]];
 /* 読み方の版：衛生・ダクトの読み方を直したら1つ上げる（図面の画面で前の図面を開いた時、古い版で作った3Dは自動で読み直す） */
-const DL_VER=2;window.DL_VER=DL_VER;
+const DL_VER=3;window.DL_VER=DL_VER;
 window.DL_KINDS=DL_KINDS;
 function segCat(s){if(s[5]!==undefined)return dxfCat(s[5]);const c=s[4]||"";if(c.length<7)return"";const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
  return r>200&&g<80&&b>200?"ref":r>200&&g>90&&g<170&&b<60?"drain":""}   // PDF：赤紫＝冷媒、オレンジ＝ドレン（#ff7f00・#ff7e00 など少し違っても）

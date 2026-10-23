@@ -1387,11 +1387,11 @@ $("#viewBtn").onclick=()=>{
  const v=VIEWS[T.vi];fitT(true);T.th=v[1];T.ph=v[2];T.dirty=true;toast("🔄 "+v[0]);
 };
 /* 文字のオンオフ */
-const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["ubolt","@udim|吊りピッチ（紫の矢印）"],["uopen","@udim|天井開口（オレンジの矢印）"],["upanel","@udim|パネル（青の矢印）"],["upipe","@udim|ガス・液・ドレンの位置"],["udim","@udim|その他の機器の寸法"],["neko","@neko|ネコ（吊り金具）の高さ"],["bld","🧱 建物・障害物の名前と大きさ"],["drl","💧 ドレンの寸法（💧①350・掃除口など）"],["drh","💧 ドレンの高さ（支 FL+・出口 FL）"],["sgap","🔩 冷媒の支持の間隔（↔1,000）"],["drs","💧 ドレンの支持の間隔（↔1,000）"],["dlen","🚽 衛生・ダクトの寸法（芯から芯）"],["kabe","📏 配管の位置（壁から何mm）"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
+const LABCATS=[["dim","📏 寸法（500mm など）"],["ang","📐 角度（90° など）"],["size","🔵 配管サイズ・分岐の名前"],["ofs","↔ 差（ずらす距離）"],["bend","🧭 曲げ方向（上・右・下・左）"],["unit","🏠 機器の名前"],["ubolt","@udim|吊りピッチ（紫の矢印）"],["uopen","@udim|天井開口（オレンジの矢印）"],["upanel","@udim|パネル（青の矢印）"],["upipe","@udim|ガス・液・ドレンの位置"],["udim","@udim|その他の機器の寸法"],["neko","@neko|ネコ（吊り金具）の高さ"],["bld","🧱 建物・障害物の名前と大きさ"],["drl","💧 ドレンの寸法（💧①350・掃除口など）"],["drh","💧 ドレンの高さ（支 FL+・出口 FL）"],["sgap","🔩 冷媒の支持の間隔（↔1,000）"],["drs","💧 ドレンの支持の間隔（↔1,000）"],["dlenE","🚽 衛生の寸法（芯から芯）"],["fitE","🚽 衛生の継手の名前（エルボ・チーズ）"],["dlenD","🌀 ダクトの寸法（芯から芯）"],["fitD","🌀 ダクトの継手の名前（エルボ・径違い）"],["kabe","📏 配管の位置（壁から何mm）"],["flag","🚩 起点・終点の旗"],["gnd","↕ 地面からの高さ"],["info","📝 現場情報（左下）"]];
 let LABC={};
 /* 曲げ共有の3Dは、初期を「寸法と角度だけ」（文字だらけで見えないので）。設定は曲げ共有だけ別に保存（図面・現調は今までどおり） */
 const LABKEY=APP==="bend"?"pbm_labc_bend":"pbm_labc";
-const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=(APP==="bend"?["dim","ang","dlen"]:["dim","ang","dlen","udim","neko","ubolt","uopen","upipe","bld","drl","drh","drs","sgap","kabe"]).includes(k));return o};
+const LABDEF=()=>{const o={};LABCATS.forEach(([k])=>o[k]=(APP==="bend"?["dim","ang","dlenE","dlenD","fitE","fitD"]:["dim","ang","dlenE","dlenD","fitE","fitD","udim","neko","ubolt","uopen","upipe","bld","drl","drh","drs","sgap","kabe"]).includes(k));return o};
 try{const v=localStorage.getItem(LABKEY);LABC=Object.assign(LABDEF(),v?(JSON.parse(v)||{}):{})}catch(e){LABC=LABDEF()}
 const labShow=o=>LABC[o.userData.cat||"other"]!==false;
 function applyLabels(){
@@ -2548,6 +2548,15 @@ const DLK=[["duct","ダクト","#64748b"],["eisei","衛生","#16a34a"]];
 const DL_SUB=[0x3b82f6,0xca8a04,0x9ca3af,0x16a34a,0xf97316];   // 衛生：給水・給湯／汚水・排水／通気／その他／空調ドレン（図面の）
 /* 継手の色分け（衛生・ダクト）：エルボ＝赤、チーズ＝紫、Y＝ピンク、径違い＝水色。「🎨継手」で切りかえ（この端末に覚える） */
 const FIT_COL={elb:["エルボ",0xef4444],tee:["チーズ・T",0x8b5cf6],y:["Y（45°）",0xec4899],red:["径違い",0x06b6d4]};
+/* 継手の名前（3Dの文字・材料の呼び方と同じ） */
+const FIT_OD=[[21.7,15],[27.2,20],[34,25],[42.7,32],[48.6,40],[60.5,50],[76.3,65],[89.1,80],[114.3,100],[139.8,125],[165.2,150],[216.3,200]],fitA=od=>FIT_OD.reduce((p,q)=>Math.abs(q[0]-od)<Math.abs(p[0]-od)?q:p)[1];
+function fitDeg(q,L){const a=[q[8],q[13]||0,q[9]],b=[q[10],q[14]||0,q[11]],la=Math.hypot(...a)||1,lb=Math.hypot(...b)||1,c=(a[0]*b[0]+a[1]*b[1]+a[2]*b[2])/la/lb,d=180-Math.acos(Math.max(-1,Math.min(1,c)))*180/Math.PI;return L.reduce((p,x)=>Math.abs(x-d)<Math.abs(p-d)?x:p)}
+function fitName(k,q,VPI){const w=q[4],sub=q[6];
+ if(k==="duct"){const sz=q[3]===1?Math.round(q[4])+"×"+Math.round(q[5]):"φ"+Math.round(w);return q[7]===1&&q.length>=13?fitDeg(q,[90,60,45,30,15])+"°エルボ "+sz:""}
+ if(sub===4&&!q[7]&&q[2]>0)return VPI&&VPI.ac?`AC${VPI.acSz}エルボ→VP${VPI.sz}ソケット`:"";
+ if(q[7]===1&&q.length>=13){const d=fitDeg(q,[90,45,22.5]);return(d===90&&sub===1?"90°大曲がりエルボ ":d+"°エルボ ")+fitA(w)+"A"}
+ if(q[9]===1||q[9]===2){const m=fitA(q[14]||w),b=fitA(q[15]||w),sz=m===b?m+"A":m+"×"+b;return(q[9]===2?"45°Y ":sub===1?"90°Y ":"チーズ ")+sz}
+ return""}
 const fitOn=()=>{try{return localStorage.getItem("pbm_fitcol")!=="0"}catch(e){return true}};
 const dlOnOf=k=>{const o=st.dlOn||{};return o[k]!==undefined?!!o[k]:true};
 /* 障害物（建物の物）の種類ごとの表示・非表示（室内機・穴は配管とつながるので常に表示） */
@@ -2574,12 +2583,12 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
    else{m=new THREE.Mesh(new THREE.CylinderGeometry(w2/2,w/2,len,k==="duct"?20:12,1),mt);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize())}
    m.userData.dl=k;T.grp.add(m);
    /* 変わった所の印：空調ドレンのたて管は VP（外へ出るので ACドレンから変更） */
-   if(k==="eisei"&&sub===4&&vert&&Math.max(h,h2)>0&&!vpN++)try{const lb=label(VPI&&VPI.ac?`🔁 VP${VPI.sz}に変更（外へ出るので。AC${VPI.acSz}をエルボで立ち下げ→VP${VPI.sz}ソケット）`:"🔁 VP"+(VPI?VPI.sz:([[32,25],[38,30],[49,40],[61,50],[76,65]].reduce((p,q)=>Math.abs(q[0]-w)<Math.abs(p[0]-w)?q:p)[1]))+"（外へ出るたて管）",ext*0.026,"#fef3c7f2","#92400e");lb.position.set(x1,GY+Math.max(h,h2)-200,z1);lb.userData.cat="dlen";pxl(lb,14,{t:"out",o:new THREE.Vector3(1,0,0)},w/2);T.grp.add(lb)}catch(err){}
+   if(k==="eisei"&&sub===4&&vert&&Math.max(h,h2)>0&&!vpN++)try{const lb=label(VPI&&VPI.ac?`🔁 VP${VPI.sz}に変更（外へ出るので。AC${VPI.acSz}をエルボで立ち下げ→VP${VPI.sz}ソケット）`:"🔁 VP"+(VPI?VPI.sz:([[32,25],[38,30],[49,40],[61,50],[76,65]].reduce((p,q)=>Math.abs(q[0]-w)<Math.abs(p[0]-w)?q:p)[1]))+"（外へ出るたて管）",ext*0.026,"#fef3c7f2","#92400e");lb.position.set(x1,GY+Math.max(h,h2)-200,z1);lb.userData.cat="dlenE";pxl(lb,14,{t:"out",o:new THREE.Vector3(1,0,0)},w/2);T.grp.add(lb)}catch(err){}
    /* 本管の途中にチーズ・Yがある時は、チーズからチーズまでに分けて出す */
    if(Math.abs(w2-w)<=1)try{const e1=ext1(x1,h,z1),e2=ext1(x2,h2,z2),u=b.clone().sub(a).normalize(),A=a.clone().addScaledVector(u,-e1),L0=len+e1+e2;
     const cut=[0,...(vert?[]:tees.map(q=>new THREE.Vector3(q[0],0,q[1]).sub(A).dot(new THREE.Vector3(u.x,0,u.z).normalize())).filter((t,i)=>t>w&&t<L0-w&&Math.abs(new THREE.Vector3(tees[i][0]-A.x,0,tees[i][1]-A.z).cross(new THREE.Vector3(u.x,0,u.z)).y)<Math.max(w,30))).sort((p,q)=>p-q),L0];
     for(let c=0;c+1<cut.length;c++){const L=cut[c+1]-cut[c];if(L<100)continue;const lb=label((vert?"↕":"↔")+fmt(Math.round(L)),ext*0.026,k==="duct"?"#f1f5f9f2":"#fef9c3f2",k==="duct"?"#334155":"#713f12"),pa=A.clone().addScaledVector(u,cut[c]),pb=A.clone().addScaledVector(u,cut[c+1]);
-     lb.position.copy(pa).add(pb).multiplyScalar(.5);lb.userData.cat="dlen";pxl(lb,14,vert?{t:"out",o:new THREE.Vector3(1,0,0)}:{t:"perp",a:pa,b:pb},w/2);T.grp.add(lb)}}catch(err){}
+     lb.position.copy(pa).add(pb).multiplyScalar(.5);lb.userData.cat=k==="duct"?"dlenD":"dlenE";pxl(lb,14,vert?{t:"out",o:new THREE.Vector3(1,0,0)}:{t:"perp",a:pa,b:pb},w/2);T.grp.add(lb)}}catch(err){}
    try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry,30),new THREE.LineBasicMaterial({color:k==="duct"?0x475569:0x14532d,transparent:true,opacity:.5}));e.position.copy(m.position);e.quaternion.copy(m.quaternion);e.rotation.copy(m.rotation);T.grp.add(e)}catch(err){}});
   /* 曲がり・分岐の継手 */
   /* 丸い物の曲がり（エルボ）は、まっすぐの管の端から端まで曲がった管でつなぐ（[..., 1, 向きA, 向きB, 曲がりの長さ]） */
@@ -2599,6 +2608,11 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
      if(VPI&&VPI.ac){const sk=new THREE.Mesh(new THREE.CylinderGeometry(VPI.od/2+5,VPI.od/2+5,Math.max(50,VPI.od),16),new THREE.MeshStandardMaterial({color:0x6b7280,roughness:.5}));sk.position.set(x,e0.y-r-Math.max(25,VPI.od/2),z);sk.userData.dl=k;T.grp.add(sk)}   // AC→VP の切りかえのソケット（VP50 など）
      return}}
    m=sh===1?new THREE.Mesh(new THREE.BoxGeometry(w,hh,w),mt):new THREE.Mesh(new THREE.SphereGeometry(w/2,k==="duct"?20:12,k==="duct"?14:8),mt);m.position.set(x,GY+h,z);if(sh===1&&q[8])m.rotation.y=q[8];m.userData.dl=k;T.grp.add(m)});
+  /* 継手の名前（3Dの文字）：衛生＝エルボ（排水の90°は大曲がり）・チーズ（排水は90°Y）・Y、ダクト＝エルボ・径違い。衛生とダクトで別に出し入れ */
+  if(Array.isArray(Jt))Jt.forEach(q=>{try{const[x,z,h,sh,w,hh,sub]=q,fc2=k==="duct"?"fitD":"fitE",nm=fitName(k,q,VPI);if(!nm)return;
+   const lb=label(nm,ext*0.022,"#ffffffee",k==="duct"?"#334155":"#7c2d12");lb.position.set(x,GY+h,z);lb.userData.cat=fc2;pxl(lb,12,{t:"up"},w/2+4);T.grp.add(lb)}catch(err){}});
+  if(Array.isArray(S))S.forEach(s=>{const w2=typeof s[10]==="number"?s[10]:s[6];if(Math.abs(w2-s[6])<=1||s[11]==="fl")return;try{const h2=typeof s[9]==="number"?s[9]:s[4],lb=label(`径違い ${k==="duct"?"φ"+Math.round(Math.max(s[6],w2))+"×"+Math.round(Math.min(s[6],w2)):fitA(Math.max(s[6],w2))+"×"+fitA(Math.min(s[6],w2))}`,ext*0.022,"#ffffffee","#0e7490");
+   lb.position.set((s[0]+s[2])/2,GY+(s[4]+h2)/2,(s[1]+s[3])/2);lb.userData.cat=k==="duct"?"fitD":"fitE";pxl(lb,12,{t:"up"},Math.max(s[6],w2)/2+4);T.grp.add(lb)}catch(err){}});
   const L=D[k];if(dOnly||!Array.isArray(L)||!L.length)return;
   const P=[];L.forEach(s=>{P.push(s[0],GY+s[4],s[1],s[2],GY+s[4],s[3])});const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(P,3));
   const ls=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.55}));ls.userData.dl=k;T.grp.add(ls)});

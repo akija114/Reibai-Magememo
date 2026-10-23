@@ -2587,7 +2587,7 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
   const mouths=(D[k+"J"]||[]).filter(q=>q[7]===1&&q.length>=13).flatMap(q=>[[q[0]+q[8]*q[12],q[2]+(q[13]||0)*q[12],q[1]+q[9]*q[12],q[12]],[q[0]+q[10]*q[12],q[2]+(q[14]||0)*q[12],q[1]+q[11]*q[12],q[12]]]);
   const tees=(D[k+"J"]||[]).filter(q=>!q[7]&&(q[9]===1||q[9]===2));
   const ext1=(x,y,z)=>{const m=mouths.find(m=>Math.hypot(m[0]-x,m[1]-y,m[2]-z)<6);return m?m[3]:0};
-  let vpN=0;const S=Array.isArray(D[k+"S"])&&k==="eisei"&&VPI?D[k+"S"].map(s=>{if(s[8]!==4||Math.max(s[4],typeof s[9]==="number"?s[9]:s[4])<=0)return s;const t=s.slice();t[6]=t[7]=VPI.od;if(typeof t[10]==="number")t[10]=VPI.od;return t}):D[k+"S"];if(Array.isArray(S))S.forEach(s=>{if(dOnly&&s[8]!==4)return;const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,h2=typeof s[9]==="number"?s[9]:h,w2=typeof s[10]==="number"?s[10]:w,a=new THREE.Vector3(x1,GY+h,z1),b=new THREE.Vector3(x2,GY+h2,z2),len=a.distanceTo(b);if(len<5)return;
+  let vpN=0;const S=Array.isArray(D[k+"S"])&&k==="eisei"&&VPI?D[k+"S"].map(s=>{if(s[8]!==4||Math.max(s[4],typeof s[9]==="number"?s[9]:s[4])<=0)return s;const t=s.slice();t[6]=t[7]=VPI.od;if(typeof t[10]==="number")t[10]=VPI.od;return t}):D[k+"S"];if(Array.isArray(S))S.forEach(s=>{if(dOnly&&s[8]!==4||k==="eisei"&&!esOn(s[8]))return;const[x1,z1,x2,z2,h,sh,w,hh,sub]=s,h2=typeof s[9]==="number"?s[9]:h,w2=typeof s[10]==="number"?s[10]:w,a=new THREE.Vector3(x1,GY+h,z1),b=new THREE.Vector3(x2,GY+h2,z2),len=a.distanceTo(b);if(len<5)return;
    const mt=fc&&Math.abs(w2-w)>1?fMat.red:k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;const vert=Math.abs(h2-h)>len*0.7;
    if(sh===1){m=new THREE.Mesh(new THREE.BoxGeometry(w,vert?len:hh,vert?hh:len),mt);m.position.copy(a).add(b).multiplyScalar(.5);if(!vert)m.rotation.y=Math.atan2(x2-x1,z2-z1)}
    else{m=new THREE.Mesh(new THREE.CylinderGeometry(w2/2,w/2,len,k==="duct"?20:12,1),mt);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize())}
@@ -2602,7 +2602,7 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
    try{const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry,30),new THREE.LineBasicMaterial({color:k==="duct"?0x475569:0x14532d,transparent:true,opacity:.5}));e.position.copy(m.position);e.quaternion.copy(m.quaternion);e.rotation.copy(m.rotation);T.grp.add(e)}catch(err){}});
   /* 曲がり・分岐の継手 */
   /* 丸い物の曲がり（エルボ）は、まっすぐの管の端から端まで曲がった管でつなぐ（[..., 1, 向きA, 向きB, 曲がりの長さ]） */
-  const Jt=Array.isArray(D[k+"J"])&&k==="eisei"&&VPI?D[k+"J"].map(q=>{if(q[6]!==4||q[2]<=0)return q;const t=q.slice();t[4]=t[5]=VPI.acOd||VPI.od;return t}):D[k+"J"];if(Array.isArray(Jt))Jt.forEach(q=>{if(dOnly&&q[6]!==4)return;const[x,z,h,sh,w,hh,sub]=q,ft=!fc?"":q[7]===1&&q.length>=13?"elb":k==="eisei"&&q[9]===1?"tee":k==="eisei"&&q[9]===2?"y":"",mt=ft?fMat[ft]:k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;
+  const Jt=Array.isArray(D[k+"J"])&&k==="eisei"&&VPI?D[k+"J"].map(q=>{if(q[6]!==4||q[2]<=0)return q;const t=q.slice();t[4]=t[5]=VPI.acOd||VPI.od;return t}):D[k+"J"];if(Array.isArray(Jt))Jt.forEach(q=>{if(dOnly&&q[6]!==4||k==="eisei"&&!esOn(q[6]))return;const[x,z,h,sh,w,hh,sub]=q,ft=!fc?"":q[7]===1&&q.length>=13?"elb":k==="eisei"&&q[9]===1?"tee":k==="eisei"&&q[9]===2?"y":"",mt=ft?fMat[ft]:k==="duct"?sMat.duct:eMat[sub||0]||eMat[3];let m;
    if(q[7]===1&&q.length>=13){const tl=q[12],y=GY+h,ay=q[13]||0,by=q[14]||0,P0=new THREE.Vector3(x+q[8]*tl,y+ay*tl,z+q[9]*tl),P1=new THREE.Vector3(x,y,z),P2=new THREE.Vector3(x+q[10]*tl,y+by*tl,z+q[11]*tl);
     const cv=new THREE.QuadraticBezierCurve3(P0,P1,P2);m=new THREE.Mesh(new THREE.TubeGeometry(cv,k==="duct"?16:10,w/2,k==="duct"?20:12,false),mt);m.userData.dl=k;T.grp.add(m);
     /* 継ぎ目の帯（ダクトの差し込み） */
@@ -2619,9 +2619,9 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
      return}}
    m=sh===1?new THREE.Mesh(new THREE.BoxGeometry(w,hh,w),mt):new THREE.Mesh(new THREE.SphereGeometry(w/2,k==="duct"?20:12,k==="duct"?14:8),mt);m.position.set(x,GY+h,z);if(sh===1&&q[8])m.rotation.y=q[8];m.userData.dl=k;T.grp.add(m)});
   /* 継手の名前（3Dの文字）：衛生＝エルボ（排水の90°は大曲がり）・チーズ（排水は90°Y）・Y、ダクト＝エルボ・径違い。衛生とダクトで別に出し入れ */
-  if(Array.isArray(Jt))Jt.forEach(q=>{try{const[x,z,h,sh,w,hh,sub]=q,fc2=k==="duct"?"fitD":"fitE",nm=fitName(k,q,VPI);if(!nm)return;
+  if(Array.isArray(Jt))Jt.forEach(q=>{if(k==="eisei"&&!esOn(q[6]))return;try{const[x,z,h,sh,w,hh,sub]=q,fc2=k==="duct"?"fitD":"fitE",nm=fitName(k,q,VPI);if(!nm)return;
    const lb=label(nm,ext*0.022,"#ffffffee",k==="duct"?"#334155":"#7c2d12");lb.position.set(x,GY+h,z);lb.userData.cat=fc2;pxl(lb,12,{t:"up"},w/2+4);T.grp.add(lb)}catch(err){}});
-  if(Array.isArray(S))S.forEach(s=>{const w2=typeof s[10]==="number"?s[10]:s[6];if(Math.abs(w2-s[6])<=1||s[11]==="fl")return;try{const h2=typeof s[9]==="number"?s[9]:s[4],lb=label(`径違い ${k==="duct"?"φ"+Math.round(Math.max(s[6],w2))+"×"+Math.round(Math.min(s[6],w2)):fitA(Math.max(s[6],w2))+"×"+fitA(Math.min(s[6],w2))}`,ext*0.022,"#ffffffee","#0e7490");
+  if(Array.isArray(S))S.forEach(s=>{if(k==="eisei"&&!esOn(s[8]))return;const w2=typeof s[10]==="number"?s[10]:s[6];if(Math.abs(w2-s[6])<=1||s[11]==="fl")return;try{const h2=typeof s[9]==="number"?s[9]:s[4],lb=label(`径違い ${k==="duct"?"φ"+Math.round(Math.max(s[6],w2))+"×"+Math.round(Math.min(s[6],w2)):fitA(Math.max(s[6],w2))+"×"+fitA(Math.min(s[6],w2))}`,ext*0.022,"#ffffffee","#0e7490");
    lb.position.set((s[0]+s[2])/2,GY+(s[4]+h2)/2,(s[1]+s[3])/2);lb.userData.cat=k==="duct"?"fitD":"fitE";pxl(lb,12,{t:"up"},Math.max(s[6],w2)/2+4);T.grp.add(lb)}catch(err){}});
   const L=D[k];if(dOnly||!Array.isArray(L)||!L.length)return;
   const P=[];L.forEach(s=>{P.push(s[0],GY+s[4],s[1],s[2],GY+s[4],s[3])});const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(P,3));
@@ -2647,6 +2647,8 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
   g.position.set(x,GY+h,z);g.rotation.y=Math.atan2(-uz,ux);g.userData.dl=k;g.traverse(q=>{q.userData.dl=k});T.grp.add(g);
   try{const lb=label("VC"+n+(fd?"(FD)":""),ext*0.02,"#f1f5f9f2","#334155","bld");lb.position.set(x+ux*(C+60),GY+h+A*0.6+60,z+uz*(C+60));lb.userData.dl=k;lb.userData.cat="ductEq";pxl(lb,12);T.grp.add(lb)}catch(err){}})}
 /* 3Dの下の切りかえボタン：図面のダクト・衛生と、障害物の種類 */
+/* 衛生の種類ごとの出し入れ（0 給水・給湯／1 汚水・排水／2 通気／3 その他。4 空調ドレンはドレンの続きなのでいつも出す） */
+const ES_SUB=[[0,"給水・給湯","#2563eb"],[1,"汚水・排水","#a16207"],[2,"通気","#6b7280"],[3,"その他","#16a34a"]],esOn=sb=>!(st.dlSub&&st.dlSub[sb]===false);
 let DLG=null;   // 3Dの下のボタン：開いているグループ（null＝グループの一覧）
 function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=st.dln;
  const dk=DLK.filter(([k])=>D&&((D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))),bk=(st.bld&&st.bld.length&&!st.bldHide)?BLD_TG.filter(([k])=>st.bld.some(o=>o.k===k)):[];
@@ -2662,8 +2664,11 @@ function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b
  /* グループ分け（レイヤーのように）：空調・ダクト・衛生・建築。グループを押すと中身が出る（‹ で戻る・「全部」でまとめて出し入れ） */
  const IT=[];   // [グループ, 部品のhtml, 表示中か, 表示にする/消す]
  if(PLf)IT.push(["arch",btn("fl","1",PLf.atCeil?"天井の図面":"床の図面","#a16207",!!PLf.show),!!PLf.show,v=>{PLf.show=v;try{if(window.zUpFloor)zUpFloor()}catch(err){}}]);
- if(PL2)IT.push(["eisei",btn("fl2","1","下の図面","#0f766e",!!PL2.show),!!PL2.show,v=>{PL2.show=v}]);
- dk.forEach(([k,n,col])=>IT.push([k,btn("dl",k,n,col,dlOnOf(k)),dlOnOf(k),v=>{st.dlOn={...(st.dlOn||{}),[k]:v}}]));
+ const hasE=dk.some(([k])=>k==="eisei");
+ if(PL2)IT.push([hasE?"eisei":"arch",btn("fl2","1","下の図面","#0f766e",!!PL2.show),!!PL2.show,v=>{PL2.show=v}]);   // 図面に衛生が無い時は建築へ（衛生のボタンを出さない）
+ dk.forEach(([k,n,col])=>{if(k!=="eisei"){IT.push([k,btn("dl",k,n,col,dlOnOf(k)),dlOnOf(k),v=>{st.dlOn={...(st.dlOn||{}),[k]:v}}]);return}
+  /* 衛生は種類ごと（図面にある種類だけ） */
+  const has=new Set((D.eiseiS||[]).map(s=>s[8]));ES_SUB.forEach(([sb,n2,c2])=>{if(!has.has(sb))return;const on=dlOnOf("eisei")&&esOn(sb);IT.push(["eisei",btn("es",sb,n2,c2,on),on,v=>{st.dlSub={...(st.dlSub||{}),[sb]:v};if(v)st.dlOn={...(st.dlOn||{}),eisei:true}}])})});
  bk.forEach(([k,n])=>IT.push([k==="out"?"ac":k==="eq"?"duct":"arch",btn("bh",k,n,"#475569",!bldHid(k)),!bldHid(k),v=>{st.bhid={...(st.bhid||{}),[k]:!v}}]));
  const GR=[["ac","❄️空調","#0369a1"],["duct","🌀ダクト","#64748b"],["eisei","🚽衛生","#16a34a"],["arch","🧱建築","#92400e"]].filter(([g])=>IT.some(t=>t[0]===g));
  if(DLG&&!GR.some(([g])=>g===DLG))DLG=null;
@@ -2676,6 +2681,7 @@ function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b
  b.querySelectorAll("[data-grp]").forEach(x=>x.onclick=e=>{e.stopPropagation();DLG=x.dataset.grp;dlBar()});
  b.querySelectorAll("[data-gback]").forEach(x=>x.onclick=e=>{e.stopPropagation();DLG=null;dlBar()});
  b.querySelectorAll("[data-gall]").forEach(x=>x.onclick=e=>{e.stopPropagation();const L=IT.filter(t=>t[0]===DLG),v=!L.some(t=>t[2]);L.forEach(t=>t[3](v));redo()});
+ b.querySelectorAll("[data-es]").forEach(x=>x.onclick=e=>{e.stopPropagation();const sb=+x.dataset.es,on=dlOnOf("eisei")&&esOn(sb);st.dlSub={...(st.dlSub||{}),[sb]:!on};if(!on)st.dlOn={...(st.dlOn||{}),eisei:true};redo()});
  b.querySelectorAll("[data-dl]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.dl;st.dlOn={...(st.dlOn||{}),[k]:!dlOnOf(k)};redo()});
  b.querySelectorAll("[data-fl]").forEach(x=>x.onclick=e=>{e.stopPropagation();PLf.show=!PLf.show;try{if(window.zUpFloor)zUpFloor()}catch(err){}redo()});
  b.querySelectorAll("[data-fl2]").forEach(x=>x.onclick=e=>{e.stopPropagation();PL2.show=!PL2.show;redo()});

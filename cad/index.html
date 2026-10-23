@@ -1162,24 +1162,32 @@ function cmdObjs(eids, op){
 const isKiki = e => e >= KB;
 const kikiOf = e => S.kiki.find(k => KB + k.no === e);
 function kikiLayer(){ let i = G.L.findIndex(l => l.name === KIKI_LAYER); if (i < 0){ i = G.L.length; G.L.push({name:KIKI_LAYER, ck:'a1', on:true, deleted:false, count:0, idx:i, g:'ac'}); G.textsBy[i] = []; } return i; }
-function shiftPart(e, dx, dy, withOv){ // 図面の部品をずらす（G の座標をその場で動かす。withOv：ルートを変えた線も一緒に）
-  if (!dx && !dy) return;
-  for (const pl of G.eidPolys.get(e) || []){ const a = pl.a; for (let i = 0; i < a.length; i += 2){ a[i] += dx; a[i+1] += dy; } }
-  for (const f of G.fills) if (f.eid === e) for (const r of f.rings) for (let i = 0; i < r.length; i += 2){ r[i] += dx; r[i+1] += dy; }
-  for (const l of G.L) for (const t of G.textsBy[l.idx]) if (t.eid === e){ t.x += dx; t.y += dy; }
-  const s = G.baseSegs; for (let k = 0; k < s.length; k += SS) if (s[k+7] === e){ s[k] += dx; s[k+1] += dy; s[k+2] += dx; s[k+3] += dy; }
-  const p = G.basePts; for (let k = 0; k < p.length; k += PS) if (p[k+5] === e){ p[k] += dx; p[k+1] += dy; }
-  for (const sh of G.shapes) if (sh.eid === e){ const v = sh.verts; for (let i = 0; i < v.length; i += 3){ v[i] += dx; v[i+1] += dy; }
-    const o = withOv && S.ov.get(sh.sid); if (o){ const w = o.verts.slice(); for (let i = 0; i < w.length; i += 3){ w[i] += dx; w[i+1] += dy; } S.ov.set(sh.sid, {verts:w, closed:o.closed}); } }
-  const b = G.pbox.get(e); if (b){ b[0] += dx; b[1] += dy; b[2] += dx; b[3] += dy; }
+const TID = [1, 0, 0, 0], tOf = v => Array.isArray(v) ? (v.length === 2 ? [1, 0, +v[0] || 0, +v[1] || 0] : v.map(x => +x || 0)) : TID; // 部品の動かし方 [cos, sin, 右へ, 上へ]（回してからずらす）
+const tAp = (T, x, y) => [T[0]*x - T[1]*y + T[2], T[1]*x + T[0]*y + T[3]];
+const tMul = (B, A) => [B[0]*A[0] - B[1]*A[1], B[1]*A[0] + B[0]*A[1], B[0]*A[2] - B[1]*A[3] + B[2], B[1]*A[2] + B[0]*A[3] + B[3]];
+const tInv = T => [T[0], -T[1], -(T[0]*T[2] + T[1]*T[3]), T[1]*T[2] - T[0]*T[3]];
+const tId = T => Math.abs(T[0] - 1) < 1e-9 && Math.abs(T[1]) < 1e-9 && Math.abs(T[2]) < 1e-6 && Math.abs(T[3]) < 1e-6;
+function xformPart(e, T, withOv){ // 図面の部品を動かす・回す（G の座標をその場で変える。withOv：ルートを変えた線も一緒に）
+  if (tId(T)) return; const ang = Math.atan2(T[1], T[0]);
+  const ap = (a, st) => { for (let i = 0; i + 1 < a.length; i += st){ const q = tAp(T, a[i], a[i+1]); a[i] = q[0]; a[i+1] = q[1]; } };
+  for (const pl of G.eidPolys.get(e) || []) ap(pl.a, 2);
+  for (const f of G.fills) if (f.eid === e) for (const r of f.rings) ap(r, 2);
+  for (const l of G.L) for (const t of G.textsBy[l.idx]) if (t.eid === e){ const q = tAp(T, t.x, t.y); t.x = q[0]; t.y = q[1]; t.a += ang; }
+  const s = G.baseSegs; for (let k = 0; k < s.length; k += SS) if (s[k+7] === e){ let q = tAp(T, s[k], s[k+1]); s[k] = q[0]; s[k+1] = q[1]; q = tAp(T, s[k+2], s[k+3]); s[k+2] = q[0]; s[k+3] = q[1]; }
+  const p = G.basePts; for (let k = 0; k < p.length; k += PS) if (p[k+5] === e){ const q = tAp(T, p[k], p[k+1]); p[k] = q[0]; p[k+1] = q[1]; }
+  for (const sh of G.shapes) if (sh.eid === e){ ap(sh.verts, 3); const o = withOv && S.ov.get(sh.sid); if (o){ const w = o.verts.slice(); ap(w, 3); S.ov.set(sh.sid, {verts:w, closed:o.closed}); } }
+  const b = G.pbox.get(e); if (b){ const c = [tAp(T, b[0], b[1]), tAp(T, b[2], b[1]), tAp(T, b[0], b[3]), tAp(T, b[2], b[3])]; b[0] = Math.min(...c.map(q => q[0])); b[2] = Math.max(...c.map(q => q[0])); b[1] = Math.min(...c.map(q => q[1])); b[3] = Math.max(...c.map(q => q[1])); }
 }
-function setMov(e, to){ if (!G.parts[e] || isKiki(e)) return; const m = S.mov.get(e) || [0, 0]; shiftPart(e, to[0] - m[0], to[1] - m[1], false); if (to[0] || to[1]) S.mov.set(e, [to[0], to[1]]); else S.mov.delete(e); }
-const mvTxt = (dx, dy) => [dx ? `${dx > 0 ? '右' : '左'}へ${fmt(Math.abs(dx))}` : '', dy ? `${dy > 0 ? '上' : '下'}へ${fmt(Math.abs(dy))}` : ''].filter(Boolean).join('・') || '0';
-function cmdMove(eids, dx, dy){
-  const list = [...eids], names = list.map(partName);
-  const run = f => list.forEach(e => { const k = isKiki(e) && kikiOf(e); if (k){ k.x += f*dx; k.y += f*dy; return; } if (!G.parts[e]) return; shiftPart(e, f*dx, f*dy, true); const m = S.mov.get(e) || [0, 0], n = [m[0] + f*dx, m[1] + f*dy]; if (Math.abs(n[0]) < 1e-6 && Math.abs(n[1]) < 1e-6) S.mov.delete(e); else S.mov.set(e, n); });
-  return {kind:'obj', label:'部品を移動', log:{label:'部品を移動', detail:short(names) + `（${mvTxt(dx, dy)}）`, eids:list, mv:[dx, dy], box:partsBox(list)}, do(){ run(1); }, undo(){ run(-1); }};
+function setMov(e, to){ if (!G.parts[e] || isKiki(e)) return; const T = tOf(to); xformPart(e, tMul(T, tInv(S.mov.get(e) || TID)), false); if (tId(T)) S.mov.delete(e); else S.mov.set(e, T); }
+function xformRun(list, T){ list.forEach(e => { const k = isKiki(e) && kikiOf(e); if (k){ const q = tAp(T, k.x, k.y); k.x = q[0]; k.y = q[1]; if (Math.abs(T[1]) > 0.5){ const w = k.w; k.w = k.d; k.d = w; } return; } if (!G.parts[e]) return; xformPart(e, T, true); const n = tMul(T, S.mov.get(e) || TID); if (tId(n)) S.mov.delete(e); else S.mov.set(e, n); }); }
+const mvTxt = (dx, dy, r) => [dx ? `${dx > 0 ? '右' : '左'}へ${fmt(Math.abs(dx))}` : '', dy ? `${dy > 0 ? '上' : '下'}へ${fmt(Math.abs(dy))}` : '', r ? `${r === 2 ? '180' : '90'}°回して` : ''].filter(Boolean).join('・') || '0';
+function cmdXform(eids, T, ovs, lab, detail){ // 部品を動かす・回す＋つながった配管の線を変える（ovs：[sid, verts|null, closed]）
+  const list = [...eids], prev = ovs.map(([sid]) => [sid, S.ov.has(sid) ? S.ov.get(sid) : null]);
+  return {kind:'obj', label:lab, log:{label:lab, detail, eids:list, tr:T, ovp:prev.map(([sid, o]) => [sid, o ? o.verts : null, o ? o.closed : false]), ovn:ovs, box:partsBox(list)},
+    do(){ xformRun(list, T); ovs.forEach(([sid, v, c]) => v ? S.ov.set(sid, {verts:v, closed:!!c}) : S.ov.delete(sid)); },
+    undo(){ prev.forEach(([sid, o]) => o ? S.ov.set(sid, o) : S.ov.delete(sid)); xformRun(list, tInv(T)); }};
 }
+function cmdMove(eids, dx, dy){ const list = [...eids]; return cmdXform(list, [1, 0, dx, dy], [], '部品を移動', short(list.map(partName)) + `（${mvTxt(dx, dy)}）`); }
 function cmdTekkyo(eids){ // 撤去：部品を消して、あった所に点線の×と「撤去」のメモを残す
   const list = [...eids], b = partsBox(list), del = cmdObjs(list, 'del'), names = list.map(partName);
   const gs = b ? [[b[0],b[1],b[2],b[1]],[b[2],b[1],b[2],b[3]],[b[2],b[3],b[0],b[3]],[b[0],b[3],b[0],b[1]],[b[0],b[1],b[2],b[3]],[b[0],b[3],b[2],b[1]]].map(([x1, y1, x2, y2]) => ({x1, y1, x2, y2})) : [];
@@ -1189,7 +1197,89 @@ function cmdTekkyo(eids){ // 撤去：部品を消して、あった所に点線
 }
 function cmdKikiAdd(k){ return {kind:'obj', label:'機器を追加', log:{label:'機器を追加', detail:`${k.nm} ${fmt(k.w)}×${fmt(k.d)}`, eids:[KB + k.no], box:[k.x - k.w/2, k.y - k.d/2, k.x + k.w/2, k.y + k.d/2]}, do(){ S.kiki.push(k); }, undo(){ S.kiki = S.kiki.filter(x => x !== k); }}; }
 function cmdKikiRot(k){ const sw = () => { const w = k.w; k.w = k.d; k.d = w; }; return {kind:'obj', label:'機器の向きを変える', log:{label:'機器の向きを変える', detail:k.nm, eids:[KB + k.no], box:[k.x - k.w/2, k.y - k.d/2, k.x + k.w/2, k.y + k.d/2]}, do:sw, undo:sw}; }
-function mvgStart(eids){ S.mvg = {eids:[...eids], dx:0, dy:0}; S.selDim = null; updatePickBar(); drawOverlay(); }
+const PIPE_RE = /管|配管|冷媒|ドレン|ダクト|DUCT|PIPE|DRAIN|REFR/i;
+function outlineBox(eids){ // 機器の外形（基準線・中心線を除く）
+  let b = null; const g = (x, y) => { if (!b) b = [x, y, x, y]; else { if (x < b[0]) b[0] = x; if (y < b[1]) b[1] = y; if (x > b[2]) b[2] = x; if (y > b[3]) b[3] = y; } };
+  for (const e of eids) for (const pl of G.eidPolys.get(e) || []){ if (CEN_RE.test(G.L[pl.li].name.normalize('NFKC'))) continue; const a = pl.a; for (let i = 0; i < a.length; i += 2) g(a[i], a[i+1]); }
+  if (!b) for (const e of eids){ const q = G.pbox.get(e); if (q){ g(q[0], q[1]); g(q[2], q[3]); } }
+  return b;
+}
+function compOf(eids){ // 機器といっしょに動かす物：機器の四角の中にすっぽり入っている文字と、空調の印（配管・ダクト・建築は入れない）
+  const set = new Set(eids); let b = null; for (const e of eids){ const q = G.pbox.get(e); if (!q) continue; if (!b) b = q.slice(0, 4); else { b[0] = Math.min(b[0], q[0]); b[1] = Math.min(b[1], q[1]); b[2] = Math.max(b[2], q[2]); b[3] = Math.max(b[3], q[3]); } }
+  if (!b) return []; const m = 0.1*Math.max(b[2] - b[0], b[3] - b[1]) + 50, out = [];
+  for (const [e, q] of G.pbox){
+    if (set.has(e) || gone(e) || isKiki(e) || q[0] < b[0] - m || q[2] > b[2] + m || q[1] < b[1] - m || q[3] > b[3] + m) continue;
+    const ls = [...q[4]].map(i => G.L[i]), tx = /^文字/.test(partName(e));
+    if (ls.some(l => l.deleted || l.g === 'arch' || l.g === 'san' || l.g === 'elec')) continue;
+    if (!tx && !ls.every(l => l.g === 'ac' && !PIPE_RE.test(l.name.normalize('NFKC')))) continue;
+    out.push(e);
+  }
+  return out;
+}
+function stretchCands(eids, mov){ // 機器の外形のまわり（50mm）に端が入っている配管・ダクトの線と、配管・ダクトの線の点の索引
+  const b = outlineBox(eids); if (!b) return null; const R = [b[0] - 50, b[1] - 50, b[2] + 50, b[3] + 50], out = [], idx = new Map();
+  for (const sh of G.shapes){
+    if (sh.closed || mov.has(sh.eid) || gone(sh.eid)) continue; const l = G.L[sh.li]; if (l.deleted || !(l.g === 'ac' || l.g === 'duct') || !PIPE_RE.test(l.name.normalize('NFKC'))) continue;
+    const v = curShape(sh.sid).verts; let hit = false;
+    for (let i = 0; i < v.length; i += 3){ if (v[i] >= R[0] && v[i] <= R[2] && v[i+1] >= R[1] && v[i+1] <= R[3]) hit = true; const k = Math.round(v[i]/2) + ',' + Math.round(v[i+1]/2); if (!idx.has(k)) idx.set(k, []); idx.get(k).push([sh.sid, i/3]); }
+    if (hit) out.push(sh.sid);
+  }
+  return {R, sids:out, idx};
+}
+function planStretch(sc, T){ // 中の端は機器と一緒に動かす。短い線（20cm未満・つば・継手）は丸ごと一緒に動かして先へ。外へ出る長い線はクランク（二重線は幅を保って曲げる）
+  if (!sc || tId(T)) return []; const R = sc.R, ins = (x, y) => x >= R[0] && x <= R[2] && y >= R[1] && y <= R[3], G0 = 150, SHORT = 200;
+  const SH = new Map(), get = sid => { let s = SH.get(sid); if (!s){ const o = curShape(sid); s = {sid, v:o.verts, n:o.verts.length/3, d:new Array(o.verts.length/3).fill(null), closed:o.closed}; SH.set(sid, s); } return s; };
+  const q = [], segs = (s, i) => { if (i > 0) q.push([s, i - 1]); if (i + 1 < s.n) q.push([s, i]); };
+  const put = (s, i, d) => { if (s.d[i]) return; s.d[i] = d; segs(s, i); const x = s.v[3*i], y = s.v[3*i+1], kx = Math.round(x/2), ky = Math.round(y/2);
+    for (let a = -1; a <= 1; a++) for (let c = -1; c <= 1; c++) for (const [sid, j] of sc.idx.get((kx + a) + ',' + (ky + c)) || []){ const s2 = get(sid); if ((s2 === s && j === i) || s2.d[j]) continue; if (Math.hypot(s2.v[3*j] - x, s2.v[3*j+1] - y) < 1.5){ s2.d[j] = d; segs(s2, j); } } };
+  for (const sid of sc.sids){ const s = get(sid); for (let i = 0; i < s.n; i++) if (ins(s.v[3*i], s.v[3*i+1])){ const q2 = tAp(T, s.v[3*i], s.v[3*i+1]); put(s, i, [q2[0] - s.v[3*i], q2[1] - s.v[3*i+1]]); } }
+  let recs = [], g = 0;
+  const run = () => { for (; g < q.length && g < 20000; g++){
+    const [s, k] = q[g]; if (!s.d[k] === !s.d[k+1]) continue; const a = s.d[k] ? k : k + 1, bb = s.d[k] ? k + 1 : k, v = s.v, d = s.d[a];
+    const A = [v[3*a], v[3*a+1]], B = [v[3*bb], v[3*bb+1]], L = Math.hypot(B[0] - A[0], B[1] - A[1]);
+    if (L < SHORT){ put(s, bb, d); continue; }
+    const u = [(B[0] - A[0])/L, (B[1] - A[1])/L], dp = d[0]*u[0] + d[1]*u[1], p = [d[0] - dp*u[0], d[1] - dp*u[1]];
+    if (Math.abs(v[3*k+2]) > 1e-9 || Math.hypot(p[0], p[1]) < 0.5 || recs.some(r => r.s === s && r.k === k)) continue;
+    const pl = Math.hypot(p[0], p[1]), nn = [p[0]/pl, p[1]/pl], tauR = Math.max(R[0]*u[0] + R[1]*u[1], R[2]*u[0] + R[1]*u[1], R[0]*u[0] + R[3]*u[1], R[2]*u[0] + R[3]*u[1]), tA = A[0]*u[0] + A[1]*u[1];
+    recs.push({s, k, a, bb, d, A, B, u, p, dp, sv:A[0]*nn[0] + A[1]*nn[1], tA, tB:B[0]*u[0] + B[1]*u[1], tauR:Math.max(tauR, tA), key:u.map(x => Math.round(x*100)).join() + '|' + p.map(x => Math.round(x)).join() + '|' + G.shapes[s.sid].li});
+  } };
+  for (let it = 0; it < 20; it++){ // 同じ向き・同じずれの線を、近い物どうしで1本の管・ダクトにまとめて曲げる所を決める。曲げが入らない短い所は丸ごと動かして先で曲げる
+    run(); let slid = false; const byKey = new Map(); recs.forEach(r => { r.C = null; if (!byKey.has(r.key)) byKey.set(r.key, []); byKey.get(r.key).push(r); });
+    for (const rs of byKey.values()){
+      rs.sort((x, y) => x.sv - y.sv); let grp = [];
+      const fin = () => { if (!grp.length) return; const lo = grp[0].sv, hi = grp[grp.length - 1].sv, mid = (lo + hi)/2, tc = Math.max(...grp.map(r => r.tauR)) + Math.max(0, ...grp.map(r => r.dp)) + G0 + (hi - lo)/2;
+        const tc2 = Math.min(tc, ...grp.map(r => r.tB - 1 - (r.sv - mid))), ts = grp.map(r => tc2 + (r.sv - mid)), fit = grp.every((r, i) => ts[i] > r.tA + Math.max(0, r.dp) + 1); // 場所が足りない時は外の端に寄せて曲げる
+        const more = grp.some(r => { const x = r.B[0], y = r.B[1], kx = Math.round(x/2), ky = Math.round(y/2); for (let a = -1; a <= 1; a++) for (let c = -1; c <= 1; c++) for (const [sid, j] of sc.idx.get((kx + a) + ',' + (ky + c)) || []) if (sid !== r.s.sid && Math.hypot(G.shapes[sid] && curShape(sid).verts[3*j] - x, curShape(sid).verts[3*j+1] - y) < 1.5) return true; return false; });
+        if (fit) grp.forEach((r, i) => { r.C = [r.A[0] + r.u[0]*(ts[i] - r.tA), r.A[1] + r.u[1]*(ts[i] - r.tA)]; });
+        else if (it < 19 && more){ grp.forEach(r => { r.gone = true; put(r.s, r.bb, r.d); }); slid = true; }
+        else grp.forEach(r => { r.C = r.B; }); // 最後まで入らない時は外の端で曲げる
+        grp = []; };
+      for (const r of rs){ if (grp.length && r.sv - grp[grp.length - 1].sv > 250) fin(); grp.push(r); } fin();
+    }
+    recs = recs.filter(r => !r.gone); if (!slid) break;
+  }
+  const out = [];
+  for (const s of SH.values()){
+    const rk = new Map(recs.filter(r => r.s === s && r.C).map(r => [r.k, r])); if (!rk.size && !s.d.some(Boolean)) continue;
+    const v = s.v, nv = [];
+    for (let i = 0; i < s.n; i++){
+      const r = rk.get(i - 1), dd = s.d[i] || [0, 0];
+      if (r && r.a === i){ if (Math.hypot(r.C[0] - r.B[0], r.C[1] - r.B[1]) > 0.01) nv.push(r.C[0], r.C[1], 0); nv.push(r.C[0] + r.p[0], r.C[1] + r.p[1], 0); } // 外 → クランク → 中
+      nv.push(v[3*i] + dd[0], v[3*i+1] + dd[1], v[3*i+2]);
+      const r2 = rk.get(i); if (r2 && r2.a === i){ nv.push(r2.C[0] + r2.p[0], r2.C[1] + r2.p[1], 0); if (Math.hypot(r2.C[0] - r2.B[0], r2.C[1] - r2.B[1]) > 0.01) nv.push(r2.C[0], r2.C[1], 0); } // 中 → クランク → 外
+    }
+    out.push([s.sid, nv, s.closed]);
+  }
+  return out;
+}
+function mvgT(m){ const r = m.rot || 0, c = [1, 0, -1, 0][r], s = [0, 1, 0, -1][r], C = m.C || [0, 0]; return [c, s, C[0] - (c*C[0] - s*C[1]) + m.dx, C[1] - (s*C[0] + c*C[1]) + m.dy]; }
+function mvgList(m){ return m.useC ? m.eids.concat(m.comp) : m.eids; }
+function mvgPlan(m){ return m.useS ? planStretch(m.sc, mvgT(m)) : []; }
+function mvgStart(eids){
+  const list = [...eids], comp = compOf(list), b = outlineBox(list), mov = new Set(list.concat(comp));
+  S.mvg = {eids:list, comp, useC:true, useS:true, dx:0, dy:0, rot:0, C:b ? [(b[0] + b[2])/2, (b[1] + b[3])/2] : [0, 0], sc:stretchCands(list, mov)};
+  S.selDim = null; updatePickBar(); drawOverlay();
+}
 function mvgDrag(p){
   const m = S.mvg; if (!m) return; let dx = (p[0] - gest.start[0])/view.s, dy = -(p[1] - gest.start[1])/view.s;
   if (S.ortho){ if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
@@ -1197,12 +1287,15 @@ function mvgDrag(p){
   const ix = $('#mvX'), iy = $('#mvY'); if (ix) ix.value = m.dx; if (iy) iy.value = m.dy; drawOverlay();
 }
 function drawMvg(c){
-  const m = S.mvg; if (!m || !G) return;
+  const m = S.mvg; if (!m || !G) return; const T = mvgT(m), pth = (a, st) => { let q = w2s(...tAp(T, a[0], a[1])); c.moveTo(q[0], q[1]); for (let i = st; i + 1 < a.length; i += st){ q = w2s(...tAp(T, a[i], a[i+1])); c.lineTo(q[0], q[1]); } };
   c.save(); c.strokeStyle = tok.snap; c.lineWidth = 2; c.lineCap = 'round'; c.beginPath();
-  for (const e of m.eids){ const pls = (G.eidPolys.get(e) || []).filter(pl => !(pl.sid >= 0 && S.ov.has(pl.sid))).concat((G.ovPolys || []).filter(pl => pl.eid === e && pl.sid >= 0));
+  for (const e of mvgList(m)){ const pls = (G.eidPolys.get(e) || []).filter(pl => !(pl.sid >= 0 && S.ov.has(pl.sid))).concat((G.ovPolys || []).filter(pl => pl.eid === e && pl.sid >= 0));
     if (!pls.length){ const b = G.pbox.get(e); if (b) pls.push({a:[b[0], b[1], b[2], b[1], b[2], b[3], b[0], b[3], b[0], b[1]]}); }
-    for (const pl of pls){ const a = pl.a; let q = w2s(a[0] + m.dx, a[1] + m.dy); c.moveTo(q[0], q[1]); for (let i = 2; i < a.length; i += 2){ q = w2s(a[i] + m.dx, a[i+1] + m.dy); c.lineTo(q[0], q[1]); } } }
+    for (const pl of pls) pth(pl.a, 2); }
+  c.stroke(); c.strokeStyle = tok.accent || tok.snap; c.setLineDash([6, 3]); c.beginPath(); // つなぎ直す配管
+  for (const [, v] of mvgPlan(m)){ let q = w2s(v[0], v[1]); c.moveTo(q[0], q[1]); for (let i = 3; i + 1 < v.length; i += 3){ q = w2s(v[i], v[i+1]); c.lineTo(q[0], q[1]); } }
   c.stroke(); c.restore();
+  const n = $('#mvSn'); if (n) n.textContent = mvgPlan(m).length;
 }
 function kikiList(){ try { const a = JSON.parse(localStorage.getItem('zumen-kiki') || '[]'); return Array.isArray(a) ? a.filter(k => k && k.nm && k.w > 0 && k.d > 0) : []; } catch(e){ return []; } }
 function kikiSave(a){ try { localStorage.setItem('zumen-kiki', JSON.stringify(a)); } catch(e){} }
@@ -1249,11 +1342,18 @@ function updatePickBar(){
     bar.hidden = false; $('#layerBar').hidden = true;
     bar.innerHTML = `<div class="frow"><div class="grow"><div class="lname">移動：${esc(m.eids.length === 1 ? partName(m.eids[0]) : m.eids.length + '個の部品')}</div><div class="lsub">図面を1本指でずらす（2本指で拡大・縦横ボタンでまっすぐ）・数字で mm も入れられます</div></div></div>
       <div class="frow" style="align-items:center"><span style="font-size:13px">右へ</span>${inp('mvX', m.dx)}<span style="font-size:13px">上へ</span>${inp('mvY', m.dy)}</div>
+      <div class="frow"><button class="btn" data-a="mvl" style="flex:1">↺ 90°</button><div style="flex:1;text-align:center;font-size:13px;align-self:center">向き ${[0, 90, 180, 270][m.rot]}°</div><button class="btn" data-a="mvr" style="flex:1">↻ 90°</button></div>
+      <div class="frow"><button class="btn ${m.useC ? 'sel' : ''}" data-a="mvc" style="flex:1;white-space:normal;line-height:1.25">${m.useC ? '✓ ' : ''}文字・印も一緒（${m.comp.length}）</button><button class="btn ${m.useS ? 'sel' : ''}" data-a="mvs" style="flex:1;white-space:normal;line-height:1.25">${m.useS ? '✓ ' : ''}配管・ダクトをつなぐ（<span id="mvSn">${mvgPlan(m).length}</span>本）</button></div>
       <div class="frow"><button class="btn" data-a="mvno" style="flex:1">やめる</button><button class="btn pri" data-a="mvok" style="flex:2">ここに決める</button></div>`;
     bar.oninput = e => { if (e.target.id === 'mvX') m.dx = +e.target.value || 0; if (e.target.id === 'mvY') m.dy = +e.target.value || 0; drawOverlay(); };
     bar.onchange = null;
     bar.onclick = e => { const a = e.target.closest('button[data-a]')?.dataset.a; if (!a) return;
-      if (a === 'mvok'){ S.mvg = null; if (m.dx || m.dy){ exec(cmdMove(m.eids, m.dx, m.dy)); toast(`${m.eids.length === 1 ? partName(m.eids[0]) : m.eids.length + '個'}を${mvTxt(m.dx, m.dy)}動かしました（↶で戻せます）`); } }
+      if (a === 'mvl' || a === 'mvr'){ m.rot = (m.rot + (a === 'mvl' ? 1 : 3)) % 4; if (!m.rotT && m.useS){ m.rotT = true; m.useS = false; toast('回す時は配管・ダクトのつなぎ直しを切りました（線が斜めに引っぱられるため）。「配管・ダクトをつなぐ」でオンにもできます'); } }
+      else if (a === 'mvc'){ m.useC = !m.useC; m.sc = stretchCands(m.eids, new Set(mvgList(m))); }
+      else if (a === 'mvs'){ m.useS = !m.useS; }
+      else if (a === 'mvok'){ S.mvg = null; if (m.dx || m.dy || m.rot){ const list = mvgList(m), ovs = mvgPlan(m), nm = m.eids.length === 1 ? partName(m.eids[0]) : m.eids.length + '個';
+        exec(cmdXform(list, mvgT(m), ovs, '部品を移動', short(m.eids.map(partName)) + `（${mvTxt(m.dx, m.dy, m.rot)}${m.useC && m.comp.length ? `・文字など${m.comp.length}個も` : ''}${ovs.length ? `・配管${ovs.length}本をつなぎ直し` : ''}）`));
+        toast(`${nm}を${mvTxt(m.dx, m.dy, m.rot)}動かしました${ovs.length ? `（配管・ダクト ${ovs.length} 本をつなぎ直し）` : ''}（↶で戻せます）`); } }
       else if (a === 'mvno'){ S.mvg = null; }
       updatePickBar(); drawOverlay(); };
     return;
@@ -1926,6 +2026,7 @@ function inverseOf(e){
     if (e.label === 'メモを変更') return cur && e.noteOld != null ? cmdNote('edit', cur, e.noteOld) : null;
     return null;
   }
+  if (e.kind === 'obj' && e.tr && e.eids) return cmdXform(e.eids, tInv(e.tr), e.ovp || [], e.label, e.detail);
   if (e.kind === 'obj' && e.mv && e.eids) return cmdMove(e.eids, -e.mv[0], -e.mv[1]);
   if (e.kind === 'obj' && e.label === '機器の向きを変える' && e.eids){ const k = kikiOf(e.eids[0]); return k ? cmdKikiRot(k) : null; }
   if (e.kind === 'obj' && e.label === '機器を追加' && e.eids) return cmdObjs(e.eids, 'del');
@@ -2543,7 +2644,7 @@ const dbGet = (s, k) => dbOp(s, 'readonly', st => st.get(k));
 const dbPut = (s, v) => dbOp(s, 'readwrite', st => st.put(v));
 const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
-function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n,g,to,c}) => ({x1,y1,x2,y2,n:n||1,g,...(to ? {to:to.slice()} : {}),...(c != null ? {c} : {})})), dimGroups:S.dimGroups, curDG:S.curDG, routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, mov:{n:G.shapes.length, list:[...S.mov].map(([e, d]) => [e, d[0], d[1]])}, kiki:S.kiki, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
+function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n,g,to,c}) => ({x1,y1,x2,y2,n:n||1,g,...(to ? {to:to.slice()} : {}),...(c != null ? {c} : {})})), dimGroups:S.dimGroups, curDG:S.curDG, routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, mov:{n:G.shapes.length, list:[...S.mov].map(([e, d]) => [e, ...d])}, kiki:S.kiki, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
 let autoT = 0;
 function autosave(dirty = true){
   if (dirty && G) S.dirty = true;
@@ -2583,7 +2684,7 @@ async function openText(text, srcName, opts = {}){
         else if (st.views.byHandle){ const hmap = new Map(); for (const [k, t] of Object.entries(G.parts)) if (t.h) hmap.set(t.h, +k); S.views = st.views.list.map(v => ({...v, hide:(v.hideH || []).map(h => hmap.get(h)).filter(x => x !== undefined)})); }
       }
       if (st.objs && st.objs.n === G.shapes.length){ (st.objs.hide || []).forEach(e => S.hideObj.add(+e)); (st.objs.del || []).forEach(e => S.delObj.add(+e)); }
-      if (st.mov && st.mov.n === G.shapes.length) for (const [e, dx, dy] of st.mov.list || []) setMov(+e, [+dx, +dy]);
+      if (st.mov && st.mov.n === G.shapes.length) for (const [e, ...d] of st.mov.list || []) setMov(+e, d);
       S.kiki = Array.isArray(st.kiki) ? st.kiki.filter(k => k && k.w > 0 && k.d > 0).map(k => ({...k})) : [];
       if (st.routes && st.routes.n === G.shapes.length){ for (const [k, v, c] of st.routes.ov || []) if (G.shapes[k]) S.ov.set(+k, {verts:v, closed:!!c}); S.ghosts = st.routes.ghosts || []; }
     }
@@ -2823,14 +2924,24 @@ function buildExport(name, opt = {}){
         const mv0 = section === 'ENTITIES' && hdl !== null ? movH.get(hdl) : null, sub = t === 'VERTEX' || t === 'ATTRIB' || t === 'SEQEND';
         if (mv0) movSeq = mv0; else if (!sub || section !== 'ENTITIES') movSeq = null;
         const md = mv0 || (movSeq && sub ? movSeq : null); // 動かした部品：位置の座標だけずらす（ブロックの中身はそのまま）
-        const pts = md ? (/^(LINE|TEXT|ATTRIB|ATTDEF|HATCH|SPLINE)$/.test(t) ? [10, 11] : /^(SOLID|TRACE|3DFACE)$/.test(t) ? [10, 11, 12, 13] : [10]) : null; let skip1 = md && (t === 'HATCH' || t === 'POLYLINE');
+        const pts = md ? (/^(LINE|TEXT|ATTRIB|ATTDEF|HATCH|SPLINE)$/.test(t) ? [10, 11] : /^(SOLID|TRACE|3DFACE)$/.test(t) ? [10, 11, 12, 13] : [10]) : null;
+        let rep = null, add50 = null;
+        if (md && !drop){ // 点は回して・ずらす、向き（MTEXT・ELLIPSE の 11）は回すだけ、角度（50・51）は足す。HATCH・POLYLINE の最初の 10 は高さの点なのでそのまま
+          rep = new Map(); const deg = Math.atan2(md[1], md[0])*180/Math.PI, vec = /^(MTEXT|ELLIPSE)$/.test(t) ? [11] : []; let sk = t === 'HATCH' || t === 'POLYLINE';
+          for (let k = i; k < j; k++){ const c = codes[k]; if (!(pts.includes(c) || vec.includes(c)) || codes[k+1] !== c + 10) continue; if (sk && c === 10){ sk = false; continue; }
+            const x = parseFloat(vals[k]), y = parseFloat(vals[k+1]), q = vec.includes(c) ? [md[0]*x - md[1]*y, md[1]*x + md[0]*y] : tAp(md, x, y); rep.set(k, num(q[0])); rep.set(k+1, num(q[1])); }
+          if (Math.abs(deg) > 1e-9){ let h50 = false, h11 = false; for (let k = i; k < j; k++){ if (codes[k] === 50) h50 = true; if (codes[k] === 11) h11 = true; }
+            const angs = t === 'ARC' || t === 'HATCH' ? [50, 51] : /^(INSERT|TEXT|ATTRIB|ATTDEF|MTEXT)$/.test(t) ? [50] : [];
+            for (let k = i; k < j; k++) if (angs.includes(codes[k])) rep.set(k, num(((parseFloat(vals[k]) + deg) % 360 + 360) % 360));
+            if ((!h50 && /^(INSERT|TEXT|ATTRIB|ATTDEF)$/.test(t)) || (t === 'MTEXT' && !h50 && !h11)) add50 = num((deg + 360) % 360); }
+        }
         if (!drop){
           const inv = section === 'ENTITIES' && hdl !== null && hideH.has(hdl);
           let put60 = false;
           for (let k = i; k < j; k++){
             if (inv && codes[k] === 60) continue;
-            if (md && (pts.includes(codes[k]) || pts.includes(codes[k] - 10))){ const isX = codes[k] < 20; if (skip1 && codes[k] === 10){ out.push(String(codes[k]).padStart(3, ' '), vals[k]); continue; } if (skip1 && codes[k] === 20){ skip1 = false; out.push(String(codes[k]).padStart(3, ' '), vals[k]); continue; } out.push(String(codes[k]).padStart(3, ' '), num(parseFloat(vals[k]) + (isX ? md[0] : md[1]))); continue; }
-            out.push(String(codes[k]).padStart(3, ' '), vals[k]);
+            out.push(String(codes[k]).padStart(3, ' '), rep && rep.has(k) ? rep.get(k) : vals[k]);
+            if (add50 !== null && (codes[k] === 30 || (codes[k] === 20 && codes[k+1] !== 30))){ out.push(' 50', add50); add50 = null; }
             if (inv && !put60 && codes[k] === 8){ out.push(' 60', '1'); put60 = true; }
           }
         }
@@ -3368,7 +3479,7 @@ function scaleState(st, r){
   st.dims = (st.dims || []).map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r, ...(d.to ? {to:d.to.map(v => v*r)} : {})}));
   if (st.routes){ st.routes.ov = (st.routes.ov || []).map(([k, v, c]) => [k, sv(v), c]); st.routes.ghosts = (st.routes.ghosts || []).map(sg); }
   st.notes = (st.notes || []).map(n => ({...n, x:n.x*r, y:n.y*r}));
-  if (st.mov) st.mov.list = (st.mov.list || []).map(([e, x, y]) => [e, x*r, y*r]); st.kiki = (st.kiki || []).map(k => ({...k, x:k.x*r, y:k.y*r}));
+  if (st.mov) st.mov.list = (st.mov.list || []).map(([e, ...d]) => { const T = tOf(d); return [e, T[0], T[1], T[2]*r, T[3]*r]; }); st.log = (st.log || []).map(x => x.tr ? {...x, tr:[x.tr[0], x.tr[1], x.tr[2]*r, x.tr[3]*r]} : x); st.kiki = (st.kiki || []).map(k => ({...k, x:k.x*r, y:k.y*r}));
   st.log = (st.log || []).map(e => ({...e, box:sp(e.box), dims:e.dims && e.dims.map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r, ...(d.to ? {to:d.to.map(v => v*r)} : {})})), routes:e.routes && e.routes.map(W => W.map(q => [q[0]*r, q[1]*r])), ghosts:e.ghosts && e.ghosts.map(sg), prev:e.prev && e.prev.map(([k, v, c]) => [k, sv(v), c]), restore:e.restore && [e.restore[0], sv(e.restore[1]), e.restore[2]]}));
   return st;
 }
@@ -3512,7 +3623,7 @@ function applyItem(k, v, kinds){
   } else if (t === 'o'){
     if (v) S.delObj.add(+id); else S.delObj.delete(+id); kinds.add('obj');
   } else if (t === 'm'){
-    setMov(+id, Array.isArray(v) ? [+v[0] || 0, +v[1] || 0] : [0, 0]); kinds.add('obj');
+    setMov(+id, Array.isArray(v) ? v : TID); kinds.add('obj');
   } else if (t === 'k'){
     const x = S.kiki.find(w => w.id === id);
     if (v){ if (x) Object.assign(x, v); else S.kiki.push({...v}); } else if (x) S.kiki = S.kiki.filter(w => w !== x);
@@ -3534,7 +3645,7 @@ function applyItem(k, v, kinds){
   }
 }
 function shReset(){
-  for (const e of [...S.mov.keys()]) setMov(e, [0, 0]); S.kiki = []; S.mvg = null;
+  for (const e of [...S.mov.keys()]) setMov(e, TID); S.kiki = []; S.mvg = null;
   S.dims = []; S.notes = []; S.ov = new Map(); S.ghosts = []; S.views = []; S.log = []; S.delObj = new Set(); S.selDim = null;
   const keepOn = new Map(S.dimGroups.map(g => [g.id, g.on])); S.dimGroups = []; SH.keepOn = keepOn;
   G.L.forEach(l => l.deleted = false);

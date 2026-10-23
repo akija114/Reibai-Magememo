@@ -1,6 +1,6 @@
 /* オフライン用：一度開けば、電波がなくても開ける。更新したら（main に入れる時は毎回）VER の数字を上げる。
    VER が変わると、開いている画面に「新しい版があります」が出る（index.html）。❓の画面の下に今の版が出る */
-const VER="pbm-v269",CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./zumen.html","./genchou.html","./kiki.html","./genba.html","./genba.js?v=1","./core.js?v=268","./team.js?v=255","./drain.js?v=268","./dxf.js?v=269","./genchou.js?v=228","./kabe.js?v=228","./kozo.js?v=228","./mitsumori.js?v=268","./models.js?v=228","./shashin.js?v=228","./sumi.js?v=228","./tanka.js?v=228","./zumen.js?v=269","./shita.js?v=251","./yomi.js?v=250"];
+const VER="pbm-v270",CORE=["./","./index.html","./manifest.webmanifest","./icon-192.png","./icon-512.png","./apple-touch-icon.png","./zumen.html","./genchou.html","./kiki.html","./genba.html","./genba.js?v=1","./core.js?v=268","./team.js?v=255","./drain.js?v=268","./dxf.js?v=269","./genchou.js?v=228","./kabe.js?v=228","./kozo.js?v=228","./mitsumori.js?v=268","./models.js?v=228","./shashin.js?v=228","./sumi.js?v=228","./tanka.js?v=228","./zumen.js?v=269","./shita.js?v=251","./yomi.js?v=250"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(VER).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith("pbm-")&&k!==VER).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{

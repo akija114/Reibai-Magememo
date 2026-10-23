@@ -534,7 +534,7 @@ function dlEisei(S,J,CS){
    ・高さ：同じ種類の近くの「FL+3200」などの文字。無ければ天井の少し下（ダクトは天井の上） */
 const DL_KINDS=[["duct","ダクト"],["eisei","衛生"]];
 /* 読み方の版：衛生・ダクトの読み方を直したら1つ上げる（図面の画面で前の図面を開いた時、古い版で作った3Dは自動で読み直す） */
-const DL_VER=3;window.DL_VER=DL_VER;
+const DL_VER=4;window.DL_VER=DL_VER;
 window.DL_KINDS=DL_KINDS;
 function segCat(s){if(s[5]!==undefined)return dxfCat(s[5]);const c=s[4]||"";if(c.length<7)return"";const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
  return r>200&&g<80&&b>200?"ref":r>200&&g>90&&g<170&&b<60?"drain":""}   // PDF：赤紫＝冷媒、オレンジ＝ドレン（#ff7f00・#ff7e00 など少し違っても）
@@ -672,5 +672,20 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
      E.push({x:p[0],z:p[1],h:r[4],u:[(p[0]-q[0])/L,(p[1]-q[1])/L],w:r[6],k})})})});
    const taken=new Set();out.vc=[];VT.sort((a,b)=>b.n-a.n).forEach(t=>{let b=null,bd=t.n>=100?3500:1200;E.forEach((e,i)=>{if(taken.has(i))return;if(t.n>=100&&e.k!=="duct")return;const d=Math.hypot(e.x-t.x,e.z-t.z)+Math.abs(e.w-t.n)*3;if(d<bd){bd=d;b=i}});
     if(b===null)return;taken.add(b);const e=E[b];out.vc.push([Math.round(e.x),Math.round(e.z),Math.round(e.h),+e.u[0].toFixed(4),+e.u[1].toFixed(4),t.n,t.fd,e.k])})}}catch(err){console.warn("vc",err)}
+ /* ダクトの機器（吹出口・吸込口・換気扇など）：図面の「VHS-200□」「VHS(F)-200□」「VD-20ZVC7」のような機器の文字を、いちばん近くのどこにもつながっていないダクトの端に付ける。
+    形は箱（□・× の大きさがあればその大きさ、無ければ 300角）。近くの「150CMH」も一緒に出す。out.eq2＝[x, z, 高さ, 向きx, 向きz, 幅, 奥行, 種類(g＝口・f＝そのほか), 文字, 天井の高さ] */
+ try{const nz=s0=>String(s0).replace(/[０-９Ａ-Ｚａ-ｚ（）－×]/g,c=>c==="×"?"×":String.fromCharCode(c.charCodeAt(0)-65248)).replace(/[\s　]/g,"");
+  const pos=t=>{let x=t.x,y=t.y;if(main){const v=own(x,y);if(!v)return null;if(v!==main){const d=off(v);if(!d)return null;x+=d[0];y+=d[1]}}const w=btWx([x,y]);return{x:w[0],z:w[1]}};
+  const TX=(P.textsAll||[]).map(t=>({t,z:nz(t.s)}));
+  const CM=TX.filter(o=>/^\d{2,4}CMH$/i.test(o.z)).map(o=>Object.assign(pos(o.t)||{},{s:o.z})).filter(o=>o.x!==undefined);
+  const EQT=TX.map(o=>{const m=o.z.match(/^([A-Z]{1,4}(?:\([A-Z]{1,2}\))?)(-?)(\d{2,4})([A-Z0-9]*)(□|×(\d{2,4}))?$/);if(m)m.splice(2,1,...[]);if(!m||!/-|□|×/.test(o.z)||/^(VC|FL|SA|RA|OA|EA|PL|PLA|PC|PEA|PUZ|PUHY|PKA|SD|CH)$/.test(m[1]))return null;   // VC・高さ・ダクトの種類・室内外機の品番は別
+   const p=pos(o.t);if(!p)return null;const n=+m[2],sq=m[4]?1:0;return{x:p.x,z:p.z,s:o.z,g:/^(V?H?S|HS|VHS|H|V|AH|SH|PH)/.test(m[1])&&sq?1:0,w:sq?n:300,d:sq?(+m[5]||n):300}}).filter(Boolean);
+  const S=out.ductS||[],J=out.ductJ||[],E=[];S.filter(r=>r[0]!==r[2]||r[1]!==r[3]).forEach(r=>{[[0,1,2,3],[2,3,0,1]].forEach(([a,b,c,d])=>{const p=[r[a],r[b]],q=[r[c],r[d]],L=Math.hypot(p[0]-q[0],p[1]-q[1]);if(L<20)return;
+   const used=S.some(o=>o!==r&&(Math.hypot(o[0]-p[0],o[1]-p[1])<Math.max(30,r[6]*0.6)||Math.hypot(o[2]-p[0],o[3]-p[1])<Math.max(30,r[6]*0.6)))||J.some(j=>Math.hypot(j[0]-p[0],j[1]-p[1])<Math.max(60,r[6]*1.2))||(out.vc||[]).some(v=>Math.hypot(v[0]-p[0],v[1]-p[1])<60);if(used)return;
+   E.push({x:p[0],z:p[1],h:r[4],u:[(p[0]-q[0])/L,(p[1]-q[1])/L],w:r[6]})})});
+  const CH0=(st.gnd&&st.gnd.ch)||P.CH||2700,taken=new Set();out.eq2=[];
+  EQT.forEach(t=>{let b=null,bd=1500;E.forEach((e,i)=>{if(taken.has(i))return;const d=Math.hypot(e.x-t.x,e.z-t.z);if(d<bd){bd=d;b=i}});if(b===null)return;taken.add(b);const e=E[b];
+   let cm=null,cd=900;CM.forEach(c=>{const d=Math.hypot(c.x-t.x,c.z-t.z);if(d<cd){cd=d;cm=c}});
+   out.eq2.push([Math.round(e.x),Math.round(e.z),Math.round(e.h),+e.u[0].toFixed(4),+e.u[1].toFixed(4),t.w,t.d,t.g?"g":"f",t.s+(cm?" "+cm.s:""),CH0])})}catch(err){console.warn("eq2",err)}
  out.ver=DL_VER;return out};
 })();

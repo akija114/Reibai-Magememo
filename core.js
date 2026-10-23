@@ -2628,6 +2628,15 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
   const ls=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:col,transparent:true,opacity:.55}));ls.userData.dl=k;T.grp.add(ls)});
  /* ベントキャップ（VC深型フード・FD付）：ダクトの先（外壁）に。寸法は宇佐美工業 VC100・VC150 の外形図、ほかの大きさは同じ割合で
     A フードの高さ、C 出、H 下の水切りの幅、J ツバの高さ、K ツバの幅、M フードの幅、O 芯からツバの上まで、E 差し込みの長さ、B 差し込みの外径 */
+ /* ダクトの機器（図面の文字から・dxf.js の out.eq2）：吹出口・吸込口＝天井の白い面とその上の箱、そのほか（換気扇など）＝箱。形は箱でよい（大きさは文字の□・×、無ければ300角） */
+ if(dlOnOf("duct"))(D.eq2||[]).forEach(([x,z,h,ux,uz,w,d,ty,txt,ch])=>{try{const g=new THREE.Group(),M=c=>new THREE.MeshStandardMaterial({color:c,roughness:.5}),th=-Math.atan2(uz,ux);
+  if(ty==="g"){const top=GY+Math.max(h,ch+60),bot=GY+ch,bx=new THREE.Mesh(new THREE.BoxGeometry(w,Math.max(40,top-bot),d),M(0xcbd5e1));bx.position.set(0,(top+bot)/2,0);g.add(bx);
+   const pn=new THREE.Mesh(new THREE.BoxGeometry(w+100,16,d+100),M(0xf8fafc));pn.position.set(0,bot+8,0);g.add(pn);
+   const gr=new THREE.Mesh(new THREE.BoxGeometry(w,4,d),M(0x64748b));gr.position.set(0,bot-1,0);g.add(gr)}   // 天井の面（白）と羽根（灰）
+  else{const bx=new THREE.Mesh(new THREE.BoxGeometry(Math.max(w,200),250,Math.max(d,200)),M(0xe2e8f0));bx.position.set(Math.max(w,200)/2,GY+h,0);g.add(bx);
+   const e2=new THREE.LineSegments(new THREE.EdgesGeometry(bx.geometry),new THREE.LineBasicMaterial({color:0x475569}));e2.position.copy(bx.position);g.add(e2)}
+  g.position.set(x,0,z);g.rotation.y=th;g.userData.dl="duct";T.grp.add(g);
+  const lb=label("🌀 "+txt,ext*0.022,"#f1f5f9f2","#334155","bld");lb.position.set(x,GY+(ty==="g"?ch-120:h+220),z);lb.userData.cat="ductEq";pxl(lb,12);T.grp.add(lb)}catch(err){console.warn("eq2",err)}});
  (D.vc||[]).forEach(([x,z,h,ux,uz,n,fd,k])=>{if(!dlOnOf(k))return;const r=(n-100)/50,L=(a,b)=>Math.max(a*0.45,a+(b-a)*r);
   const A=L(152,197),C=L(81,124),Hd=L(154,212),Jt=L(179,234),K=L(147,200),M=L(134,186),O=L(105,132),E=L(47,56)+(fd?L(8,23):0),B=Math.max(n*0.97,L(97,145)),F=7;
   const g=new THREE.Group(),ss=new THREE.MeshStandardMaterial({color:0xe8ecf0,roughness:.35,metalness:.3,side:THREE.DoubleSide}),dk=new THREE.MeshStandardMaterial({color:0x334155,roughness:.6});

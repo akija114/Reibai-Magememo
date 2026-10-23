@@ -250,7 +250,7 @@ function dlTidy(S0,k,EQ,LB){let S=S0.map(s=>{const[x1,z1,x2,z2,h,sh,w,hh,sub,lay
  if(LBK&&Array.isArray(LB))LB.forEach(lb=>{let best=null,bd=1e9;
   if(lb.tip){S.forEach(o=>{if(o.lay!==lb.lay)return;const d=segD(lb.tip,o);if(d<Math.max(o.w,60)+40&&d<bd){bd=d;best=o}});if(best){if(lb.h){best.lh=lb.h;(best.lbs=best.lbs||[]).push({t:dt(sub(lb.tip,best.a),best.u),h:lb.h})}if(lb.sz){best.lsz=lb.sz;if(lb.sz.r){best.sh=0;best.w=best.hh=lb.sz.a}else{best.sh=1;best.w=lb.sz.a;best.hh=lb.sz.b}}return}}   // 引出線の先の管
   S.forEach(o=>{if(o.lay!==lb.lay)return;if(DU&&lb.u&&Math.abs(cr(o.u,lb.u))>0.35)return;const v=sub([lb.x,lb.z],o.a),t=dt(v,o.u),l=Math.abs(cr(o.u,v));
-   const LR=ES?1200:800;if(t<-LR||t>o.L+LR||l>Math.max(ES?1200:700,o.w/2+500))return;const d=l+Math.max(0,-t,t-o.L)*1.5+(lb.sz?Math.abs(o.w-lb.sz.a)*2:0)-Math.min(o.L,2000)*0.01;if(d<bd){bd=d;best=o}});   // 太さの合う物・長い物を優先（となりの箱・チャンバーに付けない）
+   const LR=ES?1200:800;if(ES&&o.sub===0&&(t<0||t>o.L))return;/* 給水・給湯：引出線の無い文字は、管の横に並んでいる物だけ（管の先の短い枝に付けない） */if(t<-LR||t>o.L+LR||l>Math.max(ES?1200:700,o.w/2+500))return;const d=l+Math.max(0,-t,t-o.L)*1.5+(lb.sz?Math.abs(o.w-lb.sz.a)*2:0)-Math.min(o.L,2000)*0.01;if(d<bd){bd=d;best=o}});   // 太さの合う物・長い物を優先（となりの箱・チャンバーに付けない）
   if(!best)return;if(lb.h)best.lh=lb.h;if(lb.sz){best.lsz=lb.sz;if(lb.sz.r){best.sh=0;best.w=best.hh=lb.sz.a}else{best.sh=1;best.w=lb.sz.a;best.hh=lb.sz.b}};if(lb.h)(best.lbs=best.lbs||[]).push({t:dt(sub([lb.x,lb.z],best.a),best.u),h:lb.h})});
  /* 1本のダクトに高さのちがう文字が2つ以上ある時（ロスナイの上だけ上げる、など）：文字と文字の間で切って、それぞれの高さにする。
     切る所は、間にある段差の記号（ダクトの上の半円の線）。無ければ文字と文字の真ん中 */
@@ -424,7 +424,7 @@ S.forEach((o,i)=>{if(!keep[i]||o.L<5||o.hide)return;let a=o.a,b=o.b,w2=null;
    ③（②の前にする）汚水・排水・通気の管の、どこにもつながっていない端が、平面で「もっと低い汚水・排水の管」の上にある所
       （図面のたて管の丸＝下の本管にチーズで合流）→ そこで本管の高さまで下ろして、本管に上から入るチーズ（J[16]=1 枝が上向き）。
       汚水は上流から必ず下り勾配で流れてくるので、本管より高い所から来た物は上から合流する */
-function dlEisei(S,J){
+function dlEisei(S,J,CS){
  const add=[];S.forEach(s=>{if(s[8]!==4)return;const h1=s[4],h2=typeof s[9]==="number"?s[9]:h1;
   if(Math.max(h1,h2)<=0){s[8]=1;return}
   if(Math.min(h1,h2)<0&&s[0]===s[2]&&s[1]===s[3]){const lo=Math.min(h1,h2),hi=Math.max(h1,h2);s[4]=0;s[9]=hi;add.push([s[0],s[1],s[2],s[3],lo,s[5],s[6],s[7],1,0])}});
@@ -512,6 +512,15 @@ function dlEisei(S,J){
     if(e){s[2]=Math.round(v.x+u[0]*r);s[3]=Math.round(v.z+u[1]*r)}else{s[0]=Math.round(v.x+u[0]*r);s[1]=Math.round(v.z+u[1]*r)}
     J.push(elb(v.x,v.z,h,u,[0,dn?1:-1,0],w,0,r));if(dn)v.lo=h;else v.hi=h}
    else{if(e){s[2]=v.x;s[3]=v.z}else{s[0]=v.x;s[1]=v.z}tee(h,u,w)}})})
+ /* ⑨ 給水・給湯：どこにもつながっていない横の管の端が、ほかの給水の管の途中に当たる所（少し越えて描いてある時も）で、図面に丸がある所はチーズ（高さがちがう時は下の⑦で上下に出す） */
+ if(Array.isArray(CS))S.slice().forEach(s=>{if(s[8]!==0||!hz(s))return;const w=s[6],tol=Math.max(w,40);[0,1].forEach(e=>{const [x,z]=E(s,e),[ox,oz]=E(s,1-e);
+  if(J.some(q=>Math.hypot(q[0]-x,q[1]-z)<tol+(q[12]||0)))return;if(S.some(t=>t!==s&&t[8]===0&&(Math.hypot(t[0]-x,t[1]-z)<tol||Math.hypot(t[2]-x,t[3]-z)<tol)))return;
+  const L=Math.hypot(x-ox,z-oz);if(L<2*w)return;const u=[(x-ox)/L,(z-oz)/L];
+  S.some(M=>{if(M===s||M[8]!==0||!hz(M))return false;const mx=M[2]-M[0],mz=M[3]-M[1],ml=Math.hypot(mx,mz),mu=[mx/ml,mz/ml],c=u[0]*mu[1]-u[1]*mu[0];if(Math.abs(c)<0.5)return false;
+   const tS=((M[0]-ox)*mu[1]-(M[1]-oz)*mu[0])/c,tM=((M[0]-ox)*u[1]-(M[1]-oz)*u[0])/c;if(tM<M[6]||tM>ml-M[6]||Math.abs(tS-L)>3*w+100||tS<2*w)return false;
+   const px=Math.round(ox+u[0]*tS),pz=Math.round(oz+u[1]*tS);if(!CS.some(c=>Math.hypot(c.x-px,c.z-pz)<Math.max(M[6],60)))return false;   // 図面の丸（チーズ・上下の印）がある所だけ（ただ上下で交差している所はつながない）
+   const mh=Math.round(M[4]+(hEnd(M,1)-M[4])*tM/ml);if(e){s[2]=px;s[3]=pz}else{s[0]=px;s[1]=pz}
+   J.push([px,pz,mh,0,M[6],M[6],0,0,0,1,+mu[0].toFixed(4),+mu[1].toFixed(4),+(-u[0]).toFixed(4),+(-u[1]).toFixed(4),M[6],w]);return true})})});
  /* ⑦ 給水・給湯：チーズの枝の高さが本管とちがう時（図面の丸）は、チーズから上下に出して、エルボで枝へ（[16]：1＝上へ、-1＝下へ） */
  J.slice().forEach(q=>{if(q[6]!==0||q[7]||q[9]!==1||q[16]||q[17])return;const tol=Math.max(q[4],40);
   S.slice().forEach(s=>{if(s[8]!==0||!hz(s))return;[0,1].forEach(e=>{const [x,z]=E(s,e),h=hEnd(s,e),w=s[6];if(Math.hypot(x-q[0],z-q[1])>tol||Math.abs(h-q[2])<Math.max(30,w))return;
@@ -649,7 +658,7 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
   LB.rs=RS;
   /* 衛生：たて管の丸（高さが変わる所）。文字の高さをつながりで広げる時、ここは越えない */
   if(k==="eisei")try{LB.cs=(P.circ||[]).filter(c=>dxfCat(c.lay)==="eisei"&&c.r*mm>=15&&c.r*mm<=200).map(c=>{const lv=layV[c.lay];if(main&&!lv)return null;const w=btWx([c.x+(lv?lv.d[0]:0),c.y+(lv?lv.d[1]:0)]);return{x:w[0],z:w[1]}}).filter(Boolean)}catch(e){}
-  const T=dlTidy(solids,k,EQ,LB);if(k==="eisei")try{dlEisei(T.S,T.J)}catch(e){console.warn("eisei",e)}out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});
+  const T=dlTidy(solids,k,EQ,LB);if(k==="eisei")try{dlEisei(T.S,T.J,LB.cs)}catch(e){console.warn("eisei",e)}out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});
  /* ベントキャップ（「VC200(FD)」「VC150」など）：文字のいちばん近くの、どこにもつながっていないダクト・配管の端に付ける。
     向きは管の先（外向き）。out.vc＝[x, z, 高さ, 向きx, 向きz, 呼び径, FD付き(1/0), 種類] */
  try{const VT=(P.textsAll||[]).map(t=>{const z=String(t.s).replace(/[０-９Ａ-Ｚ（）]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/\s/g,"");const m=z.match(/^VC(\d{2,3})(.*)$/i);if(!m)return null;

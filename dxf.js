@@ -470,7 +470,14 @@ function dlEisei(S,J){
    if(J.some(q=>q[7]===1&&q.length>=13&&elEnds(q).some(([a,b])=>Math.hypot(a-x,b-z)<tol)))return;
    if(S.some((t,j)=>j!==i&&t[8]===s[8]&&dS(x,z,t)<tol))return;
    const [u,r]=cut(s,e,Math.min(0.8*s[6],(100-h)*0.45));
-   S.push([x,z,x,z,h+r,0,s[6],s[6],s[8],100,s[6],"fl"]);J.push(r?elb(x,z,h,u,[0,1,0],s[6],s[8],r):[x,z,h,0,s[6],s[6],s[8],0,0])})}}
+   S.push([x,z,x,z,h+r,0,s[6],s[6],s[8],100,s[6],"fl"]);J.push(r?elb(x,z,h,u,[0,1,0],s[6],s[8],r):[x,z,h,0,s[6],s[6],s[8],0,0])})}
+ /* ⑤ たて管の下と横の管が会うだけの所（空調ドレンが床下に下りて横に行く所など）は玉でなくエルボ */
+ J.slice().forEach(q=>{if(q[7]===1||q[9]===1||q[9]===2||q[16]||![1,2,4].includes(q[6]))return;const tol=Math.max(q[4],60);
+  const V=S.filter(t=>!hz(t)&&Math.hypot(t[0]-q[0],t[1]-q[1])<5&&Math.abs(Math.min(t[4],hEnd(t,1))-q[2])<5),H=[];
+  S.forEach(t=>{if(!hz(t)||![1,2,4].includes(t[8]))return;[0,1].forEach(e=>{const [x,z]=E(t,e);if(Math.hypot(x-q[0],z-q[1])<tol&&Math.abs(hEnd(t,e)-q[2])<30)H.push([t,e])})});
+  if(V.length!==1||H.length!==1)return;const v=V[0],[t,e]=H[0],vt=Math.max(v[4],hEnd(v,1)),r0=Math.min(0.8*t[6],(vt-q[2])*0.45);if(r0<5)return;
+  const [u,r]=cut(t,e,r0);if(!r)return;if(v[4]<=hEnd(v,1))v[4]=q[2]+r;else v[9]=q[2]+r;
+  J[J.indexOf(q)]=elb(q[0],q[1],q[2],u,[0,1,0],t[6],t[8],r)})}
 /* ===== 図面の配管・ダクトを3D用に取り出す（冷媒・ドレン・ダクト・衛生）=====
    ・図面に「平面図」「天井伏図」など何枚も描いてある時は、通り芯の記号（X1・Y2…）で図をわけ、原点のある図に合わせる
    ・原点のある図に無い種類（例：衛生配管は平面図だけ）は、ほかの図から通り芯でずらして持ってくる

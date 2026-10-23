@@ -131,6 +131,9 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
  const mat=new THREE.MeshStandardMaterial({color:DR_MAT[D.mat].col,roughness:.6}),jm=new THREE.MeshStandardMaterial({color:D.mat==="AC"?0x0ea5e9:0x6b7280,roughness:.5}),Y=new V(0,1,0),selMat=new THREE.MeshStandardMaterial({color:0xfacc15,roughness:.5,emissive:0x3a2a00});
  const rad=s2=>(DR_MAT[D.mat].od[s2]||32)/2;   // 実際の外径どおり（VP25＝32、VP40＝48、ACは保温込み）。サイズごとに太さが変わる
  const HOSE=drHose();
+ /* 継手の色分け（図面の衛生・ダクトと同じ色。「🎨継手」で切りかえ）：曲がり＝エルボ、合流・掃除口＝チーズ（45°の合流はY） */
+ const FC=typeof fitOn==="function"&&fitOn()?{}:null;if(FC)Object.keys(FIT_COL).forEach(t=>FC[t]=new THREE.MeshStandardMaterial({color:FIT_COL[t][1],roughness:.45}));
+ const fjm=i=>{if(!FC)return jm;const r=D.rows[i];if(r&&r.j)return r.j==="mg"&&(r.bs==="L45"||r.bs==="R45")?FC.y:FC.tee;const d0=PA.dirs[i],d1=PA.dirs[i+1];return d0&&d1&&d0.angleTo(d1)>0.05?FC.elb:jm};
  if(HOSE){try{const HF=drHoseFrom(),hp=[pts[HF].p.clone()];let last=-1;D.rows.forEach((r,i)=>{if(r.yg&&i>=HF){const q=pts[i+1].p;if(q.distanceTo(hp[hp.length-1])>=1)hp.push(q.clone());last=i}});   // 長さ0の区間（同じ点）は除く（曲線が壊れる）
    /* 形：立ち上げ→頂点→下げを、大きなR（アーチ）1本でつなぐ。両端は真上・真下を向く（継手に真っすぐ入る）。頂点の高さは区間どおり */
    const S0=hp[0],E0=hp[hp.length-1],top=Math.max(...hp.map(q=>q.y)),span=Math.hypot(E0.x-S0.x,E0.z-S0.z);let cp;
@@ -152,7 +155,7 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
   if(HOSE&&drHoseRow(i)){(T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:r,dr:1,i});continue}   // ホースの区間は上で描いた
   (T.drSegs=T.drSegs||[]).push({a:a.clone(),b:b.clone(),r:(DR_MAT[D.mat].od[pts[i+1].sz]||32)/2,dr:1,i});
   const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,L,16),i===DR_SEL?selMat:mat);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(Y,b.clone().sub(a).normalize());g.add(m);
-  const j=new THREE.Mesh(new THREE.SphereGeometry(r*1.18,14,10),jm);j.position.copy(b);g.add(j);
+  const j=new THREE.Mesh(new THREE.SphereGeometry(r*1.18,14,10),fjm(i));j.position.copy(b);g.add(j);
   try{const s=label("💧"+nm(i)+fmt(pts[i+1].l)+(pts[i+1].vert?"":"（-"+fmt(pts[i+1].l/D.slope)+"）"),ext*0.028,"#e0f2fef2","#0c4a6e");s.position.copy(a).add(b).multiplyScalar(.5);s.userData.cat="drl";if(typeof pxl==="function")pxl(s,15);g.add(s)}catch(e){}}
  {const j=new THREE.Mesh(new THREE.SphereGeometry(rad(D.sz)*1.18,14,10),jm);j.position.copy(S);g.add(j)}
  /* 支持：全ねじ＋吊りバンド。高さ＝管の下端（FL）。ドレンアップの上は専用金物（色を変える） */
@@ -169,11 +172,11 @@ function addDrain3D(UN,bb){T.drSegs=[];const D=st.drain?DRN():null;if(!D||!D.sho
    const nd=(PA.dirs[i+1]||PA.dirs[i]).clone(),ndh=new V(nd.x,0,nd.z).normalize(),R0=rad(szc),side=dh.clone().cross(up).normalize();
    /* チーズから200mm（流れの先）に支持 */
    /* チーズから200の支持は、ほかの支持と一緒に描く（drSupports） */
-   const T2=new THREE.Mesh(new THREE.BoxGeometry(R0*2.3,R0*2.3,R0*2.3),jm);T2.position.copy(P);g.add(T2);   // チーズ
+   const T2=new THREE.Mesh(new THREE.BoxGeometry(R0*2.3,R0*2.3,R0*2.3),fjm(i));T2.position.copy(P);g.add(T2);   // チーズ
    if(r.j==="co"){/* 掃除口：チーズから、曲がった後の管（下流）をまっすぐ逆向きに短く出して、45°で斜め上へ立ち上げ、キャップ
        （曲がる方向・勾配と逆側。角でも直線でも、下流の管の延長線上の上流側） */
     const back=ndh.clone().negate(),M=P.clone().addScaledVector(back,Math.max(60,R0*2.5)),cd=back.clone().add(up).normalize(),E=M.clone().addScaledVector(cd,Math.max(120,R0*5));
-    cyl(P,M,R0,mat);const el=new THREE.Mesh(new THREE.SphereGeometry(R0*1.15,12,8),jm);el.position.copy(M);g.add(el);cyl(M,E,R0,mat);   // チーズ→短管→45°エルボ→立ち上げ
+    cyl(P,M,R0,mat);const el=new THREE.Mesh(new THREE.SphereGeometry(R0*1.15,12,8),FC?FC.elb:jm);el.position.copy(M);g.add(el);cyl(M,E,R0,mat);   // チーズ→短管→45°エルボ→立ち上げ
     const c=new THREE.Mesh(new THREE.CylinderGeometry(R0*1.35,R0*1.35,R0*0.8,16),cap);c.position.copy(E);c.quaternion.setFromUnitVectors(Y,cd);g.add(c);
     try{const s2=label("🧹 掃除口（逆向き45°）・200mmで支持",ext*0.026,"#ffedd5f2","#9a3412");s2.position.copy(E);s2.userData.cat="drl";if(typeof pxl==="function")pxl(s2,14);g.add(s2)}catch(e){}}
    else{const sg=(r.bs==="R"||r.bs==="R45")?1:-1,y45=r.bs==="L45"||r.bs==="R45",bd=side.clone().multiplyScalar(sg);if(y45)bd.addScaledVector(dh,-1).normalize();   // 45°Yは上流側から斜めに入る

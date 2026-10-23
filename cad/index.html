@@ -1220,29 +1220,32 @@ function compOf(eids){ // 機器といっしょに動かす物：機器の四角
 }
 const sameV = (a, b) => !!a && !!b && a.length === b.length && a.every((x, i) => Math.abs(x - b[i]) < 1e-6);
 function stretchCands(eids, mov, g){ // 機器の外形のまわり（50mm）に端が入っている配管・ダクトの線と、配管・ダクトの線の点の索引。g（前に動かした組）がある時は、動かす前の形と場所から
-  const b = g ? null : outlineBox(eids); if (!g && !b) return null; const R = g ? g.R : [b[0] - 50, b[1] - 50, b[2] + 50, b[3] + 50], out = [], idx = new Map();
+  const b = g ? null : outlineBox(eids); if (!g && !b) return null; const R = g ? g.R : [b[0] - 50, b[1] - 50, b[2] + 50, b[3] + 50], out = [], idx = new Map(), byE = new Map();
   const vOf = sid => g && g.base[sid] && sameV(curShape(sid).verts, g.last[sid]) ? g.base[sid] : curShape(sid).verts; // 自分で「ルート」で直した線は今の形から
   for (const sh of G.shapes){
     if (sh.closed || mov.has(sh.eid) || gone(sh.eid)) continue; const l = G.L[sh.li]; if (l.deleted || !(l.g === 'ac' || l.g === 'duct') || !PIPE_RE.test(l.name.normalize('NFKC'))) continue;
     const v = vOf(sh.sid); let hit = false;
-    for (let i = 0; i < v.length; i += 3){ if (v[i] >= R[0] && v[i] <= R[2] && v[i+1] >= R[1] && v[i+1] <= R[3]) hit = true; const k = Math.round(v[i]/2) + ',' + Math.round(v[i+1]/2); if (!idx.has(k)) idx.set(k, []); idx.get(k).push([sh.sid, i/3]); }
+    const cs = 6/unitMM(); for (let i = 0; i < v.length; i += 3){ if (v[i] >= R[0] && v[i] <= R[2] && v[i+1] >= R[1] && v[i+1] <= R[3]) hit = true; const k = Math.round(v[i]/cs) + ',' + Math.round(v[i+1]/cs); if (!idx.has(k)) idx.set(k, []); idx.get(k).push([sh.sid, i/3]); }
+    if (!byE.has(sh.eid)) byE.set(sh.eid, []); byE.get(sh.eid).push(sh.sid);
     if (hit) out.push(sh.sid);
   }
-  return {R, sids:out, idx, vOf};
+  return {R, sids:out, idx, vOf, byE};
 }
 function planStretch(sc, T){ // 中の端は機器と一緒に動かす。短い線（20cm未満・つば・継手）は丸ごと一緒に動かして先へ。外へ出る長い線はクランク（二重線は幅を保って曲げる）
   if (!sc || tId(T)) return []; const R = sc.R, ins = (x, y) => x >= R[0] && x <= R[2] && y >= R[1] && y <= R[3], G0 = 150, SHORT = 200;
   const SH = new Map(), get = sid => { let s = SH.get(sid); if (!s){ const o = curShape(sid); s = {sid, v:sc.vOf ? sc.vOf(sid) : o.verts, n:o.verts.length/3, d:new Array(o.verts.length/3).fill(null), closed:o.closed}; SH.set(sid, s); } return s; };
   const q = [], segs = (s, i) => { if (i > 0) q.push([s, i - 1]); if (i + 1 < s.n) q.push([s, i]); };
-  const put = (s, i, d) => { if (s.d[i]) return; s.d[i] = d; segs(s, i); const x = s.v[3*i], y = s.v[3*i+1], kx = Math.round(x/2), ky = Math.round(y/2);
-    for (let a = -1; a <= 1; a++) for (let c = -1; c <= 1; c++) for (const [sid, j] of sc.idx.get((kx + a) + ',' + (ky + c)) || []){ const s2 = get(sid); if ((s2 === s && j === i) || s2.d[j]) continue; if (Math.hypot(s2.v[3*j] - x, s2.v[3*j+1] - y) < 1.5){ s2.d[j] = d; segs(s2, j); } } };
+  const cs = 6/unitMM(), rig = new Set(), small = e => { const b = G.pbox.get(e); return !!b && Math.max(b[2] - b[0], b[3] - b[1]) < 400/unitMM(); };
+  const put = (s, i, d, sl) => { if (s.d[i]) return; s.d[i] = d; segs(s, i); const x = s.v[3*i], y = s.v[3*i+1], kx = Math.round(x/cs), ky = Math.round(y/cs); // 6mm 以内の端はつながっている（管の端と継手の口の線は少しずれて描いてある）
+    for (let a = -1; a <= 1; a++) for (let c = -1; c <= 1; c++) for (const [sid, j] of sc.idx.get((kx + a) + ',' + (ky + c)) || []){ const s2 = get(sid); if ((s2 === s && j === i) || s2.d[j]) continue; if (Math.hypot(s2.v[3*j] - x, s2.v[3*j+1] - y) <= cs) put(s2, j, d, sl); }
+    if (sl){ const e = G.shapes[s.sid].eid; if (!rig.has(e) && small(e)){ rig.add(e); for (const sid of sc.byE.get(e) || []){ const s2 = get(sid); for (let j = 0; j < s2.n; j++) put(s2, j, d, sl); } } } }; // チーズ・エルボなど小さい継手は丸ごとずらす
   for (const sid of sc.sids){ const s = get(sid); for (let i = 0; i < s.n; i++) if (ins(s.v[3*i], s.v[3*i+1])){ const q2 = tAp(T, s.v[3*i], s.v[3*i+1]); put(s, i, [q2[0] - s.v[3*i], q2[1] - s.v[3*i+1]]); } }
   let recs = [], g = 0;
   const run = () => { for (; g < q.length && g < 20000; g++){
     const [s, k] = q[g]; if (!s.d[k] === !s.d[k+1]) continue; const a = s.d[k] ? k : k + 1, bb = s.d[k] ? k + 1 : k, v = s.v, d = s.d[a];
     const A = [v[3*a], v[3*a+1]], B = [v[3*bb], v[3*bb+1]], L = Math.hypot(B[0] - A[0], B[1] - A[1]);
-    if (L < SHORT){ put(s, bb, d); continue; }
     const u = [(B[0] - A[0])/L, (B[1] - A[1])/L], dp = d[0]*u[0] + d[1]*u[1], p = [d[0] - dp*u[0], d[1] - dp*u[1]];
+    if (L < SHORT){ const ax = Math.abs(u[0]) < 1e-6 || Math.abs(u[1]) < 1e-6; if (!ax) put(s, bb, d, true); else if (Math.hypot(p[0], p[1]) >= 0.5) put(s, bb, p, true); continue; } // 短い縦横の線は向きの分だけ伸び縮み、横へずれる分を先へ
     if (Math.abs(v[3*k+2]) > 1e-9 || Math.hypot(p[0], p[1]) < 0.5 || recs.some(r => r.s === s && r.k === k)) continue;
     const pl = Math.hypot(p[0], p[1]), nn = [p[0]/pl, p[1]/pl], tauR = Math.max(R[0]*u[0] + R[1]*u[1], R[2]*u[0] + R[1]*u[1], R[0]*u[0] + R[3]*u[1], R[2]*u[0] + R[3]*u[1]), tA = A[0]*u[0] + A[1]*u[1];
     recs.push({s, k, a, bb, d, A, B, u, p, dp, sv:A[0]*nn[0] + A[1]*nn[1], tA, tB:B[0]*u[0] + B[1]*u[1], tauR:Math.max(tauR, tA), key:u.map(x => Math.round(x*100)).join() + '|' + p.map(x => Math.round(x)).join() + '|' + G.shapes[s.sid].li});
@@ -1253,9 +1256,9 @@ function planStretch(sc, T){ // 中の端は機器と一緒に動かす。短い
       rs.sort((x, y) => x.sv - y.sv); let grp = [];
       const fin = () => { if (!grp.length) return; const lo = grp[0].sv, hi = grp[grp.length - 1].sv, mid = (lo + hi)/2, tc = Math.max(...grp.map(r => r.tauR)) + Math.max(0, ...grp.map(r => r.dp)) + G0 + (hi - lo)/2;
         const tc2 = Math.min(tc, ...grp.map(r => r.tB - 1 - (r.sv - mid))), ts = grp.map(r => tc2 + (r.sv - mid)), fit = grp.every((r, i) => ts[i] > r.tA + Math.max(0, r.dp) + 1); // 場所が足りない時は外の端に寄せて曲げる
-        const more = grp.some(r => { const x = r.B[0], y = r.B[1], kx = Math.round(x/2), ky = Math.round(y/2); for (let a = -1; a <= 1; a++) for (let c = -1; c <= 1; c++) for (const [sid, j] of sc.idx.get((kx + a) + ',' + (ky + c)) || []) if (sid !== r.s.sid && Math.hypot(G.shapes[sid] && curShape(sid).verts[3*j] - x, curShape(sid).verts[3*j+1] - y) < 1.5) return true; return false; });
+        const more = grp.some(r => { const x = r.B[0], y = r.B[1], kx = Math.round(x/cs), ky = Math.round(y/cs); for (let a = -1; a <= 1; a++) for (let c = -1; c <= 1; c++) for (const [sid, j] of sc.idx.get((kx + a) + ',' + (ky + c)) || []) if (sid !== r.s.sid && Math.hypot(get(sid).v[3*j] - x, get(sid).v[3*j+1] - y) <= cs) return true; return false; });
         if (fit) grp.forEach((r, i) => { r.C = [r.A[0] + r.u[0]*(ts[i] - r.tA), r.A[1] + r.u[1]*(ts[i] - r.tA)]; });
-        else if (it < 19 && more){ grp.forEach(r => { r.gone = true; put(r.s, r.bb, r.d); }); slid = true; }
+        else if (it < 19 && more){ grp.forEach(r => { r.gone = true; put(r.s, r.bb, r.d, true); }); slid = true; }
         else grp.forEach(r => { r.C = r.B; }); // 最後まで入らない時は外の端で曲げる
         grp = []; };
       for (const r of rs){ if (grp.length && r.sv - grp[grp.length - 1].sv > 250) fin(); grp.push(r); } fin();

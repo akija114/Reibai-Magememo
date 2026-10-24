@@ -192,6 +192,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <div class="float" id="routePanel" hidden></div>
     <div class="float" id="pickBar" hidden></div>
     <div class="float" id="npPanel" hidden></div>
+    <div class="float" id="samePanel" hidden></div>
     <div class="loading" id="loading">読み込み中…</div>
   </div>
   <div class="tool">
@@ -878,6 +879,7 @@ function drawOverlay(){
   drawNotes(octx); drawSins(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
+  drawSame(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.to === 'cline' && S.autoDim.cP){ const C = S.autoDim.cP, q = w2s(C[0], C[1]); octx.save(); octx.strokeStyle = '#c026d3'; octx.lineWidth = 2; octx.beginPath(); octx.arc(q[0], q[1], 8, 0, Math.PI*2); octx.moveTo(q[0] - 14, q[1]); octx.lineTo(q[0] + 14, q[1]); octx.moveTo(q[0], q[1] - 14); octx.lineTo(q[0], q[1] + 14); octx.stroke();
     if (MS.cur){ const dx = MS.cur.x - C[0], dy = MS.cur.y - C[1], E = Math.abs(dx) >= Math.abs(dy) ? [MS.cur.x, C[1]] : [C[0], MS.cur.y], e = w2s(E[0], E[1]); octx.setLineDash([12, 4, 2, 4]); octx.beginPath(); octx.moveTo(q[0], q[1]); octx.lineTo(e[0], e[1]); octx.stroke(); octx.setLineDash([]); octx.font = `700 12px ${FONT}`; octx.fillStyle = '#c026d3'; octx.fillText(fmt(Math.hypot(E[0] - C[0], E[1] - C[1])), (q[0] + e[0])/2 + 6, (q[1] + e[1])/2 - 6); }
     octx.restore(); }
@@ -1445,7 +1447,8 @@ function openSinSheet(m, pre){ // 通り芯・壁・照明などから ○mm の
         h += gs.length ? `<div class="frow" style="align-items:center">${sl('sinG', gs.map((g, i) => `<option value="${i}">${esc(g.name)}</option>`).join('')).replace('style="', 'style="flex:1;')}<span style="font-size:14px">から</span>${sl('sinS', lr)}</div><div class="frow" style="align-items:center">${ip('sinD', '例 1500')}<span style="font-size:14px">mm</span></div>${btns}`
           : `<div class="note" style="color:var(--danger)">この向きの通り芯が見つかりません。「寸法」→「芯出し」の画面で通り芯のレイヤーを選ぶと見つかるようになります。</div>`;
       } else if (base === 'line'){
-        h += pre && pre.kind === 'line' ? `<div class="note"><b>${esc(pre.name)}</b>（${pre.dir === 'v' ? '縦' : '横'}の線）を選びました。</div><div class="frow" style="align-items:center"><span style="font-size:14px">から</span>${sl('sinS', lr)}${ip('sinD', '例 1500')}<span style="font-size:14px">mm</span></div>${btns}<div class="frow"><button class="btn" data-a="tap" style="flex:1">ほかの線を選び直す</button></div>`
+        h += pre && pre.kind === 'line' ? `<div class="note"><b>${esc(pre.name)}</b>（${pre.dir === 'v' ? '縦' : '横'}の線）を選びました。</div><div class="frow" style="align-items:center"><span style="font-size:14px">から</span>${sl('sinS', lr)}${ip('sinD', '例 1500')}<span style="font-size:14px">mm</span></div>${btns}<div class="frow"><button class="btn" data-a="tap" style="flex:1">ほかの線を選び直す</button></div>
+          <div class="grp">この線を通り芯にする（PDFで通り芯が見つからない時）</div><div class="frow" style="align-items:center">${ip('sinGN', '名前 例 X1').replace('type="number"', 'type="text"')}<button class="btn" data-a="grid" style="flex:1.2">通り芯として登録</button></div>`
           : `<div class="note">基準にする壁の線（縦か横の線）を図面でタップします。</div><div class="frow"><button class="btn pri" data-a="tap" style="flex:1;height:46px">図面で壁・線をタップ</button></div>`;
       } else {
         const g2 = pre && pre.gap, op = (d, a, b) => `<option value="c">真ん中</option><option value="lo">${a}ツラ</option><option value="hi">${b}ツラ</option>${g2 && g2[d] !== null ? `<option value="gap" selected>2つの間の真ん中</option>` : ''}<option value="no">出さない</option>`;
@@ -1468,6 +1471,8 @@ function openSinSheet(m, pre){ // 通り芯・壁・照明などから ○mm の
       const fit = ss => { const F = mvgFaces(m), fo = d => mf === 'c' ? 0 : F[d][mf === 'lo' ? 0 : 1] || 0; for (const s of ss){ if (s.dir === 'v') m.dx = Math.round((s.c - fo('v') - m.C[0])*10)/10; else m.dy = Math.round((s.c - fo('h') - m.C[1])*10)/10; } closeSheet(); updatePickBar(); drawOverlay(); toast(`機器の${{c:'真ん中', lo:'左・下のツラ', hi:'右・上のツラ'}[mf]}を「${ss.map(sinName).join('・')}」に合わせました。よければ「ここに決める」`); };
       if (b.dataset.g){ const s = S.sins.find(x => x.id === b.dataset.g); if (s) fit([s]); return; }
       if (b.dataset.a === 'tap' || b.dataset.a === 'tap2'){ closeSheet(); S.sinPick = {kind:base, m, ...(b.dataset.a === 'tap2' ? {first:{...pre, gap:null}} : {})}; updateUi(); return; }
+      if (b.dataset.a === 'grid' && pre && pre.kind === 'line'){ const nm = body.querySelector('#sinGN').value.trim() || (pre.dir === 'v' ? 'X' : 'Y') + (S.sins.filter(x => x.grid && x.dir === pre.dir).length + 1);
+        exec(cmdSin('add', {id:'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), dir:pre.dir, c:pre.c, base:nm, off:0, pt:2, grid:1, t:Date.now()})); toast(`通り芯「${nm}」を登録しました。芯出し・芯を出すで使えます`); draw(); return; }
       const mk = (d, c, nm, off) => ({id:'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), dir:d, c, base:nm, off, t:Date.now()}), out = [];
       if (base === 'pt'){
         const x = +body.querySelector('#sinPX').value || 0, y = +body.querySelector('#sinPY').value || 0, bx = pre.box || [pre.x, pre.y, pre.x, pre.y];
@@ -2027,6 +2032,7 @@ function m2mAt(e, P, what){
 function autoDimAt(cur){
   const A = S.autoDim; let P, what = '位置';
   if (A.to === 'grid4' && A.g4 && A.g4.pickDir){ grid4PickLine(cur); return; }
+  if (A.to === 'same' && A.sm){ A.sp.push([cur.x, cur.y]); A.sw = null; MS.cur = null; drawOverlay(); updateUi(); toast(`芯 ${A.sp.length}点目を決めました（${A.sm.ms.length}台の同じ所）。点を足すか、下で向きを選んで確定`); return; }
   if (A.to === 'cline' && A.cP){ // 芯線：決めた芯から、離した所まで横か縦にまっすぐ
     const C = A.cP, dx = cur.x - C[0], dy = cur.y - C[1], hz = Math.abs(dx) >= Math.abs(dy), E = hz ? [cur.x, C[1]] : [C[0], cur.y], L = Math.hypot(E[0] - C[0], E[1] - C[1]); MS.cur = null;
     if (L*view.s < 6){ toast('芯から離れた所までドラッグしてください'); drawOverlay(); return; }
@@ -2044,6 +2050,7 @@ function autoDimAt(cur){
     if (e == null){ toast('ここに機器が見つかりません。機器の線の上で離してください'); MS.cur = null; drawOverlay(); return; }
     P = machineCenter(e, cur); what = partName(e);
     if (A.to === 'm2m' || A.to === 'gap'){ m2mAt(e, P, what); return; }
+    if (A.to === 'same'){ const R = sameFind(e); MS.cur = null; if (!R || !R.ms.length){ toast('同じ形の機器が見つかりませんでした'); drawOverlay(); return; } A.sm = R; A.sp = []; A.sd = A.sd || {l:true, r:true, u:true, d:true}; A.sw = null; A.what = what; drawOverlay(); updateUi(); toast(`同じ形の機器が ${R.ms.length} 台見つかりました（この機器も入れて）。次は芯にしたい点（吊りボルトの印・中心など）までドラッグして離す`); return; }
   } else P = [cur.x, cur.y];
   if (A.to === 'grid4'){ grid4Open(P, what); return; }
   if (A.to === 'cline'){ A.cP = P; A.cw = what; MS.cur = null; drawOverlay(); updateHint(); toast('芯を決めました。線を伸ばしたい所までドラッグして離す'); return; }
@@ -2073,12 +2080,65 @@ function autoDimAt(cur){
     do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }});
   MS.cur = null; drawOverlay(); updateHint(); toast(`${what}：${msg.join('　')}`);
 }
+/* ---- 同じ機器ぜんぶ：1台で決めた点（芯・吊りボルトなど）を、同じ形の機器ぜんぶの同じ所に置く。向き（90°ずつ・左右反対）も合わせる ---- */
+const SAME_OPS = [[1,0,0,1],[0,-1,1,0],[-1,0,0,-1],[0,1,-1,0],[-1,0,0,1],[0,1,1,0],[1,0,0,-1],[0,-1,-1,0]]; // p' = [a x + b y, c x + d y]
+const opAp = (O, x, y) => [O[0]*x + O[1]*y, O[2]*x + O[3]*y];
+function partSig(e){ let n = 0, L = 0; for (const pl of G.eidPolys.get(e) || []){ const a = pl.a; for (let i = 0; i + 3 < a.length; i += 2){ n++; L += Math.hypot(a[i+2] - a[i], a[i+3] - a[i+1]); } } return {n, L}; }
+function sameFind(e){
+  const ref = G.pbox.get(e); if (!ref) return null; const li = new Set(ref[4]), w = ref[2] - ref[0], h = ref[3] - ref[1], sig = partSig(e), C0 = [(ref[0] + ref[2])/2, (ref[1] + ref[3])/2];
+  const tol = Math.max(15/unitMM(), 0.02*Math.max(w, h)), tp = 10/unitMM(), p = G.pts, refPts = [];
+  const M = ref.slice(0, 4), gp = 30/unitMM(), lim = 2500/unitMM(); // 機器のかたまり：タップした線に触れている空調の線をたどる（PDFは機器がバラバラの線になっている）
+  for (let it = 0, grew = true; grew && it < 30; it++){ grew = false; for (const [e2, b] of G.pbox){ if (b[0] >= M[0] && b[2] <= M[2] && b[1] >= M[1] && b[3] <= M[3]) continue; if (![...b[4]].some(x => G.L[x].g === 'ac') || b[0] > M[2] + gp || b[2] < M[0] - gp || b[1] > M[3] + gp || b[3] < M[1] - gp) continue;
+    const nb = [Math.min(M[0], b[0]), Math.min(M[1], b[1]), Math.max(M[2], b[2]), Math.max(M[3], b[3])]; if (nb[2] - nb[0] > lim || nb[3] - nb[1] > lim) continue; M.splice(0, 4, ...nb); grew = true; } }
+  for (const id of query(IX.pg, IX.ptMark, (M[0] + M[2])/2, (M[1] + M[3])/2, Math.hypot(M[2] - M[0], M[3] - M[1])/2 + gp)){ const k = id*PS; if (p[k+3] !== 0 || G.L[p[k+2]].g !== 'ac') continue; if (p[k] < M[0] - gp || p[k] > M[2] + gp || p[k+1] < M[1] - gp || p[k+1] > M[3] + gp) continue; const x = p[k] - C0[0], y = p[k+1] - C0[1]; if (!refPts.some(q => Math.abs(q[0] - x) < tp && Math.abs(q[1] - y) < tp)) refPts.push([x, y]); }
+  const smp = refPts.length > 150 ? refPts.filter((q, i) => i % Math.ceil(refPts.length/150) === 0) : refPts;
+  const hit = (x, y) => { for (const id of query(IX.pg, IX.ptMark, x, y, tp)){ const k = id*PS; if (p[k+3] === 0 && G.L[p[k+2]].g === 'ac' && Math.abs(p[k] - x) <= tp && Math.abs(p[k+1] - y) <= tp) return true; } return false; };
+  const out = [];
+  for (const [e2, b] of G.pbox){
+    if (gone(e2) || ![...b[4]].some(x => li.has(x))) continue; const w2 = b[2] - b[0], h2 = b[3] - b[1], sw = Math.abs(w2 - w) <= tol && Math.abs(h2 - h) <= tol, rw = Math.abs(w2 - h) <= tol && Math.abs(h2 - w) <= tol; if (!sw && !rw) continue;
+    if (Math.abs(partSig(e2).L - sig.L) > Math.max(2*tol, sig.L*0.06)) continue;
+    const C = [(b[0] + b[2])/2, (b[1] + b[3])/2]; let best = null;
+    for (const O of SAME_OPS){ const turn = O[0] === 0; if (turn ? !rw : !sw) continue; let s = 0; for (const q of smp){ const r = opAp(O, q[0], q[1]); if (hit(C[0] + r[0], C[1] + r[1])) s++; } const sc = s/Math.max(1, smp.length); if (!best || sc > best.sc) best = {O, sc}; }
+    if (best && best.sc >= 0.55) out.push({e:e2, C, O:best.O, sc:best.sc});
+  }
+  out.sort((a, b) => b.sc - a.sc); const res = []; for (const m of out) if (!res.some(x => Math.hypot(x.C[0] - m.C[0], x.C[1] - m.C[1]) < Math.max(w, h)/2)) res.push(m); // 重なった候補は1台に
+  return {e, C0, ms:res, w, h, M};
+}
+const sameMap = (S0, m, P) => { const r = opAp(m.O, P[0] - S0.C0[0], P[1] - S0.C0[1]); return [m.C[0] + r[0], m.C[1] + r[1]]; };
+const SDIR = {l:[-1, 0], r:[1, 0], u:[0, 1], d:[0, -1]}, SDN = {l:'左', r:'右', u:'上', d:'下'};
+function sameRecs(A){ // 同じ機器ぜんぶの芯 → 選んだ向きの一番近い壁の面までの寸法（見つかった物だけ）
+  if (A.sw) return A.sw; const out = [];
+  for (const P0 of A.sp) for (const m of A.sm.ms){ const P = sameMap(A.sm, m, P0); for (const k of 'lrud'){ if (!A.sd[k]) continue; const d = wallHit(P, SDIR[k]); if (d != null) out.push({x1:P[0] + SDIR[k][0]*d, y1:P[1] + SDIR[k][1]*d, x2:P[0], y2:P[1]}); } }
+  return A.sw = out;
+}
+function drawSame(c){
+  const A = S.mode === 'dim' && S.autoDim; if (!A || A.to !== 'same' || !A.sm) return; c.save(); c.strokeStyle = '#c026d3'; c.lineWidth = 2;
+  for (const m of A.sm.ms){ const q = w2s(m.C[0], m.C[1]); c.globalAlpha = .35; c.strokeRect(q[0] - 10, q[1] - 10, 20, 20); c.globalAlpha = 1; for (const P0 of A.sp){ const P = sameMap(A.sm, m, P0), s = w2s(P[0], P[1]); c.beginPath(); c.arc(s[0], s[1], 7, 0, Math.PI*2); c.moveTo(s[0] - 12, s[1]); c.lineTo(s[0] + 12, s[1]); c.moveTo(s[0], s[1] - 12); c.lineTo(s[0], s[1] + 12); c.stroke(); } }
+  if (A.sp.length){ c.setLineDash([6, 4]); c.lineWidth = 1.5; c.beginPath(); for (const r of sameRecs(A)){ const a = w2s(r.x1, r.y1), b = w2s(r.x2, r.y2); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); } c.stroke(); c.setLineDash([]); }
+  c.restore();
+}
+function updateSamePanel(){
+  const p = $('#samePanel'), A = S.mode === 'dim' && S.autoDim; if (!A || A.to !== 'same' || !A.sm){ p.hidden = true; return; } p.hidden = false; $('#dimPanel').hidden = true;
+  const n = A.sp.length ? sameRecs(A).length : 0;
+  p.innerHTML = `<div class="lsub"><b style="color:var(--ink)">同じ形の機器 ${A.sm.ms.length}台</b>・芯 ${A.sp.length}点${A.sp.length ? '' : '（芯にしたい点までドラッグして離す。吊りボルト4本なら4点）'}</div>
+    <div class="frow">${'lrud'.split('').map(k => `<label style="flex:1;display:flex;align-items:center;gap:4px;font-weight:700"><input type="checkbox" data-sd="${k}" ${A.sd[k] ? 'checked' : ''} style="width:22px;height:22px">${SDN[k]}の壁</label>`).join('')}</div>
+    <div class="frow"><button class="btn" data-a="cancel" style="flex:1">やめる</button>${A.sp.length ? '<button class="btn" data-a="pop" style="flex:1">1点もどす</button>' : ''}<button class="btn pri" data-a="ok" style="flex:1.4" ${n ? '' : 'disabled'}>寸法 ${n}本 確定</button></div>`;
+  p.onchange = e => { const k = e.target.dataset.sd; if (k){ A.sd[k] = e.target.checked; A.sw = null; drawOverlay(); updateSamePanel(); } };
+  p.onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.a === 'cancel'){ S.autoDim = null; }
+    else if (b.dataset.a === 'pop'){ A.sp.pop(); A.sw = null; }
+    else if (b.dataset.a === 'ok'){ const recs = sameRecs(A), g = curDG().id, c = nextDimC(); const ds = recs.map((r, i) => ({id:'s' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) + i, ...r, n:1, g, c}));
+      exec({kind:'dim', label:'芯出し寸法', dimAdded:ds, log:{label:'同じ機器の芯から壁', detail:`${A.what}ほか${A.sm.ms.length}台・芯${A.sp.length}点：${ds.length}本`, dims:ds.map(dimRec), box:boxOf(ds.flatMap(d => [[d.x1, d.y1], [d.x2, d.y2]]))}, do(){ S.dims.push(...ds); }, undo(){ S.dims = S.dims.filter(x => !ds.includes(x)); }});
+      toast(`同じ機器 ${A.sm.ms.length}台の芯から、壁までの寸法を ${ds.length}本 入れました（↶で戻せます）`); S.autoDim = null; }
+    drawOverlay(); updateUi(); };
+}
 function openAutoDimSheet(){
   openSheet('芯出し（自動で寸法）', body => {
     const opt = (from, to, t, sub) => `<button class="bigbtn sec" data-f="${from}" data-t="${to}" style="flex-direction:column;height:auto;padding:12px;gap:2px"><span>${t}</span><span style="font-size:12px;font-weight:500;color:var(--muted)">${sub}</span></button>`;
     body.innerHTML = `<div class="note">機器の芯（外形の真ん中）や、選んだ位置から、近い通り芯・壁の面までの寸法を縦と横で自動で入れます。間違えたら「↶ 戻る」で消せます。</div>
       ${opt('part', 'grid4', '機器の芯 → 通り芯（上下左右）', '機器をタップ → 上・下・左・右の一番近い通り芯までを見てから選んで確定')}
       ${opt('point', 'grid4', '選んだ芯 → 通り芯（上下左右）', '芯の点までドラッグして離す（中心・交点に吸着）→ 上下左右を見て確定')}
+      ${opt('part', 'same', '同じ機器ぜんぶ：決めた点 → 壁（上下左右）', '機器を1台タップ → 芯にしたい点（吊りボルトの印・中心など）までドラッグ → 同じ形の機器ぜんぶの同じ所から、部屋の壁までの寸法（向きが反対の機器も合わせる）')}
       ${opt('part', 'cline', '機器の芯から芯線を引く', '機器をタップして芯を決め → 線を伸ばしたい所までドラッグして離す（横か縦にまっすぐ・何本でも）')}
       ${opt('point', 'cline', '選んだ芯から芯線を引く', '芯の点までドラッグして離す（中心・交点に吸着）→ 伸ばしたい所までドラッグ')}
       ${opt('part', 'm2m', '機器の芯 → 機器の芯', '2台の機器を順にタップすると、芯から芯までの横と縦（続けてタップで次の機器まで）')}
@@ -2130,6 +2190,7 @@ function gridCands(){
     const ax = axisLines(okL), gr = findGrids(), tg = Math.max(tol, S.textH*0.1);
     for (const dir of ['v', 'h']) for (const g of gr[dir]){ const a = ax.find(a => a.dir === dir && Math.abs(a.c - g.c) <= tg && a.len >= size*0.25); if (a) out[dir].push({c:a.c, name:g.name, iv:a.iv}); }
   }
+  for (const s of S.sins) if (s.grid) out[s.dir].push({c:s.c, name:s.base, iv:[[-1e15, 1e15]]}); // 自分で登録した通り芯（PDFなど）
   for (const dir of ['v', 'h']){ // 同じ通り芯（分かれた線・2つの見つけ方で重なった物）は1本に
     const m = [];
     for (const g of out[dir].sort((a, b) => a.c - b.c)){ const q = m[m.length-1]; if (q && g.c - q.c <= tol){ if (!q.name) q.name = g.name; q.iv = q.iv.concat(g.iv); } else m.push({...g}); }
@@ -2441,7 +2502,7 @@ function updateUi(){
   if (G){ const live = G.L.filter(l => !l.deleted).length, del = G.L.length - live; $('#fsub').textContent = SH.on ? `${shStatus()} ・ 寸法 ${S.dims.length}` : `レイヤー ${live}${del ? `（削除 ${del}）` : ''} ・ 寸法 ${S.dims.length} ・ ${S.units}`; }
   { const bs = $('#bShare'); if (bs){ bs.classList.toggle('on', SH.on); bs.classList.toggle('wait', SH.on && (SH.pend || navigator.onLine === false)); } }
   $('#mPan').classList.toggle('on', S.mode === 'pan'); $('#mDim').classList.toggle('on', S.mode === 'dim'); $('#mRoute').classList.toggle('on', S.mode === 'route' || S.mode === 'np'); $('#mBox').classList.toggle('on', S.mode === 'box');
-  if (S.mode !== 'np' && S.npe){ S.npe = null; } $('#npPanel').hidden = S.mode !== 'np';
+  if (S.mode !== 'np' && S.npe){ S.npe = null; } $('#npPanel').hidden = S.mode !== 'np'; updateSamePanel();
   $('#tOrtho').classList.toggle('on', S.ortho); $('#mNote').classList.toggle('on', S.mode === 'note'); $('#mKiki').classList.toggle('on', S.mode === 'kiki'); $('#tSnap').classList.toggle('on', S.snapOn);
   updateHint(); updateLayerBar(); updateDimPanel(); updateRoutePanel(); updateGridPanel();
 }
@@ -2556,7 +2617,7 @@ function updateHint(){
   if (S.autoDim){
     const A = S.autoDim;
     if (A.g4 && !A.g4.pickDir){ h.hidden = true; return; } // 下のパネルで選ぶ
-    $('#hintTxt').textContent = A.to === 'cline' ? (A.cP ? `芯線を伸ばしたい所までドラッグして離す（${A.cw}の芯から）` : A.from === 'part' ? '芯線を出す機器をタップ' : '芯の点までドラッグして離す') : A.to === 'm2m' || A.to === 'gap' ? (A.first ? `次の機器をタップ（${A.first.what}から${A.to === 'gap' ? 'のすき間' : ''}）` : `1台目の機器をタップ → 2台目で${A.to === 'gap' ? 'すき間' : '芯から芯'}の寸法`) : A.g4 && A.g4.pickDir ? `「${G4N[A.g4.pickDir]}」の通り芯にする${A.g4.pickDir === 'u' || A.g4.pickDir === 'd' ? '横' : '縦'}の線までドラッグして離す` : A.g4 ? '下で向きを選んで確定（別の芯をやり直す時は、もう一度選ぶ）' : A.to === 'line' && !A.line ? '基準にする線（壁の面・通り芯）までドラッグして離す' : `${A.from === 'part' ? '機器をタップ' : '芯の点までドラッグして離す'} → ${A.to === 'grid' ? '通り芯' : A.to === 'grid4' ? '通り芯（上下左右）' : A.to === 'line' ? '選んだ線' : '壁の面'}から寸法`;
+    $('#hintTxt').textContent = A.to === 'same' ? (A.sm ? `芯にしたい点までドラッグして離す（${A.sm.ms.length}台の同じ所・${A.sp.length}点）` : '同じ機器の1台をタップ（機器の線の上）') : A.to === 'cline' ? (A.cP ? `芯線を伸ばしたい所までドラッグして離す（${A.cw}の芯から）` : A.from === 'part' ? '芯線を出す機器をタップ' : '芯の点までドラッグして離す') : A.to === 'm2m' || A.to === 'gap' ? (A.first ? `次の機器をタップ（${A.first.what}から${A.to === 'gap' ? 'のすき間' : ''}）` : `1台目の機器をタップ → 2台目で${A.to === 'gap' ? 'すき間' : '芯から芯'}の寸法`) : A.g4 && A.g4.pickDir ? `「${G4N[A.g4.pickDir]}」の通り芯にする${A.g4.pickDir === 'u' || A.g4.pickDir === 'd' ? '横' : '縦'}の線までドラッグして離す` : A.g4 ? '下で向きを選んで確定（別の芯をやり直す時は、もう一度選ぶ）' : A.to === 'line' && !A.line ? '基準にする線（壁の面・通り芯）までドラッグして離す' : `${A.from === 'part' ? '機器をタップ' : '芯の点までドラッグして離す'} → ${A.to === 'grid' ? '通り芯' : A.to === 'grid4' ? '通り芯（上下左右）' : A.to === 'line' ? '選んだ線' : '壁の面'}から寸法`;
     $('#bHint3').hidden = false; $('#bHint3').textContent = '切替';
     $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = 'やめる';
     return;

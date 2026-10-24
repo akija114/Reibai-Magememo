@@ -524,11 +524,16 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 
 <script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>/* 図面編集アプリの「🧊 3D」から開いた時（?from=cad3d）：見るだけ。保存先（localStorage・IndexedDB）を別にして、曲げ共有の現場のデータ・前の図面に書かない */
+if(/[?&]from=cad3d/.test(location.search)){(function(){const m=new Map();try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k!=="pbm1"&&k!=="pbmPlanMem"&&!/^pbm_sites/.test(k))m.set(k,localStorage.getItem(k))}}catch(e){}
+ const S={getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>{m.set(k,String(v))},removeItem:k=>{m.delete(k)},clear:()=>m.clear(),key:i=>[...m.keys()][i]??null,get length(){return m.size}};
+ try{Object.defineProperty(window,"localStorage",{value:S,configurable:true})}catch(e){}
+ try{const op=indexedDB.open.bind(indexedDB);indexedDB.open=(n,v)=>op(n==="pbmShare"?n:"cad3d_"+n,v)}catch(e){}window.CAD3D_MODE=true})()}</script>
 <script>const APP="zumen";</script>
 <script src="models.js?v=228"></script>
 <script src="core.js?v=298"></script>
 <script src="drain.js?v=268"></script>
-<script src="dxf.js?v=294"></script><script src="zumen.js?v=297"></script><script src="shita.js?v=251"></script><script src="yomi.js?v=250"></script>
+<script src="dxf.js?v=294"></script><script src="zumen.js?v=302"></script><script src="shita.js?v=251"></script><script src="yomi.js?v=250"></script>
 <script src="kabe.js?v=228"></script>
 <script src="sumi.js?v=228"></script>
 <script src="kozo.js?v=228"></script>

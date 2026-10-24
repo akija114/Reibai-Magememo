@@ -210,7 +210,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <button class="tb" id="b3D" aria-label="3Dで見る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>3D</button>
   </div>
 </div>
-<div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px">🧊 3D</b><button class="btn" data-v="top" style="height:40px;padding:0 10px">真上</button><button class="btn" data-v="iso" style="height:40px;padding:0 10px">斜め</button><button class="btn" id="v3dX" style="height:40px;padding:0 12px;font-weight:800">✕ 戻る</button></div><div id="v3dT" style="display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto"><button class="btn sel" data-t3="wall" style="height:34px;padding:0 12px;flex:none">壁</button><button class="btn sel" data-t3="ub" style="height:34px;padding:0 12px;flex:none">ユニットバス</button><button class="btn sel" data-t3="unit" style="height:34px;padding:0 12px;flex:none">機器</button><button class="btn sel" data-t3="plan" style="height:34px;padding:0 12px;flex:none">図面の線</button></div><div id="v3dS" style="flex:1;position:relative;overflow:hidden;touch-action:none"><div id="v3dN" class="note" style="position:absolute;left:8px;bottom:8px;right:8px;pointer-events:none;background:var(--panel);opacity:.9;border-radius:10px;padding:6px 8px"></div></div></div>
+<div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px">🧊 3D</b><button class="btn" data-v="top" style="height:40px;padding:0 10px">真上</button><button class="btn" data-v="iso" style="height:40px;padding:0 10px">斜め</button><button class="btn" id="v3dX" style="height:40px;padding:0 12px;font-weight:800">✕ 戻る</button></div><div id="v3dT" style="display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto"><button class="btn sel" data-t3="wall" style="height:34px;padding:0 12px;flex:none">壁</button><button class="btn sel" data-t3="ub" style="height:34px;padding:0 12px;flex:none">ユニットバス</button><button class="btn sel" data-t3="unit" style="height:34px;padding:0 12px;flex:none">機器</button><button class="btn sel" data-t3="plan" style="height:34px;padding:0 12px;flex:none">図面の線</button><select id="v3dM" aria-label="室内機の機種" style="height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:14px;flex:none;max-width:220px"></select></div><div id="v3dS" style="flex:1;position:relative;overflow:hidden;touch-action:none"><div id="v3dN" class="note" style="position:absolute;left:8px;bottom:8px;right:8px;pointer-events:none;background:var(--panel);opacity:.9;border-radius:10px;padding:6px 8px"></div></div></div>
 <input type="file" id="fileIn" hidden>
 <div id="sheetRoot"></div>
 
@@ -3383,10 +3383,30 @@ function v3dAna(){
    1本指で回す・2本指で動かす／ひろげる。図面のデータは変えない（見るだけ） */
 const V3 = {on:{}}; let threeP = null;
 function loadThree(){ if (!threeP) threeP = new Promise((ok, ng) => { if (window.THREE) return ok(window.THREE); const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'; sc.onload = () => ok(window.THREE); sc.onerror = () => { threeP = null; ng(new Error('3Dの部品を読み込めませんでした（電波を確認してください）')); }; document.head.appendChild(sc); }); return threeP; }
+let mdlP = null;
+function loadModels(){ if (!mdlP) mdlP = new Promise(ok => { if (typeof CAS2M !== 'undefined') return ok(true); const sc = document.createElement('script'); sc.src = '../models.js?v=304'; sc.onload = () => ok(typeof CAS2M !== 'undefined'); sc.onerror = () => { mdlP = null; ok(false); }; document.head.appendChild(sc); }); return mdlP; } // 曲げ共有の機器の模型データ（同じサイトの models.js）
+const v3dMdl = () => { try { const k = localStorage.getItem('zumen-3dunit'); return k == null ? 'mbz2822' : k; } catch(e){ return 'mbz2822'; } };
+/* 室内機の模型：曲げ共有（core.js の makeUnit の cas2）と同じ作り。天井の面＝y0、長手＝x、配管口は +x の端面、正面（吹出し）は −x */
+function v3dUnit(TH, md){
+  const g = new TH.Group(), M = c => new TH.MeshStandardMaterial({color:c, roughness:.5, metalness:.1}), em = new TH.LineBasicMaterial({color:0x1f2937});
+  const bx = (sx, sy, sz, x, y, z, c) => { const geo = new TH.BoxGeometry(sx, sy, sz), m = new TH.Mesh(geo, M(c)); m.position.set(x, y, z); if (Math.min(sx, sy, sz) > 12) m.add(new TH.LineSegments(new TH.EdgesGeometry(geo, 25), em)); g.add(m); return m; };
+  const cyl = (r, h, x, y, z, c, rz) => { const m = new TH.Mesh(new TH.CylinderGeometry(r, r, h, 16), M(c)); m.position.set(x, y, z); if (rz) m.rotation.z = Math.PI/2; g.add(m); return m; };
+  const Lb = md.L, Wb = md.W, HB = md.H, TOP = md.top, YT = TOP + 420, yH = md.nk, MD = 0x94a3b8, DK = 0x334155;
+  bx(Lb, HB, Wb, 0, TOP - HB/2, 0, 0x9ca3af); // 本体（天井裏）
+  if (md.bi){ const yb = TOP - HB; bx(6, 150, 604, -Lb/2 - 3, yb + 110, 0, DK); bx(6, 171, 574, Lb/2 + 3, yb + 117, -70, 0xe8edf2); } // ビルトイン：正面の吹出し口・背面の吸込み口
+  else { bx(md.pa, md.pt || 30, md.pb, 0, -(md.pt || 30)/2, 0, 0xf1f5f9); } // カセット：天井の下のパネル
+  for (const k of [-1, 1]) for (const w of [-1, 1]){ const x = k*md.ba/2, z = w*md.bb/2; cyl(10, YT - yH + 40, x, (YT + yH - 40)/2, z, 0xdc2626); bx(md.ba/2 > Lb/2 + 5 ? 70 : 90, 8, 70, md.ba/2 > Lb/2 + 5 ? k*(Lb/2 + 30) : x, yH, z, 0x64748b); } // 吊りボルト（赤）と金具
+  const G0 = md.gas, L0 = md.liq; bx(10, Math.abs(G0.y - L0.y) + 90, Math.abs(G0.z - L0.z) + 90, Lb/2 + 4, (G0.y + L0.y)/2, (G0.z + L0.z)/2, MD);
+  for (const [q, r] of [[G0, 13], [L0, 9]]) cyl(r*.75, 60, Lb/2 + 34, q.y, q.z, 0xc2703a, 1); // 配管口（ガス・液）
+  if (md.eb) bx(md.eb[0], md.eb[1], md.eb[2], md.eb[3], md.eb[4], md.eb[5], 0x6b7280); // 電気品箱
+  if (!md.nodr && md.dr) cyl(17, 90, Lb/2 + 45, md.dr.y, md.dr.z, 0xe5e7eb, 1); // ドレン
+  return g;
+}
 async function open3D(){
   if (!G){ toast('先に図面を開いてください'); return; }
-  let TH; try { TH = await loadThree(); } catch(e){ toast(e.message); return; }
+  let TH; try { TH = await loadThree(); } catch(e){ toast(e.message); return; } await loadModels();
   $('#v3d').hidden = false; const box = $('#v3dS'), u = unitMM(), CH = 2700;
+  { const sel = $('#v3dM'), k0 = v3dMdl(); sel.innerHTML = '<option value="">室内機：箱（機種なし）</option>' + (typeof CAS2_ORDER !== 'undefined' ? CAS2_ORDER.filter(k => CAS2M[k]).map(k => `<option value="${k}" ${k === k0 ? 'selected' : ''}>室内機：${esc(CAS2M[k].n)}</option>`).join('') : ''); if (!k0) sel.value = ''; }
   if (!V3.r){ V3.r = new TH.WebGLRenderer({antialias:true}); V3.r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); box.prepend(V3.r.domElement); V3.r.domElement.style.display = 'block'; v3dCtl(); }
   const sc = new TH.Scene(); sc.background = new TH.Color(tok.dark ? '#1b1f24' : '#f4f6f8'); sc.add(new TH.HemisphereLight(0xffffff, 0x777777, 0.9)); const dl = new TH.DirectionalLight(0xffffff, 0.6); dl.position.set(1, 2, 1.5); sc.add(dl);
   const npi = G.L.findIndex(l => l.name === NP_LAYER), B = G.bounds, cx = (B.x0 + B.x1)/2*u, cy = (B.y0 + B.y1)/2*u, W = (x, y) => [x*u - cx, -(y*u - cy)];
@@ -3406,12 +3426,22 @@ async function open3D(){
   const grp = k => { const g = new TH.Group(); g.userData.k = k; g.visible = V3.on[k] !== false; sc.add(g); return g; }, gW = grp('wall'), gU = grp('ub'), gM = grp('unit');
   const wm = new TH.MeshStandardMaterial({color:0xd9d4cc, transparent:true, opacity:.7}), um = new TH.MeshStandardMaterial({color:0xf5f7fa, transparent:true, opacity:.8, side:TH.DoubleSide}), uf = new TH.MeshStandardMaterial({color:0x9fd3e6}), mm2 = new TH.MeshStandardMaterial({color:0x2f6fe0}), em = new TH.LineBasicMaterial({color:0x1e3a8a});
   const boxAt = (g, x0, y0, x1, y1, z0, z1, m) => { const a = W(x0/u, y0/u), b = W(x1/u, y1/u), me = new TH.Mesh(new TH.BoxGeometry(Math.abs(b[0] - a[0]) || 1, z1 - z0, Math.abs(b[1] - a[1]) || 1), m); me.position.set((a[0] + b[0])/2, (z0 + z1)/2, (a[1] + b[1])/2); g.add(me); return me; };
-  for (const w of A.walls) boxAt(gW, w[0], w[1], w[2], w[3], 0, A.wallH, wm);
+  const wem = new TH.LineBasicMaterial({color:0x8a8378}); for (const w of A.walls){ const me = boxAt(gW, w[0], w[1], w[2], w[3], 0, A.wallH, wm); const e2 = new TH.LineSegments(new TH.EdgesGeometry(me.geometry), wem); e2.position.copy(me.position); gW.add(e2); } // 縁の線（曲げ共有の壁と同じ見え方）
   for (const b of A.ubs){ const H = Math.min(2100, b.ch); boxAt(gU, b.x0, b.y0, b.x1, b.y1, 0, 60, uf); const T2 = 40; // ユニットバス：床と4方の壁（上はあけて中が見えるように）と浴槽
     boxAt(gU, b.x0, b.y0, b.x1, b.y0 + T2, 0, H, um); boxAt(gU, b.x0, b.y1 - T2, b.x1, b.y1, 0, H, um); boxAt(gU, b.x0, b.y0, b.x0 + T2, b.y1, 0, H, um); boxAt(gU, b.x1 - T2, b.y0, b.x1, b.y1, 0, H, um);
     const lw = b.x1 - b.x0 >= b.y1 - b.y0; if (lw) boxAt(gU, b.x0 + T2, b.y0 + T2, b.x0 + (b.x1 - b.x0)*0.45, b.y1 - T2, 0, 550, um); else boxAt(gU, b.x0 + T2, b.y1 - (b.y1 - b.y0)*0.45, b.x1 - T2, b.y1 - T2, 0, 550, um);
     const c2 = W((b.x0 + b.x1)/2/u, (b.y0 + b.y1)/2/u); gU.add(v3dLabel(TH, b.nm, new TH.Vector3(c2[0], H + 150, c2[1]), 220)); }
-  for (const m of A.units){ const me = boxAt(gM, m.x0, m.y0, m.x1, m.y1, m.ch, m.ch + 300, mm2); const e2 = new TH.LineSegments(new TH.EdgesGeometry(me.geometry), em); e2.position.copy(me.position); gM.add(e2); }
+  const mk = v3dMdl(), md = typeof CAS2M !== 'undefined' && CAS2M[mk];
+  for (const m of A.units){ const ccx = (m.x0 + m.x1)/2, ccy = (m.y0 + m.y1)/2, c3 = W(ccx/u, ccy/u);
+    if (!md){ const me = boxAt(gM, m.x0, m.y0, m.x1, m.y1, m.ch, m.ch + 300, mm2); const e2 = new TH.LineSegments(new TH.EdgesGeometry(me.geometry), em); e2.position.copy(me.position); gM.add(e2); continue; }
+    // 機種の模型：長い方を図面のかたまりの長い方に合わせ、正面（吹出し）はいちばん近いユニットバスと反対の側へ
+    let nb = null, nd = 1e18; for (const b of A.ubs){ const d = Math.hypot((b.x0 + b.x1)/2 - ccx, (b.y0 + b.y1)/2 - ccy); if (d < nd){ nd = d; nb = b; } }
+    const lx = m.x1 - m.x0 >= m.y1 - m.y0; let f; // f：正面の向き（3Dの x, z）
+    if (lx){ const s2 = nb && (nb.y0 + nb.y1)/2 > ccy ? 1 : -1; f = [0, s2]; } else { const s2 = nb && (nb.x0 + nb.x1)/2 > ccx ? -1 : 1; f = [s2, 0]; }
+    if (!nb) f = lx ? [0, 1] : [1, 0];
+    const lw = md.W > md.L; if (!lw) f = lx ? [1, 0] : [0, 1]; // 本体の長い方が L（正面の向き）の機種は、L を図面の長い方に
+    const gU2 = v3dUnit(TH, md); gU2.position.set(c3[0], m.ch, c3[1]); gU2.rotation.y = Math.atan2(f[1], -f[0]); gM.add(gU2); }
+  if (md) gM.add(v3dLabel(TH, md.n, (() => { const m = A.units[0]; if (!m) return new TH.Vector3(); const c3 = W((m.x0 + m.x1)/2/u, (m.y0 + m.y1)/2/u); return new TH.Vector3(c3[0], m.ch + 800, c3[1]); })()));
   const om = new TH.MeshStandardMaterial({color:0x7cc4f0}); for (const q of A.outs) boxAt(gM, q.x0, q.y0, q.x1, q.y1, q.ch - 5, q.ch + 40, om); // 吹出口・吸込口：天井の面にうすい板
   for (const q of A.insp){ const a = W(q.x0/u, q.y0/u), b = W(q.x1/u, q.y1/u), y = q.ch; gM.add(new TH.Line(new TH.BufferGeometry().setFromPoints([[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]], [a[0], a[1]]].map(p => new TH.Vector3(p[0], y, p[1]))), new TH.LineBasicMaterial({color:0x2f6fe0}))); }
   V3.ana = A;
@@ -3443,6 +3473,7 @@ function v3dCtl(){ const el = V3.r.domElement, P = new Map(); let last = null;
   el.addEventListener('wheel', e => { e.preventDefault(); V3.dist = Math.max(300, Math.min(5e6, V3.dist*Math.exp(e.deltaY*0.0015))); v3dDraw(); }, {passive:false});
   window.addEventListener('resize', () => v3dDraw()); }
 $('#b3D').onclick = open3D;
+$('#v3dM').onchange = e => { try { localStorage.setItem('zumen-3dunit', e.target.value); } catch(err){} open3D(); }; // 室内機の機種を変えたら作り直す
 $('#v3d').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) v3dView(b.dataset.v); const t = e.target.closest('[data-t3]'); if (t && V3.sc){ const k = t.dataset.t3; V3.on[k] = V3.on[k] === false; t.classList.toggle('sel', V3.on[k] !== false); for (const o of V3.sc.children) if (o.userData.k === k) o.visible = V3.on[k] !== false; v3dDraw(); } }); // 壁・ユニットバス・機器・図面の線を出す／消す
 $('#v3dX').onclick = () => { $('#v3d').hidden = true; if (V3.sc){ V3.sc.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material){ if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); V3.sc = null; } };
 /* 曲げ共有（同じサイト akija114.github.io）の図面画面へ渡す：IndexedDB pbmShare / f / "dxf" → zumen.html?from=fix */

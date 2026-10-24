@@ -717,6 +717,9 @@ function resize(){
 
 /* ============ rendering ============ */
 const FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif';
+const estW = s => { let w = 0; for (const ch of s) w += ch.charCodeAt(0) > 0x2000 && !/[｡-ﾟ]/.test(ch) ? 1 : 0.55; return w || 1; }; // 字の幅の目安（全角1・半角0.55、字の高さを1）
+const TXC = s => /^[\d,.\s\-+]+$/.test(s) ? '文字（寸法）' : /CH|FL|SL|GL|±|▽|天井高|床高/.test(s) ? '文字（高さ）' : /[A-Za-zＡ-Ｚａ-ｚ]/.test(s) ? '文字（記号）' : '文字（名前・そのほか）'; // PDFの文字のレイヤー分け
+function fitWf(t, hp){ let ln = t.lines[0]; for (const x of t.lines) if (estW(x) > estW(ln)) ln = x; const mw = bctx.measureText(ln).width; return mw > 0 ? hp*t.wf*estW(ln)/mw : t.wf; }
 function renderBase(){
   if (!cw) return;
   bview = {...view};
@@ -738,14 +741,14 @@ function renderBase(){
     // texts
     bctx.setTransform(dpr,0,0,dpr,0,0);
     for (const l of order){
-      const dim = soloSet && !soloSet.has(l); bctx.globalAlpha = dim ? .4 : 1;
+      const dim = soloSet && !soloSet.has(l), pfit = !!S.pdfInfo && l.name.startsWith('文字'); bctx.globalAlpha = dim ? .4 : 1; // PDFの文字は、PDFに書いてある長さに合わせて横を縮める（iPhoneの字は幅が広く、となりと重なるので）
       for (const t of G.textsBy[l.idx]){
         if (gone(t.eid)) continue;
         const hp = t.h*view.s; if (hp < 3.2) continue;
         const [sx, sy] = w2s(t.x, t.y); const ext = hp * (t.lines[0].length + 2) * t.wf * 1.2 + hp*t.lines.length*1.7;
         if (sx < -ext || sx > cw+ext || sy < -ext || sy > ch+ext) continue;
-        bctx.save(); bctx.translate(sx, sy); bctx.rotate(-t.a); bctx.scale(t.wf, 1);
-        bctx.fillStyle = dim ? tok.dimmed : colorCss(t.ck); bctx.font = `${(hp*1.12).toFixed(1)}px ${FONT}`;
+        bctx.save(); bctx.translate(sx, sy); bctx.rotate(-t.a); bctx.font = `${(hp*1.12).toFixed(1)}px ${FONT}`; bctx.scale(pfit ? fitWf(t, hp) : t.wf, 1);
+        bctx.fillStyle = dim ? tok.dimmed : colorCss(t.ck);
         bctx.textAlign = ['left','center','right'][t.ha];
         if (t.lines.length === 1){ bctx.textBaseline = {base:'alphabetic', mid:'middle', top:'top', bottom:'alphabetic'}[t.va]; bctx.fillText(t.lines[0], 0, 0); }
         else { const gap = hp*1.6, tot = (t.lines.length-1)*gap + hp; const y0 = t.va === 'top' ? 0 : t.va === 'mid' ? -tot/2 : -tot; bctx.textBaseline = 'top'; t.lines.forEach((ln, i) => bctx.fillText(ln, 0, y0 + i*gap)); }
@@ -3608,7 +3611,7 @@ async function pdfToDxf(bytes, pageNo){
   const doc = await lib.getDocument({data:bytes.slice(0), cMapUrl:PDFJS_BASE + 'cmaps/', cMapPacked:true, isEvalSupported:false, disableFontFace:true, useSystemFonts:false}).promise;
   const page = await doc.getPage(pageNo || 1);
   const vp = page.getViewport({scale:1}), VT = vp.transform, PH = vp.height;
-  let tc = {items:[]}; try { tc = await page.getTextContent(); } catch(e){}
+  let tc = {items:[]}; try { if (!window.__PBM_NOTC) tc = await page.getTextContent(); } catch(e){} // __PBM_NOTC：テスト用（文字の層が読めない時）
   const sc = detectScale(tc.items.map(i => i.str).join(' '), vp.width, vp.height);
   const k = 25.4/72*sc.scale;
   const W = (x, y) => [(VT[0]*x + VT[2]*y + VT[4])*k, (PH - (VT[1]*x + VT[3]*y + VT[5]))*k];
@@ -3659,7 +3662,7 @@ async function pdfToDxf(bytes, pageNo){
       if (str.trim()){
         const m = mul(ctm, mul(tx.tm, [tx.size*tx.hs, 0, 0, tx.size, 0, 0]));
         const [x, y] = W(m[4], m[5]); const dx = VT[0]*m[0] + VT[2]*m[1], dy = VT[1]*m[0] + VT[3]*m[1];
-        opTexts.push([x, y, Math.hypot(m[2], m[3])*k*0.78, Math.atan2(-dy, dx)*180/Math.PI, str.replace(/[\r\n]/g, ' '), gs.fill]);
+        const mt = mul(ctm, tx.tm); opTexts.push([x, y, Math.hypot(m[2], m[3])*k*0.78, Math.atan2(-dy, dx)*180/Math.PI, str.replace(/[\r\n]/g, ' '), gs.fill, adv*Math.hypot(mt[0], mt[1])*k]);
       }
       tx.tm = mul(tx.tm, [1,0,0,1,adv,0]);
     }
@@ -3699,12 +3702,19 @@ async function pdfToDxf(bytes, pageNo){
   }
   // texts (from the text layer; if that came back empty, from the drawing commands)
   const texts = [];
-  if (!tc.items.some(it => (it.str || '').trim())) for (const t of opTexts) texts.push(t.slice(0, 5));
+  if (!tc.items.some(it => (it.str || '').trim())){ // 文字の層が読めない時は描く命令から。1字ずつになっていることがあるので、同じ行でとなり合う物は1つの文字列にまとめる
+    const out = [];
+    for (const t of opTexts){ const q = out[out.length - 1];
+      if (q && Math.abs(q[3] - t[3]) < 1 && Math.abs(q[2] - t[2]) < q[2]*0.1){ const a = q[3]*Math.PI/180, dx = t[0] - q[0], dy = t[1] - q[1], al = dx*Math.cos(a) + dy*Math.sin(a), pe = -dx*Math.sin(a) + dy*Math.cos(a), gap = al - q[6];
+        if (Math.abs(pe) < q[2]*0.3 && gap > -q[2]*0.3 && gap < q[2]*0.8){ q[4] += (gap > q[2]*0.25 ? ' ' : '') + t[4]; q[6] = al + t[6]; continue; } }
+      out.push([t[0], t[1], t[2], t[3], t[4], t[5], t[6]]); }
+    for (const t of out) texts.push([t[0], t[1], t[2], t[3], t[4], t[6]]);
+  }
   for (const it of tc.items){
     const str = (it.str || '').trim(); if (!str) continue; const t = it.transform; if (!t) continue;
     const [x, y] = W(t[4], t[5]); const dx = VT[0]*t[0] + VT[2]*t[1], dy = VT[1]*t[0] + VT[3]*t[1];
     const fs = Math.hypot(t[2], t[3]) || Math.hypot(t[0], t[1]); const ang = Math.atan2(-dy, dx)*180/Math.PI;
-    texts.push([x, y, fs*k*0.78, ang, str.replace(/[\r\n]/g, ' ')]);
+    texts.push([x, y, fs*k*0.78, ang, str.replace(/[\r\n]/g, ' '), it.width > 0 ? it.width*k : 0]);
   }
   // write a plain DXF (this app and 曲げ共有 read it; lines keep their colour as layers)
   const out = []; let h = 0x100; const H = () => (h++).toString(16).toUpperCase(); const P = (c, v) => out.push(String(c).padStart(3, ' '), String(v));
@@ -3713,10 +3723,10 @@ async function pdfToDxf(bytes, pageNo){
   const info = {scale:sc.scale, from:sc.from, guess:!!sc.guess, page:pageNo || 1, pages:doc.numPages, paper:sc.paper};
   P(999, PDFSRC + JSON.stringify(info));
   P(0,'SECTION'); P(2,'HEADER'); P(9,'$ACADVER'); P(1,'AC1021'); P(9,'$INSUNITS'); P(70,4); P(9,'$HANDSEED'); P(5,'FFFFF'); P(0,'ENDSEC');
-  P(0,'SECTION'); P(2,'TABLES'); P(0,'TABLE'); P(2,'LAYER'); P(70, names.size + 2);
+  P(0,'SECTION'); P(2,'TABLES'); P(0,'TABLE'); P(2,'LAYER'); P(70, names.size + 6);
   const layerRow = (nm, hex) => { P(0,'LAYER'); P(2, nm); P(70, 0); P(62, aciOf(hex)); P(6, 'CONTINUOUS'); P(420, parseInt(hex.slice(1), 16)); };
   for (const [k2, nm] of names) layerRow(nm, k2.startsWith('oc|') ? (ocColor.get(k2.slice(3)) || '#000000') : k2.split('|')[0]);
-  layerRow('文字', '#000000');
+  layerRow('文字', '#000000'); for (const nm of ['文字（寸法）', '文字（高さ）', '文字（記号）', '文字（名前・そのほか）']) layerRow(nm, '#000000');
   P(0,'ENDTAB'); P(0,'ENDSEC');
   // lines that touch end-to-end (same layer) become one part, so a pipe run or a machine is picked with one tap
   const L2 = [...lines.values()], par = L2.map((_, i) => i);
@@ -3760,7 +3770,7 @@ async function pdfToDxf(bytes, pageNo){
   for (const [bn, ln0] of blockNames){ P(0,'INSERT'); P(5, H()); P(8, ln0); P(2, bn); P(10, 0); P(20, 0); P(30, 0); }
   for (const c of singles) for (const ln of c) lineEnt(ln);
   for (const [pts, k2] of solids){ const q = pts.length === 3 ? [pts[0], pts[1], pts[2], pts[2]] : [pts[0], pts[1], pts[3], pts[2]]; P(0,'SOLID'); P(5, H()); P(8, names.get(k2)); q.forEach((pp, j) => { P(10+j, f3(pp[0])); P(20+j, f3(pp[1])); P(30+j, 0); }); }
-  for (const [x, y, hh, ang, str] of texts){ P(0,'TEXT'); P(5, H()); P(8, '文字'); P(10, f3(x)); P(20, f3(y)); P(30, 0); P(40, f3(hh)); P(1, str); if (Math.abs(ang) > 0.01) P(50, f3(ang)); }
+  for (const [x, y, hh, ang, str, tw] of texts){ P(0,'TEXT'); P(5, H()); P(8, TXC(str)); P(10, f3(x)); P(20, f3(y)); P(30, 0); P(40, f3(hh)); P(1, str); if (Math.abs(ang) > 0.01) P(50, f3(ang)); if (tw > 0) P(41, f3(Math.max(0.3, Math.min(2, tw/(hh*estW(str)))))); } // 41：PDFの文字の長さに合わせる横の倍率
   P(0,'ENDSEC'); P(0,'EOF');
   const hs = out.indexOf('$HANDSEED'); if (hs >= 0) out[hs + 2] = h.toString(16).toUpperCase();
   return {text: out.join('\n') + '\n', info, nLines:lines.size, nText:texts.length, pages:doc.numPages, nParts:groups.length + singles.length, nOC:[...names.keys()].filter(k2 => k2.startsWith('oc|')).length};

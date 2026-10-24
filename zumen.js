@@ -1139,9 +1139,10 @@ function rpFromBld(R){const o=rpOutB();if(!o)return false;if(R.lock!==false)RPB=
   const t=(o.r||0)*Math.PI/180,fm=G0.w2m(-Math.sin(t),Math.cos(t));let bi=0,bd=-9;MDIR.forEach((d,i)=>{const v=d[0]*fm[0]+d[1]*fm[1];if(v>bd){bd=v;bi=i}});R.of=bi;   // 正面＝箱の +z（回転 r）
   R.hs=(o.y||0)<0?-1:1;R.hb=Math.abs(Math.round(o.y||0));rpSave()}catch(e){console.warn("rpFromBld",e)}return true}
 /* 今の室内機の機種・高さ（図面で決めた天井高・配管口の高さ）を使う（ルートを作っても室内機の高さを変えない） */
-function rpFromCur(R){try{const U=st.units,g=st.gnd;
+let RPFD=false;   // 室内機の機種・高さを、今の室内機（図面から置いた物）から読んだか
+function rpFromCur(R){RPFD=false;try{const U=st.units,g=st.gnd;
  if(!(U&&U.on&&["cas","cas2","ceil","wall","flr"].includes(U.s)&&g&&g.on)){const c=typeof bldCH==="function"?bldCH():0;if(c>0){R.ch=Math.round(c);rpSave()}return}   // 室内機がまだ無い時も、天井高は今の天井高に
- R.it=U.s;if(U.s==="cas2"&&U.ms)R.im=U.ms;if(U.s==="wall"&&U.ws)R.ws=U.ws;
+ R.it=U.s;if(U.s==="cas2"&&U.ms){R.im=U.ms;RPFD=true}if(U.s==="wall"&&U.ws)R.ws=U.ws;
  if(U.s==="cas2"){if(g.mode==="auto"&&g.ch)R.ch=Math.round(g.ch)}
  else if(g.mode==="start"&&isFinite(g.h)){R.top=0;const G0=rpGeom();R.top=Math.round(g.h+G0.bi.max.y)}   // 配管口の高さ（床から）＝ g.h になる上の面の高さ
  rpSave()}catch(e){console.warn("rpFromCur",e)}}
@@ -1151,10 +1152,12 @@ function openRoutePos(){
  const dirs=(k,v)=>`<div class="seg" data-dir="${k}" style="margin-bottom:8px">${["↑","→","↓","←"].map((t,i)=>`<button data-v="${i}" class="${i===v?"on":""}" style="height:42px">${t}</button>`).join("")}</div>`;
  const num=(k,lab,v)=>`<div class="field" style="margin-bottom:8px"><label>${lab}</label><input data-n="${k}" inputmode="numeric" value="${uVal(v)}"></div>`;
  const sgn=(k,lab,a,v,sv)=>`<div class="field" style="margin-bottom:8px"><label>${lab}</label><div style="display:flex;gap:6px"><select data-sg="${k}" style="height:44px;border-radius:12px;font-size:15px;font-weight:700;padding:0 8px">${a.map(([q,t])=>`<option value="${q}"${q===sv?" selected":""}>${t}</option>`).join("")}</select><input data-n="${k}" inputmode="numeric" value="${uVal(v)}" style="flex:1"></div></div>`;
- const IT=[["cas2","メーカー機種（2方向・ビルトイン等）"],["cas","4方向（メーカー別・目安）"],["ceil","天吊"],["wall","壁掛け"],["flr","床置き"]];
+ /* 種類は機種に合わせて出す（PL-ZRP80HA5 なら「4方向（機種から）」）。図面の室内機から読んだ時はその印 */
+ const km=R.it==="cas2"&&CAS2M[R.im]?CAS2M[R.im]:null;
+ const IT=[["cas2",km?`${km.kind}（機種から・${km.n}）`:"メーカー機種（2方向・ビルトイン等）"],["cas","4方向（メーカー別・目安）"],["ceil","天吊"],["wall","壁掛け"],["flr","床置き"]];
  const ims=CAS2_MAKERS.map(([m,mn])=>`<optgroup label="${mn}">`+CAS2_ORDER.filter(k=>CAS2M[k].mk===m).map(k=>`<option value="${k}"${k===R.im?" selected":""}>${CAS2M[k].n}（${CAS2M[k].kind}）</option>`).join("")+"</optgroup>").join("");
  const ox=outExitKey(R.oe,R.ox);
- box.innerHTML=`<div class="ctitle">① 室内機</div>
+ box.innerHTML=`<div class="ctitle">① 室内機</div>${RPFD&&km?`<div class="note" style="margin:0 0 6px;background:#ecfdf5;border:1.5px solid #10b981;border-radius:10px;padding:6px 8px;color:#065f46;font-weight:700">📍 図面の室内機（${km.n}・${km.kind}）の機種・種類・天井高を使っています</div>`:""}
   <div class="field" style="margin-bottom:8px"><label>種類</label><select data-s="it" style="height:44px;border-radius:12px;font-size:15px;font-weight:700;width:100%">${opt(IT,R.it)}</select></div>
   ${R.it==="cas2"?`<div class="field" style="margin-bottom:8px"><label>機種</label><select data-s="im" style="height:44px;border-radius:12px;font-size:14px;font-weight:700;width:100%">${ims}</select></div>`:""}
   ${R.it==="wall"?`<div class="field" style="margin-bottom:8px"><label>配管の出し方</label><select data-s="ws" style="height:44px;border-radius:12px;font-size:15px;font-weight:700;width:100%">${opt(WALL_ORDER.map(k=>[k,WALLX[k].n]),R.ws)}</select></div>`:""}

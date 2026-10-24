@@ -47,7 +47,7 @@ function dxfParse(txt){
  return{layers,blocks,ents}}
 function layCol(lay,layers,e){const tc=e.g[420]?+e.g[420][0]:null;if(tc!=null)return"#"+("00000"+tc.toString(16)).slice(-6);
  const ci=e.g[62]?+e.g[62][0]:256;if(ci>0&&ci<256)return ACI[ci]||"#000000";const l=layers[lay]||{};if(l.tc!=null)return"#"+("00000"+l.tc.toString(16)).slice(-6);return ACI[Math.abs(l.c||7)]||"#000000"}
-function dxfGeo(D){const segs=[],arcs=[],texts=[],circ=[],MAX=400000;
+function dxfGeo(D){const segs=[],arcs=[],texts=[],circ=[],ins=[],MAX=400000;   // ins：図面に置いてある部品（ブロック）の名前・位置・描いてある大きさ（吹出口・換気扇・点検口などを見つけるため）
  const f=(e,c,d)=>e.g[c]?+e.g[c][0]:(d||0);
  function walk(list,M,pl,depth,plt){const[a,b,c,d,tx,ty]=M,P=(x,y)=>[a*x+c*y+tx,b*x+d*y+ty];
   for(const e of list){if(segs.length>MAX)return;if(e.g[67]&&e.g[67][0]==="1")continue;
@@ -72,17 +72,19 @@ function dxfGeo(D){const segs=[],arcs=[],texts=[],circ=[],MAX=400000;
    else if(t==="TEXT"||t==="MTEXT"||t==="ATTRIB"){let s=t==="MTEXT"?mtextClean((e.g[3]||[]).join("")+(e.g[1]||[""]).join("")):clean((e.g[1]||[""])[0]);if(!s.trim())continue;
     const al=t!=="MTEXT"&&(f(e,72)||f(e,73))&&e.g[11],x=al?f(e,11):f(e,10),y=al?f(e,21):f(e,20),p=P(x,y),sc=Math.hypot(a,b);
     texts.push({s:s.trim(),x:p[0],y:p[1],h:f(e,40,2.5)*sc,r:(t==="MTEXT"?f(e,50)*180/Math.PI:f(e,50))+Math.atan2(b,a)*180/Math.PI,lay,col})}
-   else if((t==="INSERT"||t==="DIMENSION")&&depth<8){const B=D.blocks[(e.g[2]||[""])[0]];if(!B)continue;
+   else if((t==="INSERT"||t==="DIMENSION")&&depth<8){const B=D.blocks[(e.g[2]||[""])[0]];if(!B)continue;const s0=segs.length;
     const sx=t==="INSERT"?f(e,41,1):1,sy=t==="INSERT"?f(e,42,1):1,r=t==="INSERT"?f(e,50)*Math.PI/180:0,x0=t==="INSERT"?f(e,10):0,y0=t==="INSERT"?f(e,20):0;
     const dc=t==="INSERT"?f(e,44):0,dr=t==="INSERT"?f(e,45):0,nc=t==="INSERT"&&dc?Math.max(1,f(e,70,1)):1,nr=t==="INSERT"&&dr?Math.max(1,f(e,71,1)):1;
     for(let ic=0;ic<nc&&ic<50;ic++)for(let ir=0;ir<nr&&ir<50;ir++){const co=Math.cos(r),si=Math.sin(r),ox=x0+ic*dc*co-ir*dr*si,oy=y0+ic*dc*si+ir*dr*co;
      /* ブロックの中の点 p → ins + R*S*(p - 基点) */
      const m=[co*sx,si*sx,-si*sy,co*sy,ox-(co*sx*B.bx-si*sy*B.by),oy-(si*sx*B.bx+co*sy*B.by)];
-     walk(B.e,[a*m[0]+c*m[1],b*m[0]+d*m[1],a*m[2]+c*m[3],b*m[2]+d*m[3],a*m[4]+c*m[5]+tx,b*m[4]+d*m[5]+ty],lay==="0"&&pl?pl:lay,depth+1,e.g[6]?e.g[6][0]:plt)}}}}
- walk(D.ents,[1,0,0,1,0,0],null,0);return{segs,arcs,texts,circ}}
+     walk(B.e,[a*m[0]+c*m[1],b*m[0]+d*m[1],a*m[2]+c*m[3],b*m[2]+d*m[3],a*m[4]+c*m[5]+tx,b*m[4]+d*m[5]+ty],lay==="0"&&pl?pl:lay,depth+1,e.g[6]?e.g[6][0]:plt)}
+    if(t==="INSERT"&&depth===0&&segs.length>s0){let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;for(let k=s0;k<segs.length;k++){const q=segs[k];x0=Math.min(x0,q[0],q[2]);y0=Math.min(y0,q[1],q[3]);x1=Math.max(x1,q[0],q[2]);y1=Math.max(y1,q[1],q[3])}
+     ins.push({n:(e.g[2]||[""])[0],lay,bb:[x0,y0,x1,y1]})}}}}
+ walk(D.ents,[1,0,0,1,0,0],null,0);return{segs,arcs,texts,circ,ins}}
 window.dxfRead=async function(f){const txt=dec(await f.arrayBuffer()),D=dxfParse(txt),G=dxfGeo(D);
  const unit=+(((txt.match(/\$INSUNITS\s*\r?\n\s*70\s*\r?\n\s*(\d+)/)||[])[1])||4),k={1:25.4,2:304.8,4:1,5:10,6:1000}[unit]||1;
- if(k!==1){G.segs.forEach(s=>{for(let j=0;j<4;j++)s[j]*=k});G.arcs.forEach(o=>["a","m","b"].forEach(q=>{o[q]=[o[q][0]*k,o[q][1]*k]}));G.texts.forEach(t=>{t.x*=k;t.y*=k;t.h*=k})}
+ if(k!==1){G.segs.forEach(s=>{for(let j=0;j<4;j++)s[j]*=k});G.arcs.forEach(o=>["a","m","b"].forEach(q=>{o[q]=[o[q][0]*k,o[q][1]*k]}));G.texts.forEach(t=>{t.x*=k;t.y*=k;t.h*=k});(G.ins||[]).forEach(o=>{o.bb=o.bb.map(v=>v*k)})}
  return G};
 /* PLAN を作る（PDFと同じ形）：px = (x - 左端)/mmpp、上下は反対 */
 window.dxfToPlan=function(G,f){const S=G.segs.filter(s=>Math.hypot(s[2]-s[0],s[3]-s[1])>0.5);if(S.length<20)throw new Error("線がありません");
@@ -102,7 +104,8 @@ window.dxfToPlan=function(G,f){const S=G.segs.filter(s=>Math.hypot(s[2]-s[0],s[3
  /* はじめて使う時だけ：ダクト・衛生・電気の線は隠しておく（空調の図として見やすく） */
  try{if(localStorage.getItem("pbm_dxfhide")===null){const H=[...new Set(S.map(s=>s[4]).filter(l=>["duct","eisei","elec"].includes(dxfGrp(l))))];localStorage.setItem("pbm_dxfhide",JSON.stringify(H))}}catch(e){}
  const circ=(G.circ||[]).map(o=>{const p=px(o.x,o.y);return{x:p[0],y:p[1],r:o.r/mmpp,lay:o.lay}});
- const P={dX0:X0,dY1:Y1,img:c,W,H0:H,segs,segAll,arcs,circ,texts:tAna,textsAll:texts,mmpp,ptpx:0,den:0,dxf:1,dS,route:[],walls:[],show:true,fkey:f.name+"|"+f.size};dxfRender(P);return P};
+ const ins=(G.ins||[]).map(o=>{const a=px(o.bb[0],o.bb[3]),b=px(o.bb[2],o.bb[1]);return{n:o.n,lay:o.lay,x:(a[0]+b[0])/2,y:(a[1]+b[1])/2,w:b[0]-a[0],h:b[1]-a[1]}});   // 部品の真ん中（描いてある形の真ん中）と大きさ（px）
+ const P={dX0:X0,dY1:Y1,img:c,W,H0:H,segs,segAll,arcs,circ,ins,texts:tAna,textsAll:texts,mmpp,ptpx:0,den:0,dxf:1,dS,route:[],walls:[],show:true,fkey:f.name+"|"+f.size};dxfRender(P);return P};
 /* 図面の線を「何の図か」で分ける：空調（冷媒・ドレン・機器）／ダクト／衛生／建築／寸法・文字 */
 function dxfGrp(L){L=L||"";const mp=dxMap()[L];if(mp)return mp==="ref"||mp==="drain"||mp==="acq"?"ac":mp;const k=dxfCat(L);if(k==="ref"||k==="drain")return"ac";if(k)return k;
  if(/機器|ｽﾘｰﾌﾞ|スリーブ|メンテ|室内機|室外機|空調|冷媒|PAC|基準線|HVAC|EQPM|EQUIP|AIRCON|CLIM/i.test(L))return"ac";
@@ -534,7 +537,7 @@ function dlEisei(S,J,CS){
    ・高さ：同じ種類の近くの「FL+3200」などの文字。無ければ天井の少し下（ダクトは天井の上） */
 const DL_KINDS=[["duct","ダクト"],["eisei","衛生"]];
 /* 読み方の版：衛生・ダクトの読み方を直したら1つ上げる（図面の画面で前の図面を開いた時、古い版で作った3Dは自動で読み直す） */
-const DL_VER=5;window.DL_VER=DL_VER;
+const DL_VER=6;window.DL_VER=DL_VER;
 window.DL_KINDS=DL_KINDS;
 function segCat(s){if(s[5]!==undefined)return dxfCat(s[5]);const c=s[4]||"";if(c.length<7)return"";const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
  return r>200&&g<80&&b>200?"ref":r>200&&g>90&&g<170&&b<60?"drain":""}   // PDF：赤紫＝冷媒、オレンジ＝ドレン（#ff7f00・#ff7e00 など少し違っても）
@@ -684,7 +687,23 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
    const used=S.some(o=>o!==r&&(Math.hypot(o[0]-p[0],o[1]-p[1])<Math.max(30,r[6]*0.6)||Math.hypot(o[2]-p[0],o[3]-p[1])<Math.max(30,r[6]*0.6)))||J.some(j=>Math.hypot(j[0]-p[0],j[1]-p[1])<Math.max(60,r[6]*1.2))||(out.vc||[]).some(v=>Math.hypot(v[0]-p[0],v[1]-p[1])<60);if(used)return;
    E.push({x:p[0],z:p[1],h:r[4],u:[(p[0]-q[0])/L,(p[1]-q[1])/L],w:r[6]})})});
   const CH0=(st.gnd&&st.gnd.ch)||P.CH||2700,taken=new Set();out.eq2=[];
-  EQT.forEach(t=>{let b=null,bd=1500;E.forEach((e,i)=>{if(taken.has(i))return;const d=Math.hypot(e.x-t.x,e.z-t.z);if(d<bd){bd=d;b=i}});if(b===null)return;taken.add(b);const e=E[b];
+  /* 図面に部品（ブロック）として描いてある吹出口・吸込口・天井換気扇（「VHS(消音BOX付)」「HS(BOX付)」「天井埋込形換気扇」など）：
+     描いてある四角の所にそのまま置いて、いちばん近い空いたダクトの端からフレキでつなぐ。[11,12]＝機器の真ん中、[13]＝1 ならつなぐダクトが無い */
+  const mm2=P.mmpp,usedT=new Set();
+  /* 文字・ダクトの端は近い組から順に決める（先に見た機器が遠い端を取らないように） */
+  const U=[];(P.ins||[]).forEach(o=>{const nm=nz(o.n);if(!/^(V?H?S|VHS|HS|SHS|VS)[\(\-]|換気扇|吹出口|吸込口|レジスタ|ﾚｼﾞｽﾀ|アネモ|ｱﾈﾓ|ブリーズ|ﾌﾞﾘｰｽﾞ/i.test(nm)||/点検口/.test(nm))return;
+   const c=pos({x:o.x,y:o.y});if(c)U.push({nm,c,sz:Math.max(150,Math.min(700,Math.round(Math.min(o.w,o.h)*mm2/10)*10))})});
+  const pair=(A,lim,f)=>{const L=[];U.forEach((u,i)=>A.forEach((q,j)=>{const d=Math.hypot(q.x-u.c.x,q.z-u.c.z);if(d<lim)L.push([d,i,j])}));L.sort((a,b)=>a[0]-b[0]);const ui=new Set(),qj=new Set();L.forEach(([d,i,j])=>{if(ui.has(i)||qj.has(j))return;ui.add(i);qj.add(j);f(U[i],j)})};
+  pair(EQT.filter(q=>!usedT.has(q)),1500,(u,j)=>{u.t=EQT.filter(q=>!usedT.has(q))[j]});U.forEach(u=>{if(u.t)usedT.add(u.t)});
+  pair(E,2500,(u,j)=>{u.b=j});
+  U.forEach(({nm,c,sz,t,b})=>{
+   let cm=null,cd=1200;CM.forEach(q=>{const d=Math.hypot(q.x-c.x,q.z-c.z);if(d<cd){cd=d;cm=q}});
+   const lab=(t?t.s:nm.replace(/-[A-Z0-9]{4,6}$/,"").replace(/^天井埋込形換気扇.*?\s*(VD-?\S+)?$/,(a,v)=>"天井換気扇 "+(v||"")).trim())+(cm?" "+cm.s:""),w=t&&t.g?t.w:sz,d=t&&t.g?t.d:sz;
+   if(b!==undefined&&!taken.has(b)){taken.add(b);const e=E[b];out.eq2.push([Math.round(e.x),Math.round(e.z),Math.round(e.h),+e.u[0].toFixed(4),+e.u[1].toFixed(4),w,d,"g",lab,CH0,Math.round(e.w),Math.round(c.x),Math.round(c.z)])}
+   else out.eq2.push([Math.round(c.x),Math.round(c.z),CH0+150,1,0,w,d,"g",lab,CH0,150,Math.round(c.x),Math.round(c.z),1])});
+  /* 点検口（図面の部品「点検口」）：天井に枠で出す。out.insp＝[x, z, 幅, 奥行] */
+  out.insp=(P.ins||[]).filter(o=>/点検口/.test(o.n)).map(o=>{const c=pos({x:o.x,y:o.y});if(!c)return null;const r=v=>Math.max(300,Math.min(900,Math.round(v*mm2/50)*50));return[Math.round(c.x),Math.round(c.z),r(o.w),r(o.h),CH0]}).filter(Boolean);
+  EQT.forEach(t=>{if(usedT.has(t))return;let b=null,bd=1500;E.forEach((e,i)=>{if(taken.has(i))return;const d=Math.hypot(e.x-t.x,e.z-t.z);if(d<bd){bd=d;b=i}});if(b===null)return;taken.add(b);const e=E[b];
    let cm=null,cd=900;CM.forEach(c=>{const d=Math.hypot(c.x-t.x,c.z-t.z);if(d<cd){cd=d;cm=c}});
    out.eq2.push([Math.round(e.x),Math.round(e.z),Math.round(e.h),+e.u[0].toFixed(4),+e.u[1].toFixed(4),t.w,t.d,t.g?"g":"f",t.s+(cm?" "+cm.s:""),CH0,Math.round(e.w)])})}catch(err){console.warn("eq2",err)}
  out.ver=DL_VER;return out};

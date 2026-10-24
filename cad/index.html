@@ -2522,7 +2522,7 @@ function renderTabs(){
   const live = sortedLayers().filter(l => !l.deleted), dead = G.L.filter(l => l.deleted && l.count > 0);
   let h = `<button class="tab ${S.group == null ? 'on' : ''}" data-g="">すべて <span class="ct">${live.length}</span></button>`;
   for (const g of GROUPS){
-    const ls = live.filter(l => l.g === g.id); if (g.id === 'etc' && !ls.length) continue;
+    const ls = live.filter(l => l.g === g.id); if (!ls.length && S.group !== g.id) continue; // 0のグループは出さない
     const allOff = ls.length && ls.every(l => !l.on);
     h += `<button class="tab ${S.group === g.id ? 'on' : ''} ${ls.length ? '' : 'zero'} ${allOff ? 'off' : ''}" data-g="${g.id}"><i class="gb" style="background:${g.col}"></i><span class="nm">${g.name}</span><span class="ct">${ls.length}</span></button>`;
   }
@@ -2963,16 +2963,24 @@ function autosave(dirty = true){
 function hashText(t){ let h = 2166136261; const step = Math.max(1, Math.floor(t.length/20000)); for (let i = 0; i < t.length; i += step){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + t.length.toString(36); }
 
 /* ============ open ============ */
+function pdfTextSplit(text){ // 前の版でPDFから作った図面は文字が「文字」1つのレイヤー：開いた時に4つ（TXC）に分け直す
+  if (!text.includes(PDFSRC) || !/\n\s*8\r?\n文字\r?\n/.test(text)) return text;
+  const a = text.split('\n'); let ty = '', l8 = -1;
+  for (let i = 0; i + 1 < a.length; i += 2){ const c = a[i].trim(), v = a[i+1].replace(/\r$/, '');
+    if (c === '0'){ ty = v.trim(); l8 = -1; } else if (ty === 'TEXT' && c === '8' && v === '文字') l8 = i + 1; else if (ty === 'TEXT' && c === '1' && l8 >= 0){ a[l8] = TXC(v) + (a[l8].endsWith('\r') ? '\r' : ''); l8 = -1; } }
+  return a.join('\n');
+}
 async function openText(text, srcName, opts = {}){
   $('#loading').hidden = false; $('#loading').textContent = '図面を読み込み中…';
   await new Promise(r => setTimeout(r, 30));
   try {
+    const text0 = text; text = pdfTextSplit(text);
     const doc = parseDxf(text);
     const flat = flatten(doc);
     if (SH.on && !opts.keepShare) shStop();
     if (!flat.segs.length && !flat.texts.length) throw new Error('図形が見つかりません');
     S.text = text; S.eol = text.includes('\r\n') ? '\r\n' : '\n'; S.srcName = srcName;
-    S.fileId = opts.fileId || hashText(text);
+    S.fileId = opts.fileId || hashText(text0);
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat); G.kkSkip = !!doc.meta;
     const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], dimGroups:doc.meta.dimGroups, curDG:doc.meta.curDG, groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views, notes:doc.meta.notes, kiki:doc.meta.kiki, sins:doc.meta.sins, np:doc.meta.np, clines:doc.meta.clines} : null);
@@ -2980,7 +2988,7 @@ async function openText(text, srcName, opts = {}){
     for (const [k, t] of Object.entries(G.parts)) if (t.inv) S.hideObj.add(+k);
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){
-      const del = new Set(st.deleted || []), hid = new Set(st.hidden || []);
+      const del = new Set(st.deleted || []), hid = new Set(st.hidden || []); const TX4 = ['文字（寸法）', '文字（高さ）', '文字（記号）', '文字（名前・そのほか）']; if (text !== text0){ if (del.has('文字')) TX4.forEach(x => del.add(x)); if (hid.has('文字')) TX4.forEach(x => hid.add(x)); }
       G.L.forEach(l => { if (del.has(l.name)) l.deleted = true; if (hid.has(l.name)) l.on = false; const gg = st.groups && st.groups[l.name]; if (gg && GROUPS.some(g => g.id === gg)) l.g = gg; });
       S.dimGroups = Array.isArray(st.dimGroups) ? st.dimGroups.map(g => ({...g})) : []; S.curDG = st.curDG || null;
       S.dims = (st.dims || []).map((d, i) => ({id:'d' + i + Date.now().toString(36), x1:+d.x1, y1:+d.y1, x2:+d.x2, y2:+d.y2, n:+d.n || 1, g:d.g, ...(dimTo(d.to) ? {to:dimTo(d.to)} : {}), ...(Number.isInteger(+d.c) && d.c !== null && d.c !== '' ? {c:+d.c} : {})}));
@@ -3716,18 +3724,6 @@ async function pdfToDxf(bytes, pageNo){
     const fs = Math.hypot(t[2], t[3]) || Math.hypot(t[0], t[1]); const ang = Math.atan2(-dy, dx)*180/Math.PI;
     texts.push([x, y, fs*k*0.78, ang, str.replace(/[\r\n]/g, ' '), it.width > 0 ? it.width*k : 0]);
   }
-  // write a plain DXF (this app and 曲げ共有 read it; lines keep their colour as layers)
-  const out = []; let h = 0x100; const H = () => (h++).toString(16).toUpperCase(); const P = (c, v) => out.push(String(c).padStart(3, ' '), String(v));
-  const f3 = v => (Math.round(v*1000)/1000).toString();
-  const aciOf = hex => { const v = parseInt(hex.slice(1), 16), r = (v>>16)&255, g = (v>>8)&255, b = v&255; let best = 7, bd = 1e9; for (let n = 1; n < 256; n++){ const c = aciRGB(n); if (!c) continue; const dd = (c[0]-r)**2 + (c[1]-g)**2 + (c[2]-b)**2; if (dd < bd){ bd = dd; best = n; } } return best; };
-  const info = {scale:sc.scale, from:sc.from, guess:!!sc.guess, page:pageNo || 1, pages:doc.numPages, paper:sc.paper};
-  P(999, PDFSRC + JSON.stringify(info));
-  P(0,'SECTION'); P(2,'HEADER'); P(9,'$ACADVER'); P(1,'AC1021'); P(9,'$INSUNITS'); P(70,4); P(9,'$HANDSEED'); P(5,'FFFFF'); P(0,'ENDSEC');
-  P(0,'SECTION'); P(2,'TABLES'); P(0,'TABLE'); P(2,'LAYER'); P(70, names.size + 6);
-  const layerRow = (nm, hex) => { P(0,'LAYER'); P(2, nm); P(70, 0); P(62, aciOf(hex)); P(6, 'CONTINUOUS'); P(420, parseInt(hex.slice(1), 16)); };
-  for (const [k2, nm] of names) layerRow(nm, k2.startsWith('oc|') ? (ocColor.get(k2.slice(3)) || '#000000') : k2.split('|')[0]);
-  layerRow('文字', '#000000'); for (const nm of ['文字（寸法）', '文字（高さ）', '文字（記号）', '文字（名前・そのほか）']) layerRow(nm, '#000000');
-  P(0,'ENDTAB'); P(0,'ENDSEC');
   // lines that touch end-to-end (same layer) become one part, so a pipe run or a machine is picked with one tap
   const L2 = [...lines.values()], par = L2.map((_, i) => i);
   const find = i => { while (par[i] !== i){ par[i] = par[par[i]]; i = par[i]; } return i; };
@@ -3754,11 +3750,33 @@ async function pdfToDxf(bytes, pageNo){
       for (let ax = cx-1; ax <= cx+1; ax++) for (let ay = cy-1; ay <= cy+1; ay++){ const a2 = mid.get(ln[4] + '@' + ax + ',' + ay); if (!a2) continue; for (const j of a2){ if (j <= i) continue; if (Math.abs(hl(j)/li - 1) > 0.15) continue; if (crosses(ln, L2[j])) par[find(i)] = find(j); } } }); }
   const comps = new Map(); L2.forEach((ln, i) => { const r = find(i); if (!comps.has(r)) comps.set(r, []); comps.get(r).push(ln); });
   const groups = [], singles = []; for (const c of comps.values()) (c.length > 1 ? groups : singles).push(c);
-  const lineEnt = (ln, layer) => { P(0,'LINE'); P(5, H()); P(8, layer || names.get(ln[4])); P(10, f3(ln[0])); P(20, f3(ln[1])); P(30, 0); P(11, f3(ln[2])); P(21, f3(ln[3])); P(31, 0); };
+  // 線が多い色（建築のグレーなど・1万本以上）は、形で分ける：網・斜線／扉・便器など（曲線のある物）／壁・柱など（たて横の線）／点線・短い線（1本だけの短い線）／そのほか
+  const ltag = new Map(); // 線 → レイヤー名（分けた物だけ）
+  { const big = new Set([...layerInfo.keys()].filter(k2 => !k2.startsWith('oc|') && layerInfo.get(k2) >= 10000));
+    if (big.size){ const SUB = ['網・斜線', '扉・便器など（曲線）', '壁・柱など', 'そのほかの線', '点線・短い線']; const used2 = new Set();
+      for (const c of comps.values()){ const k2 = c[0][4]; if (!big.has(k2)) continue;
+        const ang = new Map(); for (const l of c) if (cls(l) === 'd'){ const q = Math.round(((Math.atan2(l[3]-l[1], l[2]-l[0])*180/Math.PI + 180) % 180)/4); ang.set(q, (ang.get(q) || 0) + 1); }
+        const nd = [...ang.values()].reduce((a2, b2) => a2 + b2, 0), top2 = [...ang.values()].sort((p, q) => q - p).slice(0, 2).reduce((a2, b2) => a2 + b2, 0);
+        const j = (c.length >= 6 || c.length === 1) && nd === c.length && top2 >= nd*0.9 ? 0 : c.some(l => l[5]) || (nd >= 4 && ang.size >= 4 && nd >= c.length*0.3) ? 1 : nd === 0 && c.reduce((a2, l) => a2 + Math.hypot(l[2]-l[0], l[3]-l[1]), 0) >= 300 ? 2 : c.length === 1 && Math.hypot(c[0][2]-c[0][0], c[0][3]-c[0][1]) < 250 ? 4 : 3; // 網＝同じ向きの斜めの線、曲線＝円弧か向きの変わる短い斜めの線（円弧を細かい線で描いたPDF）
+        const nm = names.get(k2) + '・' + SUB[j]; used2.add(k2 + '#' + j); for (const ln of c) ltag.set(ln, nm); }
+      for (const kk of used2){ const [k2, j] = kk.split('#'); names.set(kk, names.get(k2) + '・' + SUB[+j]); } } }
+  // write a plain DXF (this app and 曲げ共有 read it; lines keep their colour as layers)
+  const out = []; let h = 0x100; const H = () => (h++).toString(16).toUpperCase(); const P = (c, v) => out.push(String(c).padStart(3, ' '), String(v));
+  const f3 = v => (Math.round(v*1000)/1000).toString();
+  const aciOf = hex => { const v = parseInt(hex.slice(1), 16), r = (v>>16)&255, g = (v>>8)&255, b = v&255; let best = 7, bd = 1e9; for (let n = 1; n < 256; n++){ const c = aciRGB(n); if (!c) continue; const dd = (c[0]-r)**2 + (c[1]-g)**2 + (c[2]-b)**2; if (dd < bd){ bd = dd; best = n; } } return best; };
+  const info = {scale:sc.scale, from:sc.from, guess:!!sc.guess, page:pageNo || 1, pages:doc.numPages, paper:sc.paper};
+  P(999, PDFSRC + JSON.stringify(info));
+  P(0,'SECTION'); P(2,'HEADER'); P(9,'$ACADVER'); P(1,'AC1021'); P(9,'$INSUNITS'); P(70,4); P(9,'$HANDSEED'); P(5,'FFFFF'); P(0,'ENDSEC');
+  P(0,'SECTION'); P(2,'TABLES'); P(0,'TABLE'); P(2,'LAYER'); P(70, names.size + 6);
+  const layerRow = (nm, hex) => { P(0,'LAYER'); P(2, nm); P(70, 0); P(62, aciOf(hex)); P(6, 'CONTINUOUS'); P(420, parseInt(hex.slice(1), 16)); };
+  { const done = new Set(); for (const [k2, nm] of names){ if (done.has(nm)) continue; done.add(nm); layerRow(nm, k2.startsWith('oc|') ? (ocColor.get(k2.slice(3)) || '#000000') : k2.slice(0, 7)); } }
+  layerRow('文字', '#000000'); for (const nm of ['文字（寸法）', '文字（高さ）', '文字（記号）', '文字（名前・そのほか）']) layerRow(nm, '#000000');
+  P(0,'ENDTAB'); P(0,'ENDSEC');
+  const lineEnt = (ln, layer) => { P(0,'LINE'); P(5, H()); P(8, layer || ltag.get(ln) || names.get(ln[4])); P(10, f3(ln[0])); P(20, f3(ln[1])); P(30, 0); P(11, f3(ln[2])); P(21, f3(ln[3])); P(31, 0); };
   const blockNames = []; const perLayer = new Map();
   P(0,'SECTION'); P(2,'BLOCKS');
   for (const c of groups){
-    const ln0 = names.get(c[0][4]); const hatch = c.length >= 6 && c.every(l => cls(l) === 'd');
+    const ln0 = ltag.get(c[0]) || names.get(c[0][4]); const hatch = c.length >= 6 && c.every(l => cls(l) === 'd');
     const bkey = ln0 + (hatch ? '網' : ''); const n = (perLayer.get(bkey) || 0) + 1; perLayer.set(bkey, n);
     const bn = hatch ? `網・斜線（${ln0}）-${n}` : `${ln0}-${n}`; blockNames.push([bn, ln0]);
     P(0,'BLOCK'); P(5, H()); P(8, ln0); P(2, bn); P(70, 0); P(10, 0); P(20, 0); P(30, 0); P(3, bn); P(1, '');

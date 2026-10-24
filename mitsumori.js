@@ -8,9 +8,28 @@
    ・単価・宛名・追加の行は、この端末（localStorage）に覚えておく */
 (function(){
 const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},LSset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-const MT={tab:"mat",cut:LS("pbm_mt_cut",10),w:Object.assign({on:true,c:"vvf16",r:"05",rl:8},LS("pbm_mt_wire",{}))};
-/* 電線：連絡線（室内機⇔室外機）とリモコン線。連絡線の長さ＝冷媒配管の長さ＋2m（室内機1台ごと） */
-const WIRE_C={vvf16:"VVF 1.6mm-3芯（VA）",vvr20:"VVR 2.0mm-3芯"},WIRE_R={"05":"リモコン線 0.5mm 2芯","075":"リモコン線 0.75mm 2芯"};
+const MT={tab:"mat",cut:LS("pbm_mt_cut",10),w:Object.assign({on:true,ty:"auto",sel:{},len:{}},LS("pbm_mt_wire",{}))};
+/* 前の版の設定（連絡線・リモコン線）を引きつぐ */
+if(MT.w.c&&!MT.w.sel.lnk)MT.w.sel.lnk=MT.w.c;if(MT.w.r&&!MT.w.sel.rc)MT.w.sel.rc=MT.w.r;if(MT.w.rl!=null&&MT.w.len.rc==null)MT.w.len.rc=MT.w.rl;
+/* ===== 電線：エアコンの種類（ルーム・ハウジング・パッケージ・ビルマル）で要る線がちがう。種類は室内機・室外機の品番から自動で決める =====
+   長さ：「pipe」＝冷媒配管の長さ＋2m（室内機1台ごと）、数字＝入れた長さ（m）。per：in＝室内機1台ごと、sys＝1系統に1本 */
+const WCAB={vvf16:"VVF 1.6mm-3芯（VA）",vvf20:"VVF 2.0mm-3芯",vvf26:"VVF 2.6mm-3芯",vvr20:"VVR 2.0mm-3芯",cv55:"CV 5.5sq-3芯",cv8:"CV 8sq-3芯",cv14:"CV 14sq-3芯",cvvs125:"CVVS 1.25sq-2芯（シールド付き）",mvvs125:"MVVS 1.25sq-2芯（シールド付き）","05":"0.5mm 2芯","075":"0.75mm 2芯"};
+const WROW={pow:["電源（ブレーカー→室外機）",["vvf20","vvf26","cv55","cv8","cv14"],10,"sys"],lnk:["連絡線（室内機⇔室外機）",["vvf16","vvf20","vvr20"],"pipe","in"],
+ trn:["伝送線（室内機⇔室外機）",["cvvs125","mvvs125"],"pipe","in"],ipw:["室内機の電源（渡り）",["vvf16","vvf20"],10,"in"],rc:["リモコン線",["05","075"],8,"in"],sv:["遮断弁への線（室内機→遮断弁）",["vvf16","vvf20"],5,"in"]};
+const WTYPE={room:["ルームエアコン",{lnk:"vvf16"},"電源は室内機のコンセント（専用回路）・リモコンはワイヤレス"],housing:["ハウジングエアコン",{lnk:"vvf16",rc:"05"},"有線リモコンでない時はリモコン線の長さを0に"],
+ pkg:["パッケージエアコン",{pow:"vvf20",lnk:"vvf16",rc:"05"},"電源は室外機へ。容量で太さが変わります"],vrv:["ビル用マルチ",{pow:"cv55",trn:"cvvs125",ipw:"vvf20",rc:"05"},"室内機は別に電源（渡り）・室内外は伝送線"]};
+/* 品番から種類（三菱・ダイキンなど）。分からない時は室外機の種類（ルーム・パッケージ・ビルマル）から */
+const wName=()=>{const U=st.units||{},bi=(st.bld||[]).find(o=>o.k==="ind"),bo=(st.bld||[]).find(o=>o.k==="out"),C=typeof CAS2M!=="undefined"?CAS2M:{},O=typeof OUTM!=="undefined"?OUTM:{};
+ const im=(U.on&&U.s==="cas2"&&C[U.ms])||(bi&&C[bi.m]),ok=O[U.oe]?U.oe:bo&&O[bo.m]?bo.m:"";return{inN:im?im.n:"",inMk:im?im.mk:"",outK:ok,outN:ok?O[ok].n:""}};
+function wDetect(){const N=wName(),t=(N.inN+" "+N.outN).toUpperCase().replace(/\s/g,"");
+ if(/(PUHY|PURY|PQHY|PQRY|PLFY|PMFY|PEFY|PKFY|PCFY|PFFY|RXY|RSXY|RXU|RQY|FXY|MMY|ビルマルチ)/.test(t))return"vrv";
+ if(/(MBZ|MLZ|MFZ|MTZ|SXYCM|SDYCM|CXYCM|ハウジング)/.test(t))return"housing";
+ if(/(MSZ|MUZ|^AN\d|^AR\d|ルームエアコン)/.test(t)&&N.outK==="room")return"room";
+ if(/(PLA?-|PCA|PKA|PSA|PUZ|PU-|FHC|FHK|FHY|RZR|RZY|RZA|SZR|パッケージ)/.test(t))return"pkg";
+ if(N.outK==="room")return/(MBZ|ハウジング)/.test(t)?"housing":"room";if(N.outK==="vrv"||N.outK==="vrv2"||N.outK==="ghp")return"vrv";
+ if((st.units||{}).s==="wall")return"room";return"pkg"}
+const wSv=()=>MT.w.sv!=null?!!MT.w.sv:wDaikin();   // 遮断弁：選んでいなければ、ダイキンのビルマルは「あり」
+const wDaikin=()=>{const N=wName();return N.inMk==="daikin"||/ダイキン|^(RXY|FXY|RZR|FHC|FHK)/.test(N.inN+N.outN)};
 const BANDS=[20,25,30,40,50,65,75,100];
 const bandUp=sz=>BANDS[Math.min(BANDS.length-1,BANDS.indexOf(sz)+1)]||sz;   // ACドレン：保温のぶん1ランク上
 const bun=i=>{const n=SIZES[i]?SIZES[i][0]:"?";return n.replace(/\s*\(.*\)/,"")};
@@ -41,11 +60,11 @@ function mtCollect(){const G=[];const sec=(t,items,note)=>{if(items.length)G.pus
  sec("冷媒配管",R,bendInfo.length?"ベンダーで曲げる所："+bendInfo.join("・"):"");
  /* --- 電線（連絡線・リモコン線）：図面・機器の品番（室内機・室外機）と冷媒配管の長さから --- */
  try{const W=MT.w,totL=Object.values(pair).reduce((a,b)=>a+b,0);if(W.on&&totL>0){const nIn=Math.max(1,typeof leaves==="function"?leaves().length:1),Wi=[];
-  const U=st.units||{},bi=(st.bld||[]).find(o=>o.k==="ind"),bo=(st.bld||[]).find(o=>o.k==="out");
-  const inN=(typeof CAS2M!=="undefined"&&(CAS2M[U.ms]||(bi&&CAS2M[bi.m])))?(CAS2M[U.ms]||CAS2M[bi.m]).n:"",outN=(typeof OUTM!=="undefined"&&(OUTM[U.oe]||(bo&&OUTM[bo.m])))?(OUTM[U.oe]||OUTM[bo.m]).n:"";
-  const wl=Math.ceil(totL/1000+2*nIn);Wi.push({n:`連絡線 ${WIRE_C[W.c]||WIRE_C.vvf16}`,q:wl,u:"m",d:`冷媒配管 ${fmtM(totL)}＋2m${nIn>1?"×室内機"+nIn+"台":""}（室内機⇔室外機）`});
-  const rl=Math.max(0,Math.round(+W.rl||0));if(rl)Wi.push({n:WIRE_R[W.r]||WIRE_R["05"],q:rl*nIn,u:"m",d:`室内機⇔リモコン 約${rl}m${nIn>1?"×"+nIn+"台":""}（下の欄で変えられます）`});
-  sec("電線（連絡線・リモコン線）",Wi,[inN&&"室内機 "+inN,outN&&"室外機 "+outN].filter(Boolean).join("／")+(inN||outN?" の配線。":"")+"太さ・芯数は機種の据付説明書で確認してください")}}catch(e){console.warn("mt wire",e)}
+  const N=wName(),ty=WTYPE[W.ty]?W.ty:wDetect(),T=WTYPE[ty],rows=Object.assign({},T[1]);if(ty==="vrv"&&wSv())rows.sv="vvf16";
+  Object.keys(rows).forEach(k=>{const R=WROW[k],cab=WCAB[W.sel[k]]&&R[1].includes(W.sel[k])?W.sel[k]:rows[k],lv=W.len[k]!=null?+W.len[k]:R[2],per=R[3]==="in"?nIn:1;
+   const L=lv==="pipe"?Math.ceil(totL/1000+2*nIn):Math.max(0,Math.round(lv))*per;if(!L)return;
+   Wi.push({n:`${R[0].replace(/（.*/,"")} ${WCAB[cab]}`,q:L,u:"m",d:lv==="pipe"?`冷媒配管 ${fmtM(totL)}＋2m${nIn>1?"×室内機"+nIn+"台":""}（${R[0].match(/（(.*)）/)[1]}）`:`${R[0].match(/（(.*)）/)?R[0].match(/（(.*)）/)[1]+" ":""}約${Math.round(lv)}m${per>1?"×室内機"+per+"台":""}`})});
+  sec("電線（"+T[0]+"）",Wi,[N.inN&&"室内機 "+N.inN,N.outN&&"室外機 "+N.outN].filter(Boolean).join("／")+(N.inN||N.outN?"から「"+T[0]+"」"+(WTYPE[W.ty]?"（手で選択）":"（品番から自動）")+"。":"")+T[2]+"。太さ・芯数は機種の据付説明書で確認してください")}}catch(e){console.warn("mt wire",e)}
  /* --- ドレン --- */
  const Dl=[];let dSup=0;
  if(st.drain&&typeof DRN==="function"&&DRN().rows.length&&DRN().show!==false){const D=DRN(),M=DR_MAT[D.mat],ac=D.mat==="AC",len={};let sz=D.sz;
@@ -125,14 +144,14 @@ function mtRender(){const ov=mtSheet(),b=ov.querySelector("#mtBody");ov.querySel
   if(!G.length){b.innerHTML=`<p>まだ配管がありません。曲げ共有で配管（とドレン）を入れると、ここに材料が出ます。</p>`;return}
   b.innerHTML=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13.5px">切りしろ <input id="mtCut" inputmode="numeric" value="${MT.cut}" style="width:56px"> %（足してから定尺で割り、半端なら1本多く）</div>`+
    `<div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:12px;padding:8px;margin-top:8px;font-size:13.5px"><label style="display:flex;align-items:center;gap:6px;font-weight:800"><input id="mtWOn" type="checkbox" ${MT.w.on?"checked":""} style="width:22px;height:22px">🔌 電線も拾う</label>
-   ${MT.w.on?`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px">連絡線 <select id="mtWC" style="height:36px;border-radius:8px;font-size:14px">${Object.entries(WIRE_C).map(([k,n])=>`<option value="${k}"${k===MT.w.c?" selected":""}>${n}</option>`).join("")}</select></div>
-   <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px">リモコン線 <select id="mtWR" style="height:36px;border-radius:8px;font-size:14px">${Object.entries(WIRE_R).map(([k,n])=>`<option value="${k}"${k===MT.w.r?" selected":""}>${n.replace("リモコン線 ","")}</option>`).join("")}</select> 長さ <input id="mtWL" inputmode="numeric" value="${MT.w.rl}" style="width:52px"> m</div>
-   <div style="font-size:12px;color:#64748b;margin-top:4px">連絡線の長さは、冷媒配管の長さ＋2m（室内機1台ごと）で出します</div>`:""}</div>`+
+   ${MT.w.on?mtWireUI():""}</div>`+
    G.map(g=>`<h4>${g.t}</h4><table><tr><th>品名</th><th class="q">数</th></tr>${g.items.map(it=>`<tr><td>${esc(it.n)}${it.d?`<br><small style="color:#64748b">${esc(it.d)}</small>`:""}</td><td class="q">${it.q} ${it.u}</td></tr>`).join("")}</table>${g.note?`<div style="font-size:12.5px;color:#475569;margin-top:4px">${esc(g.note)}</div>`:""}`).join("")+
    `<div style="display:flex;gap:6px;margin-top:10px"><button id="mtCopy" style="flex:1;height:44px;border-radius:12px;background:#0891b2;color:#fff;font-weight:800">📋 コピー（LINE・メモに貼る）</button></div>
    <p style="font-size:12px;color:#64748b;margin-top:6px">数は今の配管・支持のルールからの目安です。品番・サイズ・在庫は現場とメーカーで確認してください。</p>`;
   const wS=()=>{LSset("pbm_mt_wire",MT.w);mtRender()},q=id=>b.querySelector(id);
-  q("#mtWOn").onchange=e=>{MT.w.on=e.target.checked;wS()};if(q("#mtWC"))q("#mtWC").onchange=e=>{MT.w.c=e.target.value;wS()};if(q("#mtWR"))q("#mtWR").onchange=e=>{MT.w.r=e.target.value;wS()};if(q("#mtWL"))q("#mtWL").onchange=e=>{MT.w.rl=Math.max(0,Math.min(200,parseInt(String(e.target.value).normalize("NFKC"))||0));wS()};
+  q("#mtWOn").onchange=e=>{MT.w.on=e.target.checked;wS()};if(q("#mtWT"))q("#mtWT").onchange=e=>{MT.w.ty=e.target.value;wS()};if(q("#mtWSv"))q("#mtWSv").onchange=e=>{MT.w.sv=e.target.checked;wS()};
+  b.querySelectorAll("[data-wsel]").forEach(x=>x.onchange=()=>{MT.w.sel[x.dataset.wsel]=x.value;wS()});
+  b.querySelectorAll("[data-wlen]").forEach(x=>x.onchange=()=>{MT.w.len[x.dataset.wlen]=Math.max(0,Math.min(300,parseInt(String(x.value).normalize("NFKC"))||0));wS()});
   const c=b.querySelector("#mtCut");c.onchange=()=>{MT.cut=Math.max(0,Math.min(50,parseInt(c.value)||0));LSset("pbm_mt_cut",MT.cut);mtRender()};
   b.querySelector("#mtCopy").onclick=()=>{const t=mtText(G);try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}};return}
  if(MT.tab==="tk"){TK.render(b,mtRender);return}
@@ -162,6 +181,14 @@ function mtRender(){const ov=mtSheet(),b=ov.querySelector("#mtBody");ov.querySel
  b.querySelector("#mtDel").onclick=()=>{const e=EX();e.pop();setEX(e);mtRender()};
  b.querySelector("#mtCopyE").onclick=()=>{const t=mtEstText();try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}};
  b.querySelector("#mtPrintB").onclick=mtPrint}
+/* 電線の欄：種類（自動・手で）と線ごとの太さ・長さ */
+function mtWireUI(){const W=MT.w,det=wDetect(),ty=WTYPE[W.ty]?W.ty:det,rows=Object.assign({},WTYPE[ty][1]);if(ty==="vrv"&&wSv())rows.sv="vvf16";const N=wName(),sel="height:36px;border-radius:8px;font-size:14px;max-width:100%";
+ return`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px">種類 <select id="mtWT" style="${sel}"><option value="auto">自動：${WTYPE[det][0]}${N.inN||N.outN?"（"+[N.inN,N.outN].filter(Boolean).join("・")+"）":""}</option>${Object.entries(WTYPE).map(([k,v])=>`<option value="${k}"${k===W.ty?" selected":""}>${v[0]}</option>`).join("")}</select></div>
+  ${Object.keys(rows).map(k=>{const R=WROW[k],cab=R[1].includes(W.sel[k])?W.sel[k]:rows[k],lv=W.len[k]!=null?W.len[k]:R[2];
+   return`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px"><b style="min-width:100%">${R[0]}</b><select data-wsel="${k}" style="${sel}">${R[1].map(c=>`<option value="${c}"${c===cab?" selected":""}>${WCAB[c]}</option>`).join("")}</select>
+    ${lv==="pipe"?`<span style="font-size:12.5px;color:#475569">長さ＝冷媒配管＋2m</span>`:`長さ <input data-wlen="${k}" inputmode="numeric" value="${lv}" style="width:52px"> m${R[3]==="in"?"（室内機1台ごと）":""}`}</div>`}).join("")}
+  ${ty==="vrv"?`<label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:700"><input id="mtWSv" type="checkbox" ${wSv()?"checked":""} style="width:22px;height:22px">遮断弁あり（${wDaikin()?"ダイキンの":""}ビルマル・新築など）：室内機ごとに遮断弁へ3芯を1本</label>`:""}
+  <div style="font-size:12px;color:#64748b;margin-top:4px">${WTYPE[ty][2]}</div>`}
 function mtHead(){const i=st.info||{};return[i.site?"現場："+i.site:"",i.line?"系統："+i.line:""].filter(Boolean).join("　")}
 function mtText(G){return"材料拾い"+(mtHead()?"（"+mtHead()+"）":"")+"\n"+G.map(g=>"■"+g.t+"\n"+g.items.map(it=>"・"+it.n+"　"+it.q+it.u).join("\n")+(g.note?"\n（"+g.note+"）":"")).join("\n")}
 function mtEstText(){const H=HD(),rows=mtRows(),sub=rows.reduce((a,r)=>a+r.q*(r.p||0),0),tax=Math.round(sub*(H.tax||0)/100);

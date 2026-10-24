@@ -28,6 +28,7 @@ function parseIn(s){s=String(s).replace(/[″"]/g,"").trim();let ft=0;const m=s.
  const w=s.match(/\d+(?:\.\d+)?/);if(w){inch+=+w[0];ok=true}return ok?Math.round((ft*12+inch)*25.4):NaN}
 const uVal=mm=>IN()?String(+(mm/25.4).toFixed(2)):String(Math.round(mm));
 const uParse=v=>{v=String(v).replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));return IN()?parseIn(v):parseInt(v.replace(/[^0-9]/g,""))};   // 全角の数字（iPhoneの日本語キーボード）も読む
+{const hw=e=>{const t=e.target;if(!t||e.isComposing||t.tagName!=="INPUT"||!/^(numeric|decimal)$/.test(t.inputMode||""))return;const v=t.value.replace(/[０-９．－]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));if(v===t.value)return;const p=t.selectionStart;t.value=v;try{t.setSelectionRange(p,p)}catch(_){}};document.addEventListener("input",hw,true);document.addEventListener("compositionend",hw,true)}   // 数字の欄に全角の数字が入ったら、その場で半角にする
 const BU=["","1/8","1/4","3/8","1/2","5/8","3/4","7/8","1"];
 function trS(s){if(typeof s!=="string"||!s)return s;
  if(UNIT==="in"&&s.indexOf("mm")>=0)s=s.replace(/(-?\d[\d,]*(?:\.\d+)?)\s*mm\b/g,(m,n)=>fmtIn(+n.replace(/,/g,""))).replace(/(["'])\s*mm\b/g,"$1").replace(/\bmm\b/g,"in");

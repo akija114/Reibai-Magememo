@@ -2676,7 +2676,7 @@ let DLG=null,DLX=false;   // DLX：下のボタンを開いているか（ふだ
 function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=st.dln;
  const dk=DLK.filter(([k])=>D&&((D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))),bk=(st.bld&&st.bld.length&&!st.bldHide)?BLD_TG.filter(([k])=>st.bld.some(o=>o.k===k)):[];
  const PLf=typeof PLAN!=="undefined"&&PLAN&&PLAN.img&&PLAN.mmpp&&PLAN.org?PLAN:null,PL2=PLf&&typeof PLAN2!=="undefined"&&PLAN2?PLAN2:null;   // 床に映す図面（図面のページだけ）・下の図面（shita.js）
- const big=!!(T&&T.full);   // 全画面の時だけ大きく（図面の画面の小さい3Dでも小さく）let hd=false;try{hd=big&&!EZ&&st.drain&&typeof DRN==="function"&&DRN().show!==false&&DRN().rows.length>0}catch(e){}   // アプリのドレンがある時も「🎨継手」を出す（曲げ共有は大きい3Dの時だけ）
+ const big=!!(T&&T.full);   /* 全画面の時だけ大きく（図面の画面の小さい3Dでも小さく） */let hd=false;try{hd=big&&!EZ&&st.drain&&typeof DRN==="function"&&DRN().show!==false&&DRN().rows.length>0}catch(e){}   // アプリのドレンがある時も「🎨継手」を出す（曲げ共有は大きい3Dの時だけ）
  if(!dk.length&&!bk.length&&!PLf&&!hd){if(b)b.remove();const lg=document.getElementById("dlLeg");if(lg)lg.remove();return}
  /* 1列で横にスクロール（前と同じ）。右下の向きの矢印（右・上・前）に重ならないように：
     小さい3D＝今までの大きさで、目のボタンと矢印の間。大きい3D（全画面）＝少し大きくして、矢印のすぐ上に横いっぱい */
@@ -2896,7 +2896,7 @@ function indToPipe(i,noUI){const o=st.bld[i],m=T&&T.bldM&&T.bldM.find(q=>q.i===i
  {const f=xfOf(),R=f.r*Math.PI/180;st.bldXf={x:Math.round(f.x+P.x*Math.cos(R)-P.z*Math.sin(R)),z:Math.round(f.z+P.x*Math.sin(R)+P.z*Math.cos(R)),r:normT(f.r+r)}}
  const model=o.m;st.bld=rest;st.nopipe=false;
  st.units.on=true;st.units.s="cas2";st.units.ms=model;st.units.e="";st.rows=[{l:1000,a:0,t:0,o:false}];
- const g=st.gnd;g.on=true;g.mode="auto";g.c=true;g.ch=Math.round(bldCH())||g.ch;RP.it="cas2";RP.im=model;RP.ch=g.ch;rpSave();
+ const g=st.gnd;g.on=true;g.mode="auto";g.c=true;{const zc=ceilAt(o.x,o.z);g.ch=Math.round(zc&&zc.h?zc.h:bldCH())||g.ch}RP.it="cas2";RP.im=model;RP.ch=g.ch;rpSave();
  $("#bldOv").classList.remove("on");BMODE=-1;try{bmBar(0,false)}catch(e){}
  save();render();if(T){build3D();fitT(true)}
  if(noUI)return true;

@@ -960,6 +960,9 @@ function autoRoutes(X,Y,Z,o){
 const RT={X:3000,Y:-500,Z:1000,stub:300,d45:true};
 let RTM="pos";
 function openRoute(){
+ /* 図面に置いた室内機（機種あり）があれば、それを配管の始まりにする（室内機を2台にしない・図面の位置のまま）。室外機に近い物を選ぶ */
+ try{const U0=st.units,has=U0&&U0.on&&!st.nopipe&&["cas","cas2","ceil","wall","flr"].includes(U0.s);const ob=(st.bld||[]).find(o=>o.k==="out"),ins=has?[]:(st.bld||[]).map((o,i)=>[o,i]).filter(([o])=>o.k==="ind"&&o.m&&T&&T.bldM&&T.bldM.some(q=>q.i===st.bld.indexOf(o)&&q.port));
+  if(ins.length){ins.sort((a,b)=>ob?Math.hypot(a[0].x-ob.x,a[0].z-ob.z)-Math.hypot(b[0].x-ob.x,b[0].z-ob.z):0);indToPipe(ins[0][1],true)}}catch(e){console.warn("route ind",e)}
  RPB="";rpFromCur(RP);   // 開いた時は、今の室内機（機種・高さ）と図面の室外機から入れ直す
  $("#routeList").innerHTML="";$("#routeOv").classList.add("on");
  $("#rtTab").innerHTML=[["pos","📍 機器の位置から"],["rel","📏 配管口からの距離"]].map(([k,t])=>`<button data-v="${k}" class="${RTM===k?"on":""}" style="font-size:14px">${t}</button>`).join("");
@@ -1130,13 +1133,14 @@ function rpSvg(G,routes,W,H,small){
 let RPLIVE=false,RPB="";
 /* 図面で室外機を置いてある時は、その位置・高さ・正面の向き・機種を使う（別の室外機を作らない）。置いた室外機が変わった時だけ入れ直す（図をタップして動かした分は残す） */
 const rpOutB=()=>(st.bld||[]).find(o=>o.k==="out");
-function rpFromBld(R){const o=rpOutB();if(!o)return false;const key=[o.x,o.z,o.y,o.r,o.m].join("|");if(key===RPB)return true;RPB=key;
+function rpFromBld(R){const o=rpOutB();if(!o)return false;if(R.lock!==false)RPB="";const key=[o.x,o.z,o.y,o.r,o.m].join("|");if(key===RPB)return true;RPB=key;
  try{if(typeof OUTM!=="undefined"&&OUTM[o.m])R.oe=o.m;R.ox=outAllow(R.oe).includes(R.ox)?R.ox:outAllow(R.oe)[0];
   const G0=rpGeom(),ci=G0.bi.getCenter(new THREE.Vector3()),m=G0.w2m(o.x-ci.x,o.z-ci.z),r50=v=>Math.round(v/50)*50;R.mx=r50(m[0]);R.mz=r50(-m[1]);
   const t=(o.r||0)*Math.PI/180,fm=G0.w2m(-Math.sin(t),Math.cos(t));let bi=0,bd=-9;MDIR.forEach((d,i)=>{const v=d[0]*fm[0]+d[1]*fm[1];if(v>bd){bd=v;bi=i}});R.of=bi;   // 正面＝箱の +z（回転 r）
   R.hs=(o.y||0)<0?-1:1;R.hb=Math.abs(Math.round(o.y||0));rpSave()}catch(e){console.warn("rpFromBld",e)}return true}
 /* 今の室内機の機種・高さ（図面で決めた天井高・配管口の高さ）を使う（ルートを作っても室内機の高さを変えない） */
-function rpFromCur(R){try{const U=st.units,g=st.gnd;if(!(U&&U.on&&["cas","cas2","ceil","wall","flr"].includes(U.s)&&g&&g.on))return;
+function rpFromCur(R){try{const U=st.units,g=st.gnd;
+ if(!(U&&U.on&&["cas","cas2","ceil","wall","flr"].includes(U.s)&&g&&g.on)){const c=typeof bldCH==="function"?bldCH():0;if(c>0){R.ch=Math.round(c);rpSave()}return}   // 室内機がまだ無い時も、天井高は今の天井高に
  R.it=U.s;if(U.s==="cas2"&&U.ms)R.im=U.ms;if(U.s==="wall"&&U.ws)R.ws=U.ws;
  if(U.s==="cas2"){if(g.mode==="auto"&&g.ch)R.ch=Math.round(g.ch)}
  else if(g.mode==="start"&&isFinite(g.h)){R.top=0;const G0=rpGeom();R.top=Math.round(g.h+G0.bi.max.y)}   // 配管口の高さ（床から）＝ g.h になる上の面の高さ
@@ -1163,7 +1167,8 @@ function openRoutePos(){
   ${sgn("mx","室内機の真ん中から（図で見て）",[[1,"右へ"],[-1,"左へ"]],Math.abs(R.mx),R.mx<0?-1:1)}
   ${sgn("mz","（奥・手前）",[[1,"奥（図の上）へ"],[-1,"手前（図の下）へ"]],Math.abs(R.mz),R.mz<0?-1:1)}
   ${sgn("hb","室外機を置く面（床からの高さ・mm）",[[1,"上へ"],[-1,"下へ"]],R.hb,R.hs)}
-  ${useB?`<div class="note" style="margin:0 0 6px;background:#ecfdf5;border:1.5px solid #10b981;border-radius:10px;padding:6px 8px;color:#065f46;font-weight:700">📍 図面で置いた室外機の位置・高さ・向きを使っています（ルートを作ると、その室外機につなぎます）</div>`:""}
+  ${useB?`<div class="note" style="margin:0 0 6px;background:#ecfdf5;border:1.5px solid #10b981;border-radius:10px;padding:6px 8px;color:#065f46;font-weight:700">📍 図面で置いた室外機の位置・高さ・向きを使っています（ルートを作ると、その室外機につなぎます）</div>
+  <label style="display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;margin:0 0 6px"><input id="rpLock" type="checkbox" ${R.lock!==false?"checked":""} style="width:22px;height:22px">📌 図面の室内機・室外機を動かさない</label>`:""}
   <div id="rpMap" style="margin:6px 0 4px"></div><div class="note" style="margin:0 0 10px">図をタップすると、そこに室外機を置きます（50mmきざみ）。緑＝室内機の配管口、赤＝室外機の配管口</div>
   <div class="ctitle">③ ルート</div>
   ${num("S","室内機の配管口から最初の曲げまで（mm）",R.S)}${num("S2","室外機の配管口の手前のまっすぐ（mm）",R.S2)}
@@ -1182,7 +1187,8 @@ function openRoutePos(){
   if(k==="hb"){R.hb=v;R.hs=+sg.value}else if(sg)R[k]=(+sg.value)*v;else R[k]=v});R.ch=Math.max(500,R.ch||2500);R.d45=$("#rp45").checked;rpSave()};
  box.querySelectorAll("[data-n]").forEach(i=>{i.onfocus=()=>i.select();i.oninput=()=>{rd();$("#routeList").innerHTML="";draw()}});
  box.querySelectorAll("[data-sg]").forEach(s=>s.onchange=()=>{rd();$("#routeList").innerHTML="";draw()});
- $("#rpMap").onclick=e=>{const sv=e.target.closest("svg");if(!sv||!MP||!G)return;const rc=sv.getBoundingClientRect(),px=(e.clientX-rc.left)*340/rc.width,py=(e.clientY-rc.top)*250/rc.height,m=MP(px,py);
+ {const lk=$("#rpLock");if(lk)lk.onchange=()=>{R.lock=lk.checked;rpSave();openRoutePos()}}
+ $("#rpMap").onclick=e=>{const sv=e.target.closest("svg");if(!sv||!MP||!G)return;if(useB&&R.lock!==false){toast("📌 図面の室外機を動かさない設定です。動かす時はチェックを外してください");return}const rc=sv.getBoundingClientRect(),px=(e.clientX-rc.left)*340/rc.width,py=(e.clientY-rc.top)*250/rc.height,m=MP(px,py);
   const ci=G.bi.getCenter(new THREE.Vector3()),c=G.w2m(ci.x,ci.z),dx=Math.round((m[0]-c[0])/50)*50,dz=-Math.round((m[1]-c[1])/50)*50;
   R.mx=dx;R.mz=dz;rpSave();box.querySelector('[data-n="mx"]').value=uVal(Math.abs(dx));box.querySelector('[data-sg="mx"]').value=dx<0?-1:1;box.querySelector('[data-n="mz"]').value=uVal(Math.abs(dz));box.querySelector('[data-sg="mz"]').value=dz<0?-1:1;$("#routeList").innerHTML="";draw()};
  $("#rpGo").onclick=()=>{rd();draw();if(!G)return;

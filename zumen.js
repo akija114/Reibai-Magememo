@@ -960,6 +960,7 @@ function autoRoutes(X,Y,Z,o){
 const RT={X:3000,Y:-500,Z:1000,stub:300,d45:true};
 let RTM="pos";
 function openRoute(){
+ RPB="";rpFromCur(RP);   // 開いた時は、今の室内機（機種・高さ）と図面の室外機から入れ直す
  $("#routeList").innerHTML="";$("#routeOv").classList.add("on");
  $("#rtTab").innerHTML=[["pos","📍 機器の位置から"],["rel","📏 配管口からの距離"]].map(([k,t])=>`<button data-v="${k}" class="${RTM===k?"on":""}" style="font-size:14px">${t}</button>`).join("");
  $("#rtTab").onclick=e=>{const b=e.target.closest("button");if(!b)return;RTM=b.dataset.v;openRoute()};
@@ -1134,6 +1135,12 @@ function rpFromBld(R){const o=rpOutB();if(!o)return false;const key=[o.x,o.z,o.y
   const G0=rpGeom(),ci=G0.bi.getCenter(new THREE.Vector3()),m=G0.w2m(o.x-ci.x,o.z-ci.z),r50=v=>Math.round(v/50)*50;R.mx=r50(m[0]);R.mz=r50(-m[1]);
   const t=(o.r||0)*Math.PI/180,fm=G0.w2m(-Math.sin(t),Math.cos(t));let bi=0,bd=-9;MDIR.forEach((d,i)=>{const v=d[0]*fm[0]+d[1]*fm[1];if(v>bd){bd=v;bi=i}});R.of=bi;   // 正面＝箱の +z（回転 r）
   R.hs=(o.y||0)<0?-1:1;R.hb=Math.abs(Math.round(o.y||0));rpSave()}catch(e){console.warn("rpFromBld",e)}return true}
+/* 今の室内機の機種・高さ（図面で決めた天井高・配管口の高さ）を使う（ルートを作っても室内機の高さを変えない） */
+function rpFromCur(R){try{const U=st.units,g=st.gnd;if(!(U&&U.on&&["cas","cas2","ceil","wall","flr"].includes(U.s)&&g&&g.on))return;
+ R.it=U.s;if(U.s==="cas2"&&U.ms)R.im=U.ms;if(U.s==="wall"&&U.ws)R.ws=U.ws;
+ if(U.s==="cas2"){if(g.mode==="auto"&&g.ch)R.ch=Math.round(g.ch)}
+ else if(g.mode==="start"&&isFinite(g.h)){R.top=0;const G0=rpGeom();R.top=Math.round(g.h+G0.bi.max.y)}   // 配管口の高さ（床から）＝ g.h になる上の面の高さ
+ rpSave()}catch(e){console.warn("rpFromCur",e)}}
 function openRoutePos(){
  const box=$("#routeIn"),R=RP,useB=rpFromBld(R);
  const opt=(a,v)=>a.map(([k,t])=>`<option value="${k}"${k===v?" selected":""}>${t}</option>`).join("");

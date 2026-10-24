@@ -823,12 +823,26 @@ function planInfo(){const P=PLAN,el=$("#plInfo");if(!el)return;try{planSteps()}c
   (P.route.length>1?"<br>配管："+P.route.slice(1).map((p,i)=>fmt(Math.round(plLen(P.route[i],p)/10)*10)).join("→")+"　<b>合計 約"+fmt(Math.round(tot/10)*10)+"mm</b>":"");
  $("#plH").value=P.H||"";$("#plCH").value=P.CH||"";
 }
+/* PDFを拡大した時：見えている所だけ、その拡大に合わせて描き直して重ねる（全体の絵は大きさに限りがあるので、拡大すると荒くなる） */
+let PLHI=null;
+function planHiQ(W,H,dpr){clearTimeout(PLHI);PLHI=setTimeout(()=>planHi(W,H,dpr).catch(e=>console.warn("hi",e)),280)}
+async function planHi(W,H,dpr){const P=PLAN;if(!P||!P.pdf||!P.img||!P.ptpx)return;const need=PV.z*dpr;
+ if(need<=1.15){if(P.hi){P.hi.c.width=0;P.hi=null}return}
+ let x0=Math.max(0,-PV.ox/PV.z),y0=Math.max(0,-PV.oy/PV.z),x1=Math.min(P.W,(W-PV.ox)/PV.z),y1=Math.min(P.H0,(H-PV.oy)/PV.z);if(x1<=x0||y1<=y0)return;
+ const h0=P.hi;if(h0&&h0.img===P.img&&h0.k>=need*0.9&&h0.x0<=x0&&h0.y0<=y0&&h0.x0+h0.w>=x1&&h0.y0+h0.h>=y1)return;   // 今の絵で足りる
+ const mx=(x1-x0)*0.25,my=(y1-y0)*0.25;x0=Math.max(0,x0-mx);y0=Math.max(0,y0-my);x1=Math.min(P.W,x1+mx);y1=Math.min(P.H0,y1+my);
+ const rw=x1-x0,rh=y1-y0,k=Math.min(need,4096/rw,4096/rh,Math.sqrt(12e6/(rw*rh)));if(k<=1.05)return;
+ const img=P.img,pg=P.page,tk=(planHi.t=(planHi.t||0)+1),page=await P.pdf.getPage(pg),vp=page.getViewport({scale:P.ptpx*k,offsetX:-x0*k,offsetY:-y0*k});
+ const c=document.createElement("canvas");c.width=Math.round(rw*k);c.height=Math.round(rh*k);
+ const cx=c.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,c.width,c.height);await page.render({canvasContext:cx,viewport:vp}).promise;
+ if(tk!==planHi.t||PLAN!==P||P.img!==img||P.page!==pg){c.width=0;return}   // 途中で動かした・ページを変えた
+ if(P.hi)P.hi.c.width=0;P.hi={c,img,x0,y0,w:rw,h:rh,k};planDraw()}
 function planDraw(){
  const cv=$("#plCv");if(!cv)return;try{wzSync()}catch(e){}try{if(window.dxfChips)dxfChips()}catch(e){}planInfo();const wr=$("#plWrap"),dpr=window.devicePixelRatio||1,W=wr.clientWidth,H=wr.clientHeight;
  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
  const x=cv.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
  const P=PLAN;if(!P||!P.img)return;
- x.save();x.translate(PV.ox,PV.oy);x.scale(PV.z,PV.z);x.drawImage(P.img,0,0);
+ x.save();x.translate(PV.ox,PV.oy);x.scale(PV.z,PV.z);x.drawImage(P.img,0,0);if(P.hi&&P.hi.img===P.img)x.drawImage(P.hi.c,P.hi.x0,P.hi.y0,P.hi.w,P.hi.h);planHiQ(W,H,dpr);
  x.strokeStyle="rgba(37,99,235,.55)";x.lineCap="round";(wzShowWalls()?P.walls:[]).forEach(w=>{x.lineWidth=Math.max(2/PV.z,w.t/(P.mmpp||1));x.beginPath();x.moveTo(...w.a);x.lineTo(...w.b);x.stroke()});
  x.restore();
  const sp=p=>[p[0]*PV.z+PV.ox,p[1]*PV.z+PV.oy];

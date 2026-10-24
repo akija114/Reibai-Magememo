@@ -27,7 +27,7 @@ function parseIn(s){s=String(s).replace(/[″"]/g,"").trim();let ft=0;const m=s.
  let inch=0,ok=!!m;const f=s.match(/(\d+)\s*\/\s*(\d+)\s*$/);if(f){inch+=(+f[1])/((+f[2])||1);s=s.slice(0,f.index);ok=true}
  const w=s.match(/\d+(?:\.\d+)?/);if(w){inch+=+w[0];ok=true}return ok?Math.round((ft*12+inch)*25.4):NaN}
 const uVal=mm=>IN()?String(+(mm/25.4).toFixed(2)):String(Math.round(mm));
-const uParse=v=>IN()?parseIn(v):parseInt(String(v).replace(/[^0-9]/g,""));
+const uParse=v=>{v=String(v).replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));return IN()?parseIn(v):parseInt(v.replace(/[^0-9]/g,""))};   // 全角の数字（iPhoneの日本語キーボード）も読む
 const BU=["","1/8","1/4","3/8","1/2","5/8","3/4","7/8","1"];
 function trS(s){if(typeof s!=="string"||!s)return s;
  if(UNIT==="in"&&s.indexOf("mm")>=0)s=s.replace(/(-?\d[\d,]*(?:\.\d+)?)\s*mm\b/g,(m,n)=>fmtIn(+n.replace(/,/g,""))).replace(/(["'])\s*mm\b/g,"$1").replace(/\bmm\b/g,"in");

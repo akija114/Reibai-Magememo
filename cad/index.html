@@ -1182,12 +1182,12 @@ function xformPart(e, T, withOv){ // 図面の部品を動かす・回す（G �
 function setMov(e, to){ if (!G.parts[e] || isKiki(e)) return; const T = tOf(to); xformPart(e, tMul(T, tInv(S.mov.get(e) || TID)), false); if (tId(T)) S.mov.delete(e); else S.mov.set(e, T); }
 function xformRun(list, T){ list.forEach(e => { const k = isKiki(e) && kikiOf(e); if (k){ const q = tAp(T, k.x, k.y); k.x = q[0]; k.y = q[1]; if (Math.abs(T[1]) > 0.5){ const w = k.w; k.w = k.d; k.d = w; } return; } if (!G.parts[e]) return; xformPart(e, T, true); const n = tMul(T, S.mov.get(e) || TID); if (tId(n)) S.mov.delete(e); else S.mov.set(e, n); }); }
 const mvTxt = (dx, dy, r) => [dx ? `${dx > 0 ? '右' : '左'}へ${fmt(Math.abs(dx))}` : '', dy ? `${dy > 0 ? '上' : '下'}へ${fmt(Math.abs(dy))}` : '', r ? `${r === 2 ? '180' : '90'}°回して` : ''].filter(Boolean).join('・') || '0';
-function cmdXform(eids, T, ovs, lab, detail, gNew, gOld){ // 部品を動かす・回す＋つながった配管の線を変える（ovs：[sid, verts|null, closed]）。gNew／gOld：一緒に動かす組（S.grps）の新旧
-  const list = [...eids], prev = ovs.map(([sid]) => [sid, S.ov.has(sid) ? S.ov.get(sid) : null]), gid = (gNew || gOld || {}).id;
+function cmdXform(eids, T, ovs, lab, detail, gNew, gOld, rg){ // 部品を動かす・回す＋つながった配管の線を変える（ovs：[sid, verts|null, closed]）。gNew／gOld：一緒に動かす組（S.grps）の新旧。rg：[部品, 右へ, 上へ] 継手を丸ごとずらす
+  const list = [...eids], prev = ovs.map(([sid]) => [sid, S.ov.has(sid) ? S.ov.get(sid) : null]), gid = (gNew || gOld || {}).id; rg = rg || [];
   const setG = g => { S.grps = S.grps.filter(x => x.id !== gid); if (g) S.grps.push(g); };
-  return {kind:'obj', label:lab, log:{label:lab, detail, eids:list, tr:T, ovp:prev.map(([sid, o]) => [sid, o ? o.verts : null, o ? o.closed : false]), ovn:ovs, box:partsBox(list), ...(gid ? {gN:gNew || null, gO:gOld || null} : {})},
-    do(){ xformRun(list, T); ovs.forEach(([sid, v, c]) => v ? S.ov.set(sid, {verts:v, closed:!!c}) : S.ov.delete(sid)); if (gid) setG(gNew); },
-    undo(){ prev.forEach(([sid, o]) => o ? S.ov.set(sid, o) : S.ov.delete(sid)); xformRun(list, tInv(T)); if (gid) setG(gOld); }};
+  return {kind:'obj', label:lab, log:{label:lab, detail, eids:list, tr:T, ovp:prev.map(([sid, o]) => [sid, o ? o.verts : null, o ? o.closed : false]), ovn:ovs, box:partsBox(list), ...(gid ? {gN:gNew || null, gO:gOld || null} : {}), ...(rg.length ? {rg} : {})},
+    do(){ xformRun(list, T); ovs.forEach(([sid, v, c]) => v ? S.ov.set(sid, {verts:v, closed:!!c}) : S.ov.delete(sid)); rg.forEach(([e, x, y]) => xformRun([e], [1, 0, x, y])); if (gid) setG(gNew); },
+    undo(){ rg.forEach(([e, x, y]) => xformRun([e], [1, 0, -x, -y])); prev.forEach(([sid, o]) => o ? S.ov.set(sid, o) : S.ov.delete(sid)); xformRun(list, tInv(T)); if (gid) setG(gOld); }};
 }
 function cmdMove(eids, dx, dy){ const list = [...eids]; return cmdXform(list, [1, 0, dx, dy], [], '部品を移動', short(list.map(partName)) + `（${mvTxt(dx, dy)}）`); }
 function cmdTekkyo(eids){ // 撤去：部品を消して、あった所に点線の×と「撤去」のメモを残す
@@ -1221,7 +1221,7 @@ function compOf(eids){ // 機器といっしょに動かす物：機器の四角
 const sameV = (a, b) => !!a && !!b && a.length === b.length && a.every((x, i) => Math.abs(x - b[i]) < 1e-6);
 function stretchCands(eids, mov, g){ // 機器の外形のまわり（50mm）に端が入っている配管・ダクトの線と、配管・ダクトの線の点の索引。g（前に動かした組）がある時は、動かす前の形と場所から
   const b = g ? null : outlineBox(eids); if (!g && !b) return null; const R = g ? g.R : [b[0] - 50, b[1] - 50, b[2] + 50, b[3] + 50], out = [], idx = new Map(), byE = new Map();
-  const vOf = sid => g && g.base[sid] && sameV(curShape(sid).verts, g.last[sid]) ? g.base[sid] : curShape(sid).verts; // 自分で「ルート」で直した線は今の形から
+  const vOf = sid => { const r = g && g.rig && g.rig[G.shapes[sid].eid]; if (r){ const v = curShape(sid).verts.slice(); for (let i = 0; i < v.length; i += 3){ v[i] -= r[0]; v[i+1] -= r[1]; } return v; } return g && g.base[sid] && sameV(curShape(sid).verts, g.last[sid]) ? g.base[sid] : curShape(sid).verts; }; // 丸ごとずらした継手は動かす前の場所から。自分で「ルート」で直した線は今の形から
   for (const sh of G.shapes){
     if (sh.closed || mov.has(sh.eid) || gone(sh.eid)) continue; const l = G.L[sh.li]; if (l.deleted || !(l.g === 'ac' || l.g === 'duct') || !PIPE_RE.test(l.name.normalize('NFKC'))) continue;
     const v = vOf(sh.sid); let hit = false;
@@ -1233,12 +1233,12 @@ function stretchCands(eids, mov, g){ // 機器の外形のまわり（50mm）に
 }
 function planStretch(sc, T){ // 中の端は機器と一緒に動かす。短い線（20cm未満・つば・継手）は丸ごと一緒に動かして先へ。外へ出る長い線はクランク（二重線は幅を保って曲げる）
   if (!sc || tId(T)) return []; const R = sc.R, ins = (x, y) => x >= R[0] && x <= R[2] && y >= R[1] && y <= R[3], G0 = 150, SHORT = 200;
-  const SH = new Map(), get = sid => { let s = SH.get(sid); if (!s){ const o = curShape(sid); s = {sid, v:sc.vOf ? sc.vOf(sid) : o.verts, n:o.verts.length/3, d:new Array(o.verts.length/3).fill(null), closed:o.closed}; SH.set(sid, s); } return s; };
+  const SH = new Map(), get = sid => { let s = SH.get(sid); if (!s){ const o = curShape(sid), v = sc.vOf ? sc.vOf(sid) : o.verts; s = {sid, v, n:v.length/3, d:new Array(v.length/3).fill(null), closed:o.closed}; SH.set(sid, s); } return s; };
   const q = [], segs = (s, i) => { if (i > 0) q.push([s, i - 1]); if (i + 1 < s.n) q.push([s, i]); };
-  const cs = 6/unitMM(), rig = new Set(), small = e => { const b = G.pbox.get(e); return !!b && Math.max(b[2] - b[0], b[3] - b[1]) < 400/unitMM(); };
+  const cs = 6/unitMM(), rig = new Set(), rigD = new Map(), small = e => { const b = G.pbox.get(e); return !!b && Math.max(b[2] - b[0], b[3] - b[1]) < 400/unitMM(); };
   const put = (s, i, d, sl) => { if (s.d[i]) return; s.d[i] = d; segs(s, i); const x = s.v[3*i], y = s.v[3*i+1], kx = Math.round(x/cs), ky = Math.round(y/cs); // 6mm 以内の端はつながっている（管の端と継手の口の線は少しずれて描いてある）
     for (let a = -1; a <= 1; a++) for (let c = -1; c <= 1; c++) for (const [sid, j] of sc.idx.get((kx + a) + ',' + (ky + c)) || []){ const s2 = get(sid); if ((s2 === s && j === i) || s2.d[j]) continue; if (Math.hypot(s2.v[3*j] - x, s2.v[3*j+1] - y) <= cs) put(s2, j, d, sl); }
-    if (sl){ const e = G.shapes[s.sid].eid; if (!rig.has(e) && small(e)){ rig.add(e); for (const sid of sc.byE.get(e) || []){ const s2 = get(sid); for (let j = 0; j < s2.n; j++) put(s2, j, d, sl); } } } }; // チーズ・エルボなど小さい継手は丸ごとずらす
+    if (sl){ const e = G.shapes[s.sid].eid; if (!rig.has(e) && small(e)){ rig.add(e); rigD.set(e, d); for (const sid of sc.byE.get(e) || []){ const s2 = get(sid); for (let j = 0; j < s2.n; j++) put(s2, j, d, sl); } } } }; // チーズ・エルボなど小さい継手は丸ごとずらす
   for (const sid of sc.sids){ const s = get(sid); for (let i = 0; i < s.n; i++) if (ins(s.v[3*i], s.v[3*i+1])){ const q2 = tAp(T, s.v[3*i], s.v[3*i+1]); put(s, i, [q2[0] - s.v[3*i], q2[1] - s.v[3*i+1]]); } }
   let recs = [], g = 0;
   const run = () => { for (; g < q.length && g < 20000; g++){
@@ -1267,6 +1267,7 @@ function planStretch(sc, T){ // 中の端は機器と一緒に動かす。短い
   }
   const out = [];
   for (const s of SH.values()){
+    if (rigD.has(G.shapes[s.sid].eid)) continue; // 丸ごとずらす継手（円弧も一緒に）は部品で動かす
     const rk = new Map(recs.filter(r => r.s === s && r.C).map(r => [r.k, r])); if (!rk.size && !s.d.some(Boolean)) continue;
     const v = s.v, nv = [];
     for (let i = 0; i < s.n; i++){
@@ -1277,14 +1278,16 @@ function planStretch(sc, T){ // 中の端は機器と一緒に動かす。短い
     }
     out.push([s.sid, nv, s.closed]);
   }
-  return out;
+  out.rig = rigD; return out;
 }
 function mvgT(m){ const r = m.rot || 0, c = [1, 0, -1, 0][r], s = [0, 1, 0, -1][r], C = m.C || [0, 0]; return [c, s, C[0] - (c*C[0] - s*C[1]) + m.dx, C[1] - (s*C[0] + c*C[1]) + m.dy]; }
 function mvgList(m){ return m.useC ? m.eids.concat(m.comp) : m.eids; }
 function mvgPlan(m){ // 前に動かした組は、動かす前の線から全部の動き（今回×前回まで）でつなぎ直す。もう要らない線は動かす前に戻す
   const g = m.g, T = g ? tMul(mvgT(m), g.T) : mvgT(m), out = m.useS ? planStretch(m.sc, T) : [];
-  if (g && m.useS){ const got = new Set(out.map(o => o[0])); for (const sid in g.base) if (!got.has(+sid) && G.shapes[+sid] && sameV(curShape(+sid).verts, g.last[sid])) out.push([+sid, g.base[sid], curShape(+sid).closed]); }
-  return out;
+  const rig = out.rig || new Map();
+  if (g && m.useS){ const got = new Set(out.map(o => o[0])); for (const sid in g.base){ if (got.has(+sid) || !G.shapes[+sid]) continue; if (rig.has(G.shapes[+sid].eid)){ if (S.ov.has(+sid)) out.push([+sid, null, false]); } else if (sameV(curShape(+sid).verts, g.last[sid])) out.push([+sid, g.base[sid], curShape(+sid).closed]); } }
+  const old = (g && g.rig) || {}, rd = []; if (m.useS) for (const e of new Set([...rig.keys(), ...Object.keys(old).map(Number)])){ const n = rig.get(e) || [0, 0], o = old[e] || [0, 0]; if (Math.abs(n[0] - o[0]) > 1e-9 || Math.abs(n[1] - o[1]) > 1e-9) rd.push([e, n[0] - o[0], n[1] - o[1]]); }
+  out.rig = rig; out.rd = rd; return out;
 }
 const gKey = a => a.slice().sort((x, y) => x - y).join();
 function mvgStart(eids){
@@ -1410,9 +1413,11 @@ function drawMvg(c){
     if (!pls.length){ const b = G.pbox.get(e); if (b) pls.push({a:[b[0], b[1], b[2], b[1], b[2], b[3], b[0], b[3], b[0], b[1]]}); }
     for (const pl of pls) pth(pl.a, 2); }
   c.stroke(); c.strokeStyle = tok.accent || tok.snap; c.setLineDash([6, 3]); c.beginPath(); // つなぎ直す配管
-  for (const [, v] of mvgPlan(m)){ let q = w2s(v[0], v[1]); c.moveTo(q[0], q[1]); for (let i = 3; i + 1 < v.length; i += 3){ q = w2s(v[i], v[i+1]); c.lineTo(q[0], q[1]); } }
+  const pl0 = mvgPlan(m);
+  for (const [, v] of pl0){ if (!v) continue; let q = w2s(v[0], v[1]); c.moveTo(q[0], q[1]); for (let i = 3; i + 1 < v.length; i += 3){ q = w2s(v[i], v[i+1]); c.lineTo(q[0], q[1]); } }
+  for (const [e, x, y] of pl0.rd) for (const pl of G.eidPolys.get(e) || []){ const a = pl.a; let q = w2s(a[0] + x, a[1] + y); c.moveTo(q[0], q[1]); for (let i = 2; i + 1 < a.length; i += 2){ q = w2s(a[i] + x, a[i+1] + y); c.lineTo(q[0], q[1]); } }
   c.stroke(); c.restore();
-  const n = $('#mvSn'); if (n) n.textContent = mvgPlan(m).length;
+  const n = $('#mvSn'); if (n) n.textContent = pl0.length + pl0.rd.length;
 }
 function kikiList(){ try { const a = JSON.parse(localStorage.getItem('zumen-kiki') || '[]'); return Array.isArray(a) ? a.filter(k => k && k.nm && k.w > 0 && k.d > 0) : []; } catch(e){ return []; } }
 function kikiSave(a){ try { localStorage.setItem('zumen-kiki', JSON.stringify(a)); } catch(e){} }
@@ -1462,7 +1467,7 @@ function updatePickBar(){
       <div class="frow" style="align-items:center"><span style="font-size:13px">右へ</span>${inp('mvX', m.dx)}<span style="font-size:13px">上へ</span>${inp('mvY', m.dy)}</div>
       <div class="frow"><button class="btn" data-a="mvl" style="flex:1">↺ 90°</button><div style="flex:1;text-align:center;font-size:13px;align-self:center">向き ${[0, 90, 180, 270][m.rot]}°</div><button class="btn" data-a="mvr" style="flex:1">↻ 90°</button></div>
       <div class="frow"><button class="btn ${m.snap ? 'sel' : ''}" data-a="mvsn" style="flex:1;white-space:normal;line-height:1.25">${m.snap ? '✓ ' : ''}📍 芯に合わせる</button><button class="btn" data-a="mvsin" style="flex:1;white-space:normal;line-height:1.25">＋ 通り芯から芯を出す</button></div>
-      <div class="frow"><button class="btn ${m.useC ? 'sel' : ''}" data-a="mvc" style="flex:1;white-space:normal;line-height:1.25">${m.useC ? '✓ ' : ''}文字・印も一緒（${m.comp.length}）</button><button class="btn ${m.useS ? 'sel' : ''}" data-a="mvs" style="flex:1;white-space:normal;line-height:1.25">${m.useS ? '✓ ' : ''}配管・ダクトをつなぐ（<span id="mvSn">${mvgPlan(m).length}</span>本）</button></div>
+      <div class="frow"><button class="btn ${m.useC ? 'sel' : ''}" data-a="mvc" style="flex:1;white-space:normal;line-height:1.25">${m.useC ? '✓ ' : ''}文字・印も一緒（${m.comp.length}）</button><button class="btn ${m.useS ? 'sel' : ''}" data-a="mvs" style="flex:1;white-space:normal;line-height:1.25">${m.useS ? '✓ ' : ''}配管・ダクトをつなぐ（<span id="mvSn">${(p => p.length + p.rd.length)(mvgPlan(m))}</span>本）</button></div>
       <div class="frow"><button class="btn" data-a="mvno" style="flex:1">やめる</button><button class="btn pri" data-a="mvok" style="flex:2">ここに決める</button></div>`;
     bar.oninput = e => { if (e.target.id === 'mvX') m.dx = +e.target.value || 0; if (e.target.id === 'mvY') m.dy = +e.target.value || 0; drawOverlay(); };
     bar.onchange = null;
@@ -1474,8 +1479,8 @@ function updatePickBar(){
       else if (a === 'mvsin'){ openSinSheet(m); return; }
       else if (a === 'mvok'){ S.mvg = null; if (m.dx || m.dy || m.rot){ const list = mvgList(m), ovs = mvgPlan(m), nm = m.eids.length === 1 ? partName(m.eids[0]) : m.eids.length + '個';
         const g0 = m.g, base = {...(g0 ? g0.base : {})}, last = {...(g0 ? g0.last : {})}; for (const [sid, v] of ovs){ if (!(sid in base)) base[sid] = m.sc.vOf(sid); last[sid] = v; }
-        const gN = {id:g0 ? g0.id : 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), main:m.eids.slice(), comp:m.useC ? m.comp.slice() : [], R:m.sc ? m.sc.R : (g0 && g0.R), base, last, T:tMul(mvgT(m), g0 ? g0.T : TID)};
-        exec(cmdXform(list, mvgT(m), ovs, '部品を移動', short(m.eids.map(partName)) + `（${mvTxt(m.dx, m.dy, m.rot)}${m.useC && m.comp.length ? `・文字など${m.comp.length}個も` : ''}${ovs.length ? `・配管${ovs.length}本をつなぎ直し` : ''}）`, gN, g0 || null));
+        const gN = {id:g0 ? g0.id : 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), main:m.eids.slice(), comp:m.useC ? m.comp.slice() : [], R:m.sc ? m.sc.R : (g0 && g0.R), base, last, T:tMul(mvgT(m), g0 ? g0.T : TID), rig:m.useS ? Object.fromEntries(ovs.rig) : (g0 && g0.rig) || {}};
+        exec(cmdXform(list, mvgT(m), ovs, '部品を移動', short(m.eids.map(partName)) + `（${mvTxt(m.dx, m.dy, m.rot)}${m.useC && m.comp.length ? `・文字など${m.comp.length}個も` : ''}${ovs.length ? `・配管${ovs.length}本をつなぎ直し` : ''}${ovs.rd.length ? `・継手${ovs.rd.length}個をずらす` : ''}）`, gN, g0 || null, ovs.rd));
         toast(`${nm}を${mvTxt(m.dx, m.dy, m.rot)}動かしました${ovs.length ? `（配管・ダクト ${ovs.length} 本をつなぎ直し）` : ''}（↶で戻せます）`); } }
       else if (a === 'mvno'){ S.mvg = null; }
       updatePickBar(); drawOverlay(); };
@@ -2150,7 +2155,7 @@ function inverseOf(e){
     if (e.label === 'メモを変更') return cur && e.noteOld != null ? cmdNote('edit', cur, e.noteOld) : null;
     return null;
   }
-  if (e.kind === 'obj' && e.tr && e.eids) return cmdXform(e.eids, tInv(e.tr), e.ovp || [], e.label, e.detail, e.gO, e.gN);
+  if (e.kind === 'obj' && e.tr && e.eids) return cmdXform(e.eids, tInv(e.tr), e.ovp || [], e.label, e.detail, e.gO, e.gN, (e.rg || []).map(([x, a, b]) => [x, -a, -b]));
   if (e.kind === 'obj' && e.mv && e.eids) return cmdMove(e.eids, -e.mv[0], -e.mv[1]);
   if (e.kind === 'obj' && e.label === '機器の向きを変える' && e.eids){ const k = kikiOf(e.eids[0]); return k ? cmdKikiRot(k) : null; }
   if (e.kind === 'obj' && e.label === '機器を追加' && e.eids) return cmdObjs(e.eids, 'del');
@@ -3609,7 +3614,7 @@ function scaleState(st, r){
   st.dims = (st.dims || []).map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r, ...(d.to ? {to:d.to.map(v => v*r)} : {})}));
   if (st.routes){ st.routes.ov = (st.routes.ov || []).map(([k, v, c]) => [k, sv(v), c]); st.routes.ghosts = (st.routes.ghosts || []).map(sg); }
   st.notes = (st.notes || []).map(n => ({...n, x:n.x*r, y:n.y*r})); st.sins = (st.sins || []).map(s => ({...s, c:s.c*r}));
-  const svO = o => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, sv(v)])); st.grps = (st.grps || []).map(g => ({...g, R:sp(g.R), base:svO(g.base), last:svO(g.last), T:[g.T[0], g.T[1], g.T[2]*r, g.T[3]*r]}));
+  const svO = o => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, sv(v)])); st.grps = (st.grps || []).map(g => ({...g, rig:Object.fromEntries(Object.entries(g.rig || {}).map(([k, v]) => [k, [v[0]*r, v[1]*r]])), R:sp(g.R), base:svO(g.base), last:svO(g.last), T:[g.T[0], g.T[1], g.T[2]*r, g.T[3]*r]}));
   if (st.mov) st.mov.list = (st.mov.list || []).map(([e, ...d]) => { const T = tOf(d); return [e, T[0], T[1], T[2]*r, T[3]*r]; }); st.log = (st.log || []).map(x => x.tr ? {...x, tr:[x.tr[0], x.tr[1], x.tr[2]*r, x.tr[3]*r]} : x); st.kiki = (st.kiki || []).map(k => ({...k, x:k.x*r, y:k.y*r}));
   st.log = (st.log || []).map(e => ({...e, box:sp(e.box), dims:e.dims && e.dims.map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r, ...(d.to ? {to:d.to.map(v => v*r)} : {})})), routes:e.routes && e.routes.map(W => W.map(q => [q[0]*r, q[1]*r])), ghosts:e.ghosts && e.ghosts.map(sg), prev:e.prev && e.prev.map(([k, v, c]) => [k, sv(v), c]), restore:e.restore && [e.restore[0], sv(e.restore[1]), e.restore[2]]}));
   return st;

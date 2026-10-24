@@ -37,6 +37,8 @@ a.doc{color:var(--acc);font-weight:700}
 </head>
 <body>
 <nav class="apps"><a href="home.html" style="flex:0 0 38px" aria-label="入口">🏠</a><a href="index.html">🔧 曲げ共有</a><a href="zumen.html">📐 図面</a><a href="genchou.html">📹 現調</a><a href="kiki.html" class="on">🔩 機器</a><a href="genba.html">📋 現場</a></nav>
+<div style="display:flex;gap:6px;margin:0 0 8px"><input id="q" placeholder="品番を入れる（例 PL-ZRP80HA5）" autocomplete="off" autocapitalize="characters" style="flex:1;min-width:0;height:44px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:16px;padding:0 10px"><button id="qb" style="height:44px;border-radius:10px;border:0;background:var(--acc);color:#fff;font:inherit;font-weight:800;padding:0 14px">さがす</button></div>
+<div id="qr"></div>
 <select id="m" aria-label="機種"></select>
 <div id="out"></div>
 <script src="models.js?v=228"></script>
@@ -54,6 +56,20 @@ if(!OK(cur)){try{cur=localStorage.getItem("pbm_kiki")}catch(e){}}
 if(!OK(cur)){try{const j=JSON.parse(localStorage.getItem("pbm1"));cur=j&&j.units&&j.units.ms}catch(e){}}
 if(!OK(cur))cur=CAS2_ORDER[0];
 sel.value=cur;sel.onchange=()=>{cur=sel.value;try{localStorage.setItem("pbm_kiki",cur)}catch(e){}draw()};
+/* 品番でさがす：ハイフン・空白・全角・大文字小文字はちがっても同じ。品番の一部でも出す。無い時は「調べてほしい品番」に残す */
+const QN=s=>String(s||"").normalize("NFKC").toUpperCase().replace(/[\s\-－‐ー_/・.]/g,"");
+const ALLM=()=>Object.keys(CAS2M).map(k=>[k,CAS2M[k].n,CAS2M[k].kind]).concat(VENT_ORDER.map(k=>[k,VENTM[k].n,"ロスナイ"]));
+function qFind(t){const q=QN(t);if(!q)return[];const L=ALLM(),ex=L.filter(([,n])=>QN(n)===q);if(ex.length)return ex;
+ return L.filter(([,n])=>{const m=QN(n);return m.includes(q)||q.includes(m)||(q.length>=6&&m.startsWith(q.slice(0,Math.max(6,q.length-3))))})}
+function qReq(){try{return JSON.parse(localStorage.getItem("pbm_kiki_req")||"[]")}catch(e){return[]}}
+function qGo(){const t=$("#q").value.trim(),r=$("#qr");if(!t){r.innerHTML="";return}const hit=qFind(t);
+ if(hit.length===1){cur=hit[0][0];sel.value=cur;try{localStorage.setItem("pbm_kiki",cur)}catch(e){}r.innerHTML=`<div class="note" style="margin:0 2px 8px">✅ ${hit[0][1]}（${hit[0][2]}）を出しました</div>`;draw();return}
+ if(hit.length>1){r.innerHTML=`<div class="card" style="margin-top:0"><div class="sub">近い品番が ${hit.length} 個あります。押して選んでください</div>${hit.map(([k,n,kd])=>`<button data-k="${k}" style="display:block;width:100%;text-align:left;margin-top:6px;height:42px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;padding:0 10px">${n}（${kd}）</button>`).join("")}</div>`;
+  r.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{cur=b.dataset.k;sel.value=cur;try{localStorage.setItem("pbm_kiki",cur)}catch(e){}r.innerHTML="";draw()});return}
+ const req=qReq();if(!req.some(x=>QN(x)===QN(t))){req.push(t.normalize("NFKC").toUpperCase());try{localStorage.setItem("pbm_kiki_req",JSON.stringify(req.slice(-50)))}catch(e){}}
+ r.innerHTML=`<div class="card" style="margin-top:0;border-color:#f59e0b"><b>「${t.replace(/[<>&"]/g,"")}」はまだアプリに入っていない品番です</b><div class="note">「調べてほしい品番」に残しました。この品番をチャットで教えてもらえれば、メーカーの外形図から寸法（本体・吊りボルト・配管とドレンの位置）を調べてアプリに登録します。<br>調べてほしい品番：${qReq().join("、").replace(/[<>&"]/g,"")}</div></div>`}
+$("#qb").onclick=qGo;$("#q").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();qGo()}};
+{const q0=new URLSearchParams(location.search).get("q");if(q0){$("#q").value=q0;setTimeout(qGo,0)}}
 let face="L";   // 配管の出る面を正面に見て（左右の言い方）
 
 /* 配管口・ドレンの位置を、いちばん近い全ねじの芯から */

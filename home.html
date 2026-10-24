@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja" data-app="home">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>入口 - 冷媒配管の曲げ共有</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="曲げ共有 v1.00">
+<!-- 🏠 入口：アプリを開いた最初の画面。現場の一覧 → 現場を選ぶと「現場カード・現調・図面と3D・材料・みんなに送る・曲げ依頼」を順番に。
+     すぐ曲げを送りたい時は上の大きいボタン。入口を出すかどうかは下の設定（pbm_home、初めは出す）。
+     データは今のまま（現場は genba.html と同じ IndexedDB「genba」の sites を読むだけ・ここでは書くのは「新しい現場」だけ） -->
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--panel:#e2e8f0;--line2:#06c755;--bend:#0f766e}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--bend:#14b8a6}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--bend:#14b8a6}
+*,*:before,*:after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-bottom,0px) + 24px);max-width:560px;margin:0 auto}
+a{color:inherit;text-decoration:none}
+h1{font-size:20px;margin:2px 2px 12px;display:flex;align-items:center;gap:8px}
+h2{font-size:14px;color:var(--sub);margin:20px 2px 6px;font-weight:800;display:flex;align-items:center}
+h2 .grow{flex:1}
+.big{display:flex;align-items:center;gap:12px;width:100%;border-radius:16px;padding:14px 16px;font:inherit;border:0;text-align:left;color:#fff;min-height:68px}
+.big b{font-size:18px;display:block}.big small{font-size:12.5px;opacity:.9;display:block;margin-top:2px;font-weight:600}
+.big .ic{font-size:28px;flex:none}
+.big.bend{background:var(--bend)}
+.big.new{background:var(--card);color:var(--acc);border:2px dashed var(--acc);margin-top:10px;min-height:56px}
+.site{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px 12px 12px 14px;margin-top:8px;color:var(--ink);font:inherit}
+.site .t{flex:1;min-width:0}.site b{font-size:17px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.site .sub{color:var(--sub);font-size:13px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.site .when{flex:none;font-size:12.5px;font-weight:800;border-radius:8px;padding:4px 8px;background:var(--panel);color:var(--sub)}
+.site .when.soon{background:#fef3c7;color:#92400e}.site .when.today{background:#dc2626;color:#fff}
+.site.old{opacity:.6}
+.empty{color:var(--sub);text-align:center;padding:22px 8px;font-size:14px;line-height:1.7;background:var(--card);border:1.5px dashed var(--line);border-radius:14px;margin-top:8px}
+.more{width:100%;background:none;border:0;color:var(--acc);font:inherit;font-weight:800;font-size:14px;padding:10px}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tool{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px;font-weight:800;font-size:14.5px;display:flex;align-items:center;gap:8px;min-height:52px}
+.set{display:flex;align-items:center;gap:10px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px;margin-top:8px;font-size:14px}
+.set .grow{flex:1}.set small{display:block;color:var(--sub);font-size:12px;margin-top:2px}
+.sw{flex:none;width:52px;height:32px;border-radius:16px;border:0;background:var(--line);position:relative}
+.sw:after{content:"";position:absolute;left:3px;top:3px;width:26px;height:26px;border-radius:13px;background:#fff;transition:left .15s}
+.sw.on{background:var(--acc)}.sw.on:after{left:23px}
+/* 1つの現場の中 */
+.back{background:none;border:0;color:var(--acc);font:inherit;font-weight:800;font-size:15px;padding:6px 0;margin-bottom:6px}
+.head{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:14px}
+.head b{font-size:20px;display:block}.head .sub{color:var(--sub);font-size:13.5px;margin-top:4px}
+.steps{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.step{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;min-height:64px}
+.step .n{flex:none;width:30px;height:30px;border-radius:15px;background:var(--acc);color:#fff;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center}
+.step .t{flex:1;min-width:0}.step b{font-size:16px;display:block}.step small{color:var(--sub);font-size:12.5px;display:block;margin-top:2px;line-height:1.45}
+.step .go{flex:none;color:var(--sub);font-size:20px}
+.step.send .n{background:var(--line2)}.step.bend .n{background:var(--bend)}
+.lbl{font-size:12px;font-weight:800;color:var(--sub);margin:14px 4px 0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+try{sessionStorage.setItem("pbm_in","1")}catch(e){}   // この後に曲げ共有を開いても、入口に戻されない
+/* 現場（genba.html と同じ入れ物） */
+let dbP=null;
+function db(){if(!dbP)dbP=new Promise((ok,ng)=>{const o=indexedDB.open("genba",1);o.onupgradeneeded=()=>{const d=o.result;if(!d.objectStoreNames.contains("sites"))d.createObjectStore("sites",{keyPath:"id"});if(!d.objectStoreNames.contains("photos"))d.createObjectStore("photos",{keyPath:"id"})};o.onsuccess=()=>ok(o.result);o.onerror=()=>ng(o.error)});return dbP}
+async function dbDo(mode,fn){const d=await db();return new Promise((ok,ng)=>{const tx=d.transaction("sites",mode),st=tx.objectStore("sites");let r;try{r=fn(st)}catch(e){ng(e);return}tx.oncomplete=()=>ok(r&&"result"in r?r.result:undefined);tx.onerror=()=>ng(tx.error)})}
+const allSites=()=>dbDo("readonly",s=>s.getAll()).catch(()=>[]);
+const getSite=id=>dbDo("readonly",s=>s.get(id)).catch(()=>null);
+const rid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function newSite(){const d=new Date();d.setDate(d.getDate()+1);const ymd=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+ return {id:rid("s"),v:1,created:Date.now(),updated:Date.now(),date:ymd,time:"08:00",name:"",addr:"",park:{note:"",lat:null,lng:null,url:"",photos:[]},members:[],work:"",bring:"",provided:"",borrow:"",plan:"",memo:""}}
+/* 日付 */
+const today=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
+const dOf=s=>{if(!s)return null;const m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],+m[2]-1,+m[3]):null};
+const W="日月火水木金土";
+function dateTxt(s){const d=dOf(s);return d?`${d.getMonth()+1}/${d.getDate()}（${W[d.getDay()]}）`:"日にち未定"}
+function whenTag(s){const d=dOf(s);if(!d)return["未定",""];const n=Math.round((d-today())/864e5);
+ if(n===0)return["今日","today"];if(n===1)return["明日","soon"];if(n>1&&n<=7)return["あと"+n+"日","soon"];if(n>7)return["あと"+n+"日",""];return["済","old"]}
+/* 設定：アプリを開いた時に入口を出す */
+const homeOn=()=>{try{return localStorage.getItem("pbm_home")!=="0"}catch(e){return true}};
+let showOld=false;
+async function renderList(){
+ const ss=await allSites(),t0=today();
+ const up=ss.filter(s=>{const d=dOf(s.date);return !d||d>=t0}).sort((a,b)=>(a.date||"9").localeCompare(b.date||"9")||b.updated-a.updated);
+ const old=ss.filter(s=>{const d=dOf(s.date);return d&&d<t0}).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+ const card=s=>{const[w,c]=whenTag(s.date);return `<button class="site${c==="old"?" old":""}" data-id="${esc(s.id)}"><div class="t"><b>${esc(s.name||"（名前なし）")}</b><div class="sub">${esc(dateTxt(s.date))}${s.time?" "+esc(s.time):""}${s.members&&s.members.length?` ・ ${s.members.length}人`:""}${s.addr?` ・ 📍${esc(s.addr)}`:""}</div></div><span class="when ${c}">${esc(w)}</span></button>`};
+ $("#app").innerHTML=`<h1>🏠 曲げ共有</h1>
+ <a class="big bend" href="index.html"><span class="ic">🔧</span><span><b>すぐ曲げを送る</b><small>寸法を入れて、LINEで「これ曲げて」と頼む</small></span></a>
+ <h2><span class="grow">📋 これからの現場</span></h2>
+ ${up.length?up.map(card).join(""):`<div class="empty">これからの現場はまだありません。<br>下の「＋ 新しい現場」で作れます。</div>`}
+ <button class="big new" id="bNew"><span class="ic">＋</span><span><b style="font-size:16px">新しい現場</b><small style="color:var(--sub)">日時・住所・メンバーを入れて、前日までにみんなへ</small></span></button>
+ ${old.length?`<button class="more" id="bOld">${showOld?"▲ 終わった現場をしまう":"▼ 終わった現場（"+old.length+"件）"}</button>${showOld?old.map(card).join(""):""}`:""}
+ <h2>🧰 そのほかの道具</h2>
+ <div class="tools"><a class="tool" href="zumen.html">📐 図面・3D</a><a class="tool" href="genchou.html">📹 現調</a><a class="tool" href="kiki.html">🔩 機器</a><a class="tool" href="genba.html">📋 現場カード</a></div>
+ <h2>⚙️ 設定</h2>
+ <div class="set"><div class="grow">アプリを開いた時にこの画面を出す<small>オフにすると、今までどおり曲げ共有から始まります</small></div><button class="sw${homeOn()?" on":""}" id="swHome" aria-label="入口を出す"></button></div>`;
+ document.querySelectorAll(".site").forEach(b=>b.onclick=()=>{location.hash=b.dataset.id});
+ $("#bNew").onclick=async()=>{const s=newSite();try{await dbDo("readwrite",st=>st.put(s))}catch(e){alert("作れませんでした");return}location.href="genba.html#"+s.id};
+ const bo=$("#bOld");if(bo)bo.onclick=()=>{showOld=!showOld;renderList()};
+ $("#swHome").onclick=()=>{try{localStorage.setItem("pbm_home",homeOn()?"0":"1")}catch(e){}renderList()};
+}
+async function renderSite(id){
+ const s=await getSite(id);if(!s){location.hash="";return}
+ const[w]=whenTag(s.date);
+ const st=(n,cls,ic,t,sub,href)=>`<a class="step ${cls}" href="${href}"><span class="n">${n}</span><span class="t"><b>${ic} ${t}</b><small>${sub}</small></span><span class="go">›</span></a>`;
+ $("#app").innerHTML=`<button class="back" id="bBack">‹ 現場の一覧</button>
+ <div class="head"><b>${esc(s.name||"（名前なし）")}</b><div class="sub">📅 ${esc(dateTxt(s.date))}${s.time?" "+esc(s.time):""}（${esc(w)}）${s.members&&s.members.length?` ・ 👷 ${s.members.length}人`:""}</div>${s.addr?`<div class="sub">📍 ${esc(s.addr)}</div>`:""}</div>
+ <div class="lbl">現調の時</div>
+ <div class="steps">
+ ${st(1,"","📋","現場カード","日時・住所・駐車場・メンバー・作業内容","genba.html#"+encodeURIComponent(s.id))}
+ ${st(2,"","📹","現調","写真・寸法・メモ","genchou.html")}
+ ${st(3,"","📐","図面・3D","図面を読み込んで3Dに。みんなにイメージを","zumen.html")}
+ ${st(4,"","🧾","材料拾い","3Dから拾って、現調で気づいた分を足す","zumen.html#mt")}
+ </div>
+ <div class="lbl">前日まで</div>
+ <div class="steps">${st(5,"send","📤","みんなに送る","現場カードをLINEで送る・誰が見たか分かる","genba.html#"+encodeURIComponent(s.id))}</div>
+ <div class="lbl">当日</div>
+ <div class="steps">${st(6,"bend","🔧","曲げを頼む","上で測った寸法を送って、下で曲げてもらう","index.html")}</div>`;
+ $("#bBack").onclick=()=>{location.hash=""};
+ window.scrollTo(0,0);
+}
+function route(){const id=decodeURIComponent(location.hash.slice(1));if(id)renderSite(id);else renderList()}
+addEventListener("hashchange",route);
+addEventListener("pageshow",e=>{if(e.persisted)route()});   // 現場カードから戻った時に一覧を新しく
+route();
+if("serviceWorker"in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>

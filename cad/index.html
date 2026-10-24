@@ -210,7 +210,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <button class="tb" id="b3D" aria-label="3Dで見る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>3D</button>
   </div>
 </div>
-<div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px">🧊 3D</b><button class="btn" data-v="top" style="height:40px;padding:0 10px">真上</button><button class="btn" data-v="iso" style="height:40px;padding:0 10px">斜め</button><button class="btn" id="v3dX" style="height:40px;padding:0 12px;font-weight:800">✕ 戻る</button></div><div id="v3dT" style="display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto"><button class="btn sel" data-t3="wall" style="height:34px;padding:0 12px;flex:none">壁</button><button class="btn sel" data-t3="ub" style="height:34px;padding:0 12px;flex:none">ユニットバス</button><button class="btn sel" data-t3="unit" style="height:34px;padding:0 12px;flex:none">機器</button><button class="btn sel" data-t3="plan" style="height:34px;padding:0 12px;flex:none">図面の線</button><select id="v3dM" aria-label="室内機の機種" style="height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:14px;flex:none;max-width:220px"></select></div><div id="v3dS" style="flex:1;position:relative;overflow:hidden;touch-action:none"><div id="v3dN" class="note" style="position:absolute;left:8px;bottom:8px;right:8px;pointer-events:none;background:var(--panel);opacity:.9;border-radius:10px;padding:6px 8px"></div></div></div>
+<div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px;white-space:nowrap">🧊 3D</b><button class="btn" data-v="top" style="height:40px;padding:0 10px">真上</button><button class="btn" data-v="iso" style="height:40px;padding:0 10px">斜め</button><button class="btn pri" id="v3dMg" style="height:40px;padding:0 10px;font-weight:800">曲げ共有へ</button><button class="btn" id="v3dX" style="height:40px;padding:0 12px;font-weight:800">✕ 戻る</button></div><div id="v3dT" style="display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto"><button class="btn sel" data-t3="wall" style="height:34px;padding:0 12px;flex:none">壁</button><button class="btn sel" data-t3="ub" style="height:34px;padding:0 12px;flex:none">ユニットバス</button><button class="btn sel" data-t3="unit" style="height:34px;padding:0 12px;flex:none">機器</button><button class="btn sel" data-t3="plan" style="height:34px;padding:0 12px;flex:none">図面の線</button><select id="v3dM" aria-label="室内機の機種" style="height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:14px;flex:none;max-width:220px"></select></div><div id="v3dS" style="flex:1;position:relative;overflow:hidden;touch-action:none"><div id="v3dN" class="note" style="position:absolute;left:8px;bottom:8px;right:8px;pointer-events:none;background:var(--panel);opacity:.9;border-radius:10px;padding:6px 8px"></div></div></div>
 <input type="file" id="fileIn" hidden>
 <div id="sheetRoot"></div>
 
@@ -1188,7 +1188,10 @@ function npH(p, n){ const h = Array.isArray(p.h) ? p.h.slice(0, n) : []; while (
 const npVert = h => h.reduce((a, v, i) => i ? a + Math.abs(v - h[i-1]) : 0, 0);
 const npTotTxt = (pts, h) => { const v = npVert(h); return fmtM(npLen(pts)) + (v > 0 ? `＋たて ${(v/1000).toFixed(2)}m` : ''); };
 function npLayer(){ let i = G.L.findIndex(l => l.name === NP_LAYER); if (i < 0){ i = G.L.length; G.L.push({name:NP_LAYER, ck:'a6', on:true, deleted:false, count:0, idx:i, g:'ac'}); G.textsBy[i] = []; } return i; }
-function npSnap(w){ // 空調（冷媒管・ドレン・機器）とダクトの線の端にだけくっつける（天井割りなど、ほかの線の端や途中にはくっつけない）
+function npUnitsCalc(){ const u = unitMM(), md = typeof CAS2M !== 'undefined' && CAS2M[v3dMdl()]; return v3dPoses(v3dAna(), md).map(p => ({b:[p.m.x0/u, p.m.y0/u, p.m.x1/u, p.m.y1/u], port:[p.port[0]/u, p.port[1]/u], ph:p.ph, k:md ? v3dMdl() : '', c:[p.cx/u, p.cy/u]})); } // 図面の室内機と配管の口（図面の単位）
+const npUnitAt = q => (S.npe && S.npe.units || []).find(x => q && Math.hypot(x.port[0] - q[0], x.port[1] - q[1]) < 1);
+function npSnap(w){ // 空調（冷媒管・ドレン・機器）とダクトの線の端にだけくっつける（天井割りなど、ほかの線の端や途中にはくっつけない）。室内機の上は、その機種の配管の口へ
+  { const un = S.npe && S.npe.units, r = 150/unitMM(); if (un) for (const q of un) if (w[0] >= q.b[0] - r && w[0] <= q.b[2] + r && w[1] >= q.b[1] - r && w[1] <= q.b[3] + r) return q.port.slice(); }
   const R = 26/view.s, p = G.pts; let best = null, bd = R;
   for (const id of query(IX.pg, IX.ptMark, w[0], w[1], R)){ const k = id*PS; if (p[k+3] !== 0) continue; const l = G.L[p[k+2]]; if (!l || !l.on || l.deleted || !(l.g === 'ac' || l.g === 'duct')) continue; const d = Math.hypot(p[k] - w[0], p[k+1] - w[1]); if (d < bd){ bd = d; best = [p[k], p[k+1]]; } }
   return best || w;
@@ -1213,17 +1216,18 @@ function npStraight(raw, a45, rnd){ // なぞった線 → 縦横（45°）の�
 function npFromPts(A, B, flip){ const C = flip ? [A[0], B[1]] : [B[0], A[1]], p = [A, C, B].filter((q, i, a) => !i || Math.hypot(q[0] - a[i-1][0], q[1] - a[i-1][1]) > 1e-6); return p.length < 2 ? null : p; }
 function npStart(item){ S.mode = 'np'; S.pick = null; S.selDim = null; S.mvg = null; routeReset(); let o = {}; try { o = JSON.parse(localStorage.getItem('zumen-np') || '{}'); } catch(e){}
   S.npe = {tool:o.tool === 'pts' ? 'pts' : 'trace', rnd:[10, 50, 100].includes(o.rnd) ? o.rnd : 50, a45:!!o.a45, flip:false, pts:item ? item.pts.map(p => p.slice()) : null, h:item ? npH(item, item.pts.length - 1) : null, raw:null, A:null, B:null, edit:item || null};
-  updatePickBar(); updateUi(); updateNpPanel(); drawOverlay(); }
+  updatePickBar(); updateUi(); updateNpPanel(); drawOverlay(); loadModels().then(() => { try { if (S.npe) S.npe.units = npUnitsCalc(); } catch(err){} drawOverlay(); }); }
 function npPref(h){ const e = S.npe; try { localStorage.setItem('zumen-np', JSON.stringify({tool:e.tool, rnd:e.rnd, a45:e.a45, h:h != null ? h : npHdef()})); } catch(err){} }
 function npEnd(){ S.npe = null; S.mode = 'pan'; $('#npPanel').hidden = true; updateUi(); drawOverlay(); }
 function npTap(w){ const e = S.npe; if (e.tool !== 'pts') return; const q = npSnap(w); if (!e.A || e.B){ e.A = q; e.B = null; e.pts = null; } else { e.B = q; e.pts = npFromPts(e.A, e.B, e.flip); } updateNpPanel(); drawOverlay(); updateUi(); }
 function npTraceEnd(raw){ const e = S.npe; if (raw.length < 2){ e.raw = null; drawOverlay(); return; } e.raw = raw; e.pts = npStraight(raw, e.a45, e.rnd); updateNpPanel(); drawOverlay(); }
 function updateNpPanel(){
   const p = $('#npPanel'), e = S.npe; if (!e || S.mode !== 'np'){ p.hidden = true; return; } p.hidden = false;
+  if (e.pts && !e.h){ const su = npUnitAt(e.pts[0]); if (su) e.h = [su.ph]; } // 室内機から始める時は、配管の口の高さから
   if (e.pts) e.h = npH({h:e.h}, e.pts.length - 1);
   const segs = e.pts ? npSegs(e.pts) : [], ar = u => { const a = Math.round(Math.atan2(u[1], u[0])*180/Math.PI); return ({0:'→', 90:'↑', 180:'←', '-180':'←', '-90':'↓', 45:'↗', 135:'↖', '-45':'↘', '-135':'↙'})[a] || '・'; };
   p.innerHTML = `<div class="seg2"><button class="btn ${e.tool === 'trace' ? 'sel' : ''}" data-t="trace">✍ なぞる</button><button class="btn ${e.tool === 'pts' ? 'sel' : ''}" data-t="pts">📍 始点→終点</button></div>
-    ${!e.pts ? `<div class="note">${e.tool === 'trace' ? '図面の上を1本指でなぞってください（2本指で動かす・拡大）。離すと縦横のまっすぐな線にそろえます' : e.A ? '終点をタップしてください' : '始点をタップしてください（配管の端などにくっつきます）'}</div>` :
+    ${!e.pts ? `<div class="note">${e.tool === 'trace' ? '室内機から図面の上を1本指でなぞってください（2本指で動かす・拡大）。離すと縦横のまっすぐな線にそろえ、始まりは室内機の配管の口になります' : e.A ? '終点をタップしてください' : '始点をタップしてください（室内機をタップすると、その機種の配管の口から始まります）'}</div>` :
     `<div style="max-height:30vh;overflow:auto">${segs.map((s, i) => `<div class="frow" style="align-items:center;gap:6px"><span style="width:26px;text-align:center;font-size:18px">${ar(s.u)}</span><input data-i="${i}" type="number" value="${Math.round(s.L*unitMM())}" style="flex:1;min-width:0;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 8px;font:16px var(--font-ui);color:var(--ink)"><span style="font-size:13px">mm</span><span style="font-size:12px;margin-left:4px">FL</span><input data-h="${i}" type="number" inputmode="numeric" value="${e.h[i]}" aria-label="高さ（床から）" style="width:76px;flex:none;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 6px;font:16px var(--font-ui);color:var(--ink)"></div>`).join('')}</div>
      <div class="frow" style="align-items:center"><div class="grow" style="font-weight:800">合計 ${npTotTxt(e.pts, e.h)}・曲げ ${Math.max(0, segs.length - 1)}か所${e.h.some((v, i) => i && v !== e.h[i-1]) ? `・たて管 ${e.h.filter((v, i) => i && v !== e.h[i-1]).length}か所` : ''}</div>${e.tool === 'pts' ? '<button class="btn" data-a="flip">曲がりを反対に</button>' : ''}</div>`}
     ${e.tool === 'trace' ? `<div class="frow" style="align-items:center"><span style="font-size:13px">丸め</span>${[10, 50, 100].map(v => `<button class="btn ${e.rnd === v ? 'sel' : ''}" data-r="${v}" style="flex:1">${v}</button>`).join('')}<button class="btn ${e.a45 ? 'sel' : ''}" data-a="a45" style="flex:1.2">${e.a45 ? '✓ ' : ''}45°も</button></div>` : ''}
@@ -1239,7 +1243,7 @@ function updateNpPanel(){
     else if (b.dataset.a === 'no'){ npEnd(); return; }
     else if (b.dataset.a === 'ok' && e.pts){ const L = npLen(e.pts);
       if (e.edit){ exec(cmdNpEdit(e.edit, e.pts.map(q => q.slice()), e.h.slice())); toast(`冷媒配管を直しました（合計 ${npTotTxt(e.pts, e.h)}）`); }
-      else { const it = {id:'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), no:1 + Math.floor(Math.random()*9e7), pts:e.pts.map(q => q.slice()), h:e.h.slice(), t:Date.now()}; exec(cmdNpAdd(it)); toast(`冷媒配管を引きました（合計 ${npTotTxt(e.pts, e.h)}・↶で戻せます）`); }
+      else { const it = {id:'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), no:1 + Math.floor(Math.random()*9e7), pts:e.pts.map(q => q.slice()), h:e.h.slice(), t:Date.now()}; { const su = npUnitAt(e.pts[0]); if (su) it.u = {k:su.k, c:su.c.slice()}; } exec(cmdNpAdd(it)); toast(`冷媒配管を引きました（合計 ${npTotTxt(e.pts, e.h)}・↶で戻せます）`); }
       npEnd(); return; }
     updateNpPanel(); drawOverlay(); updateUi(); };
 }
@@ -1252,6 +1256,7 @@ function drawNp(c){ // 引いている途中の配管：なぞった線（うす
   if (e.pts){ c.font = `700 12px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
     e.pts.forEach((q, i) => { const s = w2s(q[0], q[1]); c.fillStyle = i ? '#c026d3' : '#16a34a'; c.beginPath(); c.arc(s[0], s[1], i && i < e.pts.length - 1 ? 4 : 6, 0, Math.PI*2); c.fill(); });
     for (let i = 1; i < e.pts.length; i++){ const a = w2s(...e.pts[i-1]), b = w2s(...e.pts[i]), t = String(Math.round(Math.hypot(e.pts[i][0] - e.pts[i-1][0], e.pts[i][1] - e.pts[i-1][1])*unitMM())), w = c.measureText(t).width + 10, mx = (a[0] + b[0])/2, my = (a[1] + b[1])/2; c.fillStyle = '#c026d3'; c.fillRect(mx - w/2, my - 10, w, 20); c.fillStyle = '#fff'; c.fillText(t, mx, my); } }
+  for (const q of e.units || []){ const s = w2s(...q.port); c.strokeStyle = '#16a34a'; c.lineWidth = 3; c.beginPath(); c.arc(s[0], s[1], 8, 0, Math.PI*2); c.stroke(); } // 室内機の配管の口
   if (e.A && !e.pts){ const s = w2s(...e.A); c.fillStyle = '#16a34a'; c.beginPath(); c.arc(s[0], s[1], 7, 0, Math.PI*2); c.fill(); }
   c.restore();
 }
@@ -3384,6 +3389,16 @@ function v3dAna(){
 const V3 = {on:{}}; let threeP = null;
 function loadThree(){ if (!threeP) threeP = new Promise((ok, ng) => { if (window.THREE) return ok(window.THREE); const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'; sc.onload = () => ok(window.THREE); sc.onerror = () => { threeP = null; ng(new Error('3Dの部品を読み込めませんでした（電波を確認してください）')); }; document.head.appendChild(sc); }); return threeP; }
 let mdlP = null;
+/* 室内機ごとの置き方（3Dと「機器から配管」で同じ物を使う）：真ん中（mm）・正面の向き f（3Dの x, z）・回転 th・配管の口（ガス管・mm・図面の座標）と口の高さ ph（床から） */
+function v3dPoses(A, md){ return A.units.map(m => { const ccx = (m.x0 + m.x1)/2, ccy = (m.y0 + m.y1)/2;
+  let nb = null, nd = 1e18; for (const b of A.ubs){ const d = Math.hypot((b.x0 + b.x1)/2 - ccx, (b.y0 + b.y1)/2 - ccy); if (d < nd){ nd = d; nb = b; } }
+  const lx = m.x1 - m.x0 >= m.y1 - m.y0; let f; // 正面（吹出し）はいちばん近いユニットバスと反対の側へ
+  if (lx){ const s2 = nb && (nb.y0 + nb.y1)/2 > ccy ? 1 : -1; f = [0, s2]; } else { const s2 = nb && (nb.x0 + nb.x1)/2 > ccx ? -1 : 1; f = [s2, 0]; }
+  if (!nb) f = lx ? [0, 1] : [1, 0];
+  if (md && !(md.W > md.L)) f = lx ? [1, 0] : [0, 1]; // 本体の長い方が L（正面の向き）の機種は、L を図面の長い方に
+  const th = Math.atan2(f[1], -f[0]); let port = [ccx, ccy], ph = m.ch;
+  if (md){ const px = md.L/2 + 60, pz = md.gas.z, dx = px*Math.cos(th) + pz*Math.sin(th), dz = -px*Math.sin(th) + pz*Math.cos(th); port = [ccx + dx, ccy - dz]; ph = m.ch + md.gas.y; } // 3Dの z は図面の y と逆向き
+  return {m, cx:ccx, cy:ccy, f, th, port, ph:Math.round(ph)}; }); }
 function loadModels(){ if (!mdlP) mdlP = new Promise(ok => { if (typeof CAS2M !== 'undefined') return ok(true); const sc = document.createElement('script'); sc.src = '../models.js?v=304'; sc.onload = () => ok(typeof CAS2M !== 'undefined'); sc.onerror = () => { mdlP = null; ok(false); }; document.head.appendChild(sc); }); return mdlP; } // 曲げ共有の機器の模型データ（同じサイトの models.js）
 const v3dMdl = () => { try { const k = localStorage.getItem('zumen-3dunit'); return k == null ? 'mbz2822' : k; } catch(e){ return 'mbz2822'; } };
 /* 室内機の模型：曲げ共有（core.js の makeUnit の cas2）と同じ作り。天井の面＝y0、長手＝x、配管口は +x の端面、正面（吹出し）は −x */
@@ -3432,15 +3447,11 @@ async function open3D(){
     const lw = b.x1 - b.x0 >= b.y1 - b.y0; if (lw) boxAt(gU, b.x0 + T2, b.y0 + T2, b.x0 + (b.x1 - b.x0)*0.45, b.y1 - T2, 0, 550, um); else boxAt(gU, b.x0 + T2, b.y1 - (b.y1 - b.y0)*0.45, b.x1 - T2, b.y1 - T2, 0, 550, um);
     const c2 = W((b.x0 + b.x1)/2/u, (b.y0 + b.y1)/2/u); gU.add(v3dLabel(TH, b.nm, new TH.Vector3(c2[0], H + 150, c2[1]), 220)); }
   const mk = v3dMdl(), md = typeof CAS2M !== 'undefined' && CAS2M[mk];
+  const PO = v3dPoses(A, md);
   for (const m of A.units){ const ccx = (m.x0 + m.x1)/2, ccy = (m.y0 + m.y1)/2, c3 = W(ccx/u, ccy/u);
     if (!md){ const me = boxAt(gM, m.x0, m.y0, m.x1, m.y1, m.ch, m.ch + 300, mm2); const e2 = new TH.LineSegments(new TH.EdgesGeometry(me.geometry), em); e2.position.copy(me.position); gM.add(e2); continue; }
-    // 機種の模型：長い方を図面のかたまりの長い方に合わせ、正面（吹出し）はいちばん近いユニットバスと反対の側へ
-    let nb = null, nd = 1e18; for (const b of A.ubs){ const d = Math.hypot((b.x0 + b.x1)/2 - ccx, (b.y0 + b.y1)/2 - ccy); if (d < nd){ nd = d; nb = b; } }
-    const lx = m.x1 - m.x0 >= m.y1 - m.y0; let f; // f：正面の向き（3Dの x, z）
-    if (lx){ const s2 = nb && (nb.y0 + nb.y1)/2 > ccy ? 1 : -1; f = [0, s2]; } else { const s2 = nb && (nb.x0 + nb.x1)/2 > ccx ? -1 : 1; f = [s2, 0]; }
-    if (!nb) f = lx ? [0, 1] : [1, 0];
-    const lw = md.W > md.L; if (!lw) f = lx ? [1, 0] : [0, 1]; // 本体の長い方が L（正面の向き）の機種は、L を図面の長い方に
-    const gU2 = v3dUnit(TH, md); gU2.position.set(c3[0], m.ch, c3[1]); gU2.rotation.y = Math.atan2(f[1], -f[0]); gM.add(gU2); }
+    const po = PO[A.units.indexOf(m)]; // 機種の模型：置き方は v3dPoses
+    const gU2 = v3dUnit(TH, md); gU2.position.set(c3[0], m.ch, c3[1]); gU2.rotation.y = po.th; gM.add(gU2); }
   if (md) gM.add(v3dLabel(TH, md.n, (() => { const m = A.units[0]; if (!m) return new TH.Vector3(); const c3 = W((m.x0 + m.x1)/2/u, (m.y0 + m.y1)/2/u); return new TH.Vector3(c3[0], m.ch + 800, c3[1]); })()));
   const om = new TH.MeshStandardMaterial({color:0x7cc4f0}); for (const q of A.outs) boxAt(gM, q.x0, q.y0, q.x1, q.y1, q.ch - 5, q.ch + 40, om); // 吹出口・吸込口：天井の面にうすい板
   for (const q of A.insp){ const a = W(q.x0/u, q.y0/u), b = W(q.x1/u, q.y1/u), y = q.ch; gM.add(new TH.Line(new TH.BufferGeometry().setFromPoints([[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]], [a[0], a[1]]].map(p => new TH.Vector3(p[0], y, p[1]))), new TH.LineBasicMaterial({color:0x2f6fe0}))); }
@@ -3473,6 +3484,23 @@ function v3dCtl(){ const el = V3.r.domElement, P = new Map(); let last = null;
   el.addEventListener('wheel', e => { e.preventDefault(); V3.dist = Math.max(300, Math.min(5e6, V3.dist*Math.exp(e.deltaY*0.0015))); v3dDraw(); }, {passive:false});
   window.addEventListener('resize', () => v3dDraw()); }
 $('#b3D').onclick = open3D;
+/* 曲げ共有へ渡す：IndexedDB pbmShare / f / "pipes" → ../index.html?from=cadpipes（曲げ共有の pipes.js が受け取る）。
+   長さは mm・図面の座標（x 右・y 上）、高さは床から。配管は点の並び [x, y, 高さ]（高さの変わる所はたて管の2点） */
+async function sendPipes(){
+  if (!G) return; await loadModels(); const u = unitMM(), mk = v3dMdl(), md = typeof CAS2M !== 'undefined' && CAS2M[mk], A = v3dAna(), PO = v3dPoses(A, md);
+  const units = PO.map(p => ({x:Math.round(p.cx), y:Math.round(p.cy), th:+p.th.toFixed(4), ch:p.m.ch, mk:md ? mk : '', w:Math.round(p.m.x1 - p.m.x0), d:Math.round(p.m.y1 - p.m.y0), port:p.port.map(Math.round), ph:p.ph}));
+  const pipes = S.np.filter(p => !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no)).map((p, j) => { const h = npH(p, p.pts.length - 1), P = [];
+    p.pts.forEach((q, i) => { const hs = []; if (i > 0) hs.push(h[i-1]); if (i < p.pts.length - 1) hs.push(h[i]); [...new Set(hs)].forEach(z => P.push([Math.round(q[0]*u), Math.round(q[1]*u), Math.round(z)])); });
+    const ui = p.u ? PO.findIndex(o => Math.hypot(o.cx/u - p.u.c[0], o.cy/u - p.u.c[1]) < 1) : -1;
+    return {nm:'配管' + (j + 1), P, ui}; }).filter(p => p.P.length > 1);
+  if (!pipes.length){ toast('冷媒配管がありません。「ルート」→「＋ 1から引く」で室内機から引いてください'); return; }
+  const rec = {v:1, name:S.name || S.srcName || '図面', t:Date.now(), ch:A.CH0, walls:A.walls.map(w => w.map(Math.round)), ubs:A.ubs.map(b => ({x0:Math.round(b.x0), y0:Math.round(b.y0), x1:Math.round(b.x1), y1:Math.round(b.y1), nm:b.nm, ch:b.ch})), units, pipes};
+  try { await new Promise((ok, ng) => { const o = indexedDB.open('pbmShare', 1); o.onupgradeneeded = () => { if (!o.result.objectStoreNames.contains('f')) o.result.createObjectStore('f'); }; o.onerror = () => ng(o.error);
+      o.onsuccess = () => { try { const db = o.result, tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(rec, 'pipes'); tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = tx.onabort = () => ng(tx.error); } catch(e){ ng(e); } }; });
+    autosave(false); toast('曲げ共有を開いています…'); setTimeout(() => { location.href = '../index.html?from=cadpipes'; }, 900); // 端末への保存（0.8秒後）が済んでから
+  } catch(e){ toast('渡せませんでした（' + ((e && e.message) || e) + '）'); }
+}
+$('#v3dMg').onclick = sendPipes;
 $('#v3dM').onchange = e => { try { localStorage.setItem('zumen-3dunit', e.target.value); } catch(err){} open3D(); }; // 室内機の機種を変えたら作り直す
 $('#v3d').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) v3dView(b.dataset.v); const t = e.target.closest('[data-t3]'); if (t && V3.sc){ const k = t.dataset.t3; V3.on[k] = V3.on[k] === false; t.classList.toggle('sel', V3.on[k] !== false); for (const o of V3.sc.children) if (o.userData.k === k) o.visible = V3.on[k] !== false; v3dDraw(); } }); // 壁・ユニットバス・機器・図面の線を出す／消す
 $('#v3dX').onclick = () => { $('#v3d').hidden = true; if (V3.sc){ V3.sc.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material){ if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); V3.sc = null; } };

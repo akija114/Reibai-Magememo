@@ -724,34 +724,12 @@ plLastInfo();
  try{let r=null;
   if(q.has("dxf")){const u=q.get("dxf"),res=await fetch(u);if(!res.ok)throw new Error("HTTP "+res.status);const bl=await res.blob();r={blob:bl,name:decodeURIComponent((u.split("?")[0].split("/").pop())||"zumen.dxf")}}
   else r=await new Promise((ok,ng)=>{const o=indexedDB.open("pbmShare",1);o.onupgradeneeded=()=>o.result.createObjectStore("f");o.onerror=()=>ng(o.error);
-   o.onsuccess=()=>{try{const t=o.result.transaction("f","readonly").objectStore("f").get(q.get("from")==="cad3d"?"dxf3d":"dxf");t.onsuccess=()=>ok(t.result);t.onerror=()=>ng(t.error)}catch(e){ok(null)}}});
+   o.onsuccess=()=>{try{const t=o.result.transaction("f","readonly").objectStore("f").get("dxf");t.onsuccess=()=>ok(t.result);t.onerror=()=>ng(t.error)}catch(e){ok(null)}}});
   if(!r||!r.blob){toast("図面修正アプリから図面が届いていません。図面修正アプリの「曲げ共有で開く」から開いてください");return}
   if(Array.isArray(r.hide))try{localStorage.setItem("pbm_dxfhide",JSON.stringify(r.hide))}catch(e){}
-  if(q.get("from")==="cad3d"&&window.CAD3D_MODE){await cad3dGo(r);return}
   openDraw();const nm=r.name||"zumen.dxf",f=new File([r.blob],nm,{type:r.type||(/\.pdf$/i.test(nm)?"application/pdf":"application/dxf")});await planLoad(f);
   toast("図面修正アプリから「"+nm+"」を受け取りました");try{history.replaceState(null,"",location.pathname)}catch(e){}}
  catch(e){console.warn(e);toast("図面を受け取れませんでした（"+(e.message||e)+"）")}})();
-/* 図面編集アプリの「🧊 3D」：図面を読んで、すぐ3Dにする。1から引いた冷媒配管（r.np：DXFの mm の点・区間ごとの高さ＝床から）を3Dに足す（build3D のあとに足す） */
-let CAD3D=[];
-async function cad3dGo(r){
- openDraw();const nm=r.name||"zumen.dxf";await planLoad(new File([r.blob],nm,{type:"application/dxf"}),true);
- const P=PLAN;if(!P||!P.dxf){toast("図面を3Dにできませんでした");return}
- CAD3D=Array.isArray(r.np)?r.np.filter(p=>p&&p.pts&&p.pts.length>1):[];
- const px=q=>[(q[0]-P.dX0)/P.mmpp,(P.dY1-q[1])/P.mmpp],o=CAD3D.length?px(CAD3D[0].pts[0]):[P.W/2,P.H0/2];
- P.org=[o[0],o[1]];st.bldXf={x:0,z:0,r:0};st.bld=[];st.rows=JSON.parse(NOPSIG);st.nopipe=true;st.dln=null;if(!P.CH)P.CH=2700;
- try{const D=planDrawLines();if(D&&DL_KINDS.some(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)))st.dln=D}catch(e){console.warn(e)}
- if(!window.__cad3dHook){window.__cad3dHook=1;const b0=build3D;build3D=function(){const v=b0.apply(this,arguments);try{cad3dPipes()}catch(e){console.warn(e)}return v}}
- wz3D();toast(CAD3D.length?"1から引いた冷媒配管 "+CAD3D.length+"本を3Dに出しました":"図面を3Dにしました（1から引いた冷媒配管はありません）");
-}
-function cad3dPipes(){if(!T||!T.grp||!CAD3D.length||!PLAN||!PLAN.dxf)return;const P=PLAN,V=THREE.Vector3,GY=T.GYr!=null?T.GYr:-(st.gnd.h||P.CH||2700);
- const px=q=>[(q[0]-P.dX0)/P.mmpp,(P.dY1-q[1])/P.mmpp],mat=new THREE.MeshStandardMaterial({color:0xc8763a,metalness:.5,roughness:.4}),R=12,bb=new THREE.Box3();
- CAD3D.forEach(p=>{const pts=[];p.pts.forEach((q,i)=>{const w=btWx(px(q)),hs=[];if(i>0)hs.push(p.h[i-1]);if(i<p.pts.length-1)hs.push(p.h[i]);
-   [...new Set(hs)].forEach(h=>pts.push(new V(w[0],GY+(+h||0),w[1])))});   // 高さの変わる所はたて管
-  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],L=a.distanceTo(b);if(L<1)continue;const m=new THREE.Mesh(new THREE.CylinderGeometry(R,R,L,12),mat);
-   m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new V(0,1,0),b.clone().sub(a).normalize());T.grp.add(m)}
-  pts.forEach(q=>{const s=new THREE.Mesh(new THREE.SphereGeometry(R,12,8),mat);s.position.copy(q);T.grp.add(s);bb.expandByPoint(q)})});
- if(!bb.isEmpty()&&T.center){bb.getCenter(T.center);const sz=bb.getSize(new V());T.ext=Math.max(3000,sz.x,sz.y,sz.z)*1.2}   // 見る所：1から引いた配管ぜんぶ
- T.dirty=true}
 async function planLoad(f,resume){
  try{
   if(!resume){W.resume=false;plSaveLast(f)}

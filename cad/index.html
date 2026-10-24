@@ -210,7 +210,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <button class="tb" id="b3D" aria-label="3Dで見る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>3D</button>
   </div>
 </div>
-<div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 6px) 10px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px">🧊 3D（曲げ共有の3D・見るだけ）</b><button class="btn" id="v3dX" style="height:40px;padding:0 16px;font-weight:800">✕ 図面に戻る</button></div><iframe id="v3dF" title="3D" style="flex:1;border:0;width:100%"></iframe></div>
+<div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px">🧊 3D</b><button class="btn" data-v="top" style="height:40px;padding:0 10px">真上</button><button class="btn" data-v="iso" style="height:40px;padding:0 10px">斜め</button><button class="btn" id="v3dX" style="height:40px;padding:0 12px;font-weight:800">✕ 戻る</button></div><div id="v3dS" style="flex:1;position:relative;overflow:hidden;touch-action:none"><div id="v3dN" class="note" style="position:absolute;left:8px;bottom:8px;right:8px;pointer-events:none;background:var(--panel);opacity:.9;border-radius:10px;padding:6px 8px"></div></div></div>
 <input type="file" id="fileIn" hidden>
 <div id="sheetRoot"></div>
 
@@ -3318,22 +3318,58 @@ function mageCheckHtml(){
     it.map(([w, nm, ok, v, how]) => `${ok ? '✅' : '⚠️'} ${nm}${ok ? (v ? '：' + esc(String(v).slice(0, 40)) : '') : `<br><span style="color:#b45309">　${how}</span>`}`).join('<br>') +
     `<br><span style="font-size:11.5px">文字とレイヤーからの見立てです。曲げ共有で「全部自動」すると、くわしい読み取りチェックが出ます。</span></div>`;
 }
-/* 🧊 3D：曲げ共有の図面画面（../zumen.html?from=cad3d）を重ねて開く。曲げ共有の現場のデータには書かない（zumen.html の頭で保存先を分けている）。
-   渡す物：IndexedDB pbmShare / f / "dxf3d" → {blob（見えている図面のDXF）, name, hide, np（1から引いた冷媒配管：mm の点と区間ごとの高さ）} */
+/* 🧊 3D：図面編集の中だけで出す3D（three.js）。床＝見えているレイヤーの線、1から引いた冷媒配管＝区間ごとの高さで管（高さの変わる所はたて管）、追加機器＝天井の下の箱。
+   1本指で回す・2本指で動かす／ひろげる。図面のデータは変えない（見るだけ） */
+const V3 = {}; let threeP = null;
+function loadThree(){ if (!threeP) threeP = new Promise((ok, ng) => { if (window.THREE) return ok(window.THREE); const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'; sc.onload = () => ok(window.THREE); sc.onerror = () => { threeP = null; ng(new Error('3Dの部品を読み込めませんでした（電波を確認してください）')); }; document.head.appendChild(sc); }); return threeP; }
 async function open3D(){
   if (!G){ toast('先に図面を開いてください'); return; }
-  try {
-    const name = S.name || (S.srcName || '図面').replace(/\.[^.]+$/, ''), u = unitMM();
-    const rec = {blob:new Blob([buildExport(name, {dropHidden:true})], {type:'application/dxf'}), name:name + '.dxf', hide:G.L.filter(l => !l.on && !l.deleted).map(l => l.name),
-      np:S.np.filter(p => !S.delObj.has(KB2 + p.no)).map(p => ({pts:p.pts.map(q => [q[0]*u, q[1]*u]), h:npH(p, p.pts.length - 1)}))};
-    await new Promise((ok, ng) => { const o = indexedDB.open('pbmShare', 1);
-      o.onupgradeneeded = () => { if (!o.result.objectStoreNames.contains('f')) o.result.createObjectStore('f'); }; o.onerror = () => ng(o.error);
-      o.onsuccess = () => { try { const db = o.result, tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(rec, 'dxf3d'); tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = tx.onabort = () => ng(tx.error); } catch(e){ ng(e); } }; });
-    $('#v3dF').src = '../zumen.html?from=cad3d&t=' + Date.now(); $('#v3d').hidden = false;
-  } catch(e){ toast('3Dを開けませんでした（' + ((e && e.message) || e) + '）'); }
+  let TH; try { TH = await loadThree(); } catch(e){ toast(e.message); return; }
+  $('#v3d').hidden = false; const box = $('#v3dS'), u = unitMM(), CH = 2700;
+  if (!V3.r){ V3.r = new TH.WebGLRenderer({antialias:true}); V3.r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); box.prepend(V3.r.domElement); V3.r.domElement.style.display = 'block'; v3dCtl(); }
+  const sc = new TH.Scene(); sc.background = new TH.Color(tok.dark ? '#1b1f24' : '#f4f6f8'); sc.add(new TH.HemisphereLight(0xffffff, 0x777777, 0.9)); const dl = new TH.DirectionalLight(0xffffff, 0.6); dl.position.set(1, 2, 1.5); sc.add(dl);
+  const npi = G.L.findIndex(l => l.name === NP_LAYER), B = G.bounds, cx = (B.x0 + B.x1)/2*u, cy = (B.y0 + B.y1)/2*u, W = (x, y) => [x*u - cx, -(y*u - cy)];
+  // 床：見えているレイヤーの線（色はレイヤーの色）
+  const pos = [], col = [], c = new TH.Color(), sg = G.segs;
+  for (let i = 0; i < sg.length; i += SS){ const li = sg[i+4], l = G.L[li]; if (!l || !l.on || l.deleted || li === npi || gone(sg[i+7])) continue; const a = W(sg[i], sg[i+1]), b = W(sg[i+2], sg[i+3]); pos.push(a[0], 0, a[1], b[0], 0, b[1]); c.setStyle(colorCss(l.ck)); col.push(c.r, c.g, c.b, c.r, c.g, c.b); }
+  const lg = new TH.BufferGeometry(); lg.setAttribute('position', new TH.Float32BufferAttribute(pos, 3)); lg.setAttribute('color', new TH.Float32BufferAttribute(col, 3)); sc.add(new TH.LineSegments(lg, new TH.LineBasicMaterial({vertexColors:true, transparent:true, opacity:.75})));
+  // 1から引いた冷媒配管
+  const bb = new TH.Box3(), mat = new TH.MeshStandardMaterial({color:0xc8763a, metalness:.5, roughness:.4}), R = 14, nps = (npi >= 0 && G.L[npi].on && !G.L[npi].deleted) ? S.np.filter(p => !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no)) : [];
+  for (const p of nps){ const h = npH(p, p.pts.length - 1), P = [];
+    p.pts.forEach((q, i) => { const w = W(q[0], q[1]), hs = []; if (i > 0) hs.push(h[i-1]); if (i < p.pts.length - 1) hs.push(h[i]); [...new Set(hs)].forEach(z => P.push(new TH.Vector3(w[0], z, w[1]))); }); // 高さの変わる所はたて管
+    for (let i = 1; i < P.length; i++){ const a = P[i-1], b = P[i], L = a.distanceTo(b); if (L < 1) continue; const m = new TH.Mesh(new TH.CylinderGeometry(R, R, L, 12), mat); m.position.copy(a).add(b).multiplyScalar(.5); m.quaternion.setFromUnitVectors(new TH.Vector3(0, 1, 0), b.clone().sub(a).normalize()); sc.add(m);
+      const vt = Math.abs(a.y - b.y) > 1; sc.add(v3dLabel(TH, vt ? `たて ${Math.round(L)}` : `${Math.round(L)}・FL${Math.round(a.y)}`, a.clone().add(b).multiplyScalar(.5).add(new TH.Vector3(0, 120, 0)))); }
+    P.forEach(q => { const k = new TH.Mesh(new TH.SphereGeometry(R, 12, 8), mat); k.position.copy(q); sc.add(k); bb.expandByPoint(q); });
+    for (const q of p.pts){ const w = W(q[0], q[1]); const g = new TH.BufferGeometry().setFromPoints([new TH.Vector3(w[0], 0, w[1]), new TH.Vector3(w[0], Math.min(...h), w[1])]); sc.add(new TH.Line(g, new TH.LineDashedMaterial({color:0xc8763a, dashSize:80, gapSize:60})).computeLineDistances()); } } // 床からの点線（位置が分かるように）
+  // 追加機器：天井（2700）の下に箱
+  const kli = G.L.findIndex(l => l.name === KIKI_LAYER), km = new TH.MeshStandardMaterial({color:0x3b82f6, transparent:true, opacity:.55});
+  if (kli < 0 || (G.L[kli].on && !G.L[kli].deleted)) for (const k of S.kiki){ if (gone(KB + k.no)) continue; const w = W(k.x, k.y), hh = 300; const m = new TH.Mesh(new TH.BoxGeometry(k.w*u, hh, k.d*u), km); m.position.set(w[0], CH - hh/2, w[1]); sc.add(m); bb.expandByPoint(m.position); }
+  if (bb.isEmpty()){ bb.expandByPoint(new TH.Vector3((B.x0*u - cx), 0, -(B.y0*u - cy))); bb.expandByPoint(new TH.Vector3((B.x1*u - cx), 0, -(B.y1*u - cy))); }
+  V3.sc = sc; V3.bb = bb; V3.TH = TH;
+  $('#v3dN').textContent = nps.length ? `1から引いた冷媒配管 ${nps.length}本（数字は長さmm・FLは床からの高さ）。1本指で回す・2本指で動かす／ひろげる` : '1から引いた冷媒配管はありません（「ルート」→「＋ 1から引く」で引けます）。1本指で回す・2本指で動かす／ひろげる';
+  v3dView('iso');
 }
+function v3dLabel(TH, txt, at){ const cv2 = document.createElement('canvas'), g = cv2.getContext('2d'), f = 40; g.font = `bold ${f}px ${FONT}`; cv2.width = Math.ceil(g.measureText(txt).width) + 24; cv2.height = f + 18;
+  g.font = `bold ${f}px ${FONT}`; g.fillStyle = 'rgba(255,255,255,.92)'; g.fillRect(0, 0, cv2.width, cv2.height); g.fillStyle = '#7a3e12'; g.textBaseline = 'middle'; g.fillText(txt, 12, cv2.height/2 + 2);
+  const sp = new TH.Sprite(new TH.SpriteMaterial({map:new TH.CanvasTexture(cv2), depthTest:false, sizeAttenuation:false})); sp.position.copy(at); sp.scale.set(0.04*cv2.width/cv2.height, 0.04, 1); /* 画面の上でいつも同じ大きさ */ sp.renderOrder = 9; return sp; }
+function v3dView(k){ const TH = V3.TH, c = V3.bb.getCenter(new TH.Vector3()), sz = V3.bb.getSize(new TH.Vector3()); const box = $('#v3dS'), asp = box.clientWidth/Math.max(1, box.clientHeight), hf = Math.min(1, asp)*Math.tan(22.5*Math.PI/180); V3.tg = c; V3.dist = Math.max(1500, sz.length()/2)/hf*1.3; /* 全体が入る距離（縦長の画面は横の幅で） */ V3.th = k === 'top' ? 0 : -0.6; V3.ph = k === 'top' ? 0.001 : 1.0; v3dDraw(); }
+function v3dDraw(){ if (!V3.sc || $('#v3d').hidden) return; const TH = V3.TH, box = $('#v3dS'), w = box.clientWidth, h = box.clientHeight;
+  if (!V3.cam) V3.cam = new TH.PerspectiveCamera(45, 1, 10, 1e7); V3.cam.aspect = w/Math.max(1, h); V3.cam.near = Math.max(5, V3.dist/200); V3.cam.far = V3.dist*200; V3.cam.updateProjectionMatrix(); V3.r.setSize(w, h);
+  const d = V3.dist, t = V3.tg; V3.cam.position.set(t.x + d*Math.sin(V3.ph)*Math.sin(V3.th), t.y + d*Math.cos(V3.ph), t.z + d*Math.sin(V3.ph)*Math.cos(V3.th)); V3.cam.up.set(0, 1, 0); if (V3.ph < 0.01) V3.cam.up.set(-Math.sin(V3.th), 0, -Math.cos(V3.th)); V3.cam.lookAt(t); V3.r.render(V3.sc, V3.cam); }
+function v3dCtl(){ const el = V3.r.domElement, P = new Map(); let last = null;
+  const pan = (dx, dy) => { const TH = V3.TH, k = V3.dist/Math.max(1, el.clientHeight)*0.8, r = new TH.Vector3().setFromMatrixColumn(V3.cam.matrix, 0), up = new TH.Vector3().setFromMatrixColumn(V3.cam.matrix, 1); V3.tg.addScaledVector(r, -dx*k).addScaledVector(up, dy*k); };
+  const st2 = () => { const a = [...P.values()]; if (a.length >= 2) last = {d:Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y), x:(a[0].x + a[1].x)/2, y:(a[0].y + a[1].y)/2}; else if (a.length === 1) last = {x:a[0].x, y:a[0].y}; else last = null; };
+  el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); P.set(e.pointerId, {x:e.clientX, y:e.clientY, b:e.button}); st2(); });
+  el.addEventListener('pointermove', e => { if (!P.has(e.pointerId) || !last) return; P.set(e.pointerId, {x:e.clientX, y:e.clientY, b:P.get(e.pointerId).b}); const a = [...P.values()];
+    if (a.length >= 2){ const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y), x = (a[0].x + a[1].x)/2, y = (a[0].y + a[1].y)/2; if (last.d > 0) V3.dist = Math.max(300, Math.min(5e6, V3.dist*last.d/Math.max(1, d))); pan(x - last.x, y - last.y); last = {d, x, y}; }
+    else { const dx = a[0].x - last.x, dy = a[0].y - last.y; if (a[0].b === 2 || e.shiftKey) pan(dx, dy); else { V3.th -= dx*0.008; V3.ph = Math.max(0.001, Math.min(Math.PI/2 - 0.02, V3.ph - dy*0.008)); } last = {x:a[0].x, y:a[0].y}; }
+    v3dDraw(); });
+  const up = e => { P.delete(e.pointerId); st2(); }; el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('contextmenu', e => e.preventDefault());
+  el.addEventListener('wheel', e => { e.preventDefault(); V3.dist = Math.max(300, Math.min(5e6, V3.dist*Math.exp(e.deltaY*0.0015))); v3dDraw(); }, {passive:false});
+  window.addEventListener('resize', () => v3dDraw()); }
 $('#b3D').onclick = open3D;
-$('#v3dX').onclick = () => { $('#v3d').hidden = true; $('#v3dF').src = 'about:blank'; };
+$('#v3d').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) v3dView(b.dataset.v); });
+$('#v3dX').onclick = () => { $('#v3d').hidden = true; if (V3.sc){ V3.sc.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material){ if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); V3.sc = null; } };
 /* 曲げ共有（同じサイト akija114.github.io）の図面画面へ渡す：IndexedDB pbmShare / f / "dxf" → zumen.html?from=fix */
 async function sendToMage(name){
   if (!ON_MAGE_SITE){ toast('ここからは渡せません。曲げ共有のサイトの図面修正ページで開いてください'); const n = $('#mageNote'); if (n) n.style.color = 'var(--danger)'; return; }

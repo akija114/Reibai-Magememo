@@ -8,7 +8,9 @@
    ・単価・宛名・追加の行は、この端末（localStorage）に覚えておく */
 (function(){
 const LS=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},LSset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-const MT={tab:"mat",cut:LS("pbm_mt_cut",10)};
+const MT={tab:"mat",cut:LS("pbm_mt_cut",10),w:Object.assign({on:true,c:"vvf16",r:"05",rl:8},LS("pbm_mt_wire",{}))};
+/* 電線：連絡線（室内機⇔室外機）とリモコン線。連絡線の長さ＝冷媒配管の長さ＋2m（室内機1台ごと） */
+const WIRE_C={vvf16:"VVF 1.6mm-3芯（VA）",vvr20:"VVR 2.0mm-3芯"},WIRE_R={"05":"リモコン線 0.5mm 2芯","075":"リモコン線 0.75mm 2芯"};
 const BANDS=[20,25,30,40,50,65,75,100];
 const bandUp=sz=>BANDS[Math.min(BANDS.length-1,BANDS.indexOf(sz)+1)]||sz;   // ACドレン：保温のぶん1ランク上
 const bun=i=>{const n=SIZES[i]?SIZES[i][0]:"?";return n.replace(/\s*\(.*\)/,"")};
@@ -37,6 +39,13 @@ function mtCollect(){const G=[];const sec=(t,items,note)=>{if(items.length)G.pus
  if(sup.h)Object.keys(supSz).forEach(gs=>{const n=supSz[gs];if(!n)return;R.push({n:`冷媒の吊り金具（共吊り・ガスφ${phi(+gs)}の保温外径）`,q:n,u:"個",d:"横引きの支持（縦は下の立てバンド）"})});
  if(sup.v)R.push({n:"立てバンド（冷媒）",q:sup.v,u:"個",d:"縦配管の支持"});
  sec("冷媒配管",R,bendInfo.length?"ベンダーで曲げる所："+bendInfo.join("・"):"");
+ /* --- 電線（連絡線・リモコン線）：図面・機器の品番（室内機・室外機）と冷媒配管の長さから --- */
+ try{const W=MT.w,totL=Object.values(pair).reduce((a,b)=>a+b,0);if(W.on&&totL>0){const nIn=Math.max(1,typeof leaves==="function"?leaves().length:1),Wi=[];
+  const U=st.units||{},bi=(st.bld||[]).find(o=>o.k==="ind"),bo=(st.bld||[]).find(o=>o.k==="out");
+  const inN=(typeof CAS2M!=="undefined"&&(CAS2M[U.ms]||(bi&&CAS2M[bi.m])))?(CAS2M[U.ms]||CAS2M[bi.m]).n:"",outN=(typeof OUTM!=="undefined"&&(OUTM[U.oe]||(bo&&OUTM[bo.m])))?(OUTM[U.oe]||OUTM[bo.m]).n:"";
+  const wl=Math.ceil(totL/1000+2*nIn);Wi.push({n:`連絡線 ${WIRE_C[W.c]||WIRE_C.vvf16}`,q:wl,u:"m",d:`冷媒配管 ${fmtM(totL)}＋2m${nIn>1?"×室内機"+nIn+"台":""}（室内機⇔室外機）`});
+  const rl=Math.max(0,Math.round(+W.rl||0));if(rl)Wi.push({n:WIRE_R[W.r]||WIRE_R["05"],q:rl*nIn,u:"m",d:`室内機⇔リモコン 約${rl}m${nIn>1?"×"+nIn+"台":""}（下の欄で変えられます）`});
+  sec("電線（連絡線・リモコン線）",Wi,[inN&&"室内機 "+inN,outN&&"室外機 "+outN].filter(Boolean).join("／")+(inN||outN?" の配線。":"")+"太さ・芯数は機種の据付説明書で確認してください")}}catch(e){console.warn("mt wire",e)}
  /* --- ドレン --- */
  const Dl=[];let dSup=0;
  if(st.drain&&typeof DRN==="function"&&DRN().rows.length&&DRN().show!==false){const D=DRN(),M=DR_MAT[D.mat],ac=D.mat==="AC",len={};let sz=D.sz;
@@ -115,9 +124,15 @@ function mtRender(){const ov=mtSheet(),b=ov.querySelector("#mtBody");ov.querySel
  if(MT.tab==="mat"){const G=mtCollect();
   if(!G.length){b.innerHTML=`<p>まだ配管がありません。曲げ共有で配管（とドレン）を入れると、ここに材料が出ます。</p>`;return}
   b.innerHTML=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13.5px">切りしろ <input id="mtCut" inputmode="numeric" value="${MT.cut}" style="width:56px"> %（足してから定尺で割り、半端なら1本多く）</div>`+
+   `<div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:12px;padding:8px;margin-top:8px;font-size:13.5px"><label style="display:flex;align-items:center;gap:6px;font-weight:800"><input id="mtWOn" type="checkbox" ${MT.w.on?"checked":""} style="width:22px;height:22px">🔌 電線も拾う</label>
+   ${MT.w.on?`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px">連絡線 <select id="mtWC" style="height:36px;border-radius:8px;font-size:14px">${Object.entries(WIRE_C).map(([k,n])=>`<option value="${k}"${k===MT.w.c?" selected":""}>${n}</option>`).join("")}</select></div>
+   <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px">リモコン線 <select id="mtWR" style="height:36px;border-radius:8px;font-size:14px">${Object.entries(WIRE_R).map(([k,n])=>`<option value="${k}"${k===MT.w.r?" selected":""}>${n.replace("リモコン線 ","")}</option>`).join("")}</select> 長さ <input id="mtWL" inputmode="numeric" value="${MT.w.rl}" style="width:52px"> m</div>
+   <div style="font-size:12px;color:#64748b;margin-top:4px">連絡線の長さは、冷媒配管の長さ＋2m（室内機1台ごと）で出します</div>`:""}</div>`+
    G.map(g=>`<h4>${g.t}</h4><table><tr><th>品名</th><th class="q">数</th></tr>${g.items.map(it=>`<tr><td>${esc(it.n)}${it.d?`<br><small style="color:#64748b">${esc(it.d)}</small>`:""}</td><td class="q">${it.q} ${it.u}</td></tr>`).join("")}</table>${g.note?`<div style="font-size:12.5px;color:#475569;margin-top:4px">${esc(g.note)}</div>`:""}`).join("")+
    `<div style="display:flex;gap:6px;margin-top:10px"><button id="mtCopy" style="flex:1;height:44px;border-radius:12px;background:#0891b2;color:#fff;font-weight:800">📋 コピー（LINE・メモに貼る）</button></div>
    <p style="font-size:12px;color:#64748b;margin-top:6px">数は今の配管・支持のルールからの目安です。品番・サイズ・在庫は現場とメーカーで確認してください。</p>`;
+  const wS=()=>{LSset("pbm_mt_wire",MT.w);mtRender()},q=id=>b.querySelector(id);
+  q("#mtWOn").onchange=e=>{MT.w.on=e.target.checked;wS()};if(q("#mtWC"))q("#mtWC").onchange=e=>{MT.w.c=e.target.value;wS()};if(q("#mtWR"))q("#mtWR").onchange=e=>{MT.w.r=e.target.value;wS()};if(q("#mtWL"))q("#mtWL").onchange=e=>{MT.w.rl=Math.max(0,Math.min(200,parseInt(String(e.target.value).normalize("NFKC"))||0));wS()};
   const c=b.querySelector("#mtCut");c.onchange=()=>{MT.cut=Math.max(0,Math.min(50,parseInt(c.value)||0));LSset("pbm_mt_cut",MT.cut);mtRender()};
   b.querySelector("#mtCopy").onclick=()=>{const t=mtText(G);try{navigator.clipboard.writeText(t).then(()=>toast("コピーしました"),()=>prompt("コピーしてください",t))}catch(e){prompt("コピーしてください",t)}};return}
  if(MT.tab==="tk"){TK.render(b,mtRender);return}

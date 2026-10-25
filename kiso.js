@@ -209,6 +209,100 @@ const powerCableGuide = [
 ];
 window.airConditionerMaster = airConditionerMaster; window.powerCableGuide = powerCableGuide;
 
+/* ===== 線の絵（21種類）：アプリの中で描く図（1枚 1〜3KB・暗い画面でも色が合う）。色：ガス管＝青・液管＝赤・ドレン＝緑・電線＝橙・伝送線＝紫・リモコン線＝灰の点線・冷風＝水色・温風＝赤 ===== */
+const KISO_SVG = (() => {
+ const C = {ink:"var(--ink,#0f172a)", sub:"var(--sub,#5b6b7e)", gas:"var(--gas,#2563eb)", liq:"var(--liq,#dc2626)", dr:"var(--dr,#16a34a)", el:"#f59e0b", tr:"#7c3aed", rc:"#94a3b8", air:"#0ea5e9", hot:"#ef4444", card:"var(--card,#fff)", pn:"var(--panel,#e2e8f0)", bd:"var(--body,#94a3b8)", gs:"#eab308"};
+ const r = (x, y, w, h, f, s, rx) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx == null ? 3 : rx}" fill="${f || C.card}" stroke="${s || C.ink}" stroke-width="1.6"/>`;
+ const l = (x1, y1, x2, y2, c, w, d) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c || C.ink}" stroke-width="${w || 1.6}" stroke-linecap="round"${d ? ` stroke-dasharray="${d}"` : ""}/>`;
+ const p = (d, c, w, f, da) => `<path d="${d}" fill="${f || "none"}" stroke="${c || C.ink}" stroke-width="${w || 1.6}" stroke-linejoin="round" stroke-linecap="round"${da ? ` stroke-dasharray="${da}"` : ""}/>`;
+ const t = (x, y, s, sz, a, c, b) => `<text x="${x}" y="${y}" font-size="${sz || 10}" text-anchor="${a || "middle"}" fill="${c || C.sub}" font-weight="${b ? 800 : 600}">${s}</text>`;
+ const c = (x, y, rr, f, s) => `<circle cx="${x}" cy="${y}" r="${rr}" fill="${f || "none"}" stroke="${s || C.ink}" stroke-width="1.6"/>`;
+ const a = (x1, y1, x2, y2, col, w) => { const an = Math.atan2(y2 - y1, x2 - x1), k = 6, s = 3.5; const p1 = [x2 - k*Math.cos(an) + s*Math.sin(an), y2 - k*Math.sin(an) - s*Math.cos(an)], p2 = [x2 - k*Math.cos(an) - s*Math.sin(an), y2 - k*Math.sin(an) + s*Math.cos(an)];
+  return l(x1, y1, x2 - 3*Math.cos(an), y2 - 3*Math.sin(an), col, w || 2) + `<polygon points="${x2},${y2} ${p1[0].toFixed(1)},${p1[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}" fill="${col}"/>`; };
+ const out = (x, y, w, h, lab) => r(x, y, w || 56, h || 44, C.pn) + c(x + (w || 56)*0.36, y + (h || 44)/2, (h || 44)*0.32) + l(x + (w || 56)*0.36 - 7, y + (h || 44)/2 - 7, x + (w || 56)*0.36 + 7, y + (h || 44)/2 + 7) + l(x + (w || 56)*0.36 - 7, y + (h || 44)/2 + 7, x + (w || 56)*0.36 + 7, y + (h || 44)/2 - 7) + [0, 1, 2].map(i => l(x + (w || 56)*0.72, y + 10 + i*((h || 44) - 20)/2, x + (w || 56) - 6, y + 10 + i*((h || 44) - 20)/2, C.sub, 1)).join("") + (lab ? t(x + (w || 56)/2, y + (h || 44) + 12, lab) : "");
+ const pipe = (d) => p(d, C.gas, 2.2) + p(d.replace(/(-?\d+(\.\d+)?),(-?\d+(\.\d+)?)/g, (m, x, _, y) => `${+x + 3},${+y + 3}`), C.liq, 1.6); // ガス管と液管を並べて
+ const lg = (items, y) => { let x = 8; return items.map(([col, s, da]) => { const g = l(x, y, x + 16, y, col, 2.4, da) + t(x + 20, y + 3.5, s, 9, "start"); x += 26 + s.length*9.5; return g; }).join(""); };
+ const svg = (b, h) => `<svg viewBox="0 0 320 ${h || 180}" class="ksSvg" role="img" aria-label="図">${b}</svg>`;
+ const room = (x, y, w, h) => p(`M${x},${y} H${x + w} V${y + h} H${x} Z`, C.sub, 1.2);
+ const ceil = (x1, x2, y) => l(x1, y, x2, y, C.sub, 1.2, "5 3") + t(x2 - 2, y - 3, "天井", 9, "end");
+ const person = (x, y) => c(x, y - 26, 5) + l(x, y - 21, x, y - 8) + l(x, y - 8, x - 5, y) + l(x, y - 8, x + 5, y) + l(x - 6, y - 17, x + 6, y - 17);
+ const bolts = (x1, x2, y1, y2) => l(x1, y1, x1, y2, C.liq, 1.4) + l(x2, y1, x2, y2, C.liq, 1.4);
+ const D = {};
+ D.ehp_general = () => svg(
+  r(10, 20, 140, 120, "none", C.sub, 10) + t(80, 36, "EHP（電気）", 12, "middle", C.ink, 1) + r(26, 56, 46, 30) + t(49, 75, "モーター", 9) + r(92, 56, 46, 30) + t(115, 75, "圧縮機", 9) + a(72, 71, 92, 71, C.ink) + p("M26,100 h46", C.el, 2.4) + t(49, 114, "⚡ 電気で回す", 10, "middle", C.el, 1) + l(49, 100, 49, 86, C.el, 2.4) +
+  r(170, 20, 140, 120, "none", C.sub, 10) + t(240, 36, "GHP（ガス）", 12, "middle", C.ink, 1) + r(186, 56, 46, 30) + t(209, 75, "エンジン", 9) + r(252, 56, 46, 30) + t(275, 75, "圧縮機", 9) + a(232, 71, 252, 71, C.ink) + p("M186,100 h46", C.gs, 3) + t(209, 114, "🔥 ガスで回す", 10, "middle", C.gs, 1) + l(209, 100, 209, 86, C.gs, 3) +
+  t(160, 158, "冷媒で熱を運ぶしくみ（ヒートポンプ）は同じ", 10, "middle", C.ink) + t(160, 172, "ちがうのは圧縮機を回す力（電気かガスか）", 10, "middle", C.ink), 180);
+ D.ghp = () => svg(
+  out(18, 60, 74, 56) + t(55, 52, "GHP室外機", 10) + r(28, 74, 26, 18, C.card) + t(41, 87, "E", 10, "middle", C.ink, 1) + p("M10,150 H40 V116", C.gs, 3) + t(14, 165, "ガス管", 9, "start", C.gs, 1) + p("M60,150 V116", C.el, 2) + t(66, 165, "電気は少し", 9, "start", C.el, 1) +
+  pipe("M92,80 H140 V30 H300") + [170, 230, 290].map(x => l(x, 30, x, 46, C.gas, 2) + r(x - 22, 46, 44, 14, C.card) + a(x - 14, 64, x - 22, 76, C.air) + a(x + 14, 64, x + 22, 76, C.air)).join("") + c(140, 30, 3, C.ink) + ceil(150, 315, 42) + t(230, 100, "室内機をたくさんつなげる", 10) + t(230, 114, "暖房が強く、霜取りで止まりにくい", 10));
+ D.pckg_general = () => svg(
+  room(120, 20, 190, 120) + ceil(120, 310, 40) + r(185, 40, 60, 14, C.card) + r(178, 54, 74, 5, C.pn) + a(190, 62, 172, 82, C.air) + a(240, 62, 258, 82, C.air) + out(20, 96, 60, 44, "室外機") +
+  pipe("M80,108 H105 V30 H185 V40") + p("M80,124 H100 V34 H230 V40", C.el, 2) + p("M245,50 H296 V90", C.rc, 1.8, "none", "4 3") + r(290, 90, 12, 18, C.card) + t(296, 120, "リモコン", 9) + l(20, 140, 310, 140, C.sub, 1.2) +
+  lg([[C.gas, "ガス管"], [C.liq, "液管"], [C.el, "内外接続線"], [C.rc, "リモコン線", "4 3"]], 165));
+ D.bldg_multi = () => svg(
+  out(20, 8, 64, 40, "") + t(52, 60, "室外機（屋上）", 9) + pipe("M84,24 H110 V150") + [52, 98, 144].map((y, i) => c(110, y, 4, C.card, C.ink) + pipe(`M113,${y} H${170 + i*0} V${y}`) + pipe(`M113,${y} H300`) + [190, 260].map(x => r(x - 20, y + 3, 40, 12, C.card)).join("") + (i < 2 ? l(120, y + 24, 316, y + 24, C.sub, 1, "4 3") : "")).join("") +
+  p("M84,40 H100 V158 H306", C.tr, 1.6) + t(124, 48, "分岐管", 9, "start", C.ink, 1) + lg([[C.gas, "冷媒配管"], [C.tr, "伝送線（いもづる）"]], 174), 182);
+ D.central = () => svg(
+  r(12, 100, 70, 44, C.pn) + t(47, 126, "チラー", 11, "middle", C.ink, 1) + t(47, 158, "冷水・温水をつくる", 9) + c(102, 88, 9, C.card) + t(102, 92, "P", 9, "middle", C.ink, 1) + t(102, 72, "ポンプ", 9) +
+  p("M82,112 H93 M111,88 H140 V40 H300", C.air, 2.4) + p("M82,132 H130 V50 H300", C.hot, 2) + r(150, 54, 60, 34, C.card) + t(180, 75, "AHU", 11, "middle", C.ink, 1) + a(180, 88, 180, 104, C.air) + t(180, 116, "ダクトで各階へ", 9) +
+  r(230, 100, 34, 16, C.card) + t(247, 112, "FCU", 9, "middle", C.ink, 1) + r(272, 100, 34, 16, C.card) + t(289, 112, "FCU", 9, "middle", C.ink, 1) + l(247, 50, 247, 100, C.air, 1.6) + l(289, 50, 289, 100, C.air, 1.6) +
+  lg([[C.air, "冷水（行き）"], [C.hot, "還り"]], 172), 180);
+ D.watercooled_pckg = () => svg(
+  p("M30,20 L100,20 L90,62 L40,62 Z", C.ink, 1.6, C.pn) + c(65, 30, 8) + t(106, 44, "冷却塔（屋上）", 9, "start") + l(10, 86, 310, 86, C.sub, 1.4) + t(306, 82, "屋上", 9, "end") +
+  p("M50,62 V120 H120", C.air, 2.4) + p("M80,62 V112 H120", C.hot, 2) + r(120, 100, 64, 50, C.pn) + t(152, 122, "水冷", 10, "middle", C.ink, 1) + t(152, 136, "パッケージ", 9) + t(152, 164, "機械室", 9) +
+  p("M184,112 H220 V100", C.air, 2) + r(220, 94, 80, 12, C.card) + a(240, 110, 230, 124, C.air) + a(280, 110, 290, 124, C.air) + t(260, 140, "部屋へ（ダクト）", 9) + lg([[C.air, "冷却水"]], 176), 182);
+ D.special_ac = () => svg(
+  r(14, 30, 56, 110, C.pn) + t(42, 80, "精密", 10, "middle", C.ink, 1) + t(42, 94, "空調", 10, "middle", C.ink, 1) + l(10, 140, 310, 140, C.ink) + l(10, 156, 310, 156, C.sub, 1.2, "4 3") + t(306, 168, "二重床（床下を風が通る）", 9, "end") +
+  a(42, 142, 42, 152, C.air) + a(70, 150, 150, 150, C.air) + a(150, 150, 260, 150, C.air) + [120, 180, 240].map(x => r(x, 50, 34, 88, C.card) + [0, 1, 2, 3].map(i => l(x + 5, 62 + i*18, x + 29, 62 + i*18, C.sub, 1)).join("") + a(x + 17 - 22, 138, x + 17 - 22, 120, C.air) + a(x + 17, 46, x + 17, 22, C.hot)).join("") +
+  a(250, 18, 80, 18, C.hot) + t(200, 12, "暖まった空気を吸い込む", 9) + t(160, 186, "サーバー室などを1年中冷やす", 10, "middle", C.ink), 194);
+ D.spot_cooler = () => svg(
+  r(40, 70, 50, 80, C.pn) + t(65, 112, "本体", 10, "middle", C.ink, 1) + l(10, 150, 310, 150, C.sub, 1.2) + p("M65,70 C65,40 120,40 150,60", C.ink, 6, "none") + p("M65,70 C65,40 120,40 150,60", C.card, 3.5) + a(152, 62, 190, 80, C.air, 2.4) + person(215, 150) +
+  p("M80,70 V30", C.ink, 6) + p("M80,70 V30", C.card, 3.5) + a(80, 28, 80, 8, C.hot, 2.4) + t(92, 18, "熱い排気（外へ出す）", 9, "start", C.hot, 1) + t(205, 60, "人の所だけ冷やす", 10, "middle", C.ink, 1) + p("M40,140 H18 V150", C.el, 2) + t(8, 166, "コンセント", 9, "start"));
+ D.cassette_4way = () => svg(
+  l(10, 16, 200, 16, C.ink, 2) + t(14, 12, "スラブ（上の階の床）", 9, "start") + bolts(60, 150, 16, 50) + t(158, 34, "吊りボルト W3/8", 9, "start", C.liq) + r(50, 48, 110, 30, C.pn) + t(105, 67, "本体", 10, "middle", C.ink, 1) + ceil(10, 200, 80) + r(40, 78, 130, 6, C.card) +
+  a(52, 88, 30, 112, C.air) + a(158, 88, 180, 112, C.air) + t(105, 104, "パネル", 9) + t(105, 128, "横から見た図", 9) +
+  r(226, 50, 70, 70, C.card) + r(244, 68, 34, 34, C.pn, C.sub) + a(261, 50, 261, 28, C.air) + a(261, 120, 261, 142, C.air) + a(226, 85, 204, 85, C.air) + a(296, 85, 318, 85, C.air) + t(261, 162, "下から見た図（4方向）", 9) +
+  p("M150,64 H190", C.dr, 2) + t(194, 62, "ドレン", 9, "start", C.dr, 1), 172);
+ D.cassette_2way_1way = () => svg(
+  r(40, 50, 100, 56, C.card) + r(54, 70, 72, 16, C.pn, C.sub) + a(90, 50, 90, 26, C.air) + a(90, 106, 90, 130, C.air) + t(90, 150, "2方向（両側へ）", 10, "middle", C.ink, 1) +
+  r(190, 50, 100, 46, C.card) + r(204, 60, 72, 12, C.pn, C.sub) + a(240, 96, 240, 124, C.air) + l(176, 40, 304, 40, C.sub, 1.4) + t(240, 34, "壁ぎわ・窓ぎわ", 9) + t(240, 150, "1方向（片側へ）", 10, "middle", C.ink, 1) + t(160, 172, "下から見た図", 9), 180);
+ D.ceiling_suspended = () => svg(
+  l(10, 16, 310, 16, C.ink, 2) + ceil(10, 310, 40) + bolts(70, 170, 16, 60) + r(56, 58, 128, 34, C.pn) + t(120, 79, "天吊形（天井の下に吊る）", 9, "middle", C.ink, 1) + a(184, 82, 300, 110, C.air, 2.4) + a(184, 88, 280, 130, C.air, 2) + t(250, 150, "風を遠くまで飛ばす", 10) + p("M56,70 H30 V160", C.dr, 2) + t(34, 172, "ドレンは自然勾配", 9, "start", C.dr, 1) + l(10, 160, 310, 160, C.sub, 1.2), 180);
+ D.wall_mounted = () => svg(
+  l(160, 10, 160, 160, C.ink, 3) + t(166, 20, "壁", 9, "start") + r(60, 40, 96, 34, C.card) + l(66, 66, 150, 66, C.sub, 1) + a(80, 80, 60, 112, C.air) + a(110, 80, 104, 116, C.air) + t(90, 26, "室内機（据付板で壁に掛ける）", 9) +
+  pipe("M156,64 H220 V120") + c(160, 64, 6, "none", C.sub) + t(176, 54, "壁の穴 φ65〜75", 9, "start") + out(220, 118, 60, 40, "室外機") + p("M156,70 H200 V150", C.dr, 1.6) + l(10, 160, 310, 160, C.sub, 1.2), 178);
+ D.floor_standing = () => svg(
+  l(10, 160, 310, 160, C.ink, 2) + l(200, 10, 200, 160, C.ink, 2) + r(120, 30, 70, 130, C.pn) + [0, 1, 2].map(i => l(130, 44 + i*8, 180, 44 + i*8, C.sub, 1)).join("") + a(120, 44, 80, 30, C.air, 2.4) + a(120, 56, 70, 56, C.air, 2) + a(70, 148, 118, 148, C.sub, 1.6) + t(80, 140, "吸い込み", 9) + t(70, 22, "吹き出し", 9) +
+  p("M190,40 H200", C.liq, 3) + t(206, 44, "転倒防止金具", 9, "start", C.liq, 1) + t(155, 176, "床置形（床に置く・ダクトなし）", 9), 182);
+ D.duct_type = () => svg(
+  l(10, 16, 310, 16, C.ink, 2) + ceil(10, 310, 90) + bolts(120, 190, 16, 42) + r(110, 40, 90, 34, C.pn) + t(155, 61, "本体", 10, "middle", C.ink, 1) + p("M200,56 H260 V88", C.ink, 6) + p("M200,56 H260 V88", C.card, 3.5) + r(244, 88, 32, 5, C.ink, C.ink, 1) + a(260, 96, 260, 122, C.air) + t(260, 136, "吹出口", 9) +
+  p("M110,56 H50 V88", C.ink, 6) + p("M110,56 H50 V88", C.card, 3.5) + r(34, 88, 32, 5, C.sub, C.sub, 1) + a(50, 122, 50, 98, C.sub) + t(50, 136, "吸込口", 9) + r(140, 88, 34, 5, "none", C.liq, 0) + t(157, 104, "点検口", 9, "middle", C.liq, 1) + t(160, 160, "本体は天井の中・ダクトで吹出口へ", 10), 172);
+ D.kitchen_ac = () => svg(
+  l(10, 16, 310, 16, C.ink, 2) + bolts(150, 240, 16, 40) + r(136, 38, 118, 30, C.pn) + t(195, 57, "厨房用（天吊）", 9, "middle", C.ink, 1) + r(136, 68, 118, 6, C.dr, C.dr, 1) + t(195, 88, "耐油フィルター", 9, "middle", C.dr, 1) + a(254, 60, 300, 90, C.air) +
+  r(40, 120, 70, 30, C.card) + t(75, 140, "コンロ", 9) + p("M58,120 c-6,-10 6,-16 0,-26 M75,120 c-6,-10 6,-16 0,-26 M92,120 c-6,-10 6,-16 0,-26", C.sub, 1.4) + t(75, 84, "油煙・湯気", 9) + l(10, 150, 310, 150, C.sub, 1.2), 165);
+ D.builtin = () => svg(
+  l(10, 16, 310, 16, C.ink, 2) + ceil(10, 310, 70) + bolts(110, 210, 16, 40) + r(100, 38, 120, 30, C.pn) + t(160, 57, "本体（天井の中）", 9, "middle", C.ink, 1) + r(100, 70, 40, 5, C.ink, C.ink, 1) + a(120, 78, 108, 104, C.air) + t(118, 118, "吹出口", 9) +
+  r(180, 70, 40, 5, C.sub, C.sub, 1) + a(200, 104, 200, 80, C.sub) + t(200, 118, "吸込口", 9) + r(240, 70, 40, 5, "none", C.liq, 0) + t(260, 86, "点検口", 9, "middle", C.liq, 1) + t(160, 150, "吹出口・吸込口だけ天井に見える", 10), 165);
+ D.erv = () => svg(
+  r(110, 50, 100, 70, C.pn) + p("M160,58 L196,85 L160,112 L124,85 Z", C.sub, 1.4) + t(160, 89, "熱交換", 9, "middle", C.ink, 1) + l(60, 10, 60, 134, C.ink, 3) + t(56, 22, "外", 10, "end", C.ink, 1) + t(64, 22, "部屋", 10, "start", C.ink, 1) +
+  a(110, 66, 20, 66, C.hot) + t(10, 60, "EA 排気", 9, "start", C.hot, 1) + a(20, 104, 110, 104, C.dr) + t(10, 118, "OA 外気", 9, "start", C.dr, 1) +
+  a(210, 104, 300, 104, C.gas) + t(296, 118, "SA 給気", 9, "end", C.gas, 1) + a(300, 66, 210, 66, "#ea580c") + t(296, 60, "RA 還気", 9, "end", "#ea580c", 1) + t(160, 150, "換気しながら熱と湿気を戻す（冷暖房はしない）", 10), 168);
+ D.air_curtain = () => svg(
+  l(80, 30, 80, 160, C.ink, 3) + l(240, 30, 240, 160, C.ink, 3) + l(10, 160, 310, 160, C.sub, 1.2) + r(84, 30, 152, 18, C.pn) + t(160, 43, "エアカーテン", 9, "middle", C.ink, 1) + [100, 130, 160, 190, 220].map(x => a(x, 52, x, 150, C.air, 1.8)).join("") +
+  a(10, 100, 60, 100, C.hot) + t(14, 92, "外の空気・虫", 9, "start", C.hot, 1) + l(60, 92, 70, 108, C.hot, 2) + l(70, 92, 60, 108, C.hot, 2) + t(276, 100, "冷暖房を", 9) + t(276, 112, "逃がさない", 9) + t(160, 176, "出入口（上から風を吹き下ろす）", 9), 184);
+ D.oa_unit = () => svg(
+  a(10, 70, 46, 70, C.dr, 2.2) + t(12, 62, "外気", 9, "start", C.dr, 1) + r(46, 50, 90, 40, C.pn) + t(91, 67, "外調機", 10, "middle", C.ink, 1) + t(91, 81, "冷やす・温める・加湿", 8) + p("M136,70 H300", C.ink, 6) + p("M136,70 H300", C.card, 3.5) +
+  [180, 240, 300].map(x => a(x, 74, x, 104, C.air, 1.8) + r(x - 22, 108, 44, 12, C.card) + t(x, 134, "部屋", 9)).join("") + t(160, 160, "外気を整えてから部屋に入れる（部屋のエアコンが楽になる）", 9.5), 170);
+ D.radiant = () => svg(
+  room(20, 20, 280, 130) + p("M30,30 " + Array.from({length:13}, (_, i) => `h20 v${i % 2 ? -8 : 8}`).join(" "), C.air, 2) + t(160, 52, "天井放射パネル（冷水・温水が通る）", 9, "middle", C.ink, 1) +
+  [80, 160, 240].map(x => p(`M${x},62 q4,6 0,12 q-4,6 0,12 q4,6 0,12`, C.air, 1.6)).join("") + person(160, 150) + p("M30,142 " + Array.from({length:13}, (_, i) => `h20 v${i % 2 ? 6 : -6}`).join(" "), C.hot, 2) + t(160, 168, "床放射（床暖房）", 9, "middle", C.hot, 1) + t(160, 184, "風を使わず、面から熱を伝える（静か）", 9), 190);
+ D.thermal_storage = () => svg(
+  r(10, 14, 140, 140, "none", C.sub, 10) + t(80, 32, "🌙 夜：氷をつくる", 11, "middle", C.ink, 1) + out(20, 60, 50, 36) + a(72, 78, 92, 78, C.air) + r(94, 54, 46, 60, C.card) + [0, 1, 2].map(i => r(100 + (i % 2)*12, 62 + i*16, 18, 12, C.air, C.air, 2)).join("") + t(117, 130, "蓄熱槽", 9) + t(80, 148, "安い夜の電気", 9) +
+  r(170, 14, 140, 140, "none", C.sub, 10) + t(240, 32, "☀ 昼：氷で冷やす", 11, "middle", C.ink, 1) + r(180, 54, 46, 60, C.card) + r(190, 80, 22, 14, C.air, C.air, 2) + a(228, 84, 252, 84, C.air) + r(254, 72, 46, 22, C.card) + t(277, 87, "室内機", 8) + a(266, 98, 260, 116, C.air) + a(288, 98, 294, 116, C.air) + t(240, 148, "昼の電気を減らす", 9), 165);
+ return D;
+})();
+window.KISO_SVG = KISO_SVG;
+
 /* ===== 画面：機器の画面（kiki.html）に「📘 空調の種類と電線」ボタンと、分類ごとの説明（開け閉め） ===== */
 (function(){
  if (typeof document === "undefined") return;
@@ -230,11 +324,12 @@ window.airConditionerMaster = airConditionerMaster; window.powerCableGuide = pow
 #ksOv .ksTag{display:inline-block;font-size:12px;border:1px solid var(--line,#c9d5e0);border-radius:999px;padding:1px 8px;margin:2px 4px 2px 0;color:var(--sub,#5b6b7e)}
 #ksOv table{width:100%;border-collapse:collapse;font-size:13.5px}#ksOv td{border-top:1px solid var(--line,#c9d5e0);padding:6px 4px;vertical-align:top}#ksOv td:first-child{white-space:nowrap;font-weight:800;width:1%}
 #ksOv .ksPro li::marker{content:"○ "}#ksOv .ksCon li::marker{content:"△ "}
+#ksOv .ksFig{background:var(--bg,#eef3f7);border-radius:12px;padding:6px;margin:0 0 10px}#ksOv .ksSvg{width:100%;height:auto;display:block;font-family:inherit}
 #ksOv .ksWarn{font-size:12.5px;color:var(--sub,#5b6b7e);background:var(--card,#fff);border:1.5px dashed var(--line,#c9d5e0);border-radius:12px;padding:8px 10px;margin-top:8px;line-height:1.6}`;
  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
  const li = a => (a || []).map(x => `<li>${esc(x)}</li>`).join("");
  const card = d => { const e = d.electrical_spec || {}, row = (k, v) => v ? `<tr><td>${k}</td><td>${esc(v)}</td></tr>` : "";
-  return `<details id="ks_${d.id}"><summary>${esc(d.name)}</summary><div class="ksB"><p>${esc(d.description)}</p>
+  return `<details id="ks_${d.id}"><summary>${esc(d.name)}</summary><div class="ksB">${typeof KISO_SVG !== "undefined" && KISO_SVG[d.id] ? `<div class="ksFig">${KISO_SVG[d.id]()}</div>` : ""}<p>${esc(d.description)}</p>
    <h4>🏢 主な使い道・置く場所</h4><div>${(d.usage_scene || []).map(x => `<span class="ksTag">${esc(x)}</span>`).join("")}</div>
    <h4>👍 よい所・👎 気をつける所</h4><ul class="ksPro">${li(d.pros_cons && d.pros_cons.pros)}</ul><ul class="ksCon">${li(d.pros_cons && d.pros_cons.cons)}</ul>
    <h4>⚡ 電線・配線の目安</h4><table>${row("電源", e.power)}${row("内外接続線", e.inter_unit)}${row("伝送線", e.transmission)}${row("リモコン線", e.remote)}${row("ブレーカー", e.breaker)}</table>${e.notes && e.notes.length ? `<ul>${li(e.notes)}</ul>` : ""}

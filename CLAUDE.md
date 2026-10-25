@@ -24,6 +24,7 @@
 | `mitsumori.js` | 🧾 材料拾い・見積もり・単価表。電線はエアコンの種類（ルーム／ハウジング／パッケージ／ビルマル・`WTYPE`）で要る線が変わり、種類は室内機・室外機の品番から自動（`wDetect`、手で選び直せる）。線ごとに太さ・長さを選べる（`WROW`・`pbm_mt_wire`）。ビルマルは遮断弁あり（室内機ごとに遮断弁へ3芯を1本・ダイキンは初めからあり・`wSv`）。連絡線の長さ＝冷媒配管の長さ＋2m（室内機1台ごと）。図面・機器の室内機・室外機の品番を電線の欄に出す |
 | `genba.html`/`genba.js` | 📋 現場：現場カード（日時・住所・駐車場・メンバー⭐・作業内容）と LINE に送る文章。データは IndexedDB「genba」（sites・photos）。`core.js` は読まない |
 | `pipes.js` | 📐 図面の配管（曲げ共有だけ）：図面編集の3Dの「曲げ共有へ」（`sendPipes`・IndexedDB pbmShare の "pipes"）→ `index.html?from=cadpipes` で受け取り、`localStorage["pbm_mp"]` に別に持つ（st の形は変えない）。3Dの上に「📐 図面の配管」の一覧、配管をタップ（一覧・3Dの灰色の管）すると `mpApply` でその配管の始まり（室内機の配管の口）を起点・最初の向きを +x にして st.rows（点の並び→曲げ）・st.bld（壁・ユニットバス・ほかの室内機）・st.units（始まりの室内機の機種）・st.gnd を作り直す。ほかの配管は build3D のあとに灰色の管で足す |
+| `kiso.js` | 📘 空調の種類と電線（機器の画面の品番の欄の下のボタン）：`airConditionerMaster`（id・name・category＝システム／形状／関連設備・description・usage_scene・pros_cons・electrical_spec＝power／inter_unit／transmission／remote／breaker／notes・material_notes）と `powerCableGuide`（三相200V の電線の目安）。分類のタブ・さがす・開け閉め。`kiki.html?kiso=<id>` でその項目を開く。電線は目安（最後はメーカーの据付説明書・電気設計図）の注意を必ず出す |
 | `sw.js` | オフライン用のキャッシュ |
 | `kiki.html`（品番でさがす） | 🔩 機器の画面の上に品番の欄（`qGo`）。ハイフン・空白・全角はちがっても同じ、一部でも探す。無い品番は端末の「調べてほしい品番」（`pbm_kiki_req`）に残し、ユーザーに教えてもらって `models.js` に登録する（メーカーの外形図の値だけ。分からない値は入れない） |
 | `cad/index.html` | 📐 図面編集（別アプリ・1ファイル。曲げ共有にはまだ統合しない：ユーザーの指示）。下の「図面編集」の節を見る。オフラインは `cad/sw.js` の `VER`（cad-v○○、変えたら1つ上げる） |

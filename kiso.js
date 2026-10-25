@@ -12,6 +12,26 @@ const KISO_TIP_HOON = {fig:"duct_hoon", title:"💡 ダクトの保温（断熱�
    "熱が少し逃げても、空調の負荷への影響が小さい → 保温を省略することが多い"]},
  {h:"⚠️ 例外（迷ったら設計図・特記仕様書で確認）", col:"var(--sub,#5b6b7e)", li:["外気ダクト（OA）は冬に冷たい外気が通るので保温する（結露する）",
    "最上階・屋根の下など、天井裏が外のように暑い・寒い所は、還気ダクトも保温することがある"]}]};
+/* ワンポイント：冷媒遮断弁・漏洩検知器（ビルマルで出す。図は KISO_SVG.sv_how・sv_rule・sv_law。more＝「📖 詳細」で開く背景） */
+const KISO_TIP_SV = {fig:"sv_how", title:"💡 冷媒遮断弁と漏洩検知器のしくみ（なぜガス管だけ？）", items:[
+ {h:"目的：漏れた冷媒が部屋にたまるのを防ぐ", col:"var(--ink,#0f172a)", li:["R32 は少しだけ燃える冷媒（微燃性）。万一漏れた時に、部屋の冷媒の濃さが危ない所まで上がらないように止める安全装置（電動の弁）"]},
+ {h:"ガス側（太い管）＝専用の遮断弁", col:"var(--gas,#2563eb)", li:["たくさんのガスが行き来するので、室内に入る手前（上流）に専用の弁を割り込ませて、大元で強制的に止める","天井裏など見えにくい所に付いていることもある"]},
+ {h:"液側（細い管）＝室内機の電子膨張弁（EEV）", col:"var(--liq,#dc2626)", li:["専用の弁は付けないのが原則。室内機の入口にある EEV が、止まった時に全閉して流れ込みを止める","「液側は EEV・ガス側は遮断弁」のペアで、室内機を両側から閉じ込める"]},
+ {h:"漏洩検知器は「スイッチ役」", col:"#b45309", li:["ただのガスセンサーではない。漏れを見つけた電気信号で ①エアコンの強制停止 ②警報（ブザー・表示）③遮断弁を閉じる を自動で連動させる","①の停止で EEV も全閉になる"]},
+ {h:"「三菱では遮断弁を見ない？」の答え", col:"var(--sub,#5b6b7e)", li:["メーカーのちがいではない。冷媒の量と部屋の広さ（安全基準）で決まる（下の「遮断弁をつける基準」）","冷媒が少ない・部屋が広い現場は、検知器と停止だけで済むことが多い。基準を超えれば三菱でもダイキンでも遮断弁が必須"]}],
+ more:{title:"📖 詳細（背景：なぜ今この装置が要るのか）", items:[
+  {h:"R32 への切りかえ", li:["地球温暖化の対策で、フロン排出抑制法の「指定製品」にビル用マルチ（新設用）も入った（2025年4月から）","R410A より温暖化への影響（GWP）が小さい R32 などにしないと、メーカーが新設用の製品を出荷できない"]},
+  {h:"R32 は「少しだけ燃える」", li:["燃えにくいが、狭い部屋にたくさん漏れて濃くなり、そこに火の気があると燃える可能性がある","ビルマルは冷媒の量が多く配管も長い → 漏れた時の対策（検知器・遮断弁・換気）が決められた"]},
+  {h:"付けたら終わりではない", li:["安全対策の装置を付けた現場は、続けて使うために定期点検が要る"]}]}};
+const KISO_TIP_SV_RULE = {fig:"sv_rule", title:"💡 遮断弁をつける基準（計算のしかた）", items:[
+ {h:"部屋ごとに計算する", col:"#7c3aed", li:["最大濃度 ＝ 総冷媒量（その系統の全部）÷（漏えい高さ × 床面積）","漏えい高さ：床から、室内機の高さか配管のつなぎ目（ろう付け・ねじ接合は除く）の低い方まで","0.25×LFL（燃え始める濃さの4分の1）以下なら対策は要らない。R32 は LFL＝0.307kg/m³ なので約 0.077kg/m³"]},
+ {h:"超えた時", col:"var(--liq,#dc2626)", li:["必須：検知器＋警報器","さらに 遮断弁 か 換気設備 のどちらか1つ以上（床置形などは、空気をかきまぜる機能で対応する物もある）","地下のいちばん下の階で LFL を超える時は使えない（系統の見直し）"]},
+ {h:"対策を減らす工夫", col:"var(--dr,#16a34a)", li:["系統を分けて、1系統の冷媒の量を減らす","ドアのアンダーカットで、となりの部屋と床面積を合わせて計算する","室内機を高い位置のタイプに変えて、漏えい高さを上げる"]},
+ {h:"最後はメーカーで確認", col:"var(--sub,#5b6b7e)", li:["各メーカーの判定ツール・技術資料・据付説明書で確定する"]}],
+ more:{title:"📖 詳細（法律・ガイドラインの関係）", fig:"sv_law", items:[
+  {h:"高圧ガス保安法（冷凍保安規則）", li:["漏れた時に燃えないための「適切な措置」を求めている法律","そのやり方の例（例示基準）として JRA GL-20 が取り込まれた（2018年）"]},
+  {h:"JRA GL-20（日本冷凍空調工業会）", li:["冷凍能力 5トン以上20トン未満（届出の要らない機器）が対象","工業会のガイドラインだが、法令に準じる扱い。守らない時は、安全だという技術的な根拠を自分で説明しないといけない","20トン以上は KHKS 0302-5（高圧ガス保安協会）"]},
+  {h:"JRA GL-16（業務用エアコンの設計・施工の指針）", li:["法律ではないが、守れば結果的に GL-20 も守ったことになる","検知警報器の決まりは JRA 4068"]}]}};
 const airConditionerMaster = [
 /* ===================== 1. システム・用途別 ===================== */
 {id:"hp_basic", name:"ヒートポンプのしくみ（エアコンの基本）", category:"システム",
@@ -71,7 +91,8 @@ const airConditionerMaster = [
   {h:"拾う時", col:"var(--ink,#0f172a)", li:["室外機の電源（三相200V）と、室内機の電源（単相200V）は別の回路","1回路に何台まで渡せるか・ブレーカーの容量はメーカー・室内機の合計の電流で決まる（据付説明書で確認）","どのブレーカーにどの室内機がつながっているかを図面に書いておく（点検・故障の時に止める回路が分かる）"]}]},
   {fig:"bm_remote", title:"💡 リモコン1台で室内機2台を動かす時（グループ）", items:[
   {h:"リモコンの渡り線が要る", col:"var(--sub,#5b6b7e)", li:["リモコンは1台目の室内機につなぎ、1台目から2台目へリモコン線を渡す（渡り線）","2台が同じ運転・同じ温度設定になる（グループ制御）"]},
-  {h:"注意", col:"var(--liq,#dc2626)", li:["1台のリモコンで動かせる台数の上限はメーカー指定（例 16台まで）","リモコン線と伝送線は別の線。端子をまちがえない（メーカーで端子の名前がちがう）"]}]}],
+  {h:"注意", col:"var(--liq,#dc2626)", li:["1台のリモコンで動かせる台数の上限はメーカー指定（例 16台まで）","リモコン線と伝送線は別の線。端子をまちがえない（メーカーで端子の名前がちがう）"]}]},
+  KISO_TIP_SV, KISO_TIP_SV_RULE],
  description:"室外機1台（または数台を連結）に、たくさんの室内機をつなぐ方式です。部屋ごとに運転・温度を変えられ、中央でまとめて管理できます。冷媒配管は分岐管で枝分かれさせて各室内機へ配ります。\nEHP（電気）のビルマルと、GHP（ガス）のマルチがあります。",
  usage_scene:["事務所ビル","ホテル","病院","学校","マンションの共用部"],
  pros_cons:{pros:["室外機の台数が少なく、屋上などにまとめて置ける","部屋ごとに運転・温度を変えられる","集中管理（中央リモコン・ビル管理）がしやすい"],
@@ -397,6 +418,26 @@ const KISO_SVG = (() => {
    [0, 1, 2, 3].map(i => r(78 + i*58, y + 6, 46, 16, C.card) + t(101 + i*58, y + 18, `室内機${"①②③④⑤⑥⑦⑧"[n0 + i]}`, 7.5, "middle", C.ink, 1) + l(101 + i*58, y, 101 + i*58, y + 6, "#b45309", 2) + c(101 + i*58, y, 2.5, "#b45309", "#b45309")).join("") + t(306, y + 3, "…", 11, "end", "#b45309", 1);
   return svg(r(10, 12, 60, 128, "none", C.sub, 6) + t(40, 152, "分電盤", 9, "middle", C.ink, 1) + row(44, "ブレーカー", "2階用", 0) + row(104, "ブレーカー", "3階用", 4) +
    t(160, 170, "ブレーカー1つから6〜8台ほどを渡り配線でつなぐ（単相200V）", 9.5, "middle", "#b45309", 1) + t(160, 184, "階ごと・エリアごと・台数でブレーカーを分ける", 9) + t(160, 197, "台数・容量はメーカー指定。室外機（三相200V）とは別の回路", 9), 204); };
+ D.sv_how = () => { const am = "#b45309", sig = (d) => p(d, am, 1.4, "none", "4 3");
+  return svg(room(214, 14, 100, 180) + t(222, 28, "室内", 9, "start") + out(10, 56, 56, 44, "室外機") +
+   p("M66,70 H128", C.gas, 6) + r(128, 60, 46, 22, C.card, C.liq) + t(151, 75, "遮断弁", 9, "middle", C.liq, 1) + p("M174,70 H238", C.gas, 6) +
+   r(238, 44, 66, 66, C.pn) + t(271, 58, "室内機", 9, "middle", C.ink, 1) + p("M66,90 H246", C.liq, 3) + r(246, 82, 40, 18, C.card) + t(266, 95, "EEV", 8.5, "middle", C.ink, 1) +
+   r(236, 138, 72, 22, "#fef3c7", am) + t(272, 153, "漏洩検知器", 8.5, "middle", am, 1) + r(120, 168, 62, 20, "#fef3c7", am) + t(151, 182, "②警報", 8.5, "middle", am, 1) +
+   sig("M236,149 H151 V85") + t(194, 144, "③閉じる", 8.5, "middle", am, 1) + sig("M272,138 V113") + t(282, 129, "①停止", 8.5, "start", am, 1) + sig("M272,160 V178 H185") +
+   lg([[C.gas, "ガス管"], [C.liq, "液管"], [am, "検知器の信号", "4 3"]], 206), 214); };
+ D.sv_rule = () => svg(r(10, 8, 300, 34) + t(160, 22, "最大濃度 ＝ 総冷媒量 ÷（漏えい高さ × 床面積）", 9.5, "middle", C.ink, 1) + t(160, 36, "室内機がある部屋ごとに計算", 8.5) + a(160, 42, 160, 58, C.sub, 1.6) +
+  r(70, 60, 180, 32, C.card, C.tr) + t(160, 74, "0.25×LFL 以下？", 10, "middle", C.tr, 1) + t(160, 87, "R32 は約 0.077kg/m³", 8.5) + l(160, 92, 160, 102, C.sub) + l(80, 102, 240, 102, C.sub) + a(80, 102, 80, 116, C.sub, 1.6) + a(240, 102, 240, 116, C.sub, 1.6) + t(86, 113, "以下", 8.5, "start") + t(234, 113, "超える", 8.5, "end") +
+  r(10, 118, 140, 34, "#dcfce7", "#16a34a") + t(80, 132, "安全対策は不要", 9.5, "middle", "#15803d", 1) + t(80, 145, "冷媒少なめ・部屋が広い", 8, "middle", "#15803d") +
+  r(170, 118, 140, 34, "#fee2e2", C.liq) + t(240, 132, "安全対策が必要", 9.5, "middle", "#b91c1c", 1) + t(240, 145, "冷媒多め・部屋が狭い", 8, "middle", "#b91c1c") + a(240, 152, 240, 164, C.sub, 1.6) +
+  r(170, 166, 140, 26, "#fef3c7", "#b45309") + t(240, 183, "必須：検知器＋警報器", 9, "middle", "#b45309", 1) + a(240, 192, 240, 204, C.sub, 1.6) +
+  r(170, 206, 140, 26, C.card, C.liq) + t(240, 223, "＋遮断弁 か 換気（1つ以上）", 8.5, "middle", C.liq, 1) +
+  r(10, 166, 140, 66, C.card, C.sub) + t(18, 180, "対策を減らす工夫", 9, "start", C.ink, 1) + t(18, 195, "・系統を分ける", 8.5, "start") + t(18, 209, "・アンダーカットで隣室と合算", 8, "start") + t(18, 223, "・室内機を高い位置に", 8.5, "start") +
+  t(160, 250, "※地下のいちばん下の階で LFL を超える時は設置できない", 8.5), 258);
+ D.sv_law = () => { const bx = (x, y, w, h1, h2, col) => r(x, y, w, 30, C.card, col) + t(x + w/2, y + 13, h1, 9, "middle", col || C.ink, 1) + t(x + w/2, y + 25, h2, 8);
+  return svg(bx(70, 8, 180, "フロン排出抑制法", "R32 などへの切りかえ") + a(160, 38, 160, 50, C.sub, 1.6) + bx(40, 52, 240, "高圧ガス保安法（冷凍保安規則）", "漏れた時に燃えないための措置", C.tr) +
+   l(160, 82, 160, 90, C.sub) + l(85, 90, 240, 90, C.sub) + a(85, 90, 85, 102, C.sub, 1.6) + a(240, 90, 240, 102, C.sub, 1.6) +
+   bx(10, 104, 150, "JRA GL-20（例示基準）", "5〜20トン・法令に準じる", C.gas) + bx(170, 104, 140, "KHKS 0302-5", "20トン以上の大型", C.gas) +
+   a(85, 168, 85, 138, C.sub, 1.6) + bx(10, 168, 150, "JRA GL-16（設計・施工）", "守れば GL-20 もクリア") + t(236, 186, "← 現場の判定は", 8.5) + t(236, 198, "ここに沿って計算", 8.5), 208); };
  D.bm_remote = () => svg(r(30, 40, 90, 26, C.card) + t(75, 57, "室内機 1台目", 9, "middle", C.ink, 1) + r(200, 40, 90, 26, C.card) + t(245, 57, "室内機 2台目", 9, "middle", C.ink, 1) +
   r(62, 118, 26, 34, C.card) + t(75, 168, "リモコン（1台）", 9, "middle", C.ink, 1) + p("M75,118 V66", C.rc, 2.4, "none", "5 3") + p("M120,53 H200", C.rc, 2.4, "none", "5 3") + t(160, 46, "渡り線", 10, "middle", C.ink, 1) + t(160, 70, "（リモコン線）", 8.5) +
   a(245, 70, 245, 92, C.air) + a(45, 70, 32, 92, C.air) + t(220, 126, "2台が同じ運転・同じ温度", 9.5, "middle", C.ink, 1) + t(220, 141, "（グループ制御）", 9) + t(160, 186, "台数の上限・端子の名前はメーカー指定", 9, "middle", C.liq, 1), 194);
@@ -459,15 +500,17 @@ window.KISO_SVG = KISO_SVG;
 #ksOv .ksPro li::marker{content:"○ "}#ksOv .ksCon li::marker{content:"△ "}
 #ksOv .ksFig{background:var(--bg,#eef3f7);border-radius:12px;padding:6px;margin:0 0 10px}#ksOv .ksSvg{width:100%;height:auto;display:block;font-family:inherit}
 #ksOv .ksTip{border:1.5px solid var(--line,#c9d5e0);border-radius:12px;padding:4px 10px 10px;margin-top:12px;background:var(--bg,#eef3f7)}
+#ksOv .ksMore{margin-top:10px;border:1.5px solid var(--acc,#0369a1);border-radius:10px;background:var(--card,#fff);padding:0 8px}#ksOv .ksMore>summary{font-weight:800;color:var(--acc,#0369a1);padding:9px 2px;cursor:pointer}#ksOv .ksMore[open]{padding-bottom:8px}
 #ksOv .ksWarn{font-size:12.5px;color:var(--sub,#5b6b7e);background:var(--card,#fff);border:1.5px dashed var(--line,#c9d5e0);border-radius:12px;padding:8px 10px;margin-top:8px;line-height:1.6}`;
  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
  const li = a => (a || []).map(x => `<li>${esc(x)}</li>`).join("");
+ const tipB = tp => (tp.fig && typeof KISO_SVG !== "undefined" && KISO_SVG[tp.fig] ? `<div class="ksFig">${KISO_SVG[tp.fig]()}</div>` : "") + (tp.items || []).map(it => `<div style="font-weight:800;color:${it.col || "var(--ink,#0f172a)"};margin-top:6px">${esc(it.h)}</div><ul>${li(it.li)}</ul>`).join("");
  const card = d => { const e = d.electrical_spec || {}, row = (k, v) => v ? `<tr><td>${k}</td><td>${esc(v)}</td></tr>` : "";
   return `<details id="ks_${d.id}"><summary>${esc(d.name)}</summary><div class="ksB">${typeof KISO_SVG !== "undefined" && KISO_SVG[d.id] ? `<div class="ksFig">${KISO_SVG[d.id]()}</div>` : ""}<p>${esc(d.description)}</p>
    <h4>🏢 主な使い道・置く場所</h4><div>${(d.usage_scene || []).map(x => `<span class="ksTag">${esc(x)}</span>`).join("")}</div>
    <h4>👍 よい所・👎 気をつける所</h4><ul class="ksPro">${li(d.pros_cons && d.pros_cons.pros)}</ul><ul class="ksCon">${li(d.pros_cons && d.pros_cons.cons)}</ul>
    <h4>⚡ 電線・配線の目安</h4><table>${row("電源", e.power)}${row("内外接続線", e.inter_unit)}${row("伝送線", e.transmission)}${row("リモコン線", e.remote)}${row("ブレーカー", e.breaker)}</table>${e.notes && e.notes.length ? `<ul>${li(e.notes)}</ul>` : ""}
-   ${(d.tips || []).map(tp => `<div class="ksTip"><h4>${esc(tp.title)}</h4>${tp.fig && typeof KISO_SVG !== "undefined" && KISO_SVG[tp.fig] ? `<div class="ksFig">${KISO_SVG[tp.fig]()}</div>` : ""}${tp.items.map(it => `<div style="font-weight:800;color:${it.col};margin-top:6px">${esc(it.h)}</div><ul>${li(it.li)}</ul>`).join("")}</div>`).join("")}
+   ${(d.tips || []).map(tp => `<div class="ksTip"><h4>${esc(tp.title)}</h4>${tipB(tp)}${tp.more ? `<details class="ksMore"><summary>${esc(tp.more.title || "📖 詳細")}</summary>${tipB(tp.more)}</details>` : ""}</div>`).join("")}
    <h4>🧾 材料拾い・見積もりのコツ</h4><ul>${li(d.material_notes)}</ul></div></details>`; };
  const guide = () => `<details id="ks_power"><summary>⚡ 動力（三相200V）の電線の目安</summary><div class="ksB"><table><tr><td>能力</td><td><b>電線</b>・ブレーカー（漏電遮断器）</td></tr>${powerCableGuide.map(g => `<tr><td>${esc(g.cap)}</td><td><b>${esc(g.wire)}</b>・${esc(g.br)}</td></tr>`).join("")}</table><ul><li>こう長（電線の長さ）30m くらいまでの目安。長い時・何本もまとめて通す時は1つ太く</li><li>接地線（アース）を忘れずに（D種接地）</li></ul></div></details>`;
  let tab = "システム";

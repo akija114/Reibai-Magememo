@@ -1,6 +1,17 @@
 /* 冷媒配管の曲げ共有：kiso.js（📘 空調の種類と電線：初心者向けの説明・選び方・電線の目安・材料拾いのコツ）
    機器の画面（kiki.html）で読む。データ airConditionerMaster をそのまま足し引きすればOK。
    電線・ブレーカーは「よくある目安」。必ずメーカーの据付説明書・電気設計図・内線規程（電圧降下）で確定する */
+/* ワンポイント：ダクトの保温（断熱）をする・しない（ビルトイン・ダクト形で出す。図は KISO_SVG.duct_hoon） */
+const KISO_TIP_HOON = {fig:"duct_hoon", title:"💡 ダクトの保温（断熱）をする理由・しない理由", items:[
+ {h:"① 保温が絶対に必要：給気ダクト（SA）", col:"var(--gas,#2563eb)", li:["理由：エアコンで強く冷やされた空気（暖房は温められた空気）が通るから",
+   "冷房時：キンキンに冷えたダクトの表面に、天井裏の湿った空気が触れて「結露（水滴）」ができる → 天井のシミ・漏水の原因",
+   "暖房時：送る途中で熱が天井裏へ逃げる（熱ロス）→ 吹出口に届くころには温度が下がっている",
+   "対策：グラスウールなどの保温材（断熱材）でしっかり巻く（継ぎ目・吹出口のボックスまで切れ目なく）"]},
+ {h:"② 保温を省略できることが多い：還気ダクト（RA）", col:"#ea580c", li:["理由：部屋の空気をそのまま吸い戻す（リターンする）ダクトだから",
+   "通る空気は「室温とほぼ同じ」→ ダクトの表面と天井裏の温度差が小さく、結露しにくい",
+   "熱が少し逃げても、空調の負荷への影響が小さい → 保温を省略することが多い"]},
+ {h:"⚠️ 例外（迷ったら設計図・特記仕様書で確認）", col:"var(--sub,#5b6b7e)", li:["外気ダクト（OA）は冬に冷たい外気が通るので保温する（結露する）",
+   "最上階・屋根の下など、天井裏が外のように暑い・寒い所は、還気ダクトも保温することがある"]}]};
 const airConditionerMaster = [
 /* ===================== 1. システム・用途別 ===================== */
 {id:"ehp_general", name:"EHP（電気ヒートポンプエアコン）", category:"システム",
@@ -138,7 +149,7 @@ const airConditionerMaster = [
  pros_cons:{pros:["天井工事が要らない","大きい能力がある・点検しやすい"],cons:["床の場所を取る","人に風が直接当たりやすい"]},
  electrical_spec:{power:"パッケージ：室外から送り（大きい機種は室内機に別電源のこともある）",inter_unit:"VVF 1.6〜2.0mm-3芯",transmission:"ビルマル：伝送線",remote:"2芯（本体に付いている機種も）",breaker:"機種ごと",notes:[]},
  material_notes:["転倒防止金具（地震対策・壁か床に固定）","ドレンは床の排水へ（トラップ）","配管は本体の下か後ろから"]},
-{id:"duct_type", name:"天井埋込ダクト形・床置ダクト形", category:"形状",
+{id:"duct_type", name:"天井埋込ダクト形・床置ダクト形", category:"形状", tips:[KISO_TIP_HOON],
  description:"本体を天井の中（または機械室の床）に隠し、ダクトでつないだ吹出口・吸込口から風を出す形です。本体が見えないので、ホテル・おしゃれな店舗・住宅で使います。",
  usage_scene:["ホテルの客室","住宅","デザインを重視する店舗","大部屋（床置ダクト）"],
  pros_cons:{pros:["本体が見えない・吹出口を好きな場所に置ける","静か"],
@@ -151,12 +162,12 @@ const airConditionerMaster = [
  pros_cons:{pros:["油・湯気に強い・掃除しやすい","高い室温でも冷やせる"],cons:["ふつうの機種より高い","フィルター掃除をこまめにしないと能力が落ちる"]},
  electrical_spec:{power:"パッケージ：室外から送り（三相200V 動力が多い）",inter_unit:"VVF 1.6〜2.0mm-3芯（油に強い電線管・ケーブルで保護）",transmission:"無し（パッケージ）",remote:"2芯（リモコンは厨房の外に置くことが多い）",breaker:"機種ごと",notes:["水がかかる所の電線はPF管などで保護"]},
  material_notes:["耐油の部材（ダクトがある時は耐油・耐熱の指定）","ドレンは自然勾配（油が混じる・つまりやすいので掃除口）","レンジフードの排気と給気（外気）のバランスを確認"]},
-{id:"builtin", name:"ビルトイン形", category:"形状",
+{id:"builtin", name:"ビルトイン形", category:"形状", tips:[KISO_TIP_HOON],
  description:"天井の中に本体を組み込み、吹出口と吸込口だけを天井に出す形です。ハウジング用（住宅・ホテル）に多く、本体を隠しつつダクト工事を短くできます。",
  usage_scene:["住宅","ホテルの客室","マンション"],
  pros_cons:{pros:["本体が見えない・すっきり","ダクト形よりダクトが短く済む"],cons:["点検口が要る","天井の中の高さ（約230mm〜）と開口の位置が決まっている"]},
  electrical_spec:{power:"多くは室外機から送り（単相200V・ハウジングエアコン）",inter_unit:"VVF 2.0mm-3芯（S1・S2・S3）",transmission:"システムマルチは機種ごと",remote:"2芯（メーカー指定）",breaker:"室外機側 20A（単相200V）",notes:[]},
- material_notes:["吊りボルト W3/8 4本","吹出口・吸込口のパネル（グリル）とダクト（短い）","点検口（本体・電気品箱の点検用）","ドレン VP20〜25"]},
+ material_notes:["吊りボルト W3/8 4本","吹出口・吸込口のパネル（グリル）とダクト（短い）","点検口（本体・電気品箱の点検用）","ドレン VP20〜25","給気ダクト（SA）は保温材を巻く（還気 RA は省略が多い・下の「ダクトの保温」）"]},
 
 /* ===================== 3. 換気・熱源・周辺機器 ===================== */
 {id:"erv", name:"全熱交換器（ロスナイ・ベンティエール等）", category:"関連設備",
@@ -280,6 +291,13 @@ const KISO_SVG = (() => {
  D.kitchen_ac = () => svg(
   l(10, 16, 310, 16, C.ink, 2) + bolts(150, 240, 16, 40) + r(136, 38, 118, 30, C.pn) + t(195, 57, "厨房用（天吊）", 9, "middle", C.ink, 1) + r(136, 68, 118, 6, C.dr, C.dr, 1) + t(195, 88, "耐油フィルター", 9, "middle", C.dr, 1) + a(254, 60, 300, 90, C.air) +
   r(40, 120, 70, 30, C.card) + t(75, 140, "コンロ", 9) + p("M58,120 c-6,-10 6,-16 0,-26 M75,120 c-6,-10 6,-16 0,-26 M92,120 c-6,-10 6,-16 0,-26", C.sub, 1.4) + t(75, 84, "油煙・湯気", 9) + l(10, 150, 310, 150, C.sub, 1.2), 165);
+ D.duct_hoon = () => { const ins = (d) => p(d, C.gas, 14) + p(d, C.card, 9) + p(d, C.gas, 9, "none", "2 3") + p(d, C.ink, 3); // 保温材を巻いた太いダクト（点々＝グラスウール）
+  return svg(l(10, 14, 310, 14, C.ink, 2) + t(14, 10, "天井裏（湿った空気・夏は暑い・冬は寒い）", 9, "start") + ceil(10, 310, 118) + r(136, 32, 60, 28, C.pn) + t(166, 50, "本体", 9, "middle", C.ink, 1) +
+   ins("M196,46 H278 V112") + r(262, 112, 32, 5, C.ink, C.ink, 1) + a(278, 122, 278, 142, C.air) + t(250, 32, "SA 給気：保温する", 10, "middle", C.gas, 1) + t(278, 154, "吹出口", 9) +
+   p("M136,46 H44 V112", C.ink, 5) + p("M136,46 H44 V112", C.card, 2.5) + r(28, 112, 32, 5, C.sub, C.sub, 1) + a(44, 142, 44, 122, "#ea580c") + t(84, 32, "RA 還気：保温を省略", 10, "middle", "#ea580c", 1) + t(44, 154, "吸込口", 9) +
+   t(54, 72, "室温とほぼ同じ", 9, "start", C.sub) + t(54, 84, "→ 結露しにくい", 9, "start", C.sub) +
+   r(142, 66, 120, 44, "none", C.sub, 6) + t(148, 80, "保温しないと…", 9, "start", C.ink, 1) + t(148, 93, "冷房：💧結露→天井シミ", 9, "start", C.gas, 1) + t(148, 105, "暖房：🔥熱が逃げる", 9, "start", C.hot, 1) +
+   l(10, 172, 310, 172, C.sub, 1.2) + t(160, 166, "部屋", 9) + lg([[C.gas, "保温材を巻いたダクト", ""], [C.ink, "保温なし"]], 188), 196); };
  D.builtin = () => svg(
   l(10, 16, 310, 16, C.ink, 2) + ceil(10, 310, 70) + bolts(110, 210, 16, 40) + r(100, 38, 120, 30, C.pn) + t(160, 57, "本体（天井の中）", 9, "middle", C.ink, 1) + r(100, 70, 40, 5, C.ink, C.ink, 1) + a(120, 78, 108, 104, C.air) + t(118, 118, "吹出口", 9) +
   r(180, 70, 40, 5, C.sub, C.sub, 1) + a(200, 104, 200, 80, C.sub) + t(200, 118, "吸込口", 9) + r(240, 70, 40, 5, "none", C.liq, 0) + t(260, 86, "点検口", 9, "middle", C.liq, 1) + t(160, 150, "吹出口・吸込口だけ天井に見える", 10), 165);
@@ -328,6 +346,7 @@ window.KISO_SVG = KISO_SVG;
 #ksOv table{width:100%;border-collapse:collapse;font-size:13.5px}#ksOv td{border-top:1px solid var(--line,#c9d5e0);padding:6px 4px;vertical-align:top}#ksOv td:first-child{white-space:nowrap;font-weight:800;width:1%}
 #ksOv .ksPro li::marker{content:"○ "}#ksOv .ksCon li::marker{content:"△ "}
 #ksOv .ksFig{background:var(--bg,#eef3f7);border-radius:12px;padding:6px;margin:0 0 10px}#ksOv .ksSvg{width:100%;height:auto;display:block;font-family:inherit}
+#ksOv .ksTip{border:1.5px solid var(--line,#c9d5e0);border-radius:12px;padding:4px 10px 10px;margin-top:12px;background:var(--bg,#eef3f7)}
 #ksOv .ksWarn{font-size:12.5px;color:var(--sub,#5b6b7e);background:var(--card,#fff);border:1.5px dashed var(--line,#c9d5e0);border-radius:12px;padding:8px 10px;margin-top:8px;line-height:1.6}`;
  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
  const li = a => (a || []).map(x => `<li>${esc(x)}</li>`).join("");
@@ -336,11 +355,12 @@ window.KISO_SVG = KISO_SVG;
    <h4>🏢 主な使い道・置く場所</h4><div>${(d.usage_scene || []).map(x => `<span class="ksTag">${esc(x)}</span>`).join("")}</div>
    <h4>👍 よい所・👎 気をつける所</h4><ul class="ksPro">${li(d.pros_cons && d.pros_cons.pros)}</ul><ul class="ksCon">${li(d.pros_cons && d.pros_cons.cons)}</ul>
    <h4>⚡ 電線・配線の目安</h4><table>${row("電源", e.power)}${row("内外接続線", e.inter_unit)}${row("伝送線", e.transmission)}${row("リモコン線", e.remote)}${row("ブレーカー", e.breaker)}</table>${e.notes && e.notes.length ? `<ul>${li(e.notes)}</ul>` : ""}
+   ${(d.tips || []).map(tp => `<div class="ksTip"><h4>${esc(tp.title)}</h4>${tp.fig && typeof KISO_SVG !== "undefined" && KISO_SVG[tp.fig] ? `<div class="ksFig">${KISO_SVG[tp.fig]()}</div>` : ""}${tp.items.map(it => `<div style="font-weight:800;color:${it.col};margin-top:6px">${esc(it.h)}</div><ul>${li(it.li)}</ul>`).join("")}</div>`).join("")}
    <h4>🧾 材料拾い・見積もりのコツ</h4><ul>${li(d.material_notes)}</ul></div></details>`; };
  const guide = () => `<details id="ks_power"><summary>⚡ 動力（三相200V）の電線の目安</summary><div class="ksB"><table><tr><td>能力</td><td><b>電線</b>・ブレーカー（漏電遮断器）</td></tr>${powerCableGuide.map(g => `<tr><td>${esc(g.cap)}</td><td><b>${esc(g.wire)}</b>・${esc(g.br)}</td></tr>`).join("")}</table><ul><li>こう長（電線の長さ）30m くらいまでの目安。長い時・何本もまとめて通す時は1つ太く</li><li>接地線（アース）を忘れずに（D種接地）</li></ul></div></details>`;
  let tab = "システム";
  function list(){ const q = (document.getElementById("ksQ").value || "").trim(), box = document.getElementById("ksL");
-  const hit = d => !q || [d.name, d.description, (d.usage_scene || []).join(" "), JSON.stringify(d.electrical_spec), (d.material_notes || []).join(" ")].join(" ").includes(q);
+  const hit = d => !q || [d.name, d.description, (d.usage_scene || []).join(" "), JSON.stringify(d.electrical_spec), (d.material_notes || []).join(" "), JSON.stringify(d.tips || [])].join(" ").includes(q);
   const A = airConditionerMaster.filter(d => (q || d.category === tab) && hit(d));
   box.innerHTML = (A.length ? A.map(card).join("") : `<div class="ksWarn">「${esc(q)}」は見つかりませんでした</div>`) + (!q && tab === "システム" ? guide() : "");
   document.querySelectorAll("#ksOv .ksTabs button").forEach(b => b.classList.toggle("on", !q && b.dataset.t === tab)); }

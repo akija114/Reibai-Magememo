@@ -2638,7 +2638,9 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
      ダクトはその手前で止めて、フレキダクト（銀色・じゃばら）で口までつなぐ */
   /* 機器の真ん中：図面の四角（部品）の所（[11][12]）。無い時（前の版）はダクトの端から先へ */
   const dxW=typeof cxW==="number"?cxW-x:0,dzW=typeof czW==="number"?czW-z:0,cxL=typeof cxW==="number"?dxW*ux+dzW*uz:w/2+90,czL=typeof cxW==="number"?-dxW*uz+dzW*ux:0;
-  if(ty==="g"){const fw=e10||150,bot=GY+ch,bh=Math.max(fw+50,180),cx=cxL,cz=czL;
+  /* 天井の高さ：機器の所が天井高の範囲（ceil・WCなどの低い天井）の中なら、その天井に合わせる */
+  const zc0=ty==="g"?ceilAt(x+cxL*ux-czL*uz,z+cxL*uz+czL*ux):null,chg=zc0&&zc0.h?zc0.h:ch;
+  if(ty==="g"){const fw=e10||150,bot=GY+chg,bh=Math.max(fw+50,180),cx=cxL,cz=czL;
    const pn=new THREE.Mesh(new THREE.BoxGeometry(w+80,14,d+80),M(0xf8fafc));pn.position.set(cx,bot-7,cz);g.add(pn);
    const gr=new THREE.Mesh(new THREE.BoxGeometry(w-20,3,d-20),M(0xcbd5e1));gr.position.set(cx,bot-15,cz);g.add(gr);   // 格子
    const bd=new THREE.Mesh(new THREE.BoxGeometry(w,bh,d),M(0x1f2937));bd.position.set(cx,bot+bh/2,cz);g.add(bd);   // 本体（黒）
@@ -2656,9 +2658,9 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
   else{const bx=new THREE.Mesh(new THREE.BoxGeometry(Math.max(w,200),250,Math.max(d,200)),M(0xe2e8f0));bx.position.set(Math.max(w,200)/2,GY+h,0);g.add(bx);
    const e2=new THREE.LineSegments(new THREE.EdgesGeometry(bx.geometry),new THREE.LineBasicMaterial({color:0x475569}));e2.position.copy(bx.position);g.add(e2)}
   g.position.set(x,0,z);g.rotation.y=th;g.userData.dl="duct";T.grp.add(g);
-  const lb=label("🌀 "+txt,ext*0.022,"#f1f5f9f2","#334155","bld");lb.position.set(x+(ty==="g"?cxL*ux-czL*uz:0),GY+(ty==="g"?ch-120:h+220),z+(ty==="g"?cxL*uz+czL*ux:0));lb.userData.cat="ductEq";pxl(lb,12);T.grp.add(lb)}catch(err){console.warn("eq2",err)}});
+  const lb=label("🌀 "+txt,ext*0.022,"#f1f5f9f2","#334155","bld");lb.position.set(x+(ty==="g"?cxL*ux-czL*uz:0),GY+(ty==="g"?chg-120:h+220),z+(ty==="g"?cxL*uz+czL*ux:0));lb.userData.cat="ductEq";pxl(lb,12);T.grp.add(lb)}catch(err){console.warn("eq2",err)}});
  /* 点検口（図面の部品）：天井に白い枠。[x, z, 幅, 奥行, 天井高] */
- if(!bldHid("insp"))(D.insp||[]).forEach(([x,z,w,d,ch])=>{try{const g=new THREE.Group(),y=GY+ch-6,mf=new THREE.MeshStandardMaterial({color:0xf1f5f9,roughness:.6}),t=40;
+ if(!bldHid("insp"))(D.insp||[]).forEach(([x,z,w,d,ch])=>{try{const zc=ceilAt(x,z),g=new THREE.Group(),y=GY+(zc&&zc.h?zc.h:ch)-6,mf=new THREE.MeshStandardMaterial({color:0xf1f5f9,roughness:.6}),t=40;
   [[w+2*t,d/2+t/2,0,0],[w+2*t,-d/2-t/2,0,0],[t,0,w/2+t/2,1],[t,0,-w/2-t/2,1]].forEach(([a,oz,ox,v])=>{const m=new THREE.Mesh(new THREE.BoxGeometry(v?t:a,12,v?d:t),mf);m.position.set(ox,y,oz);g.add(m)});
   const lid=new THREE.Mesh(new THREE.BoxGeometry(w,4,d),new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.7}));lid.position.set(0,y-4,0);g.add(lid);
   g.position.set(x,0,z);g.userData.dl="duct";T.grp.add(g);

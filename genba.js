@@ -41,7 +41,7 @@ function lineText(s){
  const L=[],SEP="━━━━━━━━━━━━",d=dateTxt(s.date);
  L.push("お疲れ様です🙇‍♂️",`${d?d+"の":""}現場の詳細です。`,"",SEP);
  const sec=(head,body)=>{if(body.length){L.push(head,...body,"")}};
- sec("📅 日時",d||s.time?[`${d}${s.end&&s.end>s.date?"〜"+dateTxt(s.end):""}${s.time?" "+timeTxt(s.time)+(s.tend?"〜"+timeTxt(s.tend):" 開始"):""}${(shIco(s)?"（"+shTx(s).replace(/^[☀️🌙]+/u,"")+"）":"")}`.trim()]:[]);
+ sec("📅 日時",d||s.time?[`${s.days&&s.days.length>1?daysTxt(s.days):d+(endOf(s)>s.date?"〜"+dateTxt(endOf(s)):"")}${s.time?" "+timeTxt(s.time)+(s.tend?"〜"+timeTxt(s.tend):" 開始"):""}${(shIco(s)?"（"+shTx(s).replace(/^[☀️🌙]+/u,"")+"）":"")}`.trim()]:[]);
  sec("🏭 現場名",s.name.trim()?[s.name.trim()]:[]);
  sec("📍 住所",s.addr.trim()?[s.addr.trim(),addrUrl(s.addr)]:[]);
  const pu=parkUrl(s.park),pb=[...lines(s.park.note)];if(pu)pb.push(pu);if(s.park.photos.length)pb.push("（駐車場の写真を別で送ります📷）");sec("🅿️ 駐車場",pb);
@@ -83,7 +83,7 @@ async function shareFiles(files,title){
 function shrink(file){return new Promise((ok,ng)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement("canvas");c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):ng(new Error("写真を読めませんでした")),"image/jpeg",.85)};im.onerror=()=>{URL.revokeObjectURL(u);ng(new Error("写真を読めませんでした"))};im.src=u})}
 
 /* ===== 画面 ===== */
-let cur=null,saveT=0,wk=null,backTo="";const urls=[];
+let cur=null,saveT=0,wk=null,backTo="",pPer="";const urls=[];
 function freeUrls(){while(urls.length)URL.revokeObjectURL(urls.pop())}
 function save(){if(!cur)return;cur.updated=Date.now();clearTimeout(saveT);saveT=setTimeout(()=>putSite(cur).catch(()=>toast("保存できませんでした")),300)}
 function go(id){location.hash=id?"#"+id:"";}
@@ -112,6 +112,7 @@ function renderEdit(){
   <div class="row"><div class="grow"><label class="f" for="fDate">日付</label><input id="fDate" type="date"></div><div style="width:120px"><label class="f" for="fTime">開始</label><input id="fTime" type="time"></div></div>
   <div class="row"><div class="grow"><label class="f" for="fTend">終わり（何時まで・1日に何件もある時）</label><input id="fTend" type="time"></div><div style="width:120px"><label class="f" for="fShift">昼／夜</label><select id="fShift"><option value="">☀️ 日勤</option><option value="night">🌙 夜勤</option></select></div></div>
   <label class="f" for="fEnd">終わりの日（何日かかる時だけ）</label><input id="fEnd" type="date">
+  <details id="dPick" style="margin-top:8px"><summary class="note" style="font-weight:800">📆 飛び飛びの日を選ぶ（今日と来週・2週間後、土日はほかの現場など）</summary><div id="dCal"></div></details>
   ${FIELD("fName","現場名","例：カゴメ小牧工場")}
   ${FIELD("fAddr","📍 住所","例：愛知県小牧市〇〇町〇〇")}<div id="addrLink"></div></div>
  <div class="card"><h2>🅿️ 駐車場</h2>
@@ -130,6 +131,7 @@ function renderEdit(){
   <div class="note" id="needInfo"></div>
   <label class="f">🤝 応援さん（どこの会社から・何人）</label><div id="helps"></div>
   <div class="row" style="margin-top:8px"><button class="btn grow" id="bHelp">＋ 応援を足す</button></div></div>
+ <div class="card"><h2>🚗 交通費（1日・往復）</h2><div class="note">人ごとに住んでいる所がちがうので、高速代・ガソリン代をこの現場に1日行くといくらかを入れてください。📊 人工の画面で月ごと・人ごと・現場ごとに合計します。</div><div id="costs"></div></div>
  <div class="card"><h2>🔧 作業内容</h2>${FIELD("fWork","1行に1つ（→ で始めると前の行の続き）","天吊10馬力の入替\n口元流用\nガス回収\n→ 必要なら新しい物に交換",true)}</div>
  <div class="card"><h2>🎒 持ち物・服装</h2>${FIELD("fBring","持ってきてほしい物（1行に1つ）","上履き\nヘルメット",true)}${FIELD("fProv","こちらで用意する物（※が付きます）","白衣などは小川設備で用意します",true)}</div>
  <div class="card"><h2>🔌 道具について</h2>${FIELD("fBorrow","","電動工具や脚立をお借りするかもしれません",true)}</div>
@@ -162,14 +164,40 @@ function renderEdit(){
  $("#bSend").onclick=()=>shareText(lineText(s));
  $("#bSendPh").onclick=async()=>{const fs=[];for(const [i,pid] of s.park.photos.entries()){const p=await getPhoto(pid);if(p)fs.push(new File([p.blob],`駐車場${i+1}.jpg`,{type:"image/jpeg"}))}if(!fs.length){toast("駐車場の写真がありません");return}shareFiles(fs,"駐車場")};
  $("#bCal").onclick=()=>{const u=calUrl(s);if(!u){toast("日付を入れてください");return}window.open(u,"_blank")};
- renderMems();renderHelps();renderPhotos();upd();
+ renderMems();renderHelps();renderPhotos();renderCosts();renderDays();upd();
+ $("#dPick").open=!!(s.days&&s.days.length);
+ for(const id of ["fDate","fEnd"]){const el=$("#"+id),f0=el.oninput;el.oninput=()=>{if(s.days&&s.days.length){s.days=null;toast("飛び飛びの日をやめて、続けての日にしました")}f0();renderDays()}}
 }
+/* 📆 飛び飛びの日：その月のカレンダーで日をタップ（入れる・外す）。最初にタップした時は今の続けての日から始める */
+let dcM=null;
+function renderDays(){const s=cur,box=$("#dCal");if(!box)return;const sel=new Set(siteDays(s));if(!dcM||dcM.id!==s.id)dcM={id:s.id,m:(s.date||ymdOf(new Date())).slice(0,7)};
+ const [Y,M]=dcM.m.split("-").map(Number),first=new Date(Y,M-1,1),nd=new Date(Y,M,0).getDate(),pad=(first.getDay()+6)%7,cells=[];
+ for(let i=0;i<pad;i++)cells.push("<td></td>");for(let d=1;d<=nd;d++){const y=`${Y}-${String(M).padStart(2,"0")}-${String(d).padStart(2,"0")}`,w=dOf(y).getDay();cells.push(`<td class="c dc ${sel.has(y)?"on":""} ${w===0||w===6?"we":""}" data-dc="${y}">${d}</td>`)}
+ const rows=[];for(let i=0;i<cells.length;i+=7)rows.push("<tr>"+cells.slice(i,i+7).join("")+"</tr>");
+ box.innerHTML=`<div class="row" style="align-items:center;margin:6px 0"><button class="btn sm" data-dm="-1">‹</button><b class="grow" style="text-align:center">${Y}年${M}月</b><button class="btn sm" data-dm="1">›</button></div>
+ <div class="wtab"><table><tr>${["月","火","水","木","金","土","日"].map(x=>`<th>${x}</th>`).join("")}</tr>${rows.join("")}</table></div>
+ <div class="note">${s.days&&s.days.length?`選んだ日：${s.days.length}日（${esc(s.days.map(y=>+y.slice(5,7)+"/"+ +y.slice(8)).join("・"))}）`:"日をタップすると、その日だけ入る現場になります（今は続けての日）"}</div>
+ <div class="row" style="margin-top:6px"><button class="btn grow" data-da="we">土日を外す</button><button class="btn grow" data-da="clr">続けての日に戻す</button></div>`;
+ box.onclick=e=>{const b=e.target.closest("[data-dm],[data-dc],[data-da]");if(!b)return;
+  if(b.dataset.dm){const d=new Date(Y,M-1+ +b.dataset.dm,1);dcM.m=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;renderDays();return}
+  let a=siteDays(s);
+  if(b.dataset.dc){const y=b.dataset.dc;a=a.includes(y)?a.filter(x=>x!==y):[...a,y].sort();if(!a.length){toast("1日は残してください");return}}
+  else if(b.dataset.da==="we"){a=a.filter(y=>{const w=dOf(y).getDay();return w!==0&&w!==6});if(!a.length){toast("土日しかありません");return}}
+  else{s.days=null;s.end=s.end||"";save();renderDays();upd();return}
+  s.days=a;s.date=a[0];s.end=a.length>1?a[a.length-1]:"";$("#fDate").value=s.date;$("#fEnd").value=s.end;
+  for(const m of s.members)if(m.d){m.d=m.d.filter(x=>a.includes(x));if(!m.d.length||a.every(x=>m.d.includes(x)))delete m.d}   // 外した日の分は人からも消す
+  save();renderDays();upd()};
+}
+/* 🚗 交通費：s.cost[名前]={hw:高速代, gas:ガソリン代}（円・1日の往復） */
+function renderCosts(){const s=cur,box=$("#costs");if(!box)return;s.cost=s.cost||{};const ns=[...new Set(s.members.filter(m=>memN(m)===1).map(m=>baseNm(m.n)).filter(Boolean))];
+ box.innerHTML=ns.length?ns.map(n=>{const c=s.cost[n]||{};return `<div style="border-top:1px solid var(--line);padding:6px 0"><b>${esc(n)}</b><div style="display:flex;align-items:center;gap:4px;margin-top:4px"><span class="note">高速</span><input data-hw="${esc(n)}" type="number" inputmode="numeric" placeholder="0" value="${c.hw||""}" style="flex:1;min-width:0">円<span class="note" style="margin-left:6px">ガソリン</span><input data-gas="${esc(n)}" type="number" inputmode="numeric" placeholder="0" value="${c.gas||""}" style="flex:1;min-width:0">円</div></div>`}).join(""):`<div class="note">先にメンバーを入れてください</div>`;
+ box.oninput=e=>{const t=e.target,n=t.dataset.hw||t.dataset.gas;if(!n)return;const c=s.cost[n]=s.cost[n]||{};c[t.dataset.hw?"hw":"gas"]=Math.max(0,parseInt(t.value)||0);if(!c.hw&&!c.gas)delete s.cost[n];save()}}
 function renderHelps(){
  const s=cur,box=$("#helps");box.innerHTML=s.help.length?s.help.map((h,i)=>`<div class="mem"><input data-co="${i}" placeholder="会社名（例：〇〇設備）" value="${esc(h.co)}" class="grow"><input data-hn="${i}" type="number" inputmode="numeric" min="0" value="${esc(h.n)}" style="width:64px"><span>名</span><button class="btn sm del" data-rmh="${i}" aria-label="外す">✕</button></div>`).join(""):`<div class="note">いません</div>`;
  box.oninput=e=>{const t=e.target;if(t.dataset.co!=null)s.help[+t.dataset.co].co=t.value;else if(t.dataset.hn!=null)s.help[+t.dataset.hn].n=Math.max(0,parseInt(t.value)||0);save();upd()};
  box.onclick=e=>{const b=e.target.closest("[data-rmh]");if(!b)return;s.help.splice(+b.dataset.rmh,1);save();renderHelps();upd()};
 }
-function addMem(v){v=v.trim();if(!v)return;cur.members.push({n:v,star:false});people(v);$("#fMem").value="";save();renderMems();upd()}
+function addMem(v){v=v.trim();if(!v)return;cur.members.push({n:v,star:false});people(v);$("#fMem").value="";save();renderMems();renderCosts();upd()}
 function renderMems(){
  const s=cur;$("#mems").innerHTML=s.members.length?s.members.map((m,i)=>`<div class="mem"><button class="star ${m.star?"on":""}" data-st="${i}" aria-label="現調に行った人">⭐</button><span class="nm">${esc(m.n)}${m.d?`<small class="dd">（${esc(m.d.map(x=>+x.slice(8)+"日").join("・"))}だけ）</small>`:""}</span><button class="btn sm" data-up="${i}" aria-label="上へ" ${i?"":"disabled"}>↑</button><button class="btn sm del" data-rm="${i}" aria-label="外す">✕</button></div>`).join(""):`<div class="note">まだいません。下で名前を入れて「追加」。</div>`;
  const used=new Set(s.members.map(m=>m.n));$("#chips").innerHTML=people().filter(n=>!used.has(n)).slice(0,20).map(n=>`<button class="chip" data-add="${esc(n)}">＋ ${esc(n)}</button>`).join("");
@@ -177,7 +205,7 @@ function renderMems(){
   if(d.st!=null){s.members[+d.st].star=!s.members[+d.st].star}
   else if(d.up!=null){const i=+d.up;[s.members[i-1],s.members[i]]=[s.members[i],s.members[i-1]]}
   else if(d.rm!=null){s.members.splice(+d.rm,1)}
-  save();renderMems();upd()};
+  save();renderMems();renderCosts();upd()};
  $("#chips").onclick=e=>{const b=e.target.closest("[data-add]");if(b)addMem(b.dataset.add)};
 }
 async function renderPhotos(){
@@ -203,8 +231,11 @@ const pad2=n=>String(n).padStart(2,"0"),ymdOf=d=>`${d.getFullYear()}-${pad2(d.ge
 const dOf=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
 function monday(s){const d=s?dOf(s):new Date();d.setDate(d.getDate()-(d.getDay()+6)%7);return ymdOf(d)}
 function addDay(s,n){const d=dOf(s);d.setDate(d.getDate()+n);return ymdOf(d)}
-const endOf=s=>s.end&&s.end>s.date?s.end:s.date;
-const onDay=(s,y)=>!!s.date&&s.date<=y&&y<=endOf(s);
+/* 日程：続けての日（date〜end）か、飛び飛びの日（s.days＝選んだ日の並び。今日・来週・2週間後、土日はほかの現場など）。days がある時は date＝最初・end＝最後の日にそろえる */
+const endOf=s=>s.days&&s.days.length?s.days[s.days.length-1]:s.end&&s.end>s.date?s.end:s.date;
+const onDay=(s,y)=>s.days&&s.days.length?s.days.includes(y):!!s.date&&s.date<=y&&y<=endOf(s);
+const daysTxt=a=>{const R=[];let i=0;while(i<a.length){let j=i;while(j+1<a.length&&a[j+1]===addDay(a[j],1))j++;R.push(dateTxt(a[i])+(j>i?"〜"+dateTxt(a[j]):""));i=j+1}return R.join("・")};   /* 続いている日は「〜」でまとめる */
+const siteDays=s=>{if(s.days&&s.days.length)return s.days.slice();const a=[];if(s.date)for(let d=s.date;d<=endOf(s);d=addDay(d,1))a.push(d);return a};
 const memOn=(m,y)=>!m.d||m.d.includes(y);
 const memN=m=>{const k=String(m.n).match(/[（(]\s*(\d+)\s*名\s*[)）]/);return k?+k[1]:1};   /* 「服部さん（3名）」は3人 */
 const baseNm=n=>String(n).replace(/[（(]\s*\d+\s*名\s*[)）]/,"").trim();
@@ -318,20 +349,31 @@ const HOL=new Set(["2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-03-
 const isHol=(C,y)=>{const w=dOf(y).getDay();return w===0||(w===6&&!C.satWork)||(C.nohol?false:HOL.has(y))};
 function kPeriod(C,y){const cut=+C.cut||1,d=dOf(y);let a=new Date(d.getFullYear(),d.getMonth(),cut);if(d<a)a=new Date(d.getFullYear(),d.getMonth()-1,cut);const b=new Date(a.getFullYear(),a.getMonth()+1,cut-1);return [ymdOf(a),ymdOf(b)]}
 async function kosuData(C,a,b){const days=[];for(let y=a;y<=b;y=addDay(y,1))days.push(y);const ss=(await allSites()).filter(s=>s.date&&s.date<=b&&endOf(s)>=a),R={};
- const one=n=>R[n]=R[n]||{d:0,nt:0,h:0,off:0,mk:0,od:0,on:0,list:[]};
+ const one=n=>R[n]=R[n]||{d:0,nt:0,h:0,off:0,mk:0,od:0,on:0,hw:0,gas:0,site:{},list:[]};
  for(const y of days)for(const n in (C.ot||{})[y]||{})one(n);
  for(const s of ss)for(const m of s.members){const n=baseNm(m.n);if(!n||memN(m)!==1)continue;one(n)}C.staff.forEach(one);
  for(const n in R){const r=R[n];for(const y of days){const w=ss.filter(s=>onDay(s,y)&&s.members.some(m=>baseNm(m.n)===n&&memOn(m,y))),hol=isHol(C,y),sh=new Set(w.map(shiftOf));
    const o=otOf(C,y,n);r.od+=otRnd(C,o.d||0);r.on+=otRnd(C,o.n||0);
    if(!w.length){r.off++;if((C.off[y]||[]).includes(n))r.mk++;if(o.d||o.n)r.list.push({y,hol,w,o});continue}
    if(hol)r.h+=sh.size;else{if(sh.has("day"))r.d++;if(sh.has("night"))r.nt++}
+   for(const s of w){r.site[s.id]=(r.site[s.id]||0)+1;const c=(s.cost||{})[n];if(c){r.hw+=+c.hw||0;r.gas+=+c.gas||0}}   // 現場ごとの回数・交通費（1日の往復×入った日）
    r.list.push({y,hol,w,o})}}
- return {days,R,names:ordNames(C,Object.keys(R))}}
+ /* 現場ごと：入った日数・延べ人数（社員＋応援）・交通費 */
+ const ST=ss.map(s=>{let dn=0,pd=0,hp=0;for(const y of days)if(onDay(s,y)){const k=s.members.filter(m=>m.n.trim()&&memOn(m,y)).reduce((a2,m)=>a2+memN(m),0),h2=helps(s).reduce((a2,h)=>a2+(+h.n||0),0);if(k+h2){dn++;pd+=k;hp+=h2}}
+  let hw=0,gas=0;for(const n in R){const c=(s.cost||{})[n],t=R[n].site[s.id]||0;if(c&&t){hw+=(+c.hw||0)*t;gas+=(+c.gas||0)*t}}return {s,dn,pd,hp,hw,gas}}).filter(o=>o.dn);
+ return {days,R,ST,names:ordNames(C,Object.keys(R))}}
+const yen=v=>"¥"+Math.round(v).toLocaleString("ja-JP");
+/* 1人分のまとめ（人工・残業・現場ごとの回数・交通費）：人工の画面の名前タップと、個人のページで使う */
+function personHtml(n,r,ST){const nm=id=>{const o=ST.find(q=>q.s.id===id);return o?(o.s.name||"（名前なし）").trim():"（消した現場）"};
+ return `<div class="sub">☀️日勤 ${r.d}日・🌙夜勤 ${r.nt}日・🎌休日出勤 ${r.h}日・🏖休み ${r.off}日 ＝ <b>${r.d+r.nt+r.h}人工</b></div>
+ <div class="sub">⏱ 残業：日勤 ${hmTxt(r.od)}・夜勤 ${hmTxt(r.on)}（計 ${hmTxt(r.od+r.on)}）</div>
+ <div class="sub">🏭 現場ごと：${Object.entries(r.site).sort((a,b)=>b[1]-a[1]).map(([id,t])=>`${esc(nm(id))} ${t}回`).join("・")||"なし"}</div>
+ <div class="sub">🚗 交通費：高速 ${yen(r.hw)}・ガソリン ${yen(r.gas)}（計 ${yen(r.hw+r.gas)}）</div>`}
 async function renderKosu(y0,yr){   /* yr：1年（1月の期間〜12月の期間） */
- freeUrls();document.querySelector(".bar")?.remove();const C=cal(),cY=+C.cut||1,Y=+y0.slice(0,4),[a,b]=yr?[kPeriod(C,`${Y}-01-${String(cY).padStart(2,"0")}`)[0],kPeriod(C,`${Y}-12-${String(cY).padStart(2,"0")}`)[1]]:kPeriod(C,y0),{days,R,names}=await kosuData(C,a,b);
+ freeUrls();document.querySelector(".bar")?.remove();const C=cal(),cY=+C.cut||1,Y=+y0.slice(0,4),[a,b]=yr?[kPeriod(C,`${Y}-01-${String(cY).padStart(2,"0")}`)[0],kPeriod(C,`${Y}-12-${String(cY).padStart(2,"0")}`)[1]]:kPeriod(C,y0),{days,R,ST,names}=await kosuData(C,a,b);
  const otS=n=>R[n].od+R[n].on,sum=k=>names.reduce((s2,n)=>s2+R[n][k],0);
  const tot=n=>R[n].d+R[n].nt+R[n].h,cuts=[1,...Array.from({length:27},(_,i)=>i+2)];   /* 締め日：月末（1日から）・1〜27日（その次の日から） */
- const txt=()=>[`📊 人工・残業 ${yr?Y+"年 ":""}${dateTxt(a)}〜${dateTxt(b)}`,...names.map(n=>`${n}：日勤${R[n].d}日・夜勤${R[n].nt}日・休日出勤${R[n].h}日・休み${R[n].off}日（計${tot(n)}人工）・残業 日勤${hmTxt(R[n].od)}／夜勤${hmTxt(R[n].on)}（計${hmTxt(otS(n))}）`),`合計 ${names.reduce((s2,n)=>s2+tot(n),0)}人工・残業 ${hmTxt(sum("od")+sum("on"))}`].join("\n");
+ const txt=()=>[`📊 人工・残業 ${yr?Y+"年 ":""}${dateTxt(a)}〜${dateTxt(b)}`,...names.map(n=>`${n}：日勤${R[n].d}日・夜勤${R[n].nt}日・休日出勤${R[n].h}日・休み${R[n].off}日（計${tot(n)}人工）・残業 日勤${hmTxt(R[n].od)}／夜勤${hmTxt(R[n].on)}（計${hmTxt(otS(n))}）`),`合計 ${names.reduce((s2,n)=>s2+tot(n),0)}人工・残業 ${hmTxt(sum("od")+sum("on"))}`,"",...ST.map(o=>`🏭 ${(o.s.name||"（名前なし）").trim()}：${o.dn}日・延べ${o.pd+o.hp}人${o.hp?`（応援${o.hp}人）`:""}${o.hw+o.gas?`・高速${yen(o.hw)}・ガソリン${yen(o.gas)}`:""}`),...(sum("hw")+sum("gas")?["","🚗 交通費",...names.filter(n=>R[n].hw+R[n].gas).map(n=>`${n}：高速${yen(R[n].hw)}・ガソリン${yen(R[n].gas)}（計${yen(R[n].hw+R[n].gas)}）`)]:[])].join("\n");
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 戻る</button><span class="grow"></span><button class="btn sm" id="bPrev">‹ 前</button><button class="btn sm" id="bNext">次 ›</button></h1>
  <div class="chips" style="margin:0 0 8px"><button class="chip" id="kMon" style="${yr?"":"background:var(--acc);border-color:var(--acc);color:#fff"}">1か月</button><button class="chip" id="kYr" style="${yr?"background:var(--acc);border-color:var(--acc);color:#fff":""}">1年（${Y}年）</button></div>
  <div class="card"><h2>📊 人工 ${yr?Y+"年 ":""}${esc(dateTxt(a))}〜${esc(dateTxt(b))}</h2>
@@ -346,6 +388,11 @@ async function renderKosu(y0,yr){   /* yr：1年（1月の期間〜12月の期�
   <tr><th class="nm">合計</th><td class="k">${hmTxt(sum("od"))}</td><td class="k">${hmTxt(sum("on"))}</td><td class="k"><b>${hmTxt(sum("od")+sum("on"))}</b></td></tr></table></div>`:""}
   <div class="row" style="align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px"><label class="note" for="kOtU">残業の単位</label><select id="kOtU" style="width:auto">${[[1,"1分ごと"],[15,"15分ごと"],[30,"30分ごと"],[60,"1時間ごと"]].map(([v,t])=>`<option value="${v}" ${v===(+C.otU||30)?"selected":""}>${t}</option>`).join("")}</select>
    <select id="kOtR" style="width:auto">${[["down","端数は切り捨て"],["round","端数は四捨五入"],["up","端数は切り上げ"]].map(([v,t])=>`<option value="${v}" ${v===(C.otR||"down")?"selected":""}>${t}</option>`).join("")}</select></div>
+  ${ST.length?`<h2 style="margin-top:12px">🏭 現場ごと</h2><div class="wtab"><table class="kt"><tr><th></th><th>入った<br>日数</th><th>延べ<br>人数</th><th>高速代</th><th>ガソリン</th></tr>
+  ${ST.map(o=>`<tr><th class="nm">${esc((o.s.name||"（名前なし）").trim())}</th><td class="k">${o.dn}</td><td class="k">${o.pd+o.hp}${o.hp?`<div class="note" style="font-size:10px">応援${o.hp}</div>`:""}</td><td class="k" style="font-size:12px">${yen(o.hw)}</td><td class="k" style="font-size:12px">${yen(o.gas)}</td></tr>`).join("")}</table></div>`:""}
+  ${names.length&&sum("hw")+sum("gas")?`<h2 style="margin-top:12px">🚗 交通費（人ごと）</h2><div class="wtab"><table class="kt"><tr><th></th><th>高速代</th><th>ガソリン</th><th>合計</th></tr>
+  ${names.map(n=>`<tr><th class="nm" data-kn="${esc(n)}">${esc(n)}</th><td class="k" style="font-size:12px">${yen(R[n].hw)}</td><td class="k" style="font-size:12px">${yen(R[n].gas)}</td><td class="k" style="font-size:12px"><b>${yen(R[n].hw+R[n].gas)}</b></td></tr>`).join("")}
+  <tr><th class="nm">合計</th><td class="k" style="font-size:12px">${yen(sum("hw"))}</td><td class="k" style="font-size:12px">${yen(sum("gas"))}</td><td class="k" style="font-size:12px"><b>${yen(sum("hw")+sum("gas"))}</b></td></tr></table></div>`:""}
   <div class="note">残業は「だれがどこに」の表のマスをタップして、日勤の残業・夜勤の残業を選びます（⏱の印が付きます）。単位を変えると、前に入れた残業も合計の時に単位に合わせます。</div>
   <div id="kDet"></div></div>
  <div class="card"><h2>💬 送る</h2><pre class="out" id="out"></pre><div class="row" style="margin-top:8px"><button class="btn grow" id="bCopy">📋 コピー</button><button class="btn line grow" id="bSend">💬 送る</button></div></div>`;
@@ -358,14 +405,14 @@ async function renderKosu(y0,yr){   /* yr：1年（1月の期間〜12月の期�
  $("#kSat").onchange=e=>{const C2=cal();C2.satWork=e.target.checked;calSave(C2);renderKosu(y0,yr)};$("#kHol").onchange=e=>{const C2=cal();C2.nohol=!e.target.checked;calSave(C2);renderKosu(y0,yr)};
  $("#bCopy").onclick=()=>copyText(txt());$("#bSend").onclick=()=>shareText(txt());
  $("#app").querySelectorAll("[data-kn]").forEach(th=>th.onclick=()=>{const n=th.dataset.kn,r=R[n];
-  $("#kDet").innerHTML=`<h2 style="margin-top:12px">${esc(n)} の日ごと</h2>${r.list.map(o=>`<div class="sub">${esc(dateTxt(o.y))}${o.hol?" 🎌":""}：${o.w.map(s=>`${(shIco(s)||"☀️")}${esc((s.name||"現場").trim())}${s.time?" "+esc(spanTxt(s)):""}`).join("／")||"（現場なし）"}${o.o&&(o.o.d||o.o.n)?` ⏱${o.o.d?"日勤"+hmTxt(o.o.d):""}${o.o.n?" 夜勤"+hmTxt(o.o.n):""}`:""}</div>`).join("")||`<div class="note">現場に入った日はありません</div>`}`;
+  $("#kDet").innerHTML=`<h2 style="margin-top:12px">${esc(n)}</h2>${personHtml(n,r,ST)}<h2 style="margin-top:8px">日ごと</h2>${r.list.map(o=>`<div class="sub">${esc(dateTxt(o.y))}${o.hol?" 🎌":""}：${o.w.map(s=>`${(shIco(s)||"☀️")}${esc((s.name||"現場").trim())}${s.time?" "+esc(spanTxt(s)):""}`).join("／")||"（現場なし）"}${o.o&&(o.o.d||o.o.n)?` ⏱${o.o.d?"日勤"+hmTxt(o.o.d):""}${o.o.n?" 夜勤"+hmTxt(o.o.n):""}`:""}</div>`).join("")||`<div class="note">現場に入った日はありません</div>`}`;
   $("#kDet").scrollIntoView({behavior:"smooth",block:"start"})});
 }
 /* 現場の名前をタップ：くわしく（日にち・時間・住所・その週の日ごとの人数と人・作業内容）→ 現場カードへ */
 function siteSheet(s,days){if(!s)return;const ov=document.createElement("div");ov.className="sheet";
  const dd=days.filter(y=>onDay(s,y));
  ov.innerHTML=`<div class="sbox"><h2>🏭 ${esc(s.name||"（名前なし）")}</h2>
- <div class="sub">📅 ${esc(dateTxt(s.date))}${endOf(s)!==s.date?"〜"+esc(dateTxt(endOf(s))):""}${s.time?" "+esc(spanTxt(s)):""}${" "+(shTx(s)||"☀️日勤")}</div>
+ <div class="sub">📅 ${esc(dateTxt(s.date))}${endOf(s)!==s.date?"〜"+esc(dateTxt(endOf(s))):""}${s.days&&s.days.length>1?`（飛び飛び ${s.days.length}日）`:""}${s.time?" "+esc(spanTxt(s)):""}${" "+(shTx(s)||"☀️日勤")}</div>
  ${s.addr?`<div class="sub">📍 ${esc(s.addr)}</div>`:""}
  ${dd.map(y=>{const st=needSt(s,y),mm=s.members.filter(m=>m.n.trim()&&memOn(m,y)),hp=helps(s);return `<div style="border-top:1px solid var(--line);padding-top:6px"><b>${esc(dateTxt(y))}</b> <span class="need ${st.c}" style="display:inline">${esc(st.t)}</span>
   <div class="sub">👷 ${mm.length?esc(mm.map(m=>m.n.trim()+(m.star?"⭐":"")).join("・")):"まだだれも入っていません"}</div>${hp.length?`<div class="sub">🤝 応援：${esc(hp.map(h=>`${h.co.trim()||"（会社名なし）"} ${+h.n||0}名`).join("・"))}</div>`:""}</div>`}).join("")}
@@ -393,7 +440,7 @@ function pick(n,y,ss){
   ov.remove();renderWeek()};
 }
 function toggleMem(s,n,y){
- const span=[];for(let d=s.date;d<=endOf(s);d=addDay(d,1))span.push(d);
+ const span=siteDays(s);
  const i=s.members.findIndex(m=>baseNm(m.n)===n);s.updated=Date.now();
  if(i<0){s.members.push(span.length>1?{n,star:false,d:[y]}:{n,star:false});people(n);return}
  const m=s.members[i];
@@ -433,6 +480,7 @@ async function renderPerson(){
  const p=prof(C,n),ok=()=>calSave(C);
  const F2=(id,label,v,ph,type)=>`<label class="f" for="${id}">${label}</label><input id="${id}" ${type?`type="${type}"`:""} placeholder="${esc(ph||"")}" value="${esc(v||"")}">`;
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 週の割り振り</button><span class="grow"></span><button class="btn sm del" id="bDelP">この人を消す</button></h1>
+ <div class="card"><h2 style="display:flex;align-items:center;gap:6px"><span class="grow">📊 ${esc(n)} の人工・残業・交通費</span><button class="btn sm" id="pSp">‹</button><button class="btn sm" id="pSn">›</button></h2><div id="pSum" class="note">集計しています…</div></div>
  <div class="card"><h2>🏷 タグ</h2><div class="note">タップでつける・外す。🙈の付いたタグは、この画面だけに出ます（表・送る文章には出ません）。</div>
   <div class="chips" id="ptags">${C.tags.map(t=>{const on=p.tags.includes(t.id);return `<button class="chip ${on?"on":""}" data-t="${t.id}" style="${on?`background:${t.c};border-color:${t.c};color:#fff`:`border-color:${t.c}`}">${t.hide?"🙈":""}${esc(t.n)}</button>`}).join("")||`<span class="note">まだタグがありません。下で作ってください。</span>`}</div>
   <details style="margin-top:10px"><summary class="note" style="font-weight:800">🏷 タグを作る・直す</summary>
@@ -460,6 +508,9 @@ async function renderPerson(){
   <button class="btn" id="bPFile" style="width:100%;margin-top:8px">📲 相手のアプリに入れられるファイルで送る</button>
   <div class="note">相手は 📋 現場 →「📅 週の割り振り」→ 社員の欄の「📥 受け取った人を入れる」で読み込めます。</div></div>`;
  const reP=()=>{ok();renderPerson()};
+ /* この人の期間（締め日）のまとめ：‹ › で前後の期間 */
+ const pSum=async()=>{const [a,b]=kPeriod(C,pPer||ymdOf(new Date())),{R,ST}=await kosuData(C,a,b),r=R[n];$("#pSum").innerHTML=`<b>${esc(dateTxt(a))}〜${esc(dateTxt(b))}</b>`+(r?personHtml(n,r,ST):`<div class="sub">この期間は現場に入っていません</div>`)};
+ $("#pSp").onclick=()=>{pPer=addDay(kPeriod(C,pPer||ymdOf(new Date()))[0],-1);pSum()};$("#pSn").onclick=()=>{pPer=addDay(kPeriod(C,pPer||ymdOf(new Date()))[1],1);pSum()};pSum();
  $("#bBack").onclick=()=>go("w"+(wk||monday()));
  $("#ptags").onclick=e=>{const b=e.target.closest("[data-t]");if(!b)return;const id=b.dataset.t;p.tags=p.tags.includes(id)?p.tags.filter(x=>x!==id):[...p.tags,id];reP()};
  const addTag=v=>{v=v.trim();if(!v)return;let t=C.tags.find(x=>x.n===v);if(!t){t={id:rid("t"),n:v,c:TAGC[C.tags.length%TAGC.length],hide:false};C.tags.push(t)}if(!p.tags.includes(t.id))p.tags.push(t.id);reP()};

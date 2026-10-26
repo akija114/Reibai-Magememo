@@ -88,7 +88,7 @@ function freeUrls(){while(urls.length)URL.revokeObjectURL(urls.pop())}
 function save(){if(!cur)return;cur.updated=Date.now();clearTimeout(saveT);saveT=setTimeout(()=>putSite(cur).catch(()=>toast("保存できませんでした")),300)}
 function go(id){location.hash=id?"#"+id:"";}
 window.addEventListener("hashchange",route);
-async function route(){clearTimeout(saveT);if(cur)await putSite(cur).catch(()=>{});const id=location.hash.slice(1);if(/^w\d{4}-\d\d-\d\d$/.test(id)){cur=null;wk=monday(id.slice(1));renderWeek();return}if(id){const s=await getSite(id);if(s){cur=s;renderEdit();return}}cur=null;renderList()}
+async function route(){clearTimeout(saveT);if(cur)await putSite(cur).catch(()=>{});const id=location.hash.slice(1);if(id[0]==="p"&&id.length>1){cur=null;try{pName=decodeURIComponent(id.slice(1))}catch(e){pName=""}renderPerson();return}if(/^w\d{4}-\d\d-\d\d$/.test(id)){cur=null;wk=monday(id.slice(1));renderWeek();return}if(id){const s=await getSite(id);if(s){cur=s;renderEdit();return}}cur=null;renderList()}
 
 async function renderList(){
  freeUrls();const ss=(await allSites()).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||b.updated-a.updated);
@@ -196,7 +196,7 @@ function upd(){
 /* ===== 📅 週の割り振り：だれがどの現場か・休み・応援さん・人数（最低○名・余裕がなければ＋○名）
    社員の名前と休みは localStorage「genba_cal」（{staff:[名前], off:{"2026-10-27":[名前]}}）。現場の方は sites に end（終わりの日）・need {min,plus}・help [{co,n}]、
    メンバーに d（入る日だけ。無い時は現場の日ぜんぶ） ===== */
-function cal(){let o={};try{o=JSON.parse(localStorage.getItem("genba_cal")||"{}")}catch(e){}if(!Array.isArray(o.staff))o.staff=[];if(!o.off||typeof o.off!=="object")o.off={};return o}
+function cal(){let o={};try{o=JSON.parse(localStorage.getItem("genba_cal")||"{}")}catch(e){}if(!Array.isArray(o.staff))o.staff=[];if(!o.off||typeof o.off!=="object")o.off={};if(!Array.isArray(o.tags))o.tags=[];if(!o.prof||typeof o.prof!=="object")o.prof={};return o}
 function calSave(o){try{localStorage.setItem("genba_cal",JSON.stringify(o))}catch(e){toast("保存できませんでした")}}
 const pad2=n=>String(n).padStart(2,"0"),ymdOf=d=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 const dOf=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
@@ -211,7 +211,7 @@ const helps=s=>(s.help||[]).filter(h=>h.co.trim()||+h.n);
 function headcount(s,y){return s.members.filter(m=>m.n.trim()&&memOn(m,y)).reduce((a,m)=>a+memN(m),0)+helps(s).reduce((a,h)=>a+(+h.n||0),0)}
 function needSt(s,y){const nd=s.need||{},n=headcount(s,y);if(!nd.min)return {n,c:"",t:`${n}名`};
  if(n<nd.min)return {n,c:"ng",t:`🔴 ${n}名／最低${nd.min}名 ・あと${nd.min-n}名 足りない`};
- const want=nd.min+(+nd.plus||0);if(n<want)return {n,c:"mid",t:`🟡 ${n}名／最低${nd.min}名はOK ・余裕がないので あと${want-n}名ほしい`};
+ const want=nd.min+(+nd.plus||0);if(n<want)return {n,c:"mid",t:`🟡 ${n}名／最低${nd.min}名はいる ・余裕がないので あと${want-n}名ほしい`};
  return {n,c:"ok",t:`🟢 ${n}名／最低${nd.min}名${nd.plus?`＋${nd.plus}名`:""} 余裕あり`}}
 const SC=["#0369a1","#b45309","#15803d","#7c3aed","#be123c","#0f766e","#a16207","#4338ca"];
 async function weekData(){
@@ -235,8 +235,9 @@ async function renderWeek(){
  <div class="card"><h2>📅 ${esc(dateTxt(days[0]))}〜${esc(dateTxt(days[6]))}</h2>
   ${ng?`<div class="need ng">🔴 人が足りない現場が ${ng}件 あります</div>`:ss.length?`<div class="need ok">🟢 足りない現場はありません</div>`:""}
   <h2 style="margin-top:10px">👷 だれがどこに</h2>
+  ${C.tags.some(t=>!t.hide&&names.some(n=>tagsOf(C,n).some(x=>x.id===t.id)))?`<div class="chips" style="margin:0 0 6px">${C.tags.filter(t=>!t.hide&&names.some(n=>tagsOf(C,n).some(x=>x.id===t.id))).map(t=>`<button class="chip" data-wt="${t.id}" style="${wTag===t.id?`background:${t.c};border-color:${t.c};color:#fff`:`border-color:${t.c}`}">🏷 ${esc(t.n)}</button>`).join("")}</div>`:""}
   ${names.length?`<div class="wtab"><table><tr><th></th>${days.map(y=>`<th class="${y===today?"td":""}">${+y.slice(8)}<br>${WD[dOf(y).getDay()]}</th>`).join("")}</tr>
-  ${names.map(n=>`<tr><th class="nm">${esc(n)}</th>${days.map(y=>cell(n,y)).join("")}</tr>`).join("")}</table></div>
+  ${names.map(n=>`<tr class="${wTag&&!tagsOf(C,n).some(t=>t.id===wTag)?"dim":""}"><th class="nm">${esc(n)}${tagsOf(C,n).length?`<div class="dots">${tagsOf(C,n).map(t=>`<i style="background:${t.c}"></i>`).join("")}</div>`:""}</th>${days.map(y=>cell(n,y)).join("")}</tr>`).join("")}</table></div>
   <div class="note">マスをタップ → 現場に入れる・外す・休みにする。⚠️＝休みの日に入っている／2つの現場に入っている。</div>`:`<div class="note">下の「社員の名前」に名前を入れると、ここに表が出ます。</div>`}
   ${ss.length?`<div class="chips">${ss.map(s=>`<span class="chip" style="border-color:${col(s)}"><span style="color:${col(s)}">■</span> ${esc(s.name||"（名前なし）")}</span>`).join("")}</div>`:""}</div>
  ${days.map(y=>{const here=ss.filter(s=>onDay(s,y)),off=C.off[y]||[],busy=new Set(Object.keys(at).filter(n=>(at[n][y]||[]).length)),free=names.filter(n=>!busy.has(n)&&!off.includes(n));
@@ -251,8 +252,9 @@ async function renderWeek(){
   ${names.length&&here.length?`<div class="note">🙋 空いている人：${free.length?esc(free.join("・")):"いません"}</div>`:""}</div>`}).join("")}
  <div class="card"><h2>💬 この週の割り振りを送る</h2><pre class="out" id="out"></pre>
   <div class="row" style="margin-top:8px"><button class="btn grow" id="bCopy">📋 コピー</button><button class="btn line grow" id="bSend">💬 送る</button></div></div>
- <div class="card"><h2>👷 社員の名前（表に出す人）</h2><div class="note">会社のメンバーを入れておくと、だれが空いているか・休みかが分かります。応援さんは現場の「👥 人数・応援」に入れてください。</div>
-  <div class="chips" id="staff">${C.staff.map((n,i)=>`<button class="chip" data-rs="${i}">${esc(n)} ✕</button>`).join("")||`<span class="note">まだいません</span>`}</div>
+ <div class="card"><h2>👷 社員（表に出す人）</h2><div class="note">会社のメンバーを入れておくと、だれが空いているか・休みかが分かります。名前をタップ → タグ・個人情報・緊急連絡先・資格証。応援さんは現場の「👥 人数・応援」に入れてください。</div>
+  <div id="staff">${C.staff.map(n=>{const p=C.prof[n]||{},nl=(p.lic||[]).length;return `<button class="site" data-pp="${esc(n)}"><b>${esc(n)}</b>${ageOf(p.birth)!==""?` <span class="sub">${ageOf(p.birth)}歳</span>`:""}${nl?` <span class="sub">📜${nl}</span>`:""}<div>${tagHtml(tagsOf(C,n))}</div></button>`}).join("")||`<span class="note">まだいません</span>`}</div>
+  <button class="btn" id="bPImp" style="width:100%;margin-top:8px">📥 受け取った人を入れる</button><input type="file" id="fPImp" accept=".json,application/json" hidden>
   <div class="row" style="margin-top:8px"><input id="fStaff" placeholder="名前（例：服部）" enterkeyhint="done"><button class="btn pri" id="bStaff">追加</button></div>
   <div class="chips" id="sugg">${[...new Set([...people().map(baseNm),...Object.keys(at)])].filter(n=>n&&!C.staff.includes(n)).slice(0,20).map(n=>`<button class="chip" data-as="${esc(n)}">＋ ${esc(n)}</button>`).join("")}</div></div>`;
  $("#out").textContent=weekText(C,days,ss);
@@ -265,12 +267,14 @@ async function renderWeek(){
  const addStaff=v=>{v=baseNm(v||"");if(!v)return;const C2=cal();if(!C2.staff.includes(v))C2.staff.push(v);calSave(C2);renderWeek()};
  $("#bStaff").onclick=()=>addStaff($("#fStaff").value);$("#fStaff").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addStaff($("#fStaff").value)}};
  $("#sugg").onclick=e=>{const b=e.target.closest("[data-as]");if(b)addStaff(b.dataset.as)};
- $("#staff").onclick=e=>{const b=e.target.closest("[data-rs]");if(!b)return;if(!b.dataset.ok){b.dataset.ok="1";b.textContent="消す？";setTimeout(()=>{if(b.isConnected){b.dataset.ok="";b.textContent=C.staff[+b.dataset.rs]+" ✕"}},2500);return}const C2=cal();C2.staff.splice(+b.dataset.rs,1);calSave(C2);renderWeek()};
+ $("#staff").onclick=e=>{const b=e.target.closest("[data-pp]");if(b)go("p"+encodeURIComponent(b.dataset.pp))};
+ $("#bPImp").onclick=()=>$("#fPImp").click();$("#fPImp").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)importAll(f)};
+ $("#app").querySelectorAll("[data-wt]").forEach(b=>b.onclick=()=>{wTag=wTag===b.dataset.wt?"":b.dataset.wt;renderWeek()});
 }
 /* 表のマスをタップ：その日の現場に入れる・外す、休み */
 function pick(n,y,ss){
  const C=cal(),off=(C.off[y]||[]).includes(n),here=ss.filter(s=>onDay(s,y)),ov=document.createElement("div");ov.className="sheet";
- ov.innerHTML=`<div class="sbox"><h2>${esc(n)}　${esc(dateTxt(y))}</h2>
+ ov.innerHTML=`<div class="sbox"><h2>${esc(n)}　${esc(dateTxt(y))}</h2>${tagsOf(C,n).length?`<div>${tagHtml(tagsOf(C,n))}</div>`:""}
  ${here.map((s,i)=>{const on=s.members.some(m=>baseNm(m.n)===n&&memOn(m,y));return `<button class="btn ${on?"pri":""}" data-s="${i}">${on?"✓ ":""}🏭 ${esc(s.name||"（名前なし）")}${on?"（外す）":"に入れる"}</button>`}).join("")||`<div class="note">この日の現場はありません</div>`}
  <button class="btn ${off?"pri":""}" data-off="1">${off?"✓ 🏖 休み（消す）":"🏖 休みにする"}</button><button class="btn" data-x="1">閉じる</button></div>`;
  document.body.appendChild(ov);
@@ -302,20 +306,126 @@ function weekText(C,days,ss){
  L.push("","よろしくお願い致します🙏");return L.join("\n");
 }
 
+/* ===== 👤 社員の情報：タグ（自由に作れる・🙈で隠せる）・個人情報（危険予知の用紙用）・緊急連絡先・保持資格（資格証の写真）
+   genba_cal の tags [{id,n,c,hide}]・prof {名前:{kana,birth,blood,tel,em:{n,kana,rel,addr,tel},lic:[{n,no,ph:[写真id]}],tags:[id]}}。写真は photos（site:"person:名前"）
+   渡す：文章・資格証の写真・相手のアプリに入れるファイル（app:"genba-person"） ===== */
+const TAGC=["#0369a1","#15803d","#b45309","#be123c","#7c3aed","#0f766e","#64748b","#a16207"];
+const TAGP=["溶接できる","溶接は苦手","電気工事士 1種","電気工事士 2種","職長","玉掛け","高所作業車","フォークリフト","冷媒フロン取扱技術者","新人"];
+const LICP=["第一種電気工事士","第二種電気工事士","冷媒フロン類取扱技術者","第一種冷媒フロン類取扱技術者","高所作業車運転","玉掛け","小型移動式クレーン","フォークリフト運転","ガス溶接","アーク溶接","職長・安全衛生責任者","足場の組立て等作業主任者","フルハーネス型墜落制止用器具"];
+let wTag="",pName="";
+function prof(C,n){const p=C.prof[n]=C.prof[n]||{};p.em=p.em||{};p.lic=p.lic||[];p.tags=p.tags||[];return p}
+function tagsOf(C,n,all){const p=C.prof[n];if(!p||!p.tags)return [];return C.tags.filter(t=>p.tags.includes(t.id)&&(all||!t.hide))}
+const tagHtml=(ts,cls)=>ts.map(t=>`<span class="tg ${cls||""}" style="background:${t.c}">${t.hide?"🙈":""}${esc(t.n)}</span>`).join("");
+function ageOf(b){if(!b)return "";const d=dOf(b),t=new Date();let a=t.getFullYear()-d.getFullYear();if(t.getMonth()<d.getMonth()||(t.getMonth()===d.getMonth()&&t.getDate()<d.getDate()))a--;return a>=0&&a<130?a:""}
+const ymdJ=s=>{if(!s)return "";const [y,m,d]=s.split("-").map(Number);return `${y}年${m}月${d}日`};
+async function renderPerson(){
+ freeUrls();document.querySelector(".bar")?.remove();
+ const C=cal(),n=pName;if(!C.staff.includes(n)){go(wk?"w"+wk:"w"+monday());return}
+ const p=prof(C,n),ok=()=>calSave(C);
+ const F2=(id,label,v,ph,type)=>`<label class="f" for="${id}">${label}</label><input id="${id}" ${type?`type="${type}"`:""} placeholder="${esc(ph||"")}" value="${esc(v||"")}">`;
+ $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 週の割り振り</button><span class="grow"></span><button class="btn sm del" id="bDelP">この人を消す</button></h1>
+ <div class="card"><h2>🏷 タグ</h2><div class="note">タップでつける・外す。🙈の付いたタグは、この画面だけに出ます（表・送る文章には出ません）。</div>
+  <div class="chips" id="ptags">${C.tags.map(t=>{const on=p.tags.includes(t.id);return `<button class="chip ${on?"on":""}" data-t="${t.id}" style="${on?`background:${t.c};border-color:${t.c};color:#fff`:`border-color:${t.c}`}">${t.hide?"🙈":""}${esc(t.n)}</button>`}).join("")||`<span class="note">まだタグがありません。下で作ってください。</span>`}</div>
+  <details style="margin-top:10px"><summary class="note" style="font-weight:800">🏷 タグを作る・直す</summary>
+   <div id="tagEd">${C.tags.map((t,i)=>`<div class="mem"><button class="btn sm" data-tc="${i}" style="background:${t.c};border-color:${t.c};width:34px" aria-label="色を変える"></button><input data-tn="${i}" value="${esc(t.n)}" class="grow"><button class="btn sm" data-th="${i}">${t.hide?"🙈 隠す":"👁 出す"}</button><button class="btn sm del" data-td="${i}" aria-label="消す">✕</button></div>`).join("")}</div>
+   <div class="row" style="margin-top:8px"><input id="fTag" placeholder="新しいタグ（例：溶接できる）" enterkeyhint="done"><button class="btn pri" id="bTag">作る</button></div>
+   <div class="chips" id="tagSug">${TAGP.filter(x=>!C.tags.some(t=>t.n===x)).map(x=>`<button class="chip" data-ts="${esc(x)}">＋ ${esc(x)}</button>`).join("")}</div></details></div>
+ <div class="card"><h2>👤 個人情報</h2>
+  ${F2("pN","名前",n,"例：服部 太郎")}${F2("pKana","ふりがな",p.kana,"例：はっとり たろう")}
+  <div class="row"><div class="grow">${F2("pBirth","生年月日",p.birth,"","date")}</div><div style="width:110px"><label class="f">年齢</label><div class="age" id="pAge"></div></div></div>
+  <label class="f" for="pBlood">血液型</label><select id="pBlood">${["","A","B","O","AB"].map(x=>`<option value="${x}" ${p.blood===x?"selected":""}>${x?x+"型":"（入れない）"}</option>`).join("")}</select>
+  ${F2("pTel","電話番号",p.tel,"例：090-1234-5678","tel")}<div id="pTelA"></div></div>
+ <div class="card"><h2>🚑 緊急連絡先</h2>
+  ${F2("eN","名前",p.em.n,"例：服部 花子")}${F2("eKana","ふりがな",p.em.kana,"例：はっとり はなこ")}${F2("eRel","続柄",p.em.rel,"例：妻")}
+  ${F2("eAddr","住所",p.em.addr,"例：愛知県小牧市〇〇町〇〇")}${F2("eTel","電話番号",p.em.tel,"例：090-1234-5678","tel")}<div id="eTelA"></div></div>
+ <div class="card"><h2>📜 保持資格</h2><div class="note">資格証の写真（表・裏）を入れておくと、いつでもここで見られます。</div>
+  <div id="lics"></div>
+  <div class="row" style="margin-top:8px"><input id="fLic" placeholder="資格の名前" list="licList" enterkeyhint="done"><button class="btn pri" id="bLic">追加</button></div>
+  <datalist id="licList">${LICP.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+  <div class="chips" id="licSug">${LICP.filter(x=>!p.lic.some(l=>l.n===x)).slice(0,8).map(x=>`<button class="chip" data-ls="${esc(x)}">＋ ${esc(x)}</button>`).join("")}</div>
+  <input type="file" id="fLicPh" accept="image/*" multiple hidden></div>
+ <div class="card"><h2>📤 渡す</h2><div class="note">送る物を選んでください。個人情報なので、送る相手に気をつけてください。</div>
+  <label class="ck"><input type="checkbox" id="xP" checked> 個人情報</label><label class="ck"><input type="checkbox" id="xE" checked> 緊急連絡先</label><label class="ck"><input type="checkbox" id="xL" checked> 保持資格（資格証の写真も）</label><label class="ck"><input type="checkbox" id="xT"> タグ（🙈の付いていない物だけ）</label>
+  <pre class="out" id="pOut" style="margin-top:8px"></pre>
+  <div class="row" style="margin-top:8px"><button class="btn line grow" id="bPSend">💬 文章を送る</button><button class="btn grow" id="bPPh">📷 資格証の写真</button></div>
+  <button class="btn" id="bPFile" style="width:100%;margin-top:8px">📲 相手のアプリに入れられるファイルで送る</button>
+  <div class="note">相手は 📋 現場 →「📅 週の割り振り」→ 社員の欄の「📥 受け取った人を入れる」で読み込めます。</div></div>`;
+ const reP=()=>{ok();renderPerson()};
+ $("#bBack").onclick=()=>go("w"+(wk||monday()));
+ $("#ptags").onclick=e=>{const b=e.target.closest("[data-t]");if(!b)return;const id=b.dataset.t;p.tags=p.tags.includes(id)?p.tags.filter(x=>x!==id):[...p.tags,id];reP()};
+ const addTag=v=>{v=v.trim();if(!v)return;let t=C.tags.find(x=>x.n===v);if(!t){t={id:rid("t"),n:v,c:TAGC[C.tags.length%TAGC.length],hide:false};C.tags.push(t)}if(!p.tags.includes(t.id))p.tags.push(t.id);reP()};
+ $("#bTag").onclick=()=>addTag($("#fTag").value);$("#fTag").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addTag($("#fTag").value)}};
+ $("#tagSug").onclick=e=>{const b=e.target.closest("[data-ts]");if(b)addTag(b.dataset.ts)};
+ const te=$("#tagEd");te.onchange=e=>{const t=e.target;if(t.dataset.tn!=null){const v=t.value.trim();if(v)C.tags[+t.dataset.tn].n=v;reP()}};
+ te.onclick=e=>{const b=e.target.closest("button");if(!b)return;const d=b.dataset;
+  if(d.tc!=null){const t=C.tags[+d.tc];t.c=TAGC[(TAGC.indexOf(t.c)+1)%TAGC.length];reP()}
+  else if(d.th!=null){const t=C.tags[+d.th];t.hide=!t.hide;reP()}
+  else if(d.td!=null){if(!b.dataset.ok){b.dataset.ok="1";b.textContent="消す？";return}const id=C.tags[+d.td].id;C.tags.splice(+d.td,1);for(const q of Object.values(C.prof))if(q.tags)q.tags=q.tags.filter(x=>x!==id);reP()}};
+ $("#app").querySelector("details").open=sessionStorage.getItem("genba_tagEd")==="1";$("#app").querySelector("details").ontoggle=e=>{try{sessionStorage.setItem("genba_tagEd",e.target.open?"1":"")}catch(_){}};
+ const bind=(id,set)=>{const el=$("#"+id);el.oninput=()=>{set(el.value);ok();pUpd()}};
+ bind("pKana",v=>p.kana=v);bind("pBirth",v=>p.birth=v);bind("pTel",v=>p.tel=v);$("#pBlood").onchange=e=>{p.blood=e.target.value;ok();pUpd()};
+ bind("eN",v=>p.em.n=v);bind("eKana",v=>p.em.kana=v);bind("eRel",v=>p.em.rel=v);bind("eAddr",v=>p.em.addr=v);bind("eTel",v=>p.em.tel=v);
+ $("#pN").onchange=e=>{const v=baseNm(e.target.value);if(!v||v===n){e.target.value=n;return}if(C.staff.includes(v)){toast("同じ名前の人がいます");e.target.value=n;return}
+  C.staff[C.staff.indexOf(n)]=v;C.prof[v]=p;delete C.prof[n];for(const y in C.off)C.off[y]=C.off[y].map(x=>x===n?v:x);ok();toast("名前を変えました（現場のメンバーの名前はそのままです）");pName=v;location.replace("#p"+encodeURIComponent(v))};
+ $("#bDelP").onclick=async e=>{const b=e.currentTarget;if(!b.dataset.ok){b.dataset.ok="1";b.textContent="本当に消す";setTimeout(()=>{if(b.isConnected){b.dataset.ok="";b.textContent="この人を消す"}},3000);return}
+  for(const l of p.lic)for(const id of l.ph||[])await delPhoto(id).catch(()=>{});C.staff=C.staff.filter(x=>x!==n);delete C.prof[n];ok();toast("消しました");go("w"+(wk||monday()))};
+ const addLic=v=>{v=v.trim();if(!v)return;p.lic.push({n:v,no:"",ph:[]});$("#fLic").value="";reP()};
+ $("#bLic").onclick=()=>addLic($("#fLic").value);$("#fLic").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addLic($("#fLic").value)}};
+ $("#licSug").onclick=e=>{const b=e.target.closest("[data-ls]");if(b)addLic(b.dataset.ls)};
+ let phTo=-1;$("#fLicPh").onchange=async e=>{const fs=[...e.target.files];e.target.value="";const l=p.lic[phTo];if(!l)return;for(const f of fs){try{const bl=await shrink(f),id=rid("p");await putPhoto({id,site:"person:"+n,blob:bl,t:Date.now()});l.ph.push(id)}catch(err){toast(err.message)}}reP()};
+ let h="";for(const [i,l] of p.lic.entries()){let ph="";for(const id of l.ph||[]){const x=await getPhoto(id);if(!x)continue;const u=URL.createObjectURL(x.blob);urls.push(u);ph+=`<div class="ph"><img src="${u}" alt="資格証" data-big="${u}"><button data-rmp="${i}:${id}" aria-label="写真を消す">✕</button></div>`}
+  h+=`<div class="lic"><div class="row"><b class="grow">📜 ${esc(l.n)}</b><button class="btn sm del" data-rl="${i}" aria-label="消す">✕</button></div><input data-no="${i}" placeholder="番号・取った日など（なくてもよい）" value="${esc(l.no||"")}" style="margin-top:6px"><div class="photos">${ph}<button class="btn" data-ap="${i}" style="height:96px;width:96px;white-space:normal">📷<br>資格証の写真</button></div></div>`}
+ if(pName!==n)return;
+ const lb=$("#lics");lb.innerHTML=h||`<div class="note" style="margin-top:6px">まだありません。下で資格を追加してください。</div>`;
+ lb.oninput=e=>{const t=e.target;if(t.dataset.no!=null){p.lic[+t.dataset.no].no=t.value;ok();pUpd()}};
+ lb.onclick=async e=>{const t=e.target;if(t.dataset.big){showBig(t.dataset.big);return}const b=t.closest("button");if(!b)return;const d=b.dataset;
+  if(d.ap!=null){phTo=+d.ap;$("#fLicPh").click()}
+  else if(d.rmp){const [i,id]=d.rmp.split(":");p.lic[+i].ph=p.lic[+i].ph.filter(x=>x!==id);await delPhoto(id).catch(()=>{});reP()}
+  else if(d.rl!=null){if(!b.dataset.ok){b.dataset.ok="1";b.textContent="消す？";return}for(const id of p.lic[+d.rl].ph||[])await delPhoto(id).catch(()=>{});p.lic.splice(+d.rl,1);reP()}};
+ const opt=()=>({P:$("#xP").checked,E:$("#xE").checked,L:$("#xL").checked,T:$("#xT").checked});
+ ["xP","xE","xL","xT"].forEach(id=>$("#"+id).onchange=pUpd);
+ function pUpd(){const a=ageOf(p.birth);$("#pAge").textContent=a!==""?a+"歳":"—";
+  $("#pTelA").innerHTML=p.tel?`<div class="note"><a class="map" href="tel:${esc(p.tel.replace(/[^\d+]/g,""))}">📞 電話をかける</a></div>`:"";
+  $("#eTelA").innerHTML=p.em.tel?`<div class="note"><a class="map" href="tel:${esc(p.em.tel.replace(/[^\d+]/g,""))}">📞 電話をかける</a></div>`:"";
+  $("#pOut").textContent=personText(C,n,opt());$("#bPPh").disabled=!(opt().L&&p.lic.some(l=>(l.ph||[]).length))}
+ pUpd();
+ $("#bPSend").onclick=()=>shareText(personText(C,n,opt()));
+ $("#bPPh").onclick=async()=>{const fs=[];for(const l of p.lic)for(const [k,id] of (l.ph||[]).entries()){const x=await getPhoto(id);if(x)fs.push(new File([x.blob],`${n}_${l.n}${k?"_"+(k+1):""}.jpg`.replace(/[\\/:*?"<>|\s]/g,""),{type:"image/jpeg"}))}if(!fs.length){toast("資格証の写真がありません");return}shareFiles(fs,n+"の資格証")};
+ $("#bPFile").onclick=async()=>{const o=opt(),q={};if(o.P)Object.assign(q,{kana:p.kana||"",birth:p.birth||"",blood:p.blood||"",tel:p.tel||""});if(o.E)q.em={...p.em};const photos=[];
+  if(o.L){q.lic=[];for(const l of p.lic){q.lic.push({n:l.n,no:l.no||"",ph:[...(l.ph||[])]});for(const id of l.ph||[]){const x=await getPhoto(id);if(x)photos.push({id,type:x.blob.type,b64:await b64(x.blob)})}}}
+  const tags=o.T?tagsOf(C,n).map(t=>({n:t.n,c:t.c})):[];
+  shareFiles([new File([JSON.stringify({app:"genba-person",v:1,t:Date.now(),name:n,prof:q,tags,photos})],`${n}_社員の情報.json`.replace(/[\\/:*?"<>|\s]/g,""),{type:"application/json"})],n+"の情報")};
+}
+function personText(C,n,o){const p=prof(C,n),L=[`【${n}さんの情報】`];
+ if(o.P){L.push("","👤 個人情報",`名前：${n}${p.kana?`（${p.kana}）`:""}`);if(p.birth){const a=ageOf(p.birth);L.push(`生年月日：${ymdJ(p.birth)}${a!==""?`（${a}歳）`:""}`)}if(p.blood)L.push(`血液型：${p.blood}型`);if(p.tel)L.push(`電話番号：${p.tel}`)}
+ if(o.E&&(p.em.n||p.em.tel||p.em.addr)){L.push("","🚑 緊急連絡先");if(p.em.n)L.push(`名前：${p.em.n}${p.em.kana?`（${p.em.kana}）`:""}${p.em.rel?`・${p.em.rel}`:""}`);if(p.em.addr)L.push(`住所：${p.em.addr}`);if(p.em.tel)L.push(`電話番号：${p.em.tel}`)}
+ if(o.L&&p.lic.length){L.push("","📜 保持資格",...p.lic.map(l=>`＊${l.n}${l.no?`（${l.no}）`:""}`));if(p.lic.some(l=>(l.ph||[]).length))L.push("（資格証の写真を別で送ります📷）")}
+ if(o.T){const ts=tagsOf(C,n);if(ts.length)L.push("","🏷 "+ts.map(t=>t.n).join("・"))}
+ return L.join("\n")}
+function showBig(u){const ov=document.createElement("div");ov.className="sheet big";ov.innerHTML=`<img src="${u}" alt="資格証"><button class="btn" style="position:absolute;right:12px;top:calc(env(safe-area-inset-top,0px) + 12px)">✕ 閉じる</button>`;ov.onclick=()=>ov.remove();document.body.appendChild(ov)}
+async function importPerson(o){
+ const C=cal(),n=baseNm(o.name||"");if(!n)throw new Error("名前がありません");
+ const had=C.staff.includes(n),p=prof(C,n),q=o.prof||{};if(!had)C.staff.push(n);
+ for(const k of ["kana","birth","blood","tel"])if(q[k])p[k]=q[k];if(q.em)p.em={...p.em,...q.em};
+ const idm={};for(const x of o.photos||[]){const bin=atob(x.b64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);const id=rid("p");idm[x.id]=id;await putPhoto({id,site:"person:"+n,t:Date.now(),blob:new Blob([u8],{type:x.type||"image/jpeg"})})}
+ for(const l of q.lic||[]){const ph=(l.ph||[]).map(x=>idm[x]).filter(Boolean),old=p.lic.find(x=>x.n===l.n);if(old){if(l.no)old.no=l.no;old.ph.push(...ph)}else p.lic.push({n:l.n,no:l.no||"",ph})}
+ for(const t of o.tags||[]){let x=C.tags.find(y=>y.n===t.n);if(!x){x={id:rid("t"),n:t.n,c:t.c||TAGC[C.tags.length%TAGC.length],hide:false};C.tags.push(x)}if(!p.tags.includes(x.id))p.tags.push(x.id)}
+ calSave(C);return {n,had}}
+
 /* ===== バックアップ ===== */
 const b64=blob=>new Promise(ok=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(",")[1]);r.readAsDataURL(blob)});
 async function exportAll(){
- const sites=await allSites(),photos=[];for(const s of sites)for(const pid of s.park.photos){const p=await getPhoto(pid);if(p)photos.push({id:p.id,site:p.site,t:p.t,type:p.blob.type,b64:await b64(p.blob)})}
+ const sites=await allSites(),photos=[],pids=[];for(const s of sites)pids.push(...s.park.photos);for(const q of Object.values(cal().prof))for(const l of q.lic||[])pids.push(...(l.ph||[]));for(const pid of pids){const p=await getPhoto(pid);if(p)photos.push({id:p.id,site:p.site,t:p.t,type:p.blob.type,b64:await b64(p.blob)})}
  const d=new Date(),nm=`現場バックアップ_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}.json`;
  const f=new File([JSON.stringify({app:"genba",v:1,t:Date.now(),sites,photos,cal:cal()})],nm,{type:"application/json"});
  await shareFiles([f],"現場バックアップ");
 }
 async function importAll(file){
- try{const o=JSON.parse(await file.text());if(o.app!=="genba"||!Array.isArray(o.sites))throw new Error("現場のバックアップではありません");
+ try{const o=JSON.parse(await file.text());if(o.app==="genba-person"){const r=await importPerson(o);toast(r.had?`${r.n}さんの情報を足しました`:`${r.n}さんを入れました`);if(location.hash.startsWith("#w"))renderWeek();else go("w"+monday());return}if(o.app!=="genba"||!Array.isArray(o.sites))throw new Error("現場のバックアップではありません");
   let n=0;for(const s of o.sites){if(!s||!s.id)continue;const old=await getSite(s.id);if(old&&old.updated>=s.updated)continue;await putSite(s);n++}
   for(const p of o.photos||[]){if(await getPhoto(p.id))continue;const bin=atob(p.b64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);await putPhoto({id:p.id,site:p.site,t:p.t,blob:new Blob([u8],{type:p.type||"image/jpeg"})})}
-  if(o.cal&&typeof o.cal==="object"){const C=cal();for(const n of o.cal.staff||[])if(!C.staff.includes(n))C.staff.push(n);for(const [y,a] of Object.entries(o.cal.off||{}))C.off[y]=[...new Set([...(C.off[y]||[]),...a])];calSave(C)}
-  toast(`読み込みました（新しい・更新された現場 ${n}件）`);renderList()}
+  if(o.cal&&typeof o.cal==="object"){const C=cal();for(const n of o.cal.staff||[])if(!C.staff.includes(n))C.staff.push(n);for(const [y,a] of Object.entries(o.cal.off||{}))C.off[y]=[...new Set([...(C.off[y]||[]),...a])];for(const t of o.cal.tags||[])if(!C.tags.some(x=>x.id===t.id))C.tags.push(t);for(const [k,q] of Object.entries(o.cal.prof||{}))if(!C.prof[k])C.prof[k]=q;calSave(C)}
+  toast(`読み込みました（新しい・更新された現場 ${n}件）`);if(location.hash)go("");else renderList()}
  catch(e){toast("読み込めませんでした："+(e.message||e))}
 }
 

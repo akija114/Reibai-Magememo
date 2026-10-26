@@ -51,13 +51,19 @@ a.map{color:var(--acc);font-weight:700;font-size:13.5px;word-break:break-all}
 .wtab td.c{height:38px;border-radius:7px;background:var(--bg);border:1px solid var(--line);font-size:11px;font-weight:800;text-align:center;overflow:hidden;white-space:nowrap;padding:0 1px}
 .wtab td.off{background:#64748b;color:#fff}.wtab td.warn{background:#fee2e2;color:#b91c1c;border-color:#fca5a5}
 .day h2{display:flex;align-items:center;gap:8px}.day.today{border-color:var(--acc)}
+.tg{display:inline-block;color:#fff;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:800;margin:4px 4px 0 0}
+.wtab .dots{display:flex;gap:2px;margin-top:2px}.wtab .dots i{width:7px;height:7px;border-radius:4px;display:block}.wtab tr.dim{opacity:.25}
+label.ck{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;padding:6px 0}label.ck input{width:22px;height:22px;flex:none}
+.age{height:44px;display:flex;align-items:center;font-size:18px;font-weight:800}
+.lic{border-top:1px solid var(--line);padding:10px 0 4px;margin-top:8px}.lic:first-child{border-top:0}
+.sheet.big{background:rgba(0,0,0,.92);align-items:center;justify-content:center}.sheet.big img{max-width:100%;max-height:100%;object-fit:contain}
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:8;display:flex;align-items:flex-end}.sbox{background:var(--card);width:100%;border-radius:16px 16px 0 0;padding:14px 12px calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;flex-direction:column;gap:8px;max-height:80vh;overflow:auto}.sbox .btn{height:48px;font-size:15px}
 </style>
 </head>
 <body>
 <nav class="apps"><a href="home.html" style="flex:0 0 38px" aria-label="入口">🏠</a><a href="index.html">🔧 曲げ共有</a><a href="zumen.html">📐 図面</a><a href="genchou.html">📹 現調</a><a href="kiki.html">🔩 機器</a><a href="genba.html" class="on">📋 現場</a></nav>
 <div id="app"></div>
-<script src="genba.js?v=2"></script>
+<script src="genba.js?v=3"></script>
 <script src="team.js?v=255"></script>
 <script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
 </body>

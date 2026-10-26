@@ -1564,7 +1564,11 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  /* ① 室内機：品番の文字 → それを囲む青いかたまり */
  const inds=[];
  (P.texts||[]).forEach(t=>{const nt=norm(t.s);if(nt.length<6)return;const hit=models.find(m=>m.n===nt||(nt.length>=8&&(m.n.startsWith(nt)||nt.startsWith(m.n))));if(!hit)return;
-  const [tx,ty]=txC(t),c=BL.filter(c2=>tx>=c2.x0&&tx<=c2.x1&&ty>=c2.y0&&ty<=c2.y1&&Math.max(c2.w,c2.h)>=CAS2M[hit.k].L*0.6&&Math.max(c2.w,c2.h)<=CAS2M[hit.k].L*1.8).sort((a,b)=>a.w*a.h-b.w*b.h)[0];
+  const [tx,ty]=txC(t);let c=BL.filter(c2=>tx>=c2.x0&&tx<=c2.x1&&ty>=c2.y0&&ty<=c2.y1&&Math.max(c2.w,c2.h)>=CAS2M[hit.k].L*0.6&&Math.max(c2.w,c2.h)<=CAS2M[hit.k].L*1.8).sort((a,b)=>a.w*a.h-b.w*b.h)[0];
+  if(!c&&t.r&&Math.abs(((t.r%90)+90)%90-45)<44){   // 30°・45°などに回した室内機（線がつながったかたまりにならない）：品番のまわりの青い線の外形
+   const R=CAS2M[hit.k].L*0.95/mm,ss=P.segs.filter(s2=>isBlue(s2[4])&&Math.hypot(s2[0]-tx,s2[1]-ty)<R&&Math.hypot(s2[2]-tx,s2[3]-ty)<R);
+   if(ss.length>=4){const x0=Math.min(...ss.map(s2=>Math.min(s2[0],s2[2]))),x1=Math.max(...ss.map(s2=>Math.max(s2[0],s2[2]))),y0=Math.min(...ss.map(s2=>Math.min(s2[1],s2[3]))),y1=Math.max(...ss.map(s2=>Math.max(s2[1],s2[3])));
+    const c3={x0,y0,x1,y1,n:ss.length,cx:(x0+x1)/2,cy:(y0+y1)/2,w:(x1-x0)*mm,h:(y1-y0)*mm};if(Math.max(c3.w,c3.h)>=CAS2M[hit.k].L*0.6&&Math.max(c3.w,c3.h)<=CAS2M[hit.k].L*2.2)c=c3}}
   if(c&&!inds.some(o=>o.c===c))inds.push({c,k:hit.k,t})});
  if(!inds.length){toast("品番の分かる室内機が見つかりませんでした（青い記号の中に品番が必要です）");return}
  const I=inds[0],ctr=[I.c.cx,I.c.cy];
@@ -1602,7 +1606,8 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  const io=bldNew("ind",{x:W0[0],z:W0[1]});io.m=I.k;io.y=indY;st.bld.push(io);st.bld=normBld(st.bld);const ii=st.bld.length-1;
  const RW=route.map(btW);let bestR=0,bestD=1e18;
  {const lg=RW.length>=2?[RW[1][0]-RW[0][0],RW[1][1]-RW[0][1]]:[1,0],ll=Math.hypot(lg[0],lg[1])||1;
-  for(const r of[0,90,180,270]){st.bld[ii].r=r;try{build3D()}catch(e){}const m=T&&T.bldM&&T.bldM.find(q=>q.i===ii);if(!m||!m.port)continue;
+  const ao=(o=>Math.abs(o)>2&&Math.abs(o)<88?o:0)((((-(I.t&&I.t.r)||0)%90)+90)%90);   // 図面編集で30°・45°などに回した室内機：品番の文字の傾き（3Dは上下が逆なので−）だけ回す
+  for(const r of[0,90,180,270].map(v=>normT(v+ao))){st.bld[ii].r=r;try{build3D()}catch(e){}const m=T&&T.bldM&&T.bldM.find(q=>q.i===ii);if(!m||!m.port)continue;
    /* 室内機の向き r も配管の向き lg も3Dの座標（前回の読み込みでずれた分 st.bldXf は btW で戻してある）。ここに st.bldXf の回転を足すと、2回目に読むたびに向きが反対になる */
    const th=r*Math.PI/180,ex=[Math.cos(th),Math.sin(th)],dot=(ex[0]*lg[0]+ex[1]*lg[1])/ll;   // 配管口から出る向きと、図面の配管の向きが合うか
    const d=Math.hypot(m.port.x-RW[0][0],m.port.z-RW[0][1])+(dot>0.7?0:dot>-0.3?600:2000);if(d<bestD){bestD=d;bestR=r}}}

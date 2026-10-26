@@ -218,7 +218,7 @@ async function weekData(){
  const C=cal(),days=[...Array(7)].map((_,i)=>addDay(wk,i)),ss=(await allSites()).filter(s=>days.some(y=>onDay(s,y))).sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(a.time||"").localeCompare(b.time||"")||a.created-b.created);
  ss.forEach(s=>{if(!s.need)s.need={min:0,plus:0};if(!s.help)s.help=[]});
  const at={};for(const s of ss)for(const m of s.members){const n=baseNm(m.n);if(!n)continue;for(const y of days)if(onDay(s,y)&&memOn(m,y))((at[n]=at[n]||{})[y]=at[n][y]||[]).push(s)}
- const names=C.staff.length?C.staff:Object.keys(at).filter(n=>ss.some(s=>s.members.some(m=>baseNm(m.n)===n&&memN(m)===1)));
+ const oth=Object.keys(at).filter(n=>!C.staff.includes(n)&&ss.some(s=>s.members.some(m=>baseNm(m.n)===n&&memN(m)===1))),names=[...C.staff,...oth];   /* 社員＋この週に現場に入っている人（社員に入れていない人も・何人でも） */
  return {C,days,ss,at,names}}
 async function renderWeek(){
  freeUrls();document.querySelector(".bar")?.remove();
@@ -234,14 +234,17 @@ async function renderWeek(){
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 一覧</button><span class="grow"></span><button class="btn sm" id="bPrev">‹ 前の週</button><button class="btn sm" id="bThis">今週</button><button class="btn sm" id="bNext">次の週 ›</button></h1>
  <div class="card"><h2>📅 ${esc(dateTxt(days[0]))}〜${esc(dateTxt(days[6]))}</h2>
   ${ng?`<div class="need ng">🔴 人が足りない現場が ${ng}件 あります</div>`:ss.length?`<div class="need ok">🟢 足りない現場はありません</div>`:""}
+  ${ss.length?`<h2 style="margin-top:10px">🏭 現場ごとの予定</h2><div class="wtab"><table class="gt"><tr><th></th>${days.map(y=>`<th class="${y===today?"td":""}">${+y.slice(8)}<br>${WD[dOf(y).getDay()]}</th>`).join("")}</tr>
+  ${ss.map(s=>`<tr><th class="nm"><button class="gnm" data-sd="${s.id}"><span style="color:${col(s)}">■</span>${esc(s.name||"（名前なし）")}</button></th>${days.map(y=>{if(!onDay(s,y))return `<td class="g"></td>`;const st=needSt(s,y);return `<td class="c g on ${st.c==="ng"?"gng":""}" data-gy="${y}" style="background:${col(s)}">${st.c==="ng"?"🔴":""}${st.n}名</td>`}).join("")}</tr>`).join("")}</table></div>
+  <div class="note">色のマス＝その日にある現場（数字は入っている人数・🔴は足りない）。マスをタップ → その日の現場、名前をタップ → くわしく。</div>`:""}
   <h2 style="margin-top:10px">👷 だれがどこに</h2>
   ${C.tags.some(t=>!t.hide&&names.some(n=>tagsOf(C,n).some(x=>x.id===t.id)))?`<div class="chips" style="margin:0 0 6px">${C.tags.filter(t=>!t.hide&&names.some(n=>tagsOf(C,n).some(x=>x.id===t.id))).map(t=>`<button class="chip" data-wt="${t.id}" style="${wTag===t.id?`background:${t.c};border-color:${t.c};color:#fff`:`border-color:${t.c}`}">🏷 ${esc(t.n)}</button>`).join("")}</div>`:""}
   ${names.length?`<div class="wtab"><table><tr><th></th>${days.map(y=>`<th class="${y===today?"td":""}">${+y.slice(8)}<br>${WD[dOf(y).getDay()]}</th>`).join("")}</tr>
-  ${names.map(n=>`<tr class="${wTag&&!tagsOf(C,n).some(t=>t.id===wTag)?"dim":""}"><th class="nm">${esc(n)}${tagsOf(C,n).length?`<div class="dots">${tagsOf(C,n).map(t=>`<i style="background:${t.c}"></i>`).join("")}</div>`:""}</th>${days.map(y=>cell(n,y)).join("")}</tr>`).join("")}</table></div>
-  <div class="note">マスをタップ → 現場に入れる・外す・休みにする。⚠️＝休みの日に入っている／2つの現場に入っている。</div>`:`<div class="note">下の「社員の名前」に名前を入れると、ここに表が出ます。</div>`}
-  ${ss.length?`<div class="chips">${ss.map(s=>`<span class="chip" style="border-color:${col(s)}"><span style="color:${col(s)}">■</span> ${esc(s.name||"（名前なし）")}</span>`).join("")}</div>`:""}</div>
+  ${names.map(n=>`<tr class="${wTag&&!tagsOf(C,n).some(t=>t.id===wTag)?"dim":""}"><th class="nm">${esc(n)}${C.staff.includes(n)?"":`<div class="sub" style="font-size:10px">（社員外）</div>`}${tagsOf(C,n).length?`<div class="dots">${tagsOf(C,n).map(t=>`<i style="background:${t.c}"></i>`).join("")}</div>`:""}</th>${days.map(y=>cell(n,y)).join("")}</tr>`).join("")}</table></div>
+  <div class="note">マスをタップ → 現場に入れる・外す・休みにする。⚠️＝休みの日に入っている／2つの現場に入っている。${names.some(n=>!C.staff.includes(n))?"「（社員外）」の人は、現場に入っているけれど、下の「社員」に入れていない人です。":""}</div><button class="btn sm" id="bAddP" style="margin-top:6px">＋ 人を足す（何人でも）</button>`:`<div class="note">下の「社員の名前」に名前を入れると、ここに表が出ます。</div>`}
+  ${ss.length?`<div class="chips">${ss.map(s=>`<button class="chip" data-sd="${s.id}" style="border-color:${col(s)}"><span style="color:${col(s)}">■</span> ${esc(s.name||"（名前なし）")} ›</button>`).join("")}</div>`:""}</div>
  ${days.map(y=>{const here=ss.filter(s=>onDay(s,y)),off=C.off[y]||[],busy=new Set(Object.keys(at).filter(n=>(at[n][y]||[]).length)),free=names.filter(n=>!busy.has(n)&&!off.includes(n));
-  return `<div class="card day${y===today?" today":""}"><h2><span class="grow">${esc(dateTxt(y))}${y===today?" ・今日":""}</span><button class="btn sm" data-new="${y}">＋ 現場</button></h2>
+  return `<div class="card day${y===today?" today":""}" id="d${y}"><h2><span class="grow">${esc(dateTxt(y))}${y===today?" ・今日":""}</span><button class="btn sm" data-new="${y}">＋ 現場</button></h2>
   ${here.map(s=>{const st=needSt(s,y),mm=s.members.filter(m=>m.n.trim()&&memOn(m,y)),hp=helps(s);
    return `<button class="site" data-id="${s.id}" style="border-left:6px solid ${col(s)}"><b>${esc(s.name||"（名前なし）")}</b>${s.time&&y===s.date?` <span class="sub">${timeTxt(s.time)}〜</span>`:""}${endOf(s)!==s.date?` <span class="sub">（${+s.date.slice(8)}日〜${+endOf(s).slice(8)}日）</span>`:""}
    <div class="need ${st.c}">${esc(st.t)}</div>
@@ -263,13 +266,29 @@ async function renderWeek(){
  $("#bCopy").onclick=()=>copyText(weekText(C,days,ss));$("#bSend").onclick=()=>shareText(weekText(C,days,ss));
  $("#app").querySelectorAll(".site").forEach(b=>b.onclick=()=>{backTo="w"+wk;go(b.dataset.id)});
  $("#app").querySelectorAll("[data-new]").forEach(b=>b.onclick=async()=>{const s=newSite();s.date=b.dataset.new;await putSite(s);backTo="w"+wk;go(s.id)});
- $("#app").querySelectorAll("td.c").forEach(td=>td.onclick=()=>pick(td.dataset.n,td.dataset.y,ss));
+ $("#app").querySelectorAll("td.c[data-n]").forEach(td=>td.onclick=()=>pick(td.dataset.n,td.dataset.y,ss));
+ $("#app").querySelectorAll("[data-sd]").forEach(b=>b.onclick=()=>siteSheet(ss.find(s=>s.id===b.dataset.sd),days));
+ $("#app").querySelectorAll("[data-gy]").forEach(td=>td.onclick=()=>{const el=document.getElementById("d"+td.dataset.gy);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})});
+ {const b=$("#bAddP");if(b)b.onclick=()=>{const f=$("#fStaff");f.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>f.focus(),350)}}
  const addStaff=v=>{v=baseNm(v||"");if(!v)return;const C2=cal();if(!C2.staff.includes(v))C2.staff.push(v);calSave(C2);renderWeek()};
  $("#bStaff").onclick=()=>addStaff($("#fStaff").value);$("#fStaff").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addStaff($("#fStaff").value)}};
  $("#sugg").onclick=e=>{const b=e.target.closest("[data-as]");if(b)addStaff(b.dataset.as)};
  $("#staff").onclick=e=>{const b=e.target.closest("[data-pp]");if(b)go("p"+encodeURIComponent(b.dataset.pp))};
  $("#bPImp").onclick=()=>$("#fPImp").click();$("#fPImp").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)importAll(f)};
  $("#app").querySelectorAll("[data-wt]").forEach(b=>b.onclick=()=>{wTag=wTag===b.dataset.wt?"":b.dataset.wt;renderWeek()});
+}
+/* 現場の名前をタップ：くわしく（日にち・時間・住所・その週の日ごとの人数と人・作業内容）→ 現場カードへ */
+function siteSheet(s,days){if(!s)return;const ov=document.createElement("div");ov.className="sheet";
+ const dd=days.filter(y=>onDay(s,y));
+ ov.innerHTML=`<div class="sbox"><h2>🏭 ${esc(s.name||"（名前なし）")}</h2>
+ <div class="sub">📅 ${esc(dateTxt(s.date))}${endOf(s)!==s.date?"〜"+esc(dateTxt(endOf(s))):""}${s.time?" "+esc(timeTxt(s.time))+"〜":""}</div>
+ ${s.addr?`<div class="sub">📍 ${esc(s.addr)}</div>`:""}
+ ${dd.map(y=>{const st=needSt(s,y),mm=s.members.filter(m=>m.n.trim()&&memOn(m,y)),hp=helps(s);return `<div style="border-top:1px solid var(--line);padding-top:6px"><b>${esc(dateTxt(y))}</b> <span class="need ${st.c}" style="display:inline">${esc(st.t)}</span>
+  <div class="sub">👷 ${mm.length?esc(mm.map(m=>m.n.trim()+(m.star?"⭐":"")).join("・")):"まだだれも入っていません"}</div>${hp.length?`<div class="sub">🤝 応援：${esc(hp.map(h=>`${h.co.trim()||"（会社名なし）"} ${+h.n||0}名`).join("・"))}</div>`:""}</div>`}).join("")}
+ ${s.work?`<div class="sub" style="white-space:pre-wrap">🛠 ${esc(String(s.work).slice(0,200))}</div>`:""}
+ <button class="btn pri" data-open="1">📋 現場カードを開く</button><button class="btn" data-x="1">閉じる</button></div>`;
+ document.body.appendChild(ov);
+ ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.x)){ov.remove();return}if(b&&b.dataset.open){ov.remove();backTo="w"+wk;go(s.id)}};
 }
 /* 表のマスをタップ：その日の現場に入れる・外す、休み */
 function pick(n,y,ss){

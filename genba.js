@@ -41,7 +41,7 @@ function lineText(s){
  const L=[],SEP="━━━━━━━━━━━━",d=dateTxt(s.date);
  L.push("お疲れ様です🙇‍♂️",`${d?d+"の":""}現場の詳細です。`,"",SEP);
  const sec=(head,body)=>{if(body.length){L.push(head,...body,"")}};
- sec("📅 日時",d||s.time?[`${d}${s.end&&s.end>s.date?"〜"+dateTxt(s.end):""}${s.time?" "+timeTxt(s.time)+(s.tend?"〜"+timeTxt(s.tend):" 開始"):""}${shiftOf(s)==="night"?"（夜勤）":""}`.trim()]:[]);
+ sec("📅 日時",d||s.time?[`${d}${s.end&&s.end>s.date?"〜"+dateTxt(s.end):""}${s.time?" "+timeTxt(s.time)+(s.tend?"〜"+timeTxt(s.tend):" 開始"):""}${(shIco(s)?"（"+shTx(s).replace(/^[☀️🌙]+/u,"")+"）":"")}`.trim()]:[]);
  sec("🏭 現場名",s.name.trim()?[s.name.trim()]:[]);
  sec("📍 住所",s.addr.trim()?[s.addr.trim(),addrUrl(s.addr)]:[]);
  const pu=parkUrl(s.park),pb=[...lines(s.park.note)];if(pu)pb.push(pu);if(s.park.photos.length)pb.push("（駐車場の写真を別で送ります📷）");sec("🅿️ 駐車場",pb);
@@ -110,7 +110,7 @@ function renderEdit(){
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">${backTo?"← 週の割り振り":"← 一覧"}</button><span class="grow"></span><button class="btn sm" id="bDup">複製</button><button class="btn sm del" id="bDel">削除</button></h1>
  <div class="card"><h2>📅 日時・🏭 現場</h2>
   <div class="row"><div class="grow"><label class="f" for="fDate">日付</label><input id="fDate" type="date"></div><div style="width:120px"><label class="f" for="fTime">開始</label><input id="fTime" type="time"></div></div>
-  <div class="row"><div class="grow"><label class="f" for="fTend">終わり（何時まで・1日に何件もある時）</label><input id="fTend" type="time"></div><div style="width:120px"><label class="f" for="fShift">昼／夜</label><select id="fShift"><option value="">☀️ 日勤</option><option value="night">🌙 夜勤</option></select></div></div>
+  <div class="row"><div class="grow"><label class="f" for="fTend">終わり（何時まで・1日に何件もある時）</label><input id="fTend" type="time"></div><div style="width:120px"><label class="f" for="fShift">昼／夜</label><select id="fShift"><option value="">☀️ 日勤</option><option value="night">🌙 夜勤</option><option value="both">☀️🌙 昼夜連続</option></select></div></div>
   <label class="f" for="fEnd">終わりの日（何日かかる時だけ）</label><input id="fEnd" type="date">
   ${FIELD("fName","現場名","例：カゴメ小牧工場")}
   ${FIELD("fAddr","📍 住所","例：愛知県小牧市〇〇町〇〇")}<div id="addrLink"></div></div>
@@ -215,10 +215,11 @@ function needSt(s,y){const nd=s.need||{},n=headcount(s,y);if(!nd.min)return {n,c
  const want=nd.min+(+nd.plus||0);if(n<want)return {n,c:"mid",t:`🟡 ${n}名／最低${nd.min}名はいる ・余裕がないので あと${want-n}名ほしい`};
  return {n,c:"ok",t:`🟢 ${n}名／最低${nd.min}名${nd.plus?`＋${nd.plus}名`:""} 余裕あり`}}
 /* 昼と夜：現場ごとに「日勤／夜勤」を選ぶ（時刻では決めない：18時からの夜勤などもあるため・2026-10-26 ユーザー）。選んでいない時は日勤。開始〜終わりの時刻がかぶらなければ、1日に何件でも入れる */
-const shiftOf=s=>s.shift==="night"?"night":"day";
+const shiftOf=s=>s.shift==="night"||s.shift==="both"?s.shift:"day";   /* both＝昼夜連続（間に合わない時に昼から夜まで続けて：日勤＋夜勤の2人工） */
+const shIco=s=>({night:"🌙",both:"☀️🌙"})[shiftOf(s)]||"",shTx=s=>({night:"🌙夜勤",both:"☀️🌙昼夜連続"})[shiftOf(s)]||"";
 const spanTxt=s=>s.time?timeTxt(s.time)+"〜"+(s.tend?timeTxt(s.tend):""):"";
 const tMin=t=>+t.slice(0,2)*60+ +t.slice(3,5);
-function clash(a,b){if(a.time&&a.tend&&b.time&&b.tend){const r=s=>{const x=tMin(s.time);let y=tMin(s.tend);if(y<=x)y+=1440;return [x,y]},[a0,a1]=r(a),[b0,b1]=r(b);return a0<b1&&b0<a1}return shiftOf(a)===shiftOf(b)}
+function clash(a,b){if(a.time&&a.tend&&b.time&&b.tend){const r=s=>{const x=tMin(s.time);let y=tMin(s.tend);if(y<=x)y+=1440;return [x,y]},[a0,a1]=r(a),[b0,b1]=r(b);return a0<b1&&b0<a1}const A=shiftOf(a),B=shiftOf(b);return A===B||A==="both"||B==="both"}
 const clashIn=a=>a.some((x,i)=>a.some((y,j)=>j>i&&clash(x,y)));
 /* 名前の順番：📌（C.pin）の人がいちばん上、あとは社員の順（C.staff）、社員に入れていない人は下 */
 const ordNames=(C,ns)=>{const pin=C.pin||[],st=C.staff,ix=n=>{const i=st.indexOf(n);return i<0?1e6:i};return ns.slice().sort((a,b)=>(pin.includes(b)-pin.includes(a))||ix(a)-ix(b))};
@@ -238,8 +239,8 @@ async function renderWeek(){
   if(off&&a.length)return `<td class="c warn" data-n="${esc(n)}" data-y="${y}">休⚠️</td>`;
   if(off)return `<td class="c off" data-n="${esc(n)}" data-y="${y}">休</td>`;
   if(a.length>1&&clashIn(a))return `<td class="c warn" data-n="${esc(n)}" data-y="${y}">⚠️${a.length}</td>`;
-  if(a.length>1)return `<td class="c multi" data-n="${esc(n)}" data-y="${y}">${a.map(s=>`<div style="background:${col(s)}">${shiftOf(s)==="night"?"🌙":""}${esc(sn(s).slice(0,2))}</div>`).join("")}</td>`;   /* 時間がかぶらない何件か：上から時間の順 */
-  if(a.length)return `<td class="c" data-n="${esc(n)}" data-y="${y}" style="background:${col(a[0])};color:#fff">${shiftOf(a[0])==="night"?"🌙":""}${esc(sn(a[0]))}</td>`;
+  if(a.length>1)return `<td class="c multi" data-n="${esc(n)}" data-y="${y}">${a.map(s=>`<div style="background:${col(s)}">${shIco(s)}${esc(sn(s).slice(0,2))}</div>`).join("")}</td>`;   /* 時間がかぶらない何件か：上から時間の順 */
+  if(a.length)return `<td class="c" data-n="${esc(n)}" data-y="${y}" style="background:${col(a[0])};color:#fff">${shIco(a[0])}${esc(sn(a[0]))}</td>`;
   return `<td class="c" data-n="${esc(n)}" data-y="${y}"></td>`};
  const today=ymdOf(new Date());
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 一覧</button><span class="grow"></span><button class="btn sm" id="bPrev">‹ 前の週</button><button class="btn sm" id="bThis">今週</button><button class="btn sm" id="bNext">次の週 ›</button></h1>
@@ -253,12 +254,12 @@ async function renderWeek(){
   ${C.tags.some(t=>!t.hide&&names.some(n=>tagsOf(C,n).some(x=>x.id===t.id)))?`<div class="chips" style="margin:0 0 6px">${C.tags.filter(t=>!t.hide&&names.some(n=>tagsOf(C,n).some(x=>x.id===t.id))).map(t=>`<button class="chip" data-wt="${t.id}" style="${wTag===t.id?`background:${t.c};border-color:${t.c};color:#fff`:`border-color:${t.c}`}">🏷 ${esc(t.n)}</button>`).join("")}</div>`:""}
   ${names.length?`<div class="wtab"><table><tr><th></th>${days.map(y=>`<th class="${y===today?"td":""}">${+y.slice(8)}<br>${WD[dOf(y).getDay()]}</th>`).join("")}</tr>
   ${names.map(n=>`<tr class="${wTag&&!tagsOf(C,n).some(t=>t.id===wTag)?"dim":""}"><th class="nm" data-nm="${esc(n)}">${(C.pin||[]).includes(n)?"📌":""}${esc(n)}${C.staff.includes(n)?"":`<div class="sub" style="font-size:10px">（社員外）</div>`}${tagsOf(C,n).length?`<div class="dots">${tagsOf(C,n).map(t=>`<i style="background:${t.c}"></i>`).join("")}</div>`:""}</th>${days.map(y=>cell(n,y)).join("")}</tr>`).join("")}</table></div>
-  <div class="note">マスをタップ → 現場に入れる・外す・休みにする。名前をタップ → 📌固定・順番。⚠️＝休みの日に入っている／時間のかぶる現場に入っている。🌙＝夜勤。${names.some(n=>!C.staff.includes(n))?"「（社員外）」の人は、現場に入っているけれど、下の「社員」に入れていない人です。":""}</div><button class="btn sm" id="bAddP" style="margin-top:6px">＋ 人を足す（何人でも）</button>`:`<div class="note">下の「社員の名前」に名前を入れると、ここに表が出ます。</div>`}
+  <div class="note">マスをタップ → 現場に入れる・外す・休みにする。名前をタップ → 📌固定・順番。⚠️＝休みの日に入っている／時間のかぶる現場に入っている。🌙＝夜勤・☀️🌙＝昼夜連続。${names.some(n=>!C.staff.includes(n))?"「（社員外）」の人は、現場に入っているけれど、下の「社員」に入れていない人です。":""}</div><button class="btn sm" id="bAddP" style="margin-top:6px">＋ 人を足す（何人でも）</button>`:`<div class="note">下の「社員の名前」に名前を入れると、ここに表が出ます。</div>`}
   ${ss.length?`<div class="chips">${ss.map(s=>`<button class="chip" data-sd="${s.id}" style="border-color:${col(s)}"><span style="color:${col(s)}">■</span> ${esc(s.name||"（名前なし）")} ›</button>`).join("")}</div>`:""}</div>
  ${days.map(y=>{const here=ss.filter(s=>onDay(s,y)),off=C.off[y]||[],busy=new Set(Object.keys(at).filter(n=>(at[n][y]||[]).length)),free=names.filter(n=>!busy.has(n)&&!off.includes(n));
   return `<div class="card day${y===today?" today":""}" id="d${y}"><h2><span class="grow">${esc(dateTxt(y))}${y===today?" ・今日":""}</span><button class="btn sm" data-new="${y}">＋ 現場</button></h2>
   ${here.map(s=>{const st=needSt(s,y),mm=s.members.filter(m=>m.n.trim()&&memOn(m,y)),hp=helps(s);
-   return `<button class="site" data-id="${s.id}" style="border-left:6px solid ${col(s)}"><b>${esc(s.name||"（名前なし）")}</b>${s.time?` <span class="sub">${shiftOf(s)==="night"?"🌙夜勤 ":""}${spanTxt(s)}</span>`:shiftOf(s)==="night"?` <span class="sub">🌙夜勤</span>`:""}${endOf(s)!==s.date?` <span class="sub">（${+s.date.slice(8)}日〜${+endOf(s).slice(8)}日）</span>`:""}
+   return `<button class="site" data-id="${s.id}" style="border-left:6px solid ${col(s)}"><b>${esc(s.name||"（名前なし）")}</b>${s.time?` <span class="sub">${(shIco(s)?shTx(s)+" ":"")}${spanTxt(s)}</span>`:shIco(s)?` <span class="sub">${shTx(s)}</span>`:""}${endOf(s)!==s.date?` <span class="sub">（${+s.date.slice(8)}日〜${+endOf(s).slice(8)}日）</span>`:""}
    <div class="need ${st.c}">${esc(st.t)}</div>
    <div class="sub">👷 ${mm.length?esc(mm.map(m=>m.n.trim()+(m.star?"⭐":"")).join("・")):"まだだれも入っていません"}</div>
    ${hp.length?`<div class="sub">🤝 応援：${esc(hp.map(h=>`${h.co.trim()||"（会社名なし）"} ${+h.n||0}名`).join("・"))}</div>`:""}</button>`}).join("")||`<div class="note">現場なし</div>`}
@@ -315,7 +316,7 @@ function kPeriod(C,y){const cut=+C.cut||1,d=dOf(y);let a=new Date(d.getFullYear(
 async function kosuData(C,a,b){const days=[];for(let y=a;y<=b;y=addDay(y,1))days.push(y);const ss=(await allSites()).filter(s=>s.date&&s.date<=b&&endOf(s)>=a),R={};
  const one=n=>R[n]=R[n]||{d:0,nt:0,h:0,off:0,mk:0,list:[]};
  for(const s of ss)for(const m of s.members){const n=baseNm(m.n);if(!n||memN(m)!==1)continue;one(n)}C.staff.forEach(one);
- for(const n in R){const r=R[n];for(const y of days){const w=ss.filter(s=>onDay(s,y)&&s.members.some(m=>baseNm(m.n)===n&&memOn(m,y))),hol=isHol(C,y),sh=new Set(w.map(shiftOf));
+ for(const n in R){const r=R[n];for(const y of days){const w=ss.filter(s=>onDay(s,y)&&s.members.some(m=>baseNm(m.n)===n&&memOn(m,y))),hol=isHol(C,y),sh=new Set(w.flatMap(s=>shiftOf(s)==="both"?["day","night"]:[shiftOf(s)]));
    if(!w.length){r.off++;if((C.off[y]||[]).includes(n))r.mk++;continue}
    if(hol)r.h+=sh.size;else{if(sh.has("day"))r.d++;if(sh.has("night"))r.nt++}
    r.list.push({y,hol,w})}}
@@ -331,7 +332,7 @@ async function renderKosu(y0){
   ${names.length?`<div class="wtab"><table class="kt"><tr><th></th><th>☀️<br>日勤</th><th>🌙<br>夜勤</th><th>🎌<br>休日出勤</th><th>🏖<br>休み</th><th>人工<br>計</th></tr>
   ${names.map(n=>`<tr><th class="nm" data-kn="${esc(n)}">${(C.pin||[]).includes(n)?"📌":""}${esc(n)}</th><td class="k">${R[n].d}</td><td class="k">${R[n].nt}</td><td class="k">${R[n].h}</td><td class="k">${R[n].off}</td><td class="k"><b>${tot(n)}</b></td></tr>`).join("")}
   <tr><th class="nm">合計</th>${["d","nt","h","off"].map(k=>`<td class="k">${names.reduce((s2,n)=>s2+R[n][k],0)}</td>`).join("")}<td class="k"><b>${names.reduce((s2,n)=>s2+tot(n),0)}</b></td></tr></table></div>
-  <div class="note">休日出勤＝日曜${C.satWork?"":"・土曜"}${C.nohol?"":"・祝日"}に入った日。休み＝現場の入っていない日（🏖休みの印のない日も）。昼と夜の両方の日は2人工。昼／夜は現場カードで選んだ物（選んでいない時は日勤）。名前をタップ → 日ごと。</div>`:`<div class="note">この期間に現場に入っている人がいません</div>`}
+  <div class="note">休日出勤＝日曜${C.satWork?"":"・土曜"}${C.nohol?"":"・祝日"}に入った日。休み＝現場の入っていない日（🏖休みの印のない日も）。昼と夜の両方の日（☀️🌙昼夜連続も）は2人工。昼／夜は現場カードで選んだ物（選んでいない時は日勤）。名前をタップ → 日ごと。</div>`:`<div class="note">この期間に現場に入っている人がいません</div>`}
   <div id="kDet"></div></div>
  <div class="card"><h2>💬 送る</h2><pre class="out" id="out"></pre><div class="row" style="margin-top:8px"><button class="btn grow" id="bCopy">📋 コピー</button><button class="btn line grow" id="bSend">💬 送る</button></div></div>`;
  $("#out").textContent=txt();
@@ -341,14 +342,14 @@ async function renderKosu(y0){
  $("#kSat").onchange=e=>{const C2=cal();C2.satWork=e.target.checked;calSave(C2);renderKosu(a)};$("#kHol").onchange=e=>{const C2=cal();C2.nohol=!e.target.checked;calSave(C2);renderKosu(a)};
  $("#bCopy").onclick=()=>copyText(txt());$("#bSend").onclick=()=>shareText(txt());
  $("#app").querySelectorAll("[data-kn]").forEach(th=>th.onclick=()=>{const n=th.dataset.kn,r=R[n];
-  $("#kDet").innerHTML=`<h2 style="margin-top:12px">${esc(n)} の日ごと</h2>${r.list.map(o=>`<div class="sub">${esc(dateTxt(o.y))}${o.hol?" 🎌":""}：${o.w.map(s=>`${shiftOf(s)==="night"?"🌙":"☀️"}${esc((s.name||"現場").trim())}${s.time?" "+esc(spanTxt(s)):""}`).join("／")}</div>`).join("")||`<div class="note">現場に入った日はありません</div>`}`;
+  $("#kDet").innerHTML=`<h2 style="margin-top:12px">${esc(n)} の日ごと</h2>${r.list.map(o=>`<div class="sub">${esc(dateTxt(o.y))}${o.hol?" 🎌":""}：${o.w.map(s=>`${(shIco(s)||"☀️")}${esc((s.name||"現場").trim())}${s.time?" "+esc(spanTxt(s)):""}`).join("／")}</div>`).join("")||`<div class="note">現場に入った日はありません</div>`}`;
   $("#kDet").scrollIntoView({behavior:"smooth",block:"start"})});
 }
 /* 現場の名前をタップ：くわしく（日にち・時間・住所・その週の日ごとの人数と人・作業内容）→ 現場カードへ */
 function siteSheet(s,days){if(!s)return;const ov=document.createElement("div");ov.className="sheet";
  const dd=days.filter(y=>onDay(s,y));
  ov.innerHTML=`<div class="sbox"><h2>🏭 ${esc(s.name||"（名前なし）")}</h2>
- <div class="sub">📅 ${esc(dateTxt(s.date))}${endOf(s)!==s.date?"〜"+esc(dateTxt(endOf(s))):""}${s.time?" "+esc(spanTxt(s)):""}${shiftOf(s)==="night"?" 🌙夜勤":" ☀️日勤"}</div>
+ <div class="sub">📅 ${esc(dateTxt(s.date))}${endOf(s)!==s.date?"〜"+esc(dateTxt(endOf(s))):""}${s.time?" "+esc(spanTxt(s)):""}${" "+(shTx(s)||"☀️日勤")}</div>
  ${s.addr?`<div class="sub">📍 ${esc(s.addr)}</div>`:""}
  ${dd.map(y=>{const st=needSt(s,y),mm=s.members.filter(m=>m.n.trim()&&memOn(m,y)),hp=helps(s);return `<div style="border-top:1px solid var(--line);padding-top:6px"><b>${esc(dateTxt(y))}</b> <span class="need ${st.c}" style="display:inline">${esc(st.t)}</span>
   <div class="sub">👷 ${mm.length?esc(mm.map(m=>m.n.trim()+(m.star?"⭐":"")).join("・")):"まだだれも入っていません"}</div>${hp.length?`<div class="sub">🤝 応援：${esc(hp.map(h=>`${h.co.trim()||"（会社名なし）"} ${+h.n||0}名`).join("・"))}</div>`:""}</div>`}).join("")}
@@ -382,7 +383,7 @@ function weekText(C,days,ss){
  for(const y of days){const here=ss.filter(s=>onDay(s,y)),off=C.off[y]||[];if(!here.length&&!off.length)continue;
   L.push("📅 "+dateTxt(y));
   for(const s of here){const mm=s.members.filter(m=>m.n.trim()&&memOn(m,y)),hp=helps(s),nd=s.need||{},st=needSt(s,y);
-   L.push(`🏭 ${(s.name||"（名前なし）").trim()}${s.time?" "+spanTxt(s):""}${shiftOf(s)==="night"?" 🌙夜勤":""}`);
+   L.push(`🏭 ${(s.name||"（名前なし）").trim()}${s.time?" "+spanTxt(s):""}${(shIco(s)?" "+shTx(s):"")}`);
    L.push(`　＊${mm.length?mm.map(m=>m.n.trim()+(m.star?"⭐":"")).join("・"):"（まだ決まっていません）"}`);
    if(hp.length)L.push(`　＊応援：${hp.map(h=>`${h.co.trim()||"（会社名なし）"} ${+h.n||0}名`).join("・")}`);
    if(nd.min)L.push(`　＊${st.n}名／最低${nd.min}名${nd.plus?`（余裕がなければ＋${nd.plus}名）`:""}${st.c==="ng"?` 🔴あと${nd.min-st.n}名 足りない`:st.c==="mid"?` 🟡あと${nd.min+nd.plus-st.n}名ほしい`:""}`)}

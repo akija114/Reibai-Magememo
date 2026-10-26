@@ -110,7 +110,7 @@ function renderEdit(){
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">${backTo?"← 週の割り振り":"← 一覧"}</button><span class="grow"></span><button class="btn sm" id="bDup">複製</button><button class="btn sm del" id="bDel">削除</button></h1>
  <div class="card"><h2>📅 日時・🏭 現場</h2>
   <div class="row"><div class="grow"><label class="f" for="fDate">日付</label><input id="fDate" type="date"></div><div style="width:120px"><label class="f" for="fTime">開始</label><input id="fTime" type="time"></div></div>
-  <div class="row"><div class="grow"><label class="f" for="fTend">終わり（何時まで・1日に何件もある時）</label><input id="fTend" type="time"></div><div style="width:120px"><label class="f" for="fShift">昼／夜</label><select id="fShift"><option value="">自動</option><option value="day">☀️ 日勤</option><option value="night">🌙 夜勤</option></select></div></div>
+  <div class="row"><div class="grow"><label class="f" for="fTend">終わり（何時まで・1日に何件もある時）</label><input id="fTend" type="time"></div><div style="width:120px"><label class="f" for="fShift">昼／夜</label><select id="fShift"><option value="">☀️ 日勤</option><option value="night">🌙 夜勤</option></select></div></div>
   <label class="f" for="fEnd">終わりの日（何日かかる時だけ）</label><input id="fEnd" type="date">
   ${FIELD("fName","現場名","例：カゴメ小牧工場")}
   ${FIELD("fAddr","📍 住所","例：愛知県小牧市〇〇町〇〇")}<div id="addrLink"></div></div>
@@ -214,8 +214,8 @@ function needSt(s,y){const nd=s.need||{},n=headcount(s,y);if(!nd.min)return {n,c
  if(n<nd.min)return {n,c:"ng",t:`🔴 ${n}名／最低${nd.min}名 ・あと${nd.min-n}名 足りない`};
  const want=nd.min+(+nd.plus||0);if(n<want)return {n,c:"mid",t:`🟡 ${n}名／最低${nd.min}名はいる ・余裕がないので あと${want-n}名ほしい`};
  return {n,c:"ok",t:`🟢 ${n}名／最低${nd.min}名${nd.plus?`＋${nd.plus}名`:""} 余裕あり`}}
-/* 昼と夜：現場ごとに「日勤／夜勤」（決めていない時は開始の時刻から：17時〜5時の前は夜勤）。開始〜終わりの時刻がかぶらなければ、1日に何件でも入れる */
-const shiftOf=s=>s.shift==="day"||s.shift==="night"?s.shift:(s.time&&(+s.time.slice(0,2)>=17||+s.time.slice(0,2)<5)?"night":"day");
+/* 昼と夜：現場ごとに「日勤／夜勤」を選ぶ（時刻では決めない：18時からの夜勤などもあるため・2026-10-26 ユーザー）。選んでいない時は日勤。開始〜終わりの時刻がかぶらなければ、1日に何件でも入れる */
+const shiftOf=s=>s.shift==="night"?"night":"day";
 const spanTxt=s=>s.time?timeTxt(s.time)+"〜"+(s.tend?timeTxt(s.tend):""):"";
 const tMin=t=>+t.slice(0,2)*60+ +t.slice(3,5);
 function clash(a,b){if(a.time&&a.tend&&b.time&&b.tend){const r=s=>{const x=tMin(s.time);let y=tMin(s.tend);if(y<=x)y+=1440;return [x,y]},[a0,a1]=r(a),[b0,b1]=r(b);return a0<b1&&b0<a1}return shiftOf(a)===shiftOf(b)}
@@ -306,7 +306,7 @@ function nameSheet(n){const C=cal(),pin=C.pin||[],ov=document.createElement("div
    if(a==="up"&&k>0)[grp[k-1],grp[k]]=[grp[k],grp[k-1]];else if(a==="dn"&&k>=0&&k<grp.length-1)[grp[k+1],grp[k]]=[grp[k],grp[k+1]];else if(a==="top"&&k>0){grp.splice(k,1);grp.unshift(n)}
    const other=vis.filter(x=>C2.pin.includes(x)!==C2.pin.includes(n));C2.staff=C2.pin.includes(n)?[...grp,...other]:[...other,...grp];if(i<0)return}
   calSave(C2);ov.remove();if(location.hash.startsWith("#k"))route();else renderWeek()}}
-/* 📊 人工：期間（C.cut 日から1か月・初めは1日＝月ごと）の人ごとの ☀️日勤・🌙夜勤・🎌休日出勤（土日・祝日。土曜を出勤日にもできる）・🏖休み（仕事の入っていない日）。
+/* 📊 人工：期間（C.cut 日から1か月＝締め日の次の日から・初めは1日＝月末締め。会社ごとにちがうので1〜27日締めと月末締めから選ぶ）の人ごとの ☀️日勤・🌙夜勤・🎌休日出勤（土日・祝日。土曜を出勤日にもできる）・🏖休み（仕事の入っていない日）。
    1日に昼と夜の両方なら2人工 */
 const HOL=new Set(["2026-01-01","2026-01-12","2026-02-11","2026-02-23","2026-03-20","2026-04-29","2026-05-03","2026-05-04","2026-05-05","2026-05-06","2026-07-20","2026-08-11","2026-09-21","2026-09-22","2026-09-23","2026-10-12","2026-11-03","2026-11-23",
  "2027-01-01","2027-01-11","2027-02-11","2027-02-23","2027-03-21","2027-03-22","2027-04-29","2027-05-03","2027-05-04","2027-05-05","2027-07-19","2027-08-11","2027-09-20","2027-09-23","2027-10-11","2027-11-03","2027-11-23"]);
@@ -322,16 +322,16 @@ async function kosuData(C,a,b){const days=[];for(let y=a;y<=b;y=addDay(y,1))days
  return {days,R,names:ordNames(C,Object.keys(R))}}
 async function renderKosu(y0){
  freeUrls();document.querySelector(".bar")?.remove();const C=cal(),[a,b]=kPeriod(C,y0),{days,R,names}=await kosuData(C,a,b);
- const tot=n=>R[n].d+R[n].nt+R[n].h,cuts=[1,11,16,20,21,26];if(!cuts.includes(+C.cut||1))cuts.push(+C.cut);
+ const tot=n=>R[n].d+R[n].nt+R[n].h,cuts=[1,...Array.from({length:27},(_,i)=>i+2)];   /* 締め日：月末（1日から）・1〜27日（その次の日から） */
  const txt=()=>[`📊 人工 ${dateTxt(a)}〜${dateTxt(b)}`,...names.map(n=>`${n}：日勤${R[n].d}日・夜勤${R[n].nt}日・休日出勤${R[n].h}日・休み${R[n].off}日（計${tot(n)}人工）`),`合計 ${names.reduce((s2,n)=>s2+tot(n),0)}人工`].join("\n");
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 戻る</button><span class="grow"></span><button class="btn sm" id="bPrev">‹ 前</button><button class="btn sm" id="bNext">次 ›</button></h1>
  <div class="card"><h2>📊 人工 ${esc(dateTxt(a))}〜${esc(dateTxt(b))}</h2>
-  <div class="row" style="align-items:center;gap:6px;flex-wrap:wrap"><label class="note" for="kCut">期間</label><select id="kCut" style="width:auto">${cuts.map(c=>`<option value="${c}" ${c===(+C.cut||1)?"selected":""}>${c===1?"月ごと（1日〜月末）":c+"日から1か月"}</option>`).join("")}</select>
+  <div class="row" style="align-items:center;gap:6px;flex-wrap:wrap"><label class="note" for="kCut">締め日</label><select id="kCut" style="width:auto">${cuts.map(c=>`<option value="${c}" ${c===(+C.cut||1)?"selected":""}>${c===1?"月末締め（1日〜月末）":(c-1)+"日締め（"+c+"日〜翌月"+(c-1)+"日）"}</option>`).join("")}</select>
    <label class="note" style="display:inline-flex;align-items:center;gap:4px"><input type="checkbox" style="width:auto" id="kSat" ${C.satWork?"checked":""}> 土曜は出勤日</label><label class="note" style="display:inline-flex;align-items:center;gap:4px"><input type="checkbox" style="width:auto" id="kHol" ${C.nohol?"":"checked"}> 祝日は休日</label></div>
   ${names.length?`<div class="wtab"><table class="kt"><tr><th></th><th>☀️<br>日勤</th><th>🌙<br>夜勤</th><th>🎌<br>休日出勤</th><th>🏖<br>休み</th><th>人工<br>計</th></tr>
   ${names.map(n=>`<tr><th class="nm" data-kn="${esc(n)}">${(C.pin||[]).includes(n)?"📌":""}${esc(n)}</th><td class="k">${R[n].d}</td><td class="k">${R[n].nt}</td><td class="k">${R[n].h}</td><td class="k">${R[n].off}</td><td class="k"><b>${tot(n)}</b></td></tr>`).join("")}
   <tr><th class="nm">合計</th>${["d","nt","h","off"].map(k=>`<td class="k">${names.reduce((s2,n)=>s2+R[n][k],0)}</td>`).join("")}<td class="k"><b>${names.reduce((s2,n)=>s2+tot(n),0)}</b></td></tr></table></div>
-  <div class="note">休日出勤＝日曜${C.satWork?"":"・土曜"}${C.nohol?"":"・祝日"}に入った日。休み＝現場の入っていない日（🏖休みの印のない日も）。昼と夜の両方の日は2人工。昼／夜は現場の「昼／夜」（自動は開始の時刻：17時〜朝5時前は夜勤）。名前をタップ → 日ごと。</div>`:`<div class="note">この期間に現場に入っている人がいません</div>`}
+  <div class="note">休日出勤＝日曜${C.satWork?"":"・土曜"}${C.nohol?"":"・祝日"}に入った日。休み＝現場の入っていない日（🏖休みの印のない日も）。昼と夜の両方の日は2人工。昼／夜は現場カードで選んだ物（選んでいない時は日勤）。名前をタップ → 日ごと。</div>`:`<div class="note">この期間に現場に入っている人がいません</div>`}
   <div id="kDet"></div></div>
  <div class="card"><h2>💬 送る</h2><pre class="out" id="out"></pre><div class="row" style="margin-top:8px"><button class="btn grow" id="bCopy">📋 コピー</button><button class="btn line grow" id="bSend">💬 送る</button></div></div>`;
  $("#out").textContent=txt();

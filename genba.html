@@ -44,12 +44,20 @@ pre.out{white-space:pre-wrap;word-break:break-all;font:inherit;font-size:14px;li
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1.5px solid var(--line);padding:8px 12px calc(env(safe-area-inset-bottom,0px) + 8px);display:flex;gap:8px;z-index:5}.bar .btn{flex:1;height:48px;font-size:15px}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 78px);transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:88vw;text-align:center;z-index:9;line-height:1.5}
 a.map{color:var(--acc);font-weight:700;font-size:13.5px;word-break:break-all}
+.need{font-size:13.5px;font-weight:800;margin-top:4px}.need.ng{color:var(--danger)}.need.mid{color:#b45309}.need.ok{color:#15803d}
+.mem small.dd{font-size:12px;color:var(--sub);font-weight:600}
+.wtab{overflow-x:auto;margin:0 -4px}.wtab table{border-collapse:separate;border-spacing:2px;width:100%;table-layout:fixed;min-width:340px}
+.wtab th{font-size:12px;color:var(--sub);font-weight:800;padding:2px 0}.wtab th.td{color:var(--acc)}.wtab th.nm{text-align:left;color:var(--ink);font-size:13px;width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wtab td.c{height:38px;border-radius:7px;background:var(--bg);border:1px solid var(--line);font-size:11px;font-weight:800;text-align:center;overflow:hidden;white-space:nowrap;padding:0 1px}
+.wtab td.off{background:#64748b;color:#fff}.wtab td.warn{background:#fee2e2;color:#b91c1c;border-color:#fca5a5}
+.day h2{display:flex;align-items:center;gap:8px}.day.today{border-color:var(--acc)}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:8;display:flex;align-items:flex-end}.sbox{background:var(--card);width:100%;border-radius:16px 16px 0 0;padding:14px 12px calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;flex-direction:column;gap:8px;max-height:80vh;overflow:auto}.sbox .btn{height:48px;font-size:15px}
 </style>
 </head>
 <body>
 <nav class="apps"><a href="home.html" style="flex:0 0 38px" aria-label="入口">🏠</a><a href="index.html">🔧 曲げ共有</a><a href="zumen.html">📐 図面</a><a href="genchou.html">📹 現調</a><a href="kiki.html">🔩 機器</a><a href="genba.html" class="on">📋 現場</a></nav>
 <div id="app"></div>
-<script src="genba.js?v=1"></script>
+<script src="genba.js?v=2"></script>
 <script src="team.js?v=255"></script>
 <script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
 </body>

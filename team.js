@@ -194,7 +194,7 @@ if(PAGE==="bend"){
  const re=renderEdit,rl=renderList;
  window.renderEdit=function(){re.apply(this,arguments);const bar=q(".bar");if(bar&&!bar.querySelector(".tmSend"))bar.prepend(mk("btn tmSend","👥 チームに送る","background:#06c755;border-color:#06c755;color:#fff",sendTeam))};
  window.renderList=async function(){await rl.apply(this,arguments);const h=q("#app h1");if(h&&!q("#app .tmStat"))h.after(mk("btn tmStat","👀 見た人を確認（チームに送った現場）","width:100%;margin:0 0 10px;background:#ecfdf5;border-color:#a7f3d0;color:#065f46",openStatus))};
- if(cur)window.renderEdit();else if(!location.hash)window.renderList();
+ if(cur)window.renderEdit();else if(location.hash==="#list")window.renderList();   /* 現場のはじめはメニュー（一覧は #list） */
 }
 const P=params();if(P)setTimeout(()=>openShared(P.tm,P.sh,P.k),PAGE==="bend"&&P.k==="g"?0:300);
 window.__TM={sendTeam,openStatus,openShared,LIFF_ID,PAGE};   // 確認・テスト用

@@ -88,26 +88,57 @@ function freeUrls(){while(urls.length)URL.revokeObjectURL(urls.pop())}
 function save(){if(!cur)return;cur.updated=Date.now();clearTimeout(saveT);saveT=setTimeout(()=>putSite(cur).catch(()=>toast("保存できませんでした")),300)}
 function go(id){location.hash=id?"#"+id:"";}
 window.addEventListener("hashchange",route);
-async function route(){clearTimeout(saveT);if(cur)await putSite(cur).catch(()=>{});const id=location.hash.slice(1);if(id[0]==="p"&&id.length>1){cur=null;try{pName=decodeURIComponent(id.slice(1))}catch(e){pName=""}renderPerson();return}if(/^ky?\d{4}-\d\d-\d\d$/.test(id)){cur=null;const y=id[1]==="y";renderKosu(id.slice(y?2:1),y);return}if(/^w\d{4}-\d\d-\d\d$/.test(id)){cur=null;wk=monday(id.slice(1));renderWeek();return}if(id){const s=await getSite(id);if(s){cur=s;renderEdit();return}}cur=null;renderList()}
+async function route(){clearTimeout(saveT);if(cur)await putSite(cur).catch(()=>{});const id=location.hash.slice(1);if(id==="list"){cur=null;renderList();return}if(id==="people"){cur=null;renderPeople();return}if(id[0]==="p"&&id.length>1){cur=null;try{pName=decodeURIComponent(id.slice(1))}catch(e){pName=""}renderPerson();return}if(/^ky?\d{4}-\d\d-\d\d$/.test(id)){cur=null;const y=id[1]==="y";renderKosu(id.slice(y?2:1),y);return}if(/^w\d{4}-\d\d-\d\d$/.test(id)){cur=null;wk=monday(id.slice(1));renderWeek();return}if(id){const s=await getSite(id);if(s){cur=s;renderEdit();return}}cur=null;renderMenu()}
+/* 📋 現場のはじめの画面：現場一覧・週の割り振り・個人情報から選ぶ（2026-10-27 ユーザー：いきなり現場を出さずに選ばせて） */
+async function renderMenu(){
+ freeUrls();document.querySelector(".bar")?.remove();const ss=await allSites(),C=cal(),t=ymdOf(new Date()),now=ss.filter(s=>onDay(s,t)).length;
+ const big=(id,ico,h,sub)=>`<button class="site" id="${id}" style="padding:16px 14px"><b style="font-size:19px">${ico} ${h}</b><div class="sub">${sub}</div></button>`;
+ $("#app").innerHTML=`<h1><span class="grow">📋 現場</span></h1>
+ ${big("mList","📋","現場一覧",`現場カード ${ss.length}件${now?`・今日の現場 ${now}件`:""}（日時・住所・駐車場・メンバー・LINEに送る）`)}
+ ${big("mWeek","📅","週の割り振り","だれがどこ・休み・応援・人数・残業・📊人工")}
+ ${big("mPeople","👤","個人情報",`社員 ${C.staff.length}人（名前・ふりがな・生年月日・電話・緊急連絡先・資格証・交通費のまとめ）`)}
+ <button class="btn" id="mStat" style="width:100%;margin:6px 0 10px;background:#ecfdf5;border-color:#a7f3d0;color:#065f46">👀 見た人を確認（チームに送った現場）</button>
+ <div class="card"><h2>💾 バックアップ</h2><div class="note">現場のデータ・個人情報はこのiPhoneの中だけにあります。時々「書き出す」でファイルに残してください（写真も入ります）。</div>
+ <div class="row" style="margin-top:8px"><button class="btn grow" id="bExp">書き出す</button><button class="btn grow" id="bImp">読み込む</button></div><input type="file" id="fImp" accept=".json,application/json" hidden></div>`;
+ $("#mList").onclick=()=>go("list");$("#mWeek").onclick=()=>{backTo="";go("w"+monday())};$("#mPeople").onclick=()=>go("people");
+ $("#mStat").onclick=()=>{if(window.__TM&&__TM.openStatus)__TM.openStatus();else toast("少し待ってからもう一度押してください")};
+ $("#bExp").onclick=exportAll;$("#bImp").onclick=()=>$("#fImp").click();$("#fImp").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)importAll(f)};
+}
+/* 👤 個人情報：社員の一覧（📌・順番は週の割り振りと同じ）。タップでその人のページ（個人情報・緊急連絡先・資格証・人工・残業・交通費） */
+function renderPeople(){
+ freeUrls();document.querySelector(".bar")?.remove();const C=cal();
+ $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 現場メニュー</button><span class="grow"></span></h1>
+ <div class="card"><h2>👤 個人情報（社員）</h2><div class="note">名前をタップ → 個人情報・緊急連絡先・資格証の写真・タグ、その人の人工・残業・交通費。ここに入れた人が週の割り振りの表に出ます。</div>
+  <div id="staff">${ordNames(C,C.staff).map(n=>{const p=C.prof[n]||{},nl=(p.lic||[]).length,em=p.em||{};return `<button class="site" data-pp="${esc(n)}"><b>${(C.pin||[]).includes(n)?"📌":""}${esc(n)}</b>${p.kana?` <span class="sub">${esc(p.kana)}</span>`:""}${ageOf(p.birth)!==""?` <span class="sub">${ageOf(p.birth)}歳</span>`:""}
+   <div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div><div>${tagHtml(tagsOf(C,n))}</div></button>`}).join("")||`<span class="note">まだいません。下で名前を入れてください。</span>`}</div>
+  <div class="row" style="margin-top:8px"><input id="fStaff" placeholder="名前（例：服部）" enterkeyhint="done"><button class="btn pri" id="bStaff">追加</button></div>
+  <div class="chips" id="sugg">${[...new Set(people().map(baseNm))].filter(n=>n&&!C.staff.includes(n)).slice(0,20).map(n=>`<button class="chip" data-as="${esc(n)}">＋ ${esc(n)}</button>`).join("")}</div>
+  <button class="btn" id="bPImp" style="width:100%;margin-top:8px">📥 受け取った人を入れる</button><input type="file" id="fPImp" accept=".json,application/json" hidden></div>
+ <div class="note" style="margin:0 4px">個人情報はこのiPhoneの中だけに残ります（現場メニューの「💾 バックアップ」で書き出しに入ります）。</div>`;
+ $("#bBack").onclick=()=>go("");
+ const add=v=>{v=baseNm(v||"");if(!v)return;const C2=cal();if(!C2.staff.includes(v))C2.staff.push(v);calSave(C2);backTo="people";go("p"+encodeURIComponent(v))};   // 足したらすぐ、その人のページで入れる
+ $("#bStaff").onclick=()=>add($("#fStaff").value);$("#fStaff").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();add($("#fStaff").value)}};
+ $("#sugg").onclick=e=>{const b=e.target.closest("[data-as]");if(b)add(b.dataset.as)};
+ $("#staff").onclick=e=>{const b=e.target.closest("[data-pp]");if(b){backTo="people";go("p"+encodeURIComponent(b.dataset.pp))}};
+ $("#bPImp").onclick=()=>$("#fPImp").click();$("#fPImp").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)importAll(f)};
+}
 
 async function renderList(){
  freeUrls();const ss=(await allSites()).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||b.updated-a.updated);
- $("#app").innerHTML=`<h1><span class="grow">📋 現場</span><button class="btn pri" id="bNew">＋ 新しい現場</button></h1>
- <button class="btn" id="bWeek" style="width:100%;margin:0 0 4px">📅 週の割り振り（だれがどこ・休み・応援・人数）</button>
+ $("#app").innerHTML=`<h1><button class="btn sm" id="bMenu">← 現場メニュー</button><span class="grow"></span><button class="btn pri" id="bNew">＋ 新しい現場</button></h1>
+ <h2 style="margin:4px 4px 8px">📋 現場一覧</h2>
  ${ss.length?ss.map(s=>`<button class="site" data-id="${s.id}"><b>${esc(s.name||"（名前なし）")}</b><div class="sub">${esc(dateTxt(s.date))}${s.time?" "+timeTxt(s.time):""}${s.members.length?` ・ ${s.members.length}人`:""}${s.members.some(m=>m.star)?" ⭐"+esc(s.members.filter(m=>m.star).map(m=>m.n).join("・")):""}</div>${s.addr?`<div class="sub">📍 ${esc(s.addr)}</div>`:""}${s.need&&s.need.min?`<div class="need ${needSt(s,s.date).c}">${esc(needSt(s,s.date).t)}</div>`:""}</button>`).join(""):`<div class="empty">まだ現場がありません。<br>「＋ 新しい現場」で、現場名・住所・駐車場・メンバーなどを入れると、<br>LINEに送る文章を自動で作ります。</div>`}
- <div class="card"><h2>💾 バックアップ</h2><div class="note">現場のデータはこのiPhoneの中だけにあります。時々「書き出す」でファイルに残してください（写真も入ります）。</div>
- <div class="row" style="margin-top:8px"><button class="btn grow" id="bExp">書き出す</button><button class="btn grow" id="bImp">読み込む</button></div><input type="file" id="fImp" accept=".json,application/json" hidden></div>`;
+ `;
  document.querySelector(".bar")?.remove();
+ $("#bMenu").onclick=()=>go("");
  $("#bNew").onclick=async()=>{const s=newSite();await putSite(s);go(s.id)};
- $("#bWeek").onclick=()=>{backTo="";go("w"+monday())};
- $("#app").querySelectorAll(".site").forEach(b=>b.onclick=()=>go(b.dataset.id));
- $("#bExp").onclick=exportAll;$("#bImp").onclick=()=>$("#fImp").click();$("#fImp").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)importAll(f)};
+ $("#app").querySelectorAll(".site").forEach(b=>b.onclick=()=>{backTo="list";go(b.dataset.id)});
 }
 
 const FIELD=(id,label,ph,area)=>`<label class="f" for="${id}">${label}</label>${area?`<textarea id="${id}" placeholder="${esc(ph)}"></textarea>`:`<input id="${id}" placeholder="${esc(ph)}">`}`;
 function renderEdit(){
  const s=cur;freeUrls();
- $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">${backTo?"← 週の割り振り":"← 一覧"}</button><span class="grow"></span><button class="btn sm" id="bDup">複製</button><button class="btn sm del" id="bDel">削除</button></h1>
+ $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">${backTo&&backTo!=="list"?"← 週の割り振り":"← 一覧"}</button><span class="grow"></span><button class="btn sm" id="bDup">複製</button><button class="btn sm del" id="bDel">削除</button></h1>
  <div class="card"><h2>📅 日時・🏭 現場</h2>
   <div class="row"><div class="grow"><label class="f" for="fDate">日付</label><input id="fDate" type="date"></div><div style="width:120px"><label class="f" for="fTime">開始</label><input id="fTime" type="time"></div></div>
   <div class="row"><div class="grow"><label class="f" for="fTend">終わり（何時まで・1日に何件もある時）</label><input id="fTend" type="time"></div><div style="width:120px"><label class="f" for="fShift">昼／夜</label><select id="fShift"><option value="">☀️ 日勤</option><option value="night">🌙 夜勤</option></select></div></div>
@@ -153,13 +184,13 @@ function renderEdit(){
  $("#bPh").onclick=()=>$("#fPh").click();
  $("#fPh").onchange=async e=>{const fs=[...e.target.files];e.target.value="";for(const f of fs){try{const b=await shrink(f),id=rid("p");await putPhoto({id,site:s.id,blob:b,t:Date.now()});s.park.photos.push(id)}catch(err){toast(err.message)}}save();renderPhotos();upd()};
  $("#bMem").onclick=()=>addMem($("#fMem").value);$("#fMem").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addMem($("#fMem").value)}};
- $("#bBack").onclick=()=>{const b=backTo;backTo="";go(b)};
+ $("#bBack").onclick=()=>{const b=backTo;backTo="";go(b||"list")};
  if(!s.need)s.need={min:0,plus:0};if(!s.help)s.help=[];
  const fm=$("#fMin"),fp=$("#fPlus");fm.value=s.need.min||"";fp.value=s.need.plus||"";
  fm.oninput=()=>{s.need.min=Math.max(0,parseInt(fm.value)||0);save();upd()};fp.oninput=()=>{s.need.plus=Math.max(0,parseInt(fp.value)||0);save();upd()};
  $("#bHelp").onclick=()=>{s.help.push({co:"",n:1});save();renderHelps();upd();const a=$("#helps").querySelectorAll("input[data-co]");a[a.length-1]?.focus()};
  $("#bDup").onclick=async()=>{const n={...JSON.parse(JSON.stringify(s)),id:rid("s"),created:Date.now(),updated:Date.now()};n.park.photos=[];for(const pid of s.park.photos){const p=await getPhoto(pid);if(p){const id=rid("p");await putPhoto({...p,id,site:n.id});n.park.photos.push(id)}}await putSite(n);toast("複製しました（日付を直してください）");go(n.id)};
- $("#bDel").onclick=async e=>{const b=e.currentTarget;if(!b.dataset.ok){b.dataset.ok="1";b.textContent="本当に削除";setTimeout(()=>{b.dataset.ok="";b.textContent="削除"},3000);return}clearTimeout(saveT);for(const pid of s.park.photos)await delPhoto(pid).catch(()=>{});await delSite(s.id);cur=null;toast("削除しました");go("")};
+ $("#bDel").onclick=async e=>{const b=e.currentTarget;if(!b.dataset.ok){b.dataset.ok="1";b.textContent="本当に削除";setTimeout(()=>{b.dataset.ok="";b.textContent="削除"},3000);return}clearTimeout(saveT);for(const pid of s.park.photos)await delPhoto(pid).catch(()=>{});await delSite(s.id);cur=null;toast("削除しました");go("list")};
  $("#bCopy").onclick=()=>copyText(lineText(s));
  $("#bSend").onclick=()=>shareText(lineText(s));
  $("#bSendPh").onclick=async()=>{const fs=[];for(const [i,pid] of s.park.photos.entries()){const p=await getPhoto(pid);if(p)fs.push(new File([p.blob],`駐車場${i+1}.jpg`,{type:"image/jpeg"}))}if(!fs.length){toast("駐車場の写真がありません");return}shareFiles(fs,"駐車場")};
@@ -278,7 +309,7 @@ async function renderWeek(){
   if(a.length)return `<td class="c" data-n="${esc(n)}" data-y="${y}" style="background:${col(a[0])};color:#fff">${shIco(a[0])}${esc(sn(a[0]))}</td>`;
   return `<td class="c" data-n="${esc(n)}" data-y="${y}"></td>`};
  const today=ymdOf(new Date());
- $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 一覧</button><span class="grow"></span><button class="btn sm" id="bPrev">‹ 前の週</button><button class="btn sm" id="bThis">今週</button><button class="btn sm" id="bNext">次の週 ›</button></h1>
+ $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← メニュー</button><span class="grow"></span><button class="btn sm" id="bPrev">‹ 前の週</button><button class="btn sm" id="bThis">今週</button><button class="btn sm" id="bNext">次の週 ›</button></h1>
  <button class="btn" id="bKosu" style="width:100%;margin:0 0 8px">📊 人工・⏱ 残業（月ごと・年ごと）</button>
  <div class="card"><h2>📅 ${esc(dateTxt(days[0]))}〜${esc(dateTxt(days[6]))}</h2>
   ${ng?`<div class="need ng">🔴 人が足りない現場が ${ng}件 あります</div>`:ss.length?`<div class="need ok">🟢 足りない現場はありません</div>`:""}
@@ -479,7 +510,7 @@ async function renderPerson(){
  const C=cal(),n=pName;if(!C.staff.includes(n)){go(wk?"w"+wk:"w"+monday());return}
  const p=prof(C,n),ok=()=>calSave(C);
  const F2=(id,label,v,ph,type)=>`<label class="f" for="${id}">${label}</label><input id="${id}" ${type?`type="${type}"`:""} placeholder="${esc(ph||"")}" value="${esc(v||"")}">`;
- $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 週の割り振り</button><span class="grow"></span><button class="btn sm del" id="bDelP">この人を消す</button></h1>
+ $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">${backTo==="people"?"← 個人情報の一覧":"← 週の割り振り"}</button><span class="grow"></span><button class="btn sm del" id="bDelP">この人を消す</button></h1>
  <div class="card"><h2 style="display:flex;align-items:center;gap:6px"><span class="grow">📊 ${esc(n)} の人工・残業・交通費</span><button class="btn sm" id="pSp">‹</button><button class="btn sm" id="pSn">›</button></h2><div id="pSum" class="note">集計しています…</div></div>
  <div class="card"><h2>🏷 タグ</h2><div class="note">タップでつける・外す。🙈の付いたタグは、この画面だけに出ます（表・送る文章には出ません）。</div>
   <div class="chips" id="ptags">${C.tags.map(t=>{const on=p.tags.includes(t.id);return `<button class="chip ${on?"on":""}" data-t="${t.id}" style="${on?`background:${t.c};border-color:${t.c};color:#fff`:`border-color:${t.c}`}">${t.hide?"🙈":""}${esc(t.n)}</button>`}).join("")||`<span class="note">まだタグがありません。下で作ってください。</span>`}</div>
@@ -511,7 +542,7 @@ async function renderPerson(){
  /* この人の期間（締め日）のまとめ：‹ › で前後の期間 */
  const pSum=async()=>{const [a,b]=kPeriod(C,pPer||ymdOf(new Date())),{R,ST}=await kosuData(C,a,b),r=R[n];$("#pSum").innerHTML=`<b>${esc(dateTxt(a))}〜${esc(dateTxt(b))}</b>`+(r?personHtml(n,r,ST):`<div class="sub">この期間は現場に入っていません</div>`)};
  $("#pSp").onclick=()=>{pPer=addDay(kPeriod(C,pPer||ymdOf(new Date()))[0],-1);pSum()};$("#pSn").onclick=()=>{pPer=addDay(kPeriod(C,pPer||ymdOf(new Date()))[1],1);pSum()};pSum();
- $("#bBack").onclick=()=>go("w"+(wk||monday()));
+ $("#bBack").onclick=()=>{const t=backTo==="people"?"people":"";backTo="";go(t||"w"+(wk||monday()))};
  $("#ptags").onclick=e=>{const b=e.target.closest("[data-t]");if(!b)return;const id=b.dataset.t;p.tags=p.tags.includes(id)?p.tags.filter(x=>x!==id):[...p.tags,id];reP()};
  const addTag=v=>{v=v.trim();if(!v)return;let t=C.tags.find(x=>x.n===v);if(!t){t={id:rid("t"),n:v,c:TAGC[C.tags.length%TAGC.length],hide:false};C.tags.push(t)}if(!p.tags.includes(t.id))p.tags.push(t.id);reP()};
  $("#bTag").onclick=()=>addTag($("#fTag").value);$("#fTag").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addTag($("#fTag").value)}};

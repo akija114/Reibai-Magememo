@@ -537,7 +537,7 @@ function dlEisei(S,J,CS){
    ・高さ：同じ種類の近くの「FL+3200」などの文字。無ければ天井の少し下（ダクトは天井の上） */
 const DL_KINDS=[["duct","ダクト"],["eisei","衛生"]];
 /* 読み方の版：衛生・ダクトの読み方を直したら1つ上げる（図面の画面で前の図面を開いた時、古い版で作った3Dは自動で読み直す） */
-const DL_VER=6;window.DL_VER=DL_VER;
+const DL_VER=7;window.DL_VER=DL_VER;
 window.DL_KINDS=DL_KINDS;
 function segCat(s){if(s[5]!==undefined)return dxfCat(s[5]);const c=s[4]||"";if(c.length<7)return"";const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
  return r>200&&g<80&&b>200?"ref":r>200&&g>90&&g<170&&b<60?"drain":""}   // PDF：赤紫＝冷媒、オレンジ＝ドレン（#ff7f00・#ff7e00 など少し違っても）
@@ -664,7 +664,15 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
   LB.rs=RS;
   /* 衛生：たて管の丸（高さが変わる所）。文字の高さをつながりで広げる時、ここは越えない */
   if(k==="eisei")try{LB.cs=(P.circ||[]).filter(c=>dxfCat(c.lay)==="eisei"&&c.r*mm>=15&&c.r*mm<=200).map(c=>{const lv=layV[c.lay];if(main&&!lv)return null;const w=btWx([c.x+(lv?lv.d[0]:0),c.y+(lv?lv.d[1]:0)]);return{x:w[0],z:w[1]}}).filter(Boolean)}catch(e){}
-  const T=dlTidy(solids,k,EQ,LB);if(k==="eisei")try{dlEisei(T.S,T.J,LB.cs)}catch(e){console.warn("eisei",e)}out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});
+  const T=dlTidy(solids,k,EQ,LB);if(k==="eisei")try{dlEisei(T.S,T.J,LB.cs)}catch(e){console.warn("eisei",e)}
+  /* ダクト：同じ線の上で重なった区間（同じ太さ・高さ）は1本にまとめる（重なった短い方の端が「つながっている」と見なされ、機器へつなぐ端をまちがえないように） */
+  if(k==="duct")try{const hz=q=>q[9]===undefined||q[9]===q[4],R=T.S;for(let i=0;i<R.length;i++){const a=R[i];if(!a||!hz(a))continue;const L=Math.hypot(a[2]-a[0],a[3]-a[1]);if(L<1)continue;const ux=(a[2]-a[0])/L,uz=(a[3]-a[1])/L;
+    for(let j=i+1;j<R.length;j++){const b=R[j];if(!b||!hz(b)||b[5]!==a[5]||Math.abs(b[6]-a[6])>1||Math.abs(b[4]-a[4])>1||(typeof b[10]==="number"&&Math.abs(b[10]-b[6])>1)||(typeof a[10]==="number"&&Math.abs(a[10]-a[6])>1))continue;
+     const off=p=>Math.abs((p[0]-a[0])*uz-(p[1]-a[1])*ux),tt=p=>(p[0]-a[0])*ux+(p[1]-a[1])*uz;if(off([b[0],b[1]])>2||off([b[2],b[3]])>2)continue;
+     const t1=tt([b[0],b[1]]),t2=tt([b[2],b[3]]),lo=Math.min(0,t1,t2),hi=Math.max(L,t1,t2);if(Math.min(L,Math.max(t1,t2))-Math.max(0,Math.min(t1,t2))<-1)continue;   // 重ならない（離れている）物はそのまま
+     a[0]=Math.round(a[0]+ux*lo);a[1]=Math.round(a[1]+uz*lo);a[2]=Math.round(a[0]+ux*(hi-lo));a[3]=Math.round(a[1]+uz*(hi-lo));R[j]=null;i--;break}}
+   T.S=R.filter(Boolean)}catch(e){console.warn("ductmerge",e)}
+  out[k]=lines;out[k+"S"]=T.S;out[k+"J"]=T.J});
  /* ベントキャップ（「VC200(FD)」「VC150」など）：文字のいちばん近くの、どこにもつながっていないダクト・配管の端に付ける。
     向きは管の先（外向き）。out.vc＝[x, z, 高さ, 向きx, 向きz, 呼び径, FD付き(1/0), 種類] */
  try{const VT=(P.textsAll||[]).map(t=>{const z=String(t.s).replace(/[０-９Ａ-Ｚ（）]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).replace(/\s/g,"");const m=z.match(/^VC(\d{2,3})(.*)$/i);if(!m)return null;
@@ -684,7 +692,7 @@ const k0=k;if(k==='drain'&&P.dxf&&s[5]!==undefined)k='eisei';if(!by[k])return;if
   const EQT=TX.map(o=>{const m=o.z.match(/^([A-Z]{1,4}(?:\([A-Z]{1,2}\))?)(-?)(\d{2,4})([A-Z0-9]*)(□|×(\d{2,4}))?$/);if(m)m.splice(2,1,...[]);if(!m||!/-|□|×/.test(o.z)||/^(VC|FL|SA|RA|OA|EA|PL|PLA|PC|PEA|PUZ|PUHY|PKA|SD|CH)$/.test(m[1]))return null;   // VC・高さ・ダクトの種類・室内外機の品番は別
    const p=pos(o.t);if(!p)return null;const n=+m[2],sq=m[4]?1:0;return{x:p.x,z:p.z,s:o.z,g:/^(V?H?S|HS|VHS|H|V|AH|SH|PH)/.test(m[1])&&sq?1:0,w:sq?n:300,d:sq?(+m[5]||n):300}}).filter(Boolean);
   const S=out.ductS||[],J=out.ductJ||[],E=[];S.filter(r=>r[0]!==r[2]||r[1]!==r[3]).forEach(r=>{[[0,1,2,3],[2,3,0,1]].forEach(([a,b,c,d])=>{const p=[r[a],r[b]],q=[r[c],r[d]],L=Math.hypot(p[0]-q[0],p[1]-q[1]);if(L<20)return;
-   const used=S.some(o=>o!==r&&(Math.hypot(o[0]-p[0],o[1]-p[1])<Math.max(30,r[6]*0.6)||Math.hypot(o[2]-p[0],o[3]-p[1])<Math.max(30,r[6]*0.6)))||J.some(j=>Math.hypot(j[0]-p[0],j[1]-p[1])<Math.max(60,r[6]*1.2))||(out.vc||[]).some(v=>Math.hypot(v[0]-p[0],v[1]-p[1])<60);if(used)return;
+   const used=S.some(o=>o!==r&&(Math.hypot(o[0]-p[0],o[1]-p[1])<Math.max(30,r[6]*0.6)||Math.hypot(o[2]-p[0],o[3]-p[1])<Math.max(30,r[6]*0.6)||(()=>{const Lo=Math.hypot(o[2]-o[0],o[3]-o[1]);if(Lo<1)return false;const t=((p[0]-o[0])*(o[2]-o[0])+(p[1]-o[1])*(o[3]-o[1]))/Lo;return t>30&&t<Lo-30&&Math.abs((p[0]-o[0])*(o[3]-o[1])-(p[1]-o[1])*(o[2]-o[0]))/Lo<Math.max(30,o[6]*0.6)})()))||   /* ほかのダクトの途中にある端も「つながっている」 */J.some(j=>Math.hypot(j[0]-p[0],j[1]-p[1])<Math.max(60,r[6]*1.2))||(out.vc||[]).some(v=>Math.hypot(v[0]-p[0],v[1]-p[1])<60);if(used)return;
    E.push({x:p[0],z:p[1],h:r[4],u:[(p[0]-q[0])/L,(p[1]-q[1])/L],w:r[6]})})});
   const CH0=(st.gnd&&st.gnd.ch)||P.CH||2700,taken=new Set();out.eq2=[];
   /* 図面に部品（ブロック）として描いてある吹出口・吸込口・天井換気扇（「VHS(消音BOX付)」「HS(BOX付)」「天井埋込形換気扇」など）：

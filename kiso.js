@@ -275,6 +275,29 @@ const airConditionerMaster = [
   {h:"役割", col:"var(--ink,#0f172a)", li:["一括の入・切、スケジュール運転、温度ロック（省エネ）、故障・エラーの監視"]},
   {h:"電源とLAN", col:"#b45309", li:["集中リモコン本体にも電源の配線が必須","LAN ケーブルで社内のネットワークにつなぐと、同じネットワークのパソコンからブラウザや専用ソフトで遠隔の入・切・温度設定・監視ができる"]},
   {h:"通信線のつなぎ方", col:"#7c3aed", li:["ビルマル：室外機から室外機へ通信線を順に渡り配線","パッケージ・ルーム：室内機に専用の接続器（インターフェース）を付け、そこから線を渡らせる","各系統の線を、最後に集中リモコンへつなぐ","接続台数の上限を超える大規模な現場は、増幅器（リピーター）を挟んで広げる"]}]}]},
+{id:"irekae", name:"エアコンの入替工事（1人作業）の手順", category:"施工手順",
+ description:"既存のエアコンを外して、新しいエアコンに入れかえる工事の流れです。5つのフェーズに分けて、絵と手順でまとめました。特に「マーキング」「耐圧試験と泡検」「真空引き」は、あとのトラブルを防ぐいちばん大事な所です。\n※ 圧力・時間・トルクなどの数字は、必ず新しい機種の据付説明書で確認してください。",
+ tips:[
+ {fig:"ir1", title:"① フェーズ1：既存機の取り外しと準備", items:[
+  {h:"ポンプダウン", col:"var(--gas,#2563eb)", li:["マニホールドを室外機のサービスポートにつなぎ、液側バルブを閉めて冷房運転","ゲージで冷媒が室外機に回収された（低圧が0付近まで下がった）のを確認して、ガス側バルブを閉め、運転を止める","⚠️ 圧縮機を止めてから配管を外す（運転したまま外すと空気を吸い込み、爆発の危険）"]},
+  {h:"マーキング（超重要）", col:"var(--liq,#dc2626)", li:["電源線・通信線（内外接続線）・リモコン線に、外す前にペンでメモ（端子の番号・色）を必ず残す","写真も撮っておくと、新しい機械の結線で迷わない"]},
+  {h:"切り離し", col:"var(--ink,#0f172a)", li:["ドレンは口元で外すか切断。冷媒配管はフレアを外す（または切断）","室内機を安全に下ろす（脚立・荷物の重さに注意。1人の時は無理をしない）"]}]},
+ {fig:"ir2", title:"② フェーズ2：新しい室内機・配管の仕込み", items:[
+  {h:"吊り込み・水平", col:"var(--ink,#0f172a)", li:["墨出しと吊りピッチに合わせて、アッパーなどで吊り込む","水平器でレベル（水平）を必ず確認（ドレンの流れにかかわる）"]},
+  {h:"冷媒配管", col:"var(--gas,#2563eb)", li:["新しくフレアを作る（バリ取り・フレアの寸法・トルクレンチで規定トルク）","ガス管は20mm厚の保温材を、継ぎ目やフレア部まで隙間なく巻く"]},
+  {h:"ドレン配管", col:"var(--dr,#16a34a)", li:["VP管やドレンホースを仕込み、上から（トップで）確実に支持を取る","下り勾配（1/100 以上）で、流れる向きを確保する"]}]},
+ {fig:"ir3", title:"③ フェーズ3：配管接続と「耐圧試験 ＆ 泡検（あわけん）」", items:[
+  {h:"室外機の据付・接続", col:"var(--ink,#0f172a)", li:["既設の室外機を撤去し、新しい室外機を据え付けて、液管・ガス管を接続"]},
+  {h:"耐圧試験", col:"#7c3aed", li:["室外機のバルブは閉めたまま、マニホールドをつないで窒素ガスを規定の圧力まで入れる（圧力は据付説明書の値）","一定時間おいて、圧力が下がらないかを見る"]},
+  {h:"泡検（あわけん）チェック", col:"var(--air,#0ea5e9)", li:["フレアや接続部に、泡検スプレーを吹きかける","モコモコ泡が大きくなる・ぷくぷく出続ける所はガス漏れ → 締め直す・フレアを作り直す","泡が変わらなければ漏れなし"]}]},
+ {fig:"ir4", title:"④ フェーズ4：真空引きとガス開放", items:[
+  {h:"真空引き", col:"var(--gas,#2563eb)", li:["窒素を抜いてから、バキュームポンプをつないで−0.1MPa まで引き、配管の中の水分・空気を追い出す（時間は据付説明書・配管の長さで）"]},
+  {h:"気密保持", col:"var(--ink,#0f172a)", li:["バルブを閉めてポンプを止め、しばらく置いても真空が保たれる（針が戻らない）ことを確認"]},
+  {h:"ガス開放", col:"var(--dr,#16a34a)", li:["液側・ガス側のバルブを六角レンチで開けて、冷媒を開放する","キャップを締めて、フレア部をもう一度泡検（または検知器）で確認"]}]},
+ {fig:"ir5", title:"⑤ フェーズ5：電気結線・集中リモコン・試運転", items:[
+  {h:"配線", col:"#b45309", li:["フェーズ1のメモを頼りに、電源線・アース・通信線（1・2・3／S1・S2・S3）をまちがいなく接続","集中リモコンがある時は渡り配線をし、本体に電源とLANケーブル（パソコン用）をつなぐ"]},
+  {h:"試運転", col:"var(--dr,#16a34a)", li:["電源を入れて冷房・暖房を運転し、エラーが出ないか、風が出るか、ドレンが流れるかを確認","お客さんへ使い方を説明して引き渡し"]}]}],
+ material_notes:["マニホールド・ホース・六角レンチ（バルブ用）","窒素ボンベ・減圧弁・泡検スプレー（またはガス検知器）","バキュームポンプ・真空ゲージ（あれば）","フレアツール・バリ取り・トルクレンチ・パイプカッター","水平器・墨出しの道具・脚立","保温材（ガス管20mm）・テープ・ドレン部材・マーキング用のペン"]},
 {id:"ref_hoon", name:"冷媒配管の保温（断熱）・厚み（10mm／20mm）", category:"関連設備",
  description:"冷媒配管（銅管）は、ガス管・液管の2本とも保温材（断熱材）で巻きます。理由は2つ。①結露防止：冷えた配管に周りの湿気が触れて水滴（漏水）になるのを防ぐ。②熱ロス防止：外の暑さ・寒さで冷媒の温度が変わり、エアコンの能力が落ちるのを防ぐ。\n太い方のガス管は、いちばん冷たい（暖房では熱い）ので、保温を厚く（20mm など）するのが基本です。",
  usage_scene:["すべてのエアコンの冷媒配管","天井裏・壁の中・屋外の露出部","長配管・ビルマル"],
@@ -322,6 +345,27 @@ const KISO_SVG = (() => {
  const person = (x, y) => c(x, y - 26, 5) + l(x, y - 21, x, y - 8) + l(x, y - 8, x - 5, y) + l(x, y - 8, x + 5, y) + l(x - 6, y - 17, x + 6, y - 17);
  const bolts = (x1, x2, y1, y2) => l(x1, y1, x1, y2, C.liq, 1.4) + l(x2, y1, x2, y2, C.liq, 1.4);
  const D = {};
+ D.irekae = () => { const P = [["①", "取り外し", "ポンプダウン・マーキング", C.gas], ["②", "仕込み", "吊り込み・配管・保温", C.ink], ["③", "接続・試験", "耐圧試験・泡検", "#7c3aed"], ["④", "真空・開放", "−0.1MPa・バルブ開", C.dr], ["⑤", "結線・試運転", "メモどおり・エラー確認", "#b45309"]];
+  return svg(P.map(([n, a2, b2, col], i) => { const y = 8 + i*38; return r(40, y, 250, 30, C.card, col, 8) + c(22, y + 15, 12, col, col) + t(22, y + 19.5, n, 11, "middle", "#fff", 1) + t(52, y + 13, a2, 10, "start", col, 1) + t(52, y + 25, b2, 8.5, "start") + (i < 4 ? a(22, y + 28, 22, y + 44, C.sub, 1.6) : ""); }).join(""), 200); };
+ D.ir1 = () => { const gauge = (x, y) => c(x, y, 14, C.card) + l(x, y, x - 9, y - 8, C.gas, 2);
+  return svg(t(80, 14, "ポンプダウン", 10, "middle", C.gas, 1) + out(10, 30, 60, 44) + c(76, 50, 4, C.ink) + c(76, 64, 4, C.ink) + r(96, 20, 54, 22, C.pn) + t(123, 34, "マニホールド", 7.5, "middle", C.ink, 1) + p("M123,42 V57 H80", C.rc, 1.6) + gauge(136, 88) + t(136, 116, "低圧0付近", 8, "middle", C.gas, 1) +
+   t(8, 96, "① 液側を閉めて冷房運転", 8, "start", C.ink) + t(8, 108, "② ゲージ0付近でガス側を閉", 8, "start", C.ink) + t(8, 120, "③ 運転を止める", 8, "start", C.ink) +
+   t(240, 14, "マーキング（超重要）", 10, "middle", C.liq, 1) + [["電源 L", 34], ["電源 N", 54], ["通信 3", 74], ["リモコン", 94]].map(([s2, y]) => l(186, y, 236, y, C.el, 2.4) + r(238, y - 8, 64, 16, C.card, C.liq) + t(270, y + 4, s2, 8.5, "middle", C.liq, 1)).join("") + t(244, 120, "外す前にペンで書く・写真", 8.5, "middle", C.ink, 1) +
+   t(160, 146, "⚠️ 圧縮機を止めてから配管を外す", 9.5, "middle", C.liq, 1), 156); };
+ D.ir2 = () => svg(l(10, 14, 200, 14, C.ink, 2) + bolts(50, 150, 14, 46) + r(40, 44, 120, 26, C.pn) + t(100, 61, "室内機", 9, "middle", C.ink, 1) + ceil(10, 120, 80) + r(70, 92, 60, 12, C.card) + c(100, 98, 4, C.air, C.air) + t(100, 118, "水平器でレベル確認", 8.5, "middle", C.ink, 1) + t(46, 30, "吊りボルト", 8, "end", C.liq) +
+  p("M160,52 H210", C.gas, 6) + p("M160,52 H210", C.card, 2.5) + `<polygon points="210,46 222,52 210,58" fill="#d97706"/>` + t(208, 40, "フレア", 8.5, "middle", "#b45309", 1) + p("M226,52 H306", C.gas, 14) + p("M226,52 H306", C.card, 9) + p("M226,52 H306", C.gas, 3) + t(272, 30, "ガス管：保温20mm", 8.5, "middle", C.gas, 1) +
+  p("M160,64 H200 L300,96", C.dr, 3) + [230, 270].map(x => l(x, 14, x, 68 + (x - 200)*0.32, C.sub, 1)).join("") + t(256, 116, "ドレン：上から支持・下り勾配", 8.5, "middle", C.dr, 1), 130);
+ D.ir3 = () => { const foam = (x, y, big) => Array.from({length:big ? 9 : 4}, (_, i) => c(x + ((i*37) % 28) - 14, y - ((i*23) % 18), big ? 4 + (i % 3) : 3, "#ffffff", C.sub)).join("");
+  return svg(r(14, 30, 26, 70, C.pn) + p("M20,30 q7,-12 14,0", C.ink, 1.6) + t(27, 114, "窒素", 9, "middle", C.ink, 1) + p("M40,50 H70", C.rc, 1.6) + r(70, 36, 56, 26, C.pn) + t(98, 52, "マニホールド", 7.5, "middle", C.ink, 1) + c(98, 82, 14, C.card) + l(98, 82, 106, 72, "#7c3aed", 2) + t(98, 108, "圧が下がらないか", 8, "middle", "#7c3aed", 1) + p("M126,50 H150", C.rc, 1.6) + pipe("M150,50 H190") + t(170, 30, "耐圧試験", 10, "middle", "#7c3aed", 1) +
+   t(250, 14, "泡検（あわけん）", 10, "middle", C.air, 1) + p("M206,58 H232", C.gas, 6) + `<polygon points="232,52 244,58 232,64" fill="#d97706"/>` + p("M244,58 H262", C.gas, 6) + foam(236, 50, 0) + t(236, 82, "泡そのまま", 8, "middle", C.dr, 1) + t(236, 94, "漏れなし ○", 8.5, "middle", C.dr, 1) +
+   p("M266,58 H284", C.gas, 6) + `<polygon points="284,52 296,58 284,64" fill="#d97706"/>` + p("M296,58 H312", C.gas, 6) + foam(290, 50, 1) + t(290, 82, "泡が大きく", 8, "middle", C.liq, 1) + t(290, 94, "ガス漏れ ✕", 8.5, "middle", C.liq, 1) +
+   t(160, 130, "室外機のバルブは閉めたまま・圧力は据付説明書の値", 9, "middle", C.ink, 1), 140); };
+ D.ir4 = () => svg(t(90, 14, "真空引き", 10, "middle", C.gas, 1) + r(14, 70, 54, 34, C.pn) + t(41, 91, "真空ポンプ", 8, "middle", C.ink, 1) + p("M68,86 H96 V64", C.rc, 1.6) + r(84, 38, 60, 26, C.pn) + t(114, 54, "マニホールド", 7.5, "middle", C.ink, 1) + c(160, 52, 16, C.card) + l(160, 52, 150, 42, C.gas, 2) + t(150, 86, "−0.1MPa", 10, "middle", C.gas, 1) + t(140, 100, "針が戻らない＝気密OK", 8, "middle", C.ink, 1) +
+  t(256, 14, "ガス開放", 10, "middle", C.dr, 1) + out(214, 40, 64, 46) + c(284, 54, 5, C.card) + c(284, 72, 5, C.card) + p("M292,54 l10,-8 M292,72 l10,-8", C.ink, 2.4) + a(306, 40, 306, 26, C.dr, 1.8) + t(256, 100, "六角レンチで液側・", 8.5, "middle", C.dr, 1) + t(256, 112, "ガス側を開ける", 8.5, "middle", C.dr, 1) + t(256, 124, "→ もう一度泡検", 8.5, "middle", C.ink) +
+  t(160, 138, "水分・空気を追い出す（時間は据付説明書・配管の長さで）", 9, "middle", C.ink, 1), 148);
+ D.ir5 = () => svg(t(80, 14, "メモどおりに結線", 10, "middle", "#b45309", 1) + [["L", C.el], ["N", C.el], ["⏚", C.dr], ["3", C.tr]].map(([k, col], i) => r(20, 26 + i*20, 26, 16, C.card) + t(33, 38 + i*20, k, 9, "middle", C.ink, 1) + l(46, 34 + i*20, 96, 34 + i*20, col, 2.4) + r(96, 26 + i*20, 44, 16, C.card, C.liq) + t(118, 38 + i*20, ["電源 L", "電源 N", "アース", "通信 3"][i], 7.5, "middle", C.liq, 1)).join("") +
+  t(240, 14, "集中リモコン", 10, "middle", C.ink, 1) + r(206, 30, 70, 30, C.card) + t(241, 49, "集中リモコン", 8.5, "middle", C.ink, 1) + p("M186,40 H206", "#b45309", 2.2) + t(184, 44, "電源", 8, "end", "#b45309", 1) + p("M276,44 H304", C.gas, 2, "none", "5 3") + t(296, 36, "LAN", 8, "middle", C.gas, 1) + p("M241,60 V78 H190", C.tr, 2.2) + t(196, 92, "渡り配線", 8, "start", C.tr, 1) +
+  r(70, 116, 180, 26, "none", C.dr, 8) + t(160, 133, "試運転：冷房・暖房・エラー・ドレン ✓", 9.5, "middle", C.dr, 1), 152);
  D.hp_basic = () => { const coil = (x, y) => p(`M${x},${y} ` + Array.from({length:6}, (_, i) => `l8,${i % 2 ? -10 : 10}`).join(" "), C.sub, 1.4);
   return svg(t(160, 14, "冷房のとき（冷媒の流れ）", 11, "middle", C.ink, 1) + r(14, 40, 92, 60, C.card) + t(60, 34, "室内機", 10, "middle", C.ink, 1) + coil(36, 62) + t(60, 88, "蒸発器", 9, "middle", C.ink, 1) + a(60, 100, 60, 124, C.air) + t(60, 136, "熱をうばう（冷える）", 9, "middle", C.air, 1) +
    r(214, 40, 92, 60, C.pn) + t(260, 34, "室外機", 10, "middle", C.ink, 1) + coil(236, 62) + t(260, 88, "凝縮器", 9, "middle", C.ink, 1) + a(260, 100, 260, 124, C.hot) + t(260, 136, "熱を捨てる（外へ）", 9, "middle", C.hot, 1) +
@@ -486,7 +530,7 @@ window.KISO_SVG = KISO_SVG;
 #ksOv .ksTop{position:sticky;top:-8px;background:var(--bg,#eef3f7);padding:4px 0 8px;z-index:2}
 #ksOv .ksH{display:flex;align-items:center;gap:8px}#ksOv .ksH b{flex:1;font-size:17px}
 #ksOv .ksX{height:40px;border-radius:10px;border:1.5px solid var(--line,#c9d5e0);background:var(--card,#fff);color:var(--ink,#0f172a);font:inherit;font-weight:800;padding:0 14px}
-#ksOv .ksTabs{display:flex;gap:6px;margin-top:8px}#ksOv .ksTabs button{flex:1;height:38px;border-radius:10px;border:1.5px solid var(--line,#c9d5e0);background:var(--card,#fff);color:var(--ink,#0f172a);font:inherit;font-weight:800;font-size:13.5px}
+#ksOv .ksTabs{display:flex;gap:6px;margin-top:8px}#ksOv .ksTabs button{flex:1;min-width:0;padding:0 2px;height:38px;border-radius:10px;border:1.5px solid var(--line,#c9d5e0);background:var(--card,#fff);color:var(--ink,#0f172a);font:inherit;font-weight:800;font-size:13.5px}
 #ksOv .ksTabs button.on{background:var(--acc,#0369a1);color:#fff;border-color:var(--acc,#0369a1)}
 #ksOv input{width:100%;height:42px;border-radius:10px;border:1.5px solid var(--line,#c9d5e0);background:var(--card,#fff);color:var(--ink,#0f172a);font:inherit;font-size:16px;padding:0 10px;margin-top:8px}
 #ksOv details{background:var(--card,#fff);border:1.5px solid var(--line,#c9d5e0);border-radius:14px;margin-top:8px;overflow:hidden}
@@ -507,11 +551,11 @@ window.KISO_SVG = KISO_SVG;
  const tipB = tp => (tp.fig && typeof KISO_SVG !== "undefined" && KISO_SVG[tp.fig] ? `<div class="ksFig">${KISO_SVG[tp.fig]()}</div>` : "") + (tp.items || []).map(it => `<div style="font-weight:800;color:${it.col || "var(--ink,#0f172a)"};margin-top:6px">${esc(it.h)}</div><ul>${li(it.li)}</ul>`).join("");
  const card = d => { const e = d.electrical_spec || {}, row = (k, v) => v ? `<tr><td>${k}</td><td>${esc(v)}</td></tr>` : "";
   return `<details id="ks_${d.id}"><summary>${esc(d.name)}</summary><div class="ksB">${typeof KISO_SVG !== "undefined" && KISO_SVG[d.id] ? `<div class="ksFig">${KISO_SVG[d.id]()}</div>` : ""}<p>${esc(d.description)}</p>
-   <h4>🏢 主な使い道・置く場所</h4><div>${(d.usage_scene || []).map(x => `<span class="ksTag">${esc(x)}</span>`).join("")}</div>
-   <h4>👍 よい所・👎 気をつける所</h4><ul class="ksPro">${li(d.pros_cons && d.pros_cons.pros)}</ul><ul class="ksCon">${li(d.pros_cons && d.pros_cons.cons)}</ul>
-   <h4>⚡ 電線・配線の目安</h4><table>${row("電源", e.power)}${row("内外接続線", e.inter_unit)}${row("伝送線", e.transmission)}${row("リモコン線", e.remote)}${row("ブレーカー", e.breaker)}</table>${e.notes && e.notes.length ? `<ul>${li(e.notes)}</ul>` : ""}
+   ${d.usage_scene ? `<h4>🏢 主な使い道・置く場所</h4><div>${d.usage_scene.map(x => `<span class="ksTag">${esc(x)}</span>`).join("")}</div>` : ""}
+   ${d.pros_cons ? `<h4>👍 よい所・👎 気をつける所</h4><ul class="ksPro">${li(d.pros_cons.pros)}</ul><ul class="ksCon">${li(d.pros_cons.cons)}</ul>` : ""}
+   ${d.electrical_spec ? `<h4>⚡ 電線・配線の目安</h4><table>${row("電源", e.power)}${row("内外接続線", e.inter_unit)}${row("伝送線", e.transmission)}${row("リモコン線", e.remote)}${row("ブレーカー", e.breaker)}</table>${e.notes && e.notes.length ? `<ul>${li(e.notes)}</ul>` : ""}` : ""}
    ${(d.tips || []).map(tp => `<div class="ksTip"><h4>${esc(tp.title)}</h4>${tipB(tp)}${tp.more ? `<details class="ksMore"><summary>${esc(tp.more.title || "📖 詳細")}</summary>${tipB(tp.more)}</details>` : ""}</div>`).join("")}
-   <h4>🧾 材料拾い・見積もりのコツ</h4><ul>${li(d.material_notes)}</ul></div></details>`; };
+   ${d.material_notes ? `<h4>${d.category === "施工手順" ? "🧰 持っていく道具・材料" : "🧾 材料拾い・見積もりのコツ"}</h4><ul>${li(d.material_notes)}</ul>` : ""}</div></details>`; };
  const guide = () => `<details id="ks_power"><summary>⚡ 動力（三相200V）の電線の目安</summary><div class="ksB"><table><tr><td>能力</td><td><b>電線</b>・ブレーカー（漏電遮断器）</td></tr>${powerCableGuide.map(g => `<tr><td>${esc(g.cap)}</td><td><b>${esc(g.wire)}</b>・${esc(g.br)}</td></tr>`).join("")}</table><ul><li>こう長（電線の長さ）30m くらいまでの目安。長い時・何本もまとめて通す時は1つ太く</li><li>接地線（アース）を忘れずに（D種接地）</li></ul></div></details>`;
  let tab = "システム";
  function list(){ const q = (document.getElementById("ksQ").value || "").trim(), box = document.getElementById("ksL");
@@ -528,7 +572,7 @@ window.KISO_SVG = KISO_SVG;
   const b = document.createElement("button"); b.id = "ksBtn"; b.textContent = "📘 空調の種類と電線（初心者向け）"; anchor.parentNode.insertBefore(b, anchor);
   const ov = document.createElement("div"); ov.id = "ksOv"; ov.hidden = true; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-label", "空調の種類と電線");
   ov.innerHTML = `<div class="ksTop"><div class="ksH"><b>📘 空調の種類と電線</b><button class="ksX" id="ksX">✕ 閉じる</button></div>
-   <div class="ksTabs">${[["システム","方式"],["形状","室内機の形"],["関連設備","換気・周辺"]].map(([k, n]) => `<button data-t="${k}">${n}</button>`).join("")}</div>
+   <div class="ksTabs">${[["システム","方式"],["形状","室内機の形"],["関連設備","換気・周辺"],["施工手順","施工手順"]].map(([k, n]) => `<button data-t="${k}">${n}</button>`).join("")}</div>
    <input id="ksQ" type="search" placeholder="さがす（例 ビルマル・伝送線・吊りボルト）"></div>
    <div class="ksWarn">⚠️ 電線の太さ・ブレーカーは<b>よくある目安</b>です。メーカー・機種・電線の長さ（電圧降下）・まとめて通す本数で変わります。<b>必ずメーカーの据付説明書と電気の設計図で確定</b>してください（電気工事は電気工事士の資格が要ります）。</div>
    <div id="ksL"></div>`;

@@ -110,7 +110,7 @@ function renderPeople(){
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 現場メニュー</button><span class="grow"></span></h1>
  <div class="card"><h2>👤 個人情報（社員）</h2><div class="note">名前をタップ → 個人情報・緊急連絡先・資格証の写真・タグ、その人の人工・残業・交通費。ここに入れた人が週の割り振りの表に出ます。</div>
   <div id="staff">${ordNames(C,C.staff).map(n=>{const p=C.prof[n]||{},nl=(p.lic||[]).length,em=p.em||{};return `<button class="site" data-pp="${esc(n)}"><b>${(C.pin||[]).includes(n)?"📌":""}${esc(n)}</b>${p.kana?` <span class="sub">${esc(p.kana)}</span>`:""}${ageOf(p.birth)!==""?` <span class="sub">${ageOf(p.birth)}歳</span>`:""}
-   <div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div><div>${tagHtml(tagsOf(C,n))}</div></button>`}).join("")||`<span class="note">まだいません。下で名前を入れてください。</span>`}</div>
+   ${p.co||(p.trades||[]).length?`<div class="sub">${p.co?"🏢 "+esc(p.co)+" ":""}${(p.trades||[]).map(t=>"🔧"+esc(t.n)+(t.since&&expOf(t.since)?" "+expOf(t.since):"")).join(" ")}</div>`:""}<div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div><div>${tagHtml(tagsOf(C,n))}</div></button>`}).join("")||`<span class="note">まだいません。下で名前を入れてください。</span>`}</div>
   <div class="row" style="margin-top:8px"><input id="fStaff" placeholder="名前（例：服部）" enterkeyhint="done"><button class="btn pri" id="bStaff">追加</button></div>
   <div class="chips" id="sugg">${[...new Set(people().map(baseNm))].filter(n=>n&&!C.staff.includes(n)).slice(0,20).map(n=>`<button class="chip" data-as="${esc(n)}">＋ ${esc(n)}</button>`).join("")}</div>
   <button class="btn" id="bPImp" style="width:100%;margin-top:8px">📥 受け取った人を入れる</button><input type="file" id="fPImp" accept=".json,application/json" hidden></div>
@@ -503,6 +503,9 @@ let wTag="",pName="";
 function prof(C,n){const p=C.prof[n]=C.prof[n]||{};p.em=p.em||{};p.lic=p.lic||[];p.tags=p.tags||[];return p}
 function tagsOf(C,n,all){const p=C.prof[n];if(!p||!p.tags)return [];return C.tags.filter(t=>p.tags.includes(t.id)&&(all||!t.hide))}
 const tagHtml=(ts,cls)=>ts.map(t=>`<span class="tg ${cls||""}" style="background:${t.c}">${t.hide?"🙈":""}${esc(t.n)}</span>`).join("");
+/* 経験：始めた日から今日まで「○年○か月」 */
+function expOf(d){if(!d)return "";const a=dOf(d),t=new Date();let m=(t.getFullYear()-a.getFullYear())*12+t.getMonth()-a.getMonth();if(t.getDate()<a.getDate())m--;if(m<0)return "";return (Math.floor(m/12)?Math.floor(m/12)+"年":"")+(m%12?m%12+"か月":Math.floor(m/12)?"":"1か月未満")}
+const TRADEP=["空調工事","冷媒配管","ダクト工事","保温工事","電気工事","管工事（給排水・衛生）","設備工事","板金","内装","建築","鳶","解体"];
 function ageOf(b){if(!b)return "";const d=dOf(b),t=new Date();let a=t.getFullYear()-d.getFullYear();if(t.getMonth()<d.getMonth()||(t.getMonth()===d.getMonth()&&t.getDate()<d.getDate()))a--;return a>=0&&a<130?a:""}
 const ymdJ=s=>{if(!s)return "";const [y,m,d]=s.split("-").map(Number);return `${y}年${m}月${d}日`};
 async function renderPerson(){
@@ -519,10 +522,15 @@ async function renderPerson(){
    <div class="row" style="margin-top:8px"><input id="fTag" placeholder="新しいタグ（例：溶接できる）" enterkeyhint="done"><button class="btn pri" id="bTag">作る</button></div>
    <div class="chips" id="tagSug">${TAGP.filter(x=>!C.tags.some(t=>t.n===x)).map(x=>`<button class="chip" data-ts="${esc(x)}">＋ ${esc(x)}</button>`).join("")}</div></details></div>
  <div class="card"><h2>👤 個人情報</h2>
-  ${F2("pN","名前",n,"例：服部 太郎")}${F2("pKana","ふりがな",p.kana,"例：はっとり たろう")}
+  ${F2("pN","名前",n,"例：服部 太郎")}${F2("pKana","ふりがな",p.kana,"例：はっとり たろう")}${F2("pCo","会社名（屋号）",p.co,"例：小川設備")}
   <div class="row"><div class="grow">${F2("pBirth","生年月日",p.birth,"","date")}</div><div style="width:110px"><label class="f">年齢</label><div class="age" id="pAge"></div></div></div>
   <label class="f" for="pBlood">血液型</label><select id="pBlood">${["","A","B","O","AB"].map(x=>`<option value="${x}" ${p.blood===x?"selected":""}>${x?x+"型":"（入れない）"}</option>`).join("")}</select>
   ${F2("pTel","電話番号",p.tel,"例：090-1234-5678","tel")}<div id="pTelA"></div></div>
+ <div class="card"><h2>🔧 職種と経験</h2><div class="note">どの工事を・いつから始めたかを入れると、経験年数を出します（今日まで）。</div>
+  <div id="trades"></div>
+  <div class="row" style="margin-top:8px"><input id="fTrade" placeholder="職種（例：空調工事）" list="tradeList" enterkeyhint="done"><button class="btn pri" id="bTrade">追加</button></div>
+  <datalist id="tradeList">${TRADEP.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+  <div class="chips" id="tradeSug">${TRADEP.filter(x=>!(p.trades||[]).some(t=>t.n===x)).slice(0,8).map(x=>`<button class="chip" data-tr="${esc(x)}">＋ ${esc(x)}</button>`).join("")}</div></div>
  <div class="card"><h2>🚑 緊急連絡先</h2>
   ${F2("eN","名前",p.em.n,"例：服部 花子")}${F2("eKana","ふりがな",p.em.kana,"例：はっとり はなこ")}${F2("eRel","続柄",p.em.rel,"例：妻")}
   ${F2("eAddr","住所",p.em.addr,"例：愛知県小牧市〇〇町〇〇")}${F2("eTel","電話番号",p.em.tel,"例：090-1234-5678","tel")}<div id="eTelA"></div></div>
@@ -554,7 +562,7 @@ async function renderPerson(){
   else if(d.td!=null){if(!b.dataset.ok){b.dataset.ok="1";b.textContent="消す？";return}const id=C.tags[+d.td].id;C.tags.splice(+d.td,1);for(const q of Object.values(C.prof))if(q.tags)q.tags=q.tags.filter(x=>x!==id);reP()}};
  $("#app").querySelector("details").open=sessionStorage.getItem("genba_tagEd")==="1";$("#app").querySelector("details").ontoggle=e=>{try{sessionStorage.setItem("genba_tagEd",e.target.open?"1":"")}catch(_){}};
  const bind=(id,set)=>{const el=$("#"+id);el.oninput=()=>{set(el.value);ok();pUpd()}};
- bind("pKana",v=>p.kana=v);bind("pBirth",v=>p.birth=v);bind("pTel",v=>p.tel=v);$("#pBlood").onchange=e=>{p.blood=e.target.value;ok();pUpd()};
+ bind("pKana",v=>p.kana=v);bind("pCo",v=>p.co=v);bind("pBirth",v=>p.birth=v);bind("pTel",v=>p.tel=v);$("#pBlood").onchange=e=>{p.blood=e.target.value;ok();pUpd()};
  bind("eN",v=>p.em.n=v);bind("eKana",v=>p.em.kana=v);bind("eRel",v=>p.em.rel=v);bind("eAddr",v=>p.em.addr=v);bind("eTel",v=>p.em.tel=v);
  $("#pN").onchange=e=>{const v=baseNm(e.target.value);if(!v||v===n){e.target.value=n;return}if(C.staff.includes(v)){toast("同じ名前の人がいます");e.target.value=n;return}
   C.staff[C.staff.indexOf(n)]=v;C.prof[v]=p;delete C.prof[n];for(const y in C.off)C.off[y]=C.off[y].map(x=>x===n?v:x);ok();toast("名前を変えました（現場のメンバーの名前はそのままです）");pName=v;location.replace("#p"+encodeURIComponent(v))};
@@ -580,15 +588,23 @@ async function renderPerson(){
   $("#eTelA").innerHTML=p.em.tel?`<div class="note"><a class="map" href="tel:${esc(p.em.tel.replace(/[^\d+]/g,""))}">📞 電話をかける</a></div>`:"";
   $("#pOut").textContent=personText(C,n,opt());$("#bPPh").disabled=!(opt().L&&p.lic.some(l=>(l.ph||[]).length))}
  pUpd();
+ /* 🔧 職種：p.trades=[{n:職種, since:始めた日}] */
+ const trs=()=>p.trades=p.trades||[],tradeDraw=()=>{$("#trades").innerHTML=trs().map((t,i)=>`<div style="border-top:1px solid var(--line);padding:6px 0"><div class="row"><b class="grow">${esc(t.n)}</b><span class="age" style="height:auto;font-size:16px" data-te="${i}">${t.since&&expOf(t.since)?"経験 "+expOf(t.since):""}</span><button class="btn sm del" data-trm="${i}" aria-label="消す">✕</button></div>
+   <div class="row" style="margin-top:4px"><label class="note" for="trS${i}" style="white-space:nowrap">始めた日</label><input id="trS${i}" type="date" data-ts2="${i}" value="${esc(t.since||"")}"></div></div>`).join("")||`<div class="note">まだありません</div>`};tradeDraw();
+ const addTrade=v=>{v=(v||"").trim();if(!v)return;if(!trs().some(t=>t.n===v))trs().push({n:v,since:""});ok();renderPerson()};
+ $("#bTrade").onclick=()=>addTrade($("#fTrade").value);$("#fTrade").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addTrade($("#fTrade").value)}};
+ $("#tradeSug").onclick=e=>{const b=e.target.closest("[data-tr]");if(b)addTrade(b.dataset.tr)};
+ $("#trades").oninput=e=>{const t=e.target;if(t.dataset.ts2==null)return;const i=+t.dataset.ts2;trs()[i].since=t.value;ok();const x=$("#trades").querySelector(`[data-te="${i}"]`);if(x)x.textContent=t.value&&expOf(t.value)?"経験 "+expOf(t.value):"";pUpd()};
+ $("#trades").onclick=e=>{const b=e.target.closest("[data-trm]");if(!b)return;if(!b.dataset.ok){b.dataset.ok="1";b.textContent="消す？";return}trs().splice(+b.dataset.trm,1);ok();renderPerson()};
  $("#bPSend").onclick=()=>shareText(personText(C,n,opt()));
  $("#bPPh").onclick=async()=>{const fs=[];for(const l of p.lic)for(const [k,id] of (l.ph||[]).entries()){const x=await getPhoto(id);if(x)fs.push(new File([x.blob],`${n}_${l.n}${k?"_"+(k+1):""}.jpg`.replace(/[\\/:*?"<>|\s]/g,""),{type:"image/jpeg"}))}if(!fs.length){toast("資格証の写真がありません");return}shareFiles(fs,n+"の資格証")};
- $("#bPFile").onclick=async()=>{const o=opt(),q={};if(o.P)Object.assign(q,{kana:p.kana||"",birth:p.birth||"",blood:p.blood||"",tel:p.tel||""});if(o.E)q.em={...p.em};const photos=[];
+ $("#bPFile").onclick=async()=>{const o=opt(),q={};if(o.P)Object.assign(q,{kana:p.kana||"",birth:p.birth||"",blood:p.blood||"",tel:p.tel||"",co:p.co||"",trades:(p.trades||[]).map(t=>({...t}))});if(o.E)q.em={...p.em};const photos=[];
   if(o.L){q.lic=[];for(const l of p.lic){q.lic.push({n:l.n,no:l.no||"",ph:[...(l.ph||[])]});for(const id of l.ph||[]){const x=await getPhoto(id);if(x)photos.push({id,type:x.blob.type,b64:await b64(x.blob)})}}}
   const tags=o.T?tagsOf(C,n).map(t=>({n:t.n,c:t.c})):[];
   shareFiles([new File([JSON.stringify({app:"genba-person",v:1,t:Date.now(),name:n,prof:q,tags,photos})],`${n}_社員の情報.json`.replace(/[\\/:*?"<>|\s]/g,""),{type:"application/json"})],n+"の情報")};
 }
 function personText(C,n,o){const p=prof(C,n),L=[`【${n}さんの情報】`];
- if(o.P){L.push("","👤 個人情報",`名前：${n}${p.kana?`（${p.kana}）`:""}`);if(p.birth){const a=ageOf(p.birth);L.push(`生年月日：${ymdJ(p.birth)}${a!==""?`（${a}歳）`:""}`)}if(p.blood)L.push(`血液型：${p.blood}型`);if(p.tel)L.push(`電話番号：${p.tel}`)}
+ if(o.P){L.push("","👤 個人情報",`名前：${n}${p.kana?`（${p.kana}）`:""}`);if(p.birth){const a=ageOf(p.birth);L.push(`生年月日：${ymdJ(p.birth)}${a!==""?`（${a}歳）`:""}`)}if(p.blood)L.push(`血液型：${p.blood}型`);if(p.tel)L.push(`電話番号：${p.tel}`);if(p.co)L.push(`会社名（屋号）：${p.co}`);for(const t of p.trades||[])L.push(`職種：${t.n}${t.since?`（${ymdJ(t.since)}から・経験${expOf(t.since)||"1か月未満"}）`:""}`)}
  if(o.E&&(p.em.n||p.em.tel||p.em.addr)){L.push("","🚑 緊急連絡先");if(p.em.n)L.push(`名前：${p.em.n}${p.em.kana?`（${p.em.kana}）`:""}${p.em.rel?`・${p.em.rel}`:""}`);if(p.em.addr)L.push(`住所：${p.em.addr}`);if(p.em.tel)L.push(`電話番号：${p.em.tel}`)}
  if(o.L&&p.lic.length){L.push("","📜 保持資格",...p.lic.map(l=>`＊${l.n}${l.no?`（${l.no}）`:""}`));if(p.lic.some(l=>(l.ph||[]).length))L.push("（資格証の写真を別で送ります📷）")}
  if(o.T){const ts=tagsOf(C,n);if(ts.length)L.push("","🏷 "+ts.map(t=>t.n).join("・"))}
@@ -597,7 +613,7 @@ function showBig(u){const ov=document.createElement("div");ov.className="sheet b
 async function importPerson(o){
  const C=cal(),n=baseNm(o.name||"");if(!n)throw new Error("名前がありません");
  const had=C.staff.includes(n),p=prof(C,n),q=o.prof||{};if(!had)C.staff.push(n);
- for(const k of ["kana","birth","blood","tel"])if(q[k])p[k]=q[k];if(q.em)p.em={...p.em,...q.em};
+ for(const k of ["kana","birth","blood","tel","co"])if(q[k])p[k]=q[k];if(Array.isArray(q.trades)&&q.trades.length)p.trades=q.trades.map(t=>({n:String(t.n||""),since:String(t.since||"")})).filter(t=>t.n);if(q.em)p.em={...p.em,...q.em};
  const idm={};for(const x of o.photos||[]){const bin=atob(x.b64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);const id=rid("p");idm[x.id]=id;await putPhoto({id,site:"person:"+n,t:Date.now(),blob:new Blob([u8],{type:x.type||"image/jpeg"})})}
  for(const l of q.lic||[]){const ph=(l.ph||[]).map(x=>idm[x]).filter(Boolean),old=p.lic.find(x=>x.n===l.n);if(old){if(l.no)old.no=l.no;old.ph.push(...ph)}else p.lic.push({n:l.n,no:l.no||"",ph})}
  for(const t of o.tags||[]){let x=C.tags.find(y=>y.n===t.n);if(!x){x={id:rid("t"),n:t.n,c:t.c||TAGC[C.tags.length%TAGC.length],hide:false};C.tags.push(x)}if(!p.tags.includes(x.id))p.tags.push(x.id)}

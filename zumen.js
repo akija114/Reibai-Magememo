@@ -729,37 +729,49 @@ plLastInfo();
   if(Array.isArray(r.hide))try{localStorage.setItem("pbm_dxfhide",JSON.stringify(r.hide))}catch(e){}
   if(q.get("from")==="cad3d"&&window.CAD3D_MODE){await cad3dGo(r);return}
   openDraw();const nm=r.name||"zumen.dxf",f=new File([r.blob],nm,{type:r.type||(/\.pdf$/i.test(nm)?"application/pdf":"application/dxf")});await planLoad(f);
+  if(PLAN&&(Array.isArray(r.np)||Array.isArray(r.ubs))){CADX={fkey:PLAN.fkey,np:r.np||[],ubs:r.ubs||[]};try{localStorage.setItem("pbm_cadx",JSON.stringify(CADX))}catch(e){}cadxHook();try{if(T){build3D();T.dirty=true}}catch(e){}}   // 図面編集で足した配管・ユニットバス
   toast("図面修正アプリから「"+nm+"」を受け取りました");try{history.replaceState(null,"",location.pathname)}catch(e){}}
  catch(e){console.warn(e);toast("図面を受け取れませんでした（"+(e.message||e)+"）")}})();
-/* 図面編集アプリの「🧊 3D」（?from=cad3d）：届いた図面を、ここで「全部自動」と同じに読んで（室内機の機種・位置・冷媒配管のルート・壁・ダクト・衛生）、すぐ3Dの全画面にする。
-   1から引いた冷媒配管（r.np：DXFの mm の点・区間ごとの高さ＝床から）は3Dに足す。読めた物は図面編集へ返す（親の cad3dDone：壁・室内機は DXF の mm） */
-let CAD3D=[];
+/* 図面編集アプリの「🧊 3D」（?from=cad3d）：図面編集の中に見えない形で開き、届いた図面を「全部自動」と同じに読んで（室内機の機種・位置・冷媒配管のルート・壁・ダクト・衛生）、
+   できた3Dの形（文字は除く）と壁・室内機（DXFの mm）を図面編集へ返す（親の cad3dDone）。3Dは図面編集の画面で描く。ここの画面は出さない */
 async function cad3dGo(r){
  openDraw();await planLoad(new File([r.blob],r.name||"zumen.dxf",{type:"application/dxf"}),true);
- const P=PLAN;if(!P||!P.dxf){toast("図面を3Dにできませんでした");return}
- CAD3D=Array.isArray(r.np)?r.np.filter(p=>p&&p.pts&&p.pts.length>1):[];
- if(!window.__cad3dHook){window.__cad3dHook=1;const b0=build3D;build3D=function(){const v=b0.apply(this,arguments);try{cad3dPipes()}catch(e){console.warn(e)}return v}}
- window.yomiCheck=undefined;let res=null;try{res=planAutoAll();if(res&&typeof res.then==="function")res=await res}catch(e){console.warn("cad3d",e)}   // 読み取りチェックの画面は出さない
+ const P=PLAN,done=v=>{try{if(parent!==window&&typeof parent.cad3dDone==="function")parent.cad3dDone(v)}catch(e){console.warn(e)}};
+ if(!P||!P.dxf){done({err:"図面を読めませんでした"});return}
+ window.yomiCheck=undefined;window.toast=()=>{};let res=null;try{res=planAutoAll();if(res&&typeof res.then==="function")res=await res}catch(e){console.warn("cad3d",e)}   // 読み取りチェックの画面・お知らせは出さない
  if(!st.dln){try{const D=planDrawLines();if(D&&DL_KINDS.some(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)))st.dln=D}catch(e){console.warn(e)}}
  if(!P.org)P.org=[P.W/2,P.H0/2];if(!P.CH)P.CH=2700;
- try{wz3D()}catch(e){console.warn(e)}try{setFull(true)}catch(e){}
- try{const mm=q=>[Math.round(P.dX0+q[0]*P.mmpp),Math.round(P.dY1-q[1]*P.mmpp)],xf=xfOf(),walls=[],units=[],r90=v=>Math.abs((((v||0)%90)+90)%90)<0.5||Math.abs((((v||0)%90)+90)%90-90)<0.5;
-  for(const o of st.bld){if(o.k==="wall"&&r90(o.r)&&r90(xf.r)){const v=Math.abs((((o.r||0)%180)+180)%180-90)<1,hx=(v?o.d:o.w)/2,hz=(v?o.w:o.d)/2,C=[[-1,-1],[1,1]].map(([i,j])=>mm(btP(o.x+i*hx,o.z+j*hz)));   // 壁の四角（3Dの向き）を図面の mm へ
+ try{wz3D()}catch(e){console.warn(e)}try{build3D()}catch(e){console.warn(e)}
+ try{const mm=q=>[P.dX0+q[0]*P.mmpp,P.dY1-q[1]*P.mmpp],rd=q=>q.map(Math.round),xf=xfOf(),walls=[],units=[],r90=v=>Math.abs((((v||0)%90)+90)%90)<0.5||Math.abs((((v||0)%90)+90)%90-90)<0.5;
+  for(const o of st.bld){if(o.k==="wall"&&r90(o.r)&&r90(xf.r)){const v=Math.abs((((o.r||0)%180)+180)%180-90)<1,hx=(v?o.d:o.w)/2,hz=(v?o.w:o.d)/2,C=[[-1,-1],[1,1]].map(([i,j])=>rd(mm(btP(o.x+i*hx,o.z+j*hz))));   // 壁の四角（3Dの向き）を図面の mm へ
     walls.push([Math.min(C[0][0],C[1][0]),Math.min(C[0][1],C[1][1]),Math.max(C[0][0],C[1][0]),Math.max(C[0][1],C[1][1])])}
-   if(o.k==="ind"&&o.m){const c=mm(btP(o.x,o.z));units.push({k:o.m,x:c[0],y:c[1]})}}
-  if(res&&st.units&&st.units.ms&&CAS2M[st.units.ms]){const c=mm(P.org);units.unshift({k:st.units.ms,x:c[0],y:c[1],main:1})}   // 配管の始まりの室内機（全部自動で置いた物）
-  if(parent!==window&&typeof parent.cad3dDone==="function")parent.cad3dDone({walls,units,ch:P.CH,ind:res&&res.ind||""})}catch(e){console.warn(e)}
+   if(o.k==="ind"&&o.m){const c=rd(mm(btP(o.x,o.z)));units.push({k:o.m,x:c[0],y:c[1]})}}
+  if(res&&st.units&&st.units.ms&&CAS2M[st.units.ms]){const c=rd(mm(P.org));units.unshift({k:st.units.ms,x:c[0],y:c[1],main:1})}   // 配管の始まりの室内機（全部自動で置いた物）
+  /* 3Dの形：ここの3D（x, 高さ, z）→ 図面の mm（x 右・y 上）と床からの高さ。O＋ex·x/1000＋ez·z/1000、高さ＝y−GY */
+  const O=mm(btP(0,0)),A=mm(btP(1000,0)),B=mm(btP(0,1000)),GY=T&&T.GYr!=null?T.GYr:-(st.gnd.ch||P.CH),objs=[];
+  if(T&&T.sc)T.sc.updateMatrixWorld(true);   // 見えない画面では描かないので、位置・向きをここで確定してから送る
+  if(T&&T.grp)for(const o of T.grp.children){const u=o.userData||{};const gp=o.geometry&&o.geometry.type==="PlaneGeometry"&&o.geometry.parameters;if(o.type==="Sprite"||o.type==="GridHelper"||u.planFloor||u.ezk||u.dimcat||u.cat||(gp&&gp.width>5000))continue;   // 文字・方眼・図面の絵・寸法の矢印・地面と空の大きな板は送らない
+   let k="pipe";if(u.bld){const b=st.bld[u.bld-1];k=b&&/^(ind|out|eq|ins)$/.test(b.k)?"unit":"wall"}else if(u.dl)k=u.dl==="duct"?"duct":u.dl==="eisei"?"eisei":"pipe";
+   try{objs.push({k,j:o.toJSON()})}catch(e){}}
+  done({walls,units,ch:P.CH,ind:res&&res.ind||"",M:{O,ex:[A[0]-O[0],A[1]-O[1]],ez:[B[0]-O[0],B[1]-O[1]],GY},objs})}catch(e){console.warn(e);done({err:String(e&&e.message||e)})}
 }
-function cad3dPipes(){if(!T||!T.grp||!CAD3D.length||!PLAN||!PLAN.dxf||!PLAN.org)return;const P=PLAN,V=THREE.Vector3,GY=T.GYr!=null?T.GYr:-(st.gnd.ch||P.CH||2700);
+/* 図面編集の「曲げ共有で開く」で一緒に届いた、図面編集で足した物（1から引いた冷媒配管 np・ユニットバス ubs、DXFの mm）を3Dに足す。
+   この図面（PLAN.fkey）の間だけ・localStorage「pbm_cadx」に覚える（st の形は変えない） */
+let CADX=null;try{CADX=JSON.parse(localStorage.getItem("pbm_cadx")||"null")}catch(e){}
+function cadxHook(){if(window.__cadxHook)return;window.__cadxHook=1;const b0=build3D;build3D=function(){const v=b0.apply(this,arguments);try{cadxDraw()}catch(e){console.warn(e)}return v}}
+if(CADX)cadxHook();
+function cadxDraw(){const P=PLAN;if(!T||!T.grp||!CADX||!P||!P.dxf||!P.org||CADX.fkey!==P.fkey)return;const V=THREE.Vector3,GY=T.GYr!=null?T.GYr:-(st.gnd.ch||P.CH||2700);
  const px=q=>[(q[0]-P.dX0)/P.mmpp,(P.dY1-q[1])/P.mmpp],mat=new THREE.MeshStandardMaterial({color:0xc8763a,metalness:.5,roughness:.4}),R=12;
- CAD3D.forEach(p=>{const pts=[];p.pts.forEach((q,i)=>{const w=btWx(px(q)),hs=[];if(i>0)hs.push(p.h[i-1]);if(i<p.pts.length-1)hs.push(p.h[i]);
+ (CADX.np||[]).forEach(p=>{const pts=[];if(!p||!p.pts||p.pts.length<2)return;p.pts.forEach((q,i)=>{const w=btWx(px(q)),hs=[];if(i>0)hs.push(p.h[i-1]);if(i<p.pts.length-1)hs.push(p.h[i]);
    [...new Set(hs)].forEach(h=>pts.push(new V(w[0],GY+(+h||0),w[1])))});   // 高さの変わる所はたて管
   for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],L=a.distanceTo(b);if(L<1)continue;const m=new THREE.Mesh(new THREE.CylinderGeometry(R,R,L,12),mat);
    m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new V(0,1,0),b.clone().sub(a).normalize());T.grp.add(m)}
   pts.forEach(q=>{const s=new THREE.Mesh(new THREE.SphereGeometry(R,12,8),mat);s.position.copy(q);T.grp.add(s)})});
+ const um=new THREE.MeshStandardMaterial({color:0xf5f7fa,transparent:true,opacity:.8,side:THREE.DoubleSide}),uf=new THREE.MeshStandardMaterial({color:0x9fd3e6});
+ const box=(x0,y0,x1,y1,z0,z1,m)=>{const C=[[x0,y0],[x1,y0],[x1,y1],[x0,y1]].map(q=>btWx(px(q))),xs=C.map(c=>c[0]),zs=C.map(c=>c[1]),g=new THREE.Mesh(new THREE.BoxGeometry(Math.max(...xs)-Math.min(...xs)||1,z1-z0,Math.max(...zs)-Math.min(...zs)||1),m);
+  g.position.set((Math.max(...xs)+Math.min(...xs))/2,GY+(z0+z1)/2,(Math.max(...zs)+Math.min(...zs))/2);T.grp.add(g)};
+ (CADX.ubs||[]).forEach(b=>{const H=Math.min(2100,b.ch||2400),t=40;box(b.x0,b.y0,b.x1,b.y1,0,60,uf);box(b.x0,b.y0,b.x1,b.y0+t,0,H,um);box(b.x0,b.y1-t,b.x1,b.y1,0,H,um);box(b.x0,b.y0,b.x0+t,b.y1,0,H,um);box(b.x1-t,b.y0,b.x1,b.y1,0,H,um)});   // ユニットバス：床と4方の壁
  T.dirty=true}
-/* 図面編集の「真上」「斜め」 */
-window.cad3dView=k=>{if(!T)return;const v=VIEWS[k==="top"?2:0];fitT(true);T.th=v[1];T.ph=v[2];T.dirty=true};
 async function planLoad(f,resume){
  try{
   if(!resume){W.resume=false;plSaveLast(f)}

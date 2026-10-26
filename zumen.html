@@ -32,7 +32,6 @@ button{border:0;background:none;cursor:pointer;touch-action:manipulation}
 .bar.over i{background:var(--warn)}
 .stage{flex:0 0 34%;min-height:232px;position:relative;border-radius:14px;overflow:hidden;background:#e0f2fe;margin-bottom:8px}
 .stage.full{position:fixed;inset:0;z-index:50;border-radius:0;margin:0;min-height:0}
-html.cad3d #close3,html.cad3d #expand{display:none!important}
 #cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;z-index:1}
 #photoBg{position:absolute;inset:0;z-index:0;background-size:cover;background-position:center;display:none}
 .hud,.stinfo,.hint{z-index:2}
@@ -525,7 +524,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 
 <script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}})}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>/* 図面編集アプリの「🧊 3D」から開いた時（?from=cad3d・図面編集の中に重ねて出す）：見るだけ。保存先（localStorage・IndexedDB）を別にして、曲げ共有の現場のデータ・前の図面に書かない */
+<script>/* 図面編集アプリの「🧊 3D」から開いた時（?from=cad3d・図面編集の中で見えない形で読むだけ）：見るだけ。保存先（localStorage・IndexedDB）を別にして、曲げ共有の現場のデータ・前の図面に書かない */
 if(/[?&]from=cad3d/.test(location.search)){(function(){const m=new Map();try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k!=="pbm1"&&k!=="pbmPlanMem"&&!/^pbm_sites/.test(k))m.set(k,localStorage.getItem(k))}}catch(e){}
  const S={getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>{m.set(k,String(v))},removeItem:k=>{m.delete(k)},clear:()=>m.clear(),key:i=>[...m.keys()][i]??null,get length(){return m.size}};
  try{Object.defineProperty(window,"localStorage",{value:S,configurable:true})}catch(e){}
@@ -534,7 +533,7 @@ if(/[?&]from=cad3d/.test(location.search)){(function(){const m=new Map();try{for
 <script src="models.js?v=304"></script>
 <script src="core.js?v=298"></script>
 <script src="drain.js?v=268"></script>
-<script src="dxf.js?v=327"></script><script src="zumen.js?v=322"></script><script src="shita.js?v=251"></script><script src="yomi.js?v=250"></script>
+<script src="dxf.js?v=328"></script><script src="zumen.js?v=323"></script><script src="shita.js?v=251"></script><script src="yomi.js?v=250"></script>
 <script src="kabe.js?v=228"></script>
 <script src="sumi.js?v=228"></script>
 <script src="kozo.js?v=228"></script>

@@ -750,7 +750,7 @@ async function cad3dGo(r){
   /* 3Dの形：ここの3D（x, 高さ, z）→ 図面の mm（x 右・y 上）と床からの高さ。O＋ex·x/1000＋ez·z/1000、高さ＝y−GY */
   const O=mm(btP(0,0)),A=mm(btP(1000,0)),B=mm(btP(0,1000)),GY=T&&T.GYr!=null?T.GYr:-(st.gnd.ch||P.CH),objs=[];
   if(T&&T.sc)T.sc.updateMatrixWorld(true);   // 見えない画面では描かないので、位置・向きをここで確定してから送る
-  if(T&&T.grp)for(const o of T.grp.children){const u=o.userData||{};const gp=o.geometry&&o.geometry.type==="PlaneGeometry"&&o.geometry.parameters;if(o.type==="Sprite"||o.type==="GridHelper"||u.planFloor||u.ezk||u.dimcat||u.cat||(gp&&gp.width>5000))continue;   // 文字・方眼・図面の絵・寸法の矢印・地面と空の大きな板は送らない
+  if(T&&T.grp)for(const o of T.grp.children){const u=o.userData||{};const gp=o.geometry&&o.geometry.type==="PlaneGeometry"&&o.geometry.parameters;if(o.type==="Sprite"||o.type==="GridHelper"||u.planFloor||u.ezk||u.dimcat||u.cat||u.flag||(gp&&gp.width>5000))continue;   // 文字・方眼・図面の絵・寸法の矢印・地面と空の大きな板は送らない
    let k="pipe";if(u.bld){const b=st.bld[u.bld-1];k=b&&/^(ind|out|eq|ins)$/.test(b.k)?"unit":"wall"}else if(u.dl)k=u.dl==="duct"?"duct":u.dl==="eisei"?"eisei":"pipe";
    try{objs.push({k,j:o.toJSON()})}catch(e){}}
   done({walls,units,ch:P.CH,ind:res&&res.ind||"",M:{O,ex:[A[0]-O[0],A[1]-O[1]],ez:[B[0]-O[0],B[1]-O[1]],GY},objs})}catch(e){console.warn(e);done({err:String(e&&e.message||e)})}

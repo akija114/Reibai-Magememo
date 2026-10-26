@@ -3479,7 +3479,7 @@ async function open3Dold(){
   const PO = v3dPoses(A, md);
   if (MG){ const M = mg.M, mx = new TH.Matrix4().set(M.ex[0]/1000, 0, M.ez[0]/1000, M.O[0] - cx, 0, 1, 0, -M.GY, -M.ex[1]/1000, 0, -M.ez[1]/1000, -(M.O[1] - cy), 0, 0, 0, 1), ld = new TH.ObjectLoader(), GG = {};
     for (const o of mg.objs){ let g = GG[o.k]; if (!g){ g = new TH.Group(); g.matrixAutoUpdate = false; g.matrix.copy(mx); (o.k === 'wall' ? gW : o.k === 'unit' ? gM : grp(o.k)).add(g); GG[o.k] = g; } // 曲げメモの3D（x, 高さ, z）→ 図面編集の3D
-      try { const ob = ld.parse(o.j), sp = []; ob.traverse(q => { if (q.isSprite) sp.push(q); }); sp.forEach(q => q.parent && q.parent.remove(q)); g.add(ob); } catch(e){} } // 曲げメモの文字は出さない
+      try { const ob = ld.parse(o.j), sp = []; ob.traverse(q => { if (q.isSprite || (q.userData && (q.userData.dimcat || q.userData.lab))) sp.push(q); }); sp.forEach(q => q.parent && q.parent.remove(q)); g.add(ob); } catch(e){} } // 曲げメモの文字と、文字とセットの寸法の矢印（吊りピッチ・天井開口・パネル・ネコなど）は出さない
     const m0 = mg.units[0]; if (m0 && mg.ind){ const c3 = W(m0.x/u, m0.y/u); gM.add(v3dLabel(TH, mg.ind, new TH.Vector3(c3[0], (mg.ch || CH) + 800, c3[1]))); }
     sc.updateMatrixWorld(true); for (const k of ['pipe', 'unit']) if (GG[k]) bb.union(new TH.Box3().setFromObject(GG[k])); // 最初に見る所：冷媒配管と機器
     for (const b of document.querySelectorAll('#v3dT [data-t3]')) if (/^(pipe|duct|eisei)$/.test(b.dataset.t3)) b.hidden = !GG[b.dataset.t3];

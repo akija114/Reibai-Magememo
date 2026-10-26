@@ -250,7 +250,7 @@ const S = {
   text:'', eol:'\r\n', srcName:'', name:'', fileId:'', projectId:null,
   units:'mm', geo:null, layers:[], dims:[], selDim:null,
   mode:'pan', ortho:true, chain:false, snapOn:true, tab:null, group:null, pick:null,
-  undo:[], redo:[], textH:150, notes:[], dimGroups:[], curDG:null, views:[], viewId:null, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(), mov:new Map(), kiki:[], grps:[], sins:[], np:[], clines:[], npe:null, mvg:null,
+  undo:[], redo:[], textH:150, notes:[], dimGroups:[], curDG:null, views:[], viewId:null, ov:new Map(), ghosts:[], log:[], hideObj:new Set(), delObj:new Set(), mov:new Map(), lay:new Map(), dups:[], kiki:[], grps:[], sins:[], np:[], clines:[], npe:null, mvg:null,
 };
 let view = {s:1, tx:0, ty:0}, bview = {s:1, tx:0, ty:0};
 let cw = 0, ch = 0, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -882,7 +882,7 @@ function drawOverlay(){
   drawPick(octx); drawMvg(octx); drawNp(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
-  drawNotes(octx); drawSins(octx);
+  drawNotes(octx); drawPnote(octx); drawSins(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
   drawSame(octx);
@@ -935,6 +935,7 @@ ov.addEventListener('pointerdown', e => {
   if (ptrs.size === 1){
     if (S.mvg && !S.sinPick){ gest = {type:'mvg', start:p, d0:[S.mvg.dx, S.mvg.dy]}; }
     else if (dtextStart(p)){}
+    else if (noteDragStart(p)){}
     else if (S.mode === 'dim'){ gest = {type:'cursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; MS.dragging = true; moveCursor(p); }
     else if (S.mode === 'route' && ['a','b','draw'].includes(RS.step)){ gest = {type:'rcursor', touch:e.pointerType !== 'mouse', off: e.pointerType === 'touch' ? -72 : 0}; RS.dragging = true; updateHint(); moveRCursor(p); }
     else if (S.mode === 'route' && RS.step === 'shape' && RS.pattern !== 'free' && nearRoute(p)){ gest = {type:'roff'}; }
@@ -962,6 +963,7 @@ ov.addEventListener('pointermove', e => {
   if (gest.type === 'np'){ const w = s2w(p[0], p[1]), q = gest.raw[gest.raw.length - 1]; if (Math.hypot(w[0] - q[0], w[1] - q[1])*view.s > 3) gest.raw.push(w); S.npe.raw = gest.raw; S.npe.pts = null; drawOverlay(); return; }
   if (gest.type === 'cursor') moveCursor(p);
   else if (gest.type === 'dtext') dtextMove(p);
+  else if (gest.type === 'nmove') noteDragMove(p);
   else if (gest.type === 'mvg') mvgDrag(p);
   else if (gest.type === 'rcursor') moveRCursor(p);
   else if (gest.type === 'roff') setOffsetFrom(p);
@@ -999,6 +1001,8 @@ function endPtr(e, cancel){
     gest = null;
   } else if (gest.type === 'mvg' && ptrs.size === 0){
     gest = null;
+  } else if (gest.type === 'nmove' && ptrs.size === 0){
+    const g0 = gest; gest = null; noteDragEnd(g0, cancel);
   } else if (gest.type === 'dtext' && ptrs.size === 0){
     dtextEnd(cancel); gest = null;
   } else if (gest.type === 'pinch'){
@@ -1035,7 +1039,7 @@ function placePoint(pt){
 function tapSelect(p){
   if (S.sinPick){ sinPickAt(p); return; }
   const hitN = noteAt(p); if (hitN){ openNoteEditor(hitN); return; }
-  if (S.mode === 'note'){ openNoteEditor(null, s2w(p[0], p[1])); return; }
+  if (S.mode === 'note'){ const w = s2w(p[0], p[1]); S.pnote = {x:w[0], y:w[1]}; drawOverlay(); updateUi(); return; } // 置く所を先に見せる（印をドラッグで動かして「ここに書く」）
   if (S.mode === 'kiki'){ kikiPut(s2w(p[0], p[1])); return; }
   if (S.mode === 'np'){ npTap(s2w(p[0], p[1])); return; }
   let best = null, bd = 22;
@@ -1077,12 +1081,35 @@ let NOTE_HITS = [];
 function noteAt(p){ for (let i = NOTE_HITS.length - 1; i >= 0; i--){ const h = NOTE_HITS[i]; if (p[0] >= h.x0 && p[0] <= h.x1 && p[1] >= h.y0 && p[1] <= h.y1) return h.n; } return null; }
 const noteRec = n => ({id:n.id, x:n.x, y:n.y, text:n.text, t:n.t});
 const noteBox = n => { const r = S.textH*8; return [n.x - r, n.y - r, n.x + r*3, n.y + r]; };
+/* メモを指で動かす：置いたメモ（選択・メモの時）と、これから置くメモの印（S.pnote）。動かさずに離したら今までどおり（置いたメモは開く） */
+function pnoteHit(p){ if (!S.pnote || S.mode !== 'note') return false; const q = w2s(S.pnote.x, S.pnote.y), b = S.pnoteBox; return Math.hypot(p[0] - q[0], p[1] - q[1]) < 40 || (b && p[0] >= b[0] && p[0] <= b[2] && p[1] >= b[1] && p[1] <= b[3]); }
+function noteDragStart(p){ if (S.mode !== 'pan' && S.mode !== 'note') return false; const n = pnoteHit(p) ? S.pnote : noteAt(p); if (!n) return false; gest = {type:'nmove', n, start:p, w0:[n.x, n.y], moved:false}; return true; }
+function noteDragMove(p){ const g = gest, dx = p[0] - g.start[0], dy = p[1] - g.start[1]; if (!g.moved && Math.hypot(dx, dy) < 8) return; g.moved = true; g.n.x = g.w0[0] + dx/view.s; g.n.y = g.w0[1] - dy/view.s; drawOverlay(); }
+function noteDragEnd(g, cancel){ const n = g.n, to = [n.x, n.y]; if (g.moved){ n.x = g.w0[0]; n.y = g.w0[1]; }
+  if (n === S.pnote){ if (g.moved && !cancel){ n.x = to[0]; n.y = to[1]; } drawOverlay(); updateUi(); return; }
+  if (!g.moved){ if (!cancel) openNoteEditor(n); return; }
+  if (!cancel){ exec(cmdNoteMove(n, g.w0, to)); toast('メモを動かしました（↶で戻せます）'); } drawOverlay(); }
+function cmdNoteMove(n, from, to){ const lab = 'メモを動かす';
+  return {kind:'note', label:lab, log:{label:lab, detail:n.text.slice(0, 30), notes:[noteRec({...n, x:to[0], y:to[1]})], mvFrom:from.slice(), box:noteBox({x:to[0], y:to[1]})},
+    do(){ n.x = to[0]; n.y = to[1]; }, undo(){ n.x = from[0]; n.y = from[1]; }}; }
 function cmdNote(op, n, newText){
   const old = op === 'edit' ? n.text : null;
   const lab = {add:'メモを追加', edit:'メモを変更', del:'メモを削除'}[op];
   return {kind:'note', label:lab, log:{label:lab, detail:(op === 'edit' ? newText : n.text).slice(0, 30), notes:[noteRec(n)], noteOld:old, box:noteBox(n), gone:op === 'del'},
     do(){ if (op === 'add') S.notes.push(n); else if (op === 'del') S.notes = S.notes.filter(x => x !== n); else n.text = newText; },
     undo(){ if (op === 'add') S.notes = S.notes.filter(x => x !== n); else if (op === 'del') S.notes.push(n); else n.text = old; }};
+}
+function openLaySheet(eids){ // 選んだ部品を別のレイヤーへ（今あるレイヤー・新しいレイヤー）
+  const cur = new Set(eids.map(e => G.parts[e] && G.parts[e].li).filter(x => x != null)), Ls = G.L.filter(l => !l.deleted && ![DIM_LAYER, NOTE_LAYER, GHOST_LAYER, KIKI_LAYER, NP_LAYER, SIN_LAYER].includes(l.name) && !l.name.startsWith(DIM_LAYER + '_'));
+  openSheet('レイヤーを変える', body => {
+    body.innerHTML = `<div class="note">${eids.length === 1 ? esc(partName(eids[0])) : eids.length + '個の部品'}を、選んだレイヤーへ移します（↶で戻せます）</div>
+      <div class="frow"><input id="layNew" placeholder="新しいレイヤーの名前" style="flex:1;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 10px;font:16px var(--font-ui);color:var(--ink)"><button class="btn pri" data-a="new" style="height:44px">作って移す</button></div>
+      ${GROUPS.map(g => { const ls = Ls.filter(l => l.g === g.id); return ls.length ? `<div class="lsub" style="margin:10px 2px 4px;font-weight:800">${esc(g.name)}</div>` + ls.map(l => `<button class="btn" data-l="${l.idx}" style="width:100%;justify-content:flex-start;margin-top:4px;text-align:left" ${cur.size === 1 && cur.has(l.idx) ? 'disabled' : ''}><i class="sw" style="display:inline-block;vertical-align:-2px;margin-right:8px;background:${colorCss(l.ck)}"></i>${esc(l.name)}${cur.has(l.idx) ? '（今のレイヤー）' : ''}</button>`).join('') : ''; }).join('')}`;
+    body.onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return; let nm = null;
+      if (b.dataset.a === 'new'){ nm = body.querySelector('#layNew').value.trim(); if (!nm){ toast('レイヤーの名前を入れてください'); return; } }
+      else if (b.dataset.l != null) nm = G.L[+b.dataset.l].name; if (!nm) return;
+      exec(cmdLay(eids, nm)); renderTabs(); closeSheet(); S.pick = null; updatePickBar(); drawOverlay(); toast(`「${nm}」へ移しました（↶で戻せます）`); };
+  });
 }
 function openNoteEditor(n, at){
   const isNew = !n;
@@ -1117,6 +1144,14 @@ function drawNotes(c){
   }
   c.restore();
 }
+function drawPnote(c){ // これから置くメモの印：大きな十字と「ここに置く」。ドラッグで動かせる
+  S.pnoteBox = null; if (!S.pnote || S.mode !== 'note') return;
+  const [x, y] = w2s(S.pnote.x, S.pnote.y); c.save();
+  c.strokeStyle = tok.danger; c.lineWidth = 2; c.setLineDash([6, 4]); c.beginPath(); c.moveTo(x - 34, y); c.lineTo(x + 34, y); c.moveTo(x, y - 34); c.lineTo(x, y + 34); c.stroke(); c.setLineDash([]);
+  c.lineWidth = 3; c.beginPath(); c.arc(x, y, 16, 0, Math.PI*2); c.stroke(); c.fillStyle = tok.danger; c.beginPath(); c.arc(x, y, 5, 0, Math.PI*2); c.fill();
+  c.font = `700 13px ${FONT}`; c.textBaseline = 'middle'; const t = 'ここに置く（指で動かせます）', w = c.measureText(t).width + 18, bx = Math.min(Math.max(6, x - w/2), cw - w - 6), by = y + 26 + 28 > ch ? y - 26 - 28 : y + 26;
+  c.beginPath(); c.roundRect ? c.roundRect(bx, by, w, 28, 8) : c.rect(bx, by, w, 28); c.fill(); c.fillStyle = '#fff'; c.fillText(t, bx + 9, by + 14.5);
+  S.pnoteBox = [bx, by, bx + w, by + 28]; c.restore(); }
 /* drag a box: pick every part inside it (or touching it) */
 let boxCross = false; try { boxCross = localStorage.getItem('zumen-boxcross') === '1'; } catch(e){}
 function boxSelect(a, b){
@@ -1279,8 +1314,37 @@ function xformPart(e, T, withOv){ // 図面の部品を動かす・回す（G �
   for (const sh of G.shapes) if (sh.eid === e){ ap(sh.verts, 3); const o = withOv && S.ov.get(sh.sid); if (o){ const w = o.verts.slice(); ap(w, 3); S.ov.set(sh.sid, {verts:w, closed:o.closed}); } }
   const b = G.pbox.get(e); if (b){ const c = [tAp(T, b[0], b[1]), tAp(T, b[2], b[1]), tAp(T, b[0], b[3]), tAp(T, b[2], b[3])]; b[0] = Math.min(...c.map(q => q[0])); b[2] = Math.max(...c.map(q => q[0])); b[1] = Math.min(...c.map(q => q[1])); b[3] = Math.max(...c.map(q => q[1])); }
 }
+/* ---- 部品のレイヤーを変える（S.lay：部品 → レイヤー名）・機器を複製する（S.dups：元の部品 src と、元の形からの動き T） ---- */
+const KB4 = 600000000, isDup = e => e >= KB4 && e < KB3, dupOf = e => S.dups.find(d => KB4 + d.no === e);
+function layIdx(name){ let i = G.L.findIndex(l => l.name === name); if (i < 0){ i = G.L.length; G.L.push({name, ck:'a7', on:true, deleted:false, count:0, idx:i, g:autoGroup(name)}); G.textsBy[i] = []; } return i; }
+function setLay(e, name){ // name が null・元のレイヤーなら元に戻す
+  if (isDup(e)){ const d = dupOf(e); if (d){ if (name) d.lay = name; else delete d.lay; } return; }
+  const t = G.parts[e]; if (!t || isKiki(e) || isNp(e) || isCl(e)) return; if (t.li0 === undefined) t.li0 = t.li; const li = name ? layIdx(name) : t.li0, from = t.li; if (li === from) return;
+  for (const pl of G.eidPolys.get(e) || []) pl.li = li;
+  for (const f of G.fills) if (f.eid === e) f.li = li;
+  for (const sh of G.shapes) if (sh.eid === e) sh.li = li;
+  const sg = G.baseSegs; for (let k = 0; k < sg.length; k += SS) if (sg[k+7] === e) sg[k+4] = li;
+  const pt = G.basePts; for (let k = 0; k < pt.length; k += PS) if (pt[k+5] === e) pt[k+2] = li;
+  for (const l of G.L){ const a = G.textsBy[l.idx]; if (!a || l.idx === li) continue; for (let k = a.length - 1; k >= 0; k--) if (a[k].eid === e){ const tx = a.splice(k, 1)[0]; tx.li = li; G.textsBy[li].push(tx); } }
+  const b = G.pbox.get(e); if (b) b[4] = new Set([li]);
+  t.li = li; G.L[from].count = Math.max(0, (G.L[from].count || 0) - 1); G.L[li].count = (G.L[li].count || 0) + 1;
+  if (li === t.li0) S.lay.delete(e); else S.lay.set(e, G.L[li].name);
+}
+function cmdLay(eids, to){ const list = [...eids], old = list.map(e => isDup(e) ? (dupOf(e) || {}).lay || null : S.lay.get(e) || null), nw = Array.isArray(to) ? to : list.map(() => to), lab = 'レイヤーを変える';
+  return {kind:'obj', label:lab, log:{label:lab, detail:short(list.map(partName)) + (Array.isArray(to) ? '（元に戻す）' : ' → ' + to), eids:list, box:partsBox(list), lay:nw, layOld:old},
+    do(){ list.forEach((e, i) => setLay(e, nw[i])); }, undo(){ list.forEach((e, i) => setLay(e, old[i])); }}; }
+function cmdDup(eids, off){ // 複製：図面の部品は S.dups、追加機器は S.kiki に足す。off＝元からずらす量
+  const ds = [], ks = []; let no = Math.max(0, ...S.dups.map(d => d.no));
+  for (const e of eids){
+    if (isKiki(e)){ const k = kikiOf(e); if (k) ks.push({...k, id:'k' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), no:1 + Math.floor(Math.random()*9e7), x:k.x + off[0], y:k.y + off[1], t:Date.now()}); continue; }
+    const d0 = isDup(e) && dupOf(e), src = d0 ? d0.src : e; if (!G.parts[src] || isNp(src) || isCl(src)) continue;
+    const T = tMul([1, 0, off[0], off[1]], d0 ? d0.T : (S.mov.get(src) || TID)), ly = d0 ? d0.lay : S.lay.get(src);
+    ds.push({id:'u' + Date.now().toString(36) + Math.random().toString(36).slice(2,6), no:++no, src, T, ...(ly ? {lay:ly} : {}), t:Date.now()}); }
+  const list = ds.map(d => KB4 + d.no).concat(ks.map(k => KB + k.no)), lab = '部品を複製';
+  return {kind:'obj', label:lab, log:{label:lab, detail:short(eids.map(partName)) + (eids.length > 1 ? `（${eids.length}個）` : ''), eids:list, box:partsBox(eids), dup:{ds, ks}},
+    do(){ S.dups.push(...ds); S.kiki.push(...ks); }, undo(){ S.dups = S.dups.filter(d => !ds.includes(d)); S.kiki = S.kiki.filter(k => !ks.includes(k)); }, list}; }
 function setMov(e, to){ if (!G.parts[e] || isKiki(e)) return; const T = tOf(to); xformPart(e, tMul(T, tInv(S.mov.get(e) || TID)), false); if (tId(T)) S.mov.delete(e); else S.mov.set(e, T); }
-function xformRun(list, T){ list.forEach(e => { const cl = isCl(e) && clOf(e); if (cl){ const a = tAp(T, cl.x1, cl.y1), b = tAp(T, cl.x2, cl.y2); cl.x1 = a[0]; cl.y1 = a[1]; cl.x2 = b[0]; cl.y2 = b[1]; return; } const np = isNp(e) && npOf(e); if (np){ np.pts = np.pts.map(q => tAp(T, q[0], q[1])); return; } const k = isKiki(e) && kikiOf(e); if (k){ const q = tAp(T, k.x, k.y); k.x = q[0]; k.y = q[1]; if (Math.abs(T[1]) > 0.5){ const w = k.w; k.w = k.d; k.d = w; } return; } if (!G.parts[e]) return; xformPart(e, T, true); const n = tMul(T, S.mov.get(e) || TID); if (tId(n)) S.mov.delete(e); else S.mov.set(e, n); }); }
+function xformRun(list, T){ list.forEach(e => { const du = isDup(e) && dupOf(e); if (du){ du.T = tMul(T, du.T); return; } const cl = isCl(e) && clOf(e); if (cl){ const a = tAp(T, cl.x1, cl.y1), b = tAp(T, cl.x2, cl.y2); cl.x1 = a[0]; cl.y1 = a[1]; cl.x2 = b[0]; cl.y2 = b[1]; return; } const np = isNp(e) && npOf(e); if (np){ np.pts = np.pts.map(q => tAp(T, q[0], q[1])); return; } const k = isKiki(e) && kikiOf(e); if (k){ const q = tAp(T, k.x, k.y); k.x = q[0]; k.y = q[1]; if (Math.abs(T[1]) > 0.5){ const w = k.w; k.w = k.d; k.d = w; } return; } if (!G.parts[e]) return; xformPart(e, T, true); const n = tMul(T, S.mov.get(e) || TID); if (tId(n)) S.mov.delete(e); else S.mov.set(e, n); }); }
 const mvTxt = (dx, dy, r) => [dx ? `${dx > 0 ? '右' : '左'}へ${fmt(Math.abs(dx))}` : '', dy ? `${dy > 0 ? '上' : '下'}へ${fmt(Math.abs(dy))}` : '', r ? `${r === 2 ? '180' : '90'}°回して` : ''].filter(Boolean).join('・') || '0';
 function cmdXform(eids, T, ovs, lab, detail, gNew, gOld, rg){ // 部品を動かす・回す＋つながった配管の線を変える（ovs：[sid, verts|null, closed]）。gNew／gOld：一緒に動かす組（S.grps）の新旧。rg：[部品, 右へ, 上へ] 継手を丸ごとずらす
   const list = [...eids], prev = ovs.map(([sid]) => [sid, S.ov.has(sid) ? S.ov.get(sid) : null]), gid = (gNew || gOld || {}).id; rg = rg || [];
@@ -1333,6 +1397,7 @@ function stretchCands(eids, mov, g){ // 機器の外形のまわり（50mm）に
 }
 function planStretch(sc, T){ // 中の端は機器と一緒に動かす。短い線（20cm未満・つば・継手）は丸ごと一緒に動かして先へ。外へ出る長い線はクランク（二重線は幅を保って曲げる）
   if (!sc || tId(T)) return []; const R = sc.R, ins = (x, y) => x >= R[0] && x <= R[2] && y >= R[1] && y <= R[3], G0 = 150, SHORT = 200;
+  const ROT = Math.abs(T[1]) > 1e-6, Td = (x, y) => { const q = tAp(T, x, y); return [q[0] - x, q[1] - y]; }, RR = [[R[0], R[1]], [R[2], R[1]], [R[0], R[3]], [R[2], R[3]]].map(([x, y]) => tAp(T, x, y)); // 回した時：つなぎの短い線は機器と一緒に回し、外の長い線へは回した向きに出てからL字でつなぐ
   const SH = new Map(), get = sid => { let s = SH.get(sid); if (!s){ const o = curShape(sid), v = sc.vOf ? sc.vOf(sid) : o.verts; s = {sid, v, n:v.length/3, d:new Array(v.length/3).fill(null), closed:o.closed}; SH.set(sid, s); } return s; };
   const q = [], segs = (s, i) => { if (i > 0) q.push([s, i - 1]); if (i + 1 < s.n) q.push([s, i]); };
   const cs = 6/unitMM(), rig = new Set(), rigD = new Map(), small = e => { const b = G.pbox.get(e); return !!b && Math.max(b[2] - b[0], b[3] - b[1]) < 400/unitMM(); };
@@ -1345,13 +1410,15 @@ function planStretch(sc, T){ // 中の端は機器と一緒に動かす。短い
     const [s, k] = q[g]; if (!s.d[k] === !s.d[k+1]) continue; const a = s.d[k] ? k : k + 1, bb = s.d[k] ? k + 1 : k, v = s.v, d = s.d[a];
     const A = [v[3*a], v[3*a+1]], B = [v[3*bb], v[3*bb+1]], L = Math.hypot(B[0] - A[0], B[1] - A[1]);
     const u = [(B[0] - A[0])/L, (B[1] - A[1])/L], dp = d[0]*u[0] + d[1]*u[1], p = [d[0] - dp*u[0], d[1] - dp*u[1]];
-    if (L < SHORT){ const ax = Math.abs(u[0]) < 1e-6 || Math.abs(u[1]) < 1e-6; if (!ax) put(s, bb, d, true); else if (Math.hypot(p[0], p[1]) >= 0.5) put(s, bb, p, true); continue; } // 短い縦横の線は向きの分だけ伸び縮み、横へずれる分を先へ
+    if (L < SHORT){ if (ROT){ put(s, bb, Td(B[0], B[1]), true); continue; } const ax = Math.abs(u[0]) < 1e-6 || Math.abs(u[1]) < 1e-6; if (!ax) put(s, bb, d, true); else if (Math.hypot(p[0], p[1]) >= 0.5) put(s, bb, p, true); continue; } // 短い縦横の線は向きの分だけ伸び縮み、横へずれる分を先へ
+    if (ROT){ if (Math.abs(v[3*k+2]) > 1e-9 || recs.some(r => r.s === s && r.k === k)) continue; const A2 = [A[0] + d[0], A[1] + d[1]], e = [T[0]*u[0] - T[1]*u[1], T[1]*u[0] + T[0]*u[1]];
+      recs.push({s, k, a, bb, d, A, B, u, p:[0, 0], dp:0, sv:0, tA:0, tB:0, tauR:0, rot:true, A2, e, key:'rot' + u.map(x => Math.round(x*100)).join() + '|' + e.map(x => Math.round(x*100)).join() + '|' + G.shapes[s.sid].li, C:B}); continue; } // 回した向きに機器の外（150mm）まで出す → 曲げて → 今までの線へ（path は下でまとめて）
     if (Math.abs(v[3*k+2]) > 1e-9 || Math.hypot(p[0], p[1]) < 0.5 || recs.some(r => r.s === s && r.k === k)) continue;
     const pl = Math.hypot(p[0], p[1]), nn = [p[0]/pl, p[1]/pl], tauR = Math.max(R[0]*u[0] + R[1]*u[1], R[2]*u[0] + R[1]*u[1], R[0]*u[0] + R[3]*u[1], R[2]*u[0] + R[3]*u[1]), tA = A[0]*u[0] + A[1]*u[1];
     recs.push({s, k, a, bb, d, A, B, u, p, dp, sv:A[0]*nn[0] + A[1]*nn[1], tA, tB:B[0]*u[0] + B[1]*u[1], tauR:Math.max(tauR, tA), key:u.map(x => Math.round(x*100)).join() + '|' + p.map(x => Math.round(x)).join() + '|' + G.shapes[s.sid].li});
   } };
   for (let it = 0; it < 20; it++){ // 同じ向き・同じずれの線を、近い物どうしで1本の管・ダクトにまとめて曲げる所を決める。曲げが入らない短い所は丸ごと動かして先で曲げる
-    run(); let slid = false; const byKey = new Map(); recs.forEach(r => { r.C = null; if (!byKey.has(r.key)) byKey.set(r.key, []); byKey.get(r.key).push(r); });
+    run(); let slid = false; const byKey = new Map(); recs.forEach(r => { if (r.rot) return; r.C = null; if (!byKey.has(r.key)) byKey.set(r.key, []); byKey.get(r.key).push(r); });
     for (const rs of byKey.values()){
       rs.sort((x, y) => x.sv - y.sv); let grp = [];
       const fin = () => { if (!grp.length) return; const lo = grp[0].sv, hi = grp[grp.length - 1].sv, mid = (lo + hi)/2, tc = Math.max(...grp.map(r => r.tauR)) + Math.max(0, ...grp.map(r => r.dp)) + G0 + (hi - lo)/2;
@@ -1365,6 +1432,16 @@ function planStretch(sc, T){ // 中の端は機器と一緒に動かす。短い
     }
     recs = recs.filter(r => !r.gone); if (!slid) break;
   }
+  { const byR = new Map(), dot = (a, b) => a[0]*b[0] + a[1]*b[1], X0 = Math.min(...RR.map(q => q[0])), X1 = Math.max(...RR.map(q => q[0])), Y0 = Math.min(...RR.map(q => q[1])), Y1 = Math.max(...RR.map(q => q[1]));
+    const NB = [[-1, 0], [1, 0], [0, -1], [0, 1]], hit = (P, Q2) => { let t0 = 0, t1 = 1; const dx = Q2[0] - P[0], dy = Q2[1] - P[1]; // 線が機器（回した後の四角）の中を通るか
+      for (const [pp, qq] of [[-dx, P[0] - X0 - 1], [dx, X1 - 1 - P[0]], [-dy, P[1] - Y0 - 1], [dy, Y1 - 1 - P[1]]]){ if (Math.abs(pp) < 1e-9){ if (qq < 0) return false; continue; } const t = qq/pp; if (pp < 0){ if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; } } return t1 - t0 > 1e-6; };
+    recs.filter(r => r.rot).forEach(r => { const dd = [r.A2[0] - X0, X1 - r.A2[0], r.A2[1] - Y0, Y1 - r.A2[1]]; r.e = NB[dd.indexOf(Math.min(...dd))]; // 出る向き＝いちばん近い機器の面の外向き
+      const k2 = r.u.map(x => Math.round(x*100)).join() + '|' + r.e.join() + '|' + G.shapes[r.s.sid].li; if (!byR.has(k2)) byR.set(k2, []); byR.get(k2).push(r); });
+    for (const rs of byR.values()){ const u = rs[0].u, e = rs[0].e, n = [-u[1], u[0]], mx = v => Math.max(...RR.map(q => dot(q, v))), wmax = Math.max(...rs.map(r => dot(r.A2, u))), eB = mx(e) + G0, uB = mx(u) + 300; // よけて戻る所は機器から300mm（曲げメモの3Dは18cmより近い平行の管を1本と見るので、行きと帰りを離す） // 同じ向きの管（2本線・ガス管と液管）は間をあけたまま、内側の管から先に曲げる
+      for (const r of rs){ const kk = wmax - dot(r.A2, u), at = (P, v, c) => [P[0] + v[0]*(c - dot(P, v)), P[1] + v[1]*(c - dot(P, v))];
+        const Q = at(r.A2, e, Math.max(dot(r.A2, e) + G0, eB + kk)), B = r.B, K = at(B, u, dot(Q, u)), mu = uB + kk, cs = [[Q, K], [Q, at(Q, u, mu), at(B, u, mu)]];
+        for (const sg of [1, -1]){ const n2 = [n[0]*sg, n[1]*sg]; if (Math.abs(dot(n2, e)) > 0.5 && dot(n2, e) < 0) continue; const S1 = at(Q, n2, mx(n2) + 300 + kk); cs.push([Q, S1, at(S1, u, mu), at(B, u, mu)]); } // 機器の横へよけてから
+        r.path = cs.find(c => { const P = c.concat([B]); for (let j = 0; j + 1 < P.length; j++) if (hit(P[j], P[j + 1])) return false; return true; }) || cs[0]; } } }
   const out = [];
   for (const s of SH.values()){
     if (rigD.has(G.shapes[s.sid].eid)) continue; // 丸ごとずらす継手（円弧も一緒に）は部品で動かす
@@ -1372,9 +1449,11 @@ function planStretch(sc, T){ // 中の端は機器と一緒に動かす。短い
     const v = s.v, nv = [];
     for (let i = 0; i < s.n; i++){
       const r = rk.get(i - 1), dd = s.d[i] || [0, 0];
-      if (r && r.a === i){ if (Math.hypot(r.C[0] - r.B[0], r.C[1] - r.B[1]) > 0.01) nv.push(r.C[0], r.C[1], 0); nv.push(r.C[0] + r.p[0], r.C[1] + r.p[1], 0); } // 外 → クランク → 中
+      if (r && r.a === i && r.rot){ const P2 = r.path.slice().reverse(); P2.forEach((q, j) => { const o = j ? P2[j - 1] : r.B; if (Math.hypot(q[0] - o[0], q[1] - o[1]) > 0.5) nv.push(q[0], q[1], 0); }); }
+      else if (r && r.a === i){ if (Math.hypot(r.C[0] - r.B[0], r.C[1] - r.B[1]) > 0.01) nv.push(r.C[0], r.C[1], 0); nv.push(r.C[0] + r.p[0], r.C[1] + r.p[1], 0); } // 外 → クランク → 中
       nv.push(v[3*i] + dd[0], v[3*i+1] + dd[1], v[3*i+2]);
-      const r2 = rk.get(i); if (r2 && r2.a === i){ nv.push(r2.C[0] + r2.p[0], r2.C[1] + r2.p[1], 0); if (Math.hypot(r2.C[0] - r2.B[0], r2.C[1] - r2.B[1]) > 0.01) nv.push(r2.C[0], r2.C[1], 0); } // 中 → クランク → 外
+      const r2 = rk.get(i); if (r2 && r2.a === i && r2.rot){ const P2 = r2.path; P2.forEach((q, j) => { const nx = j + 1 < P2.length ? P2[j + 1] : r2.B; if (Math.hypot(q[0] - nx[0], q[1] - nx[1]) > 0.5) nv.push(q[0], q[1], 0); }); }
+      else if (r2 && r2.a === i){ nv.push(r2.C[0] + r2.p[0], r2.C[1] + r2.p[1], 0); if (Math.hypot(r2.C[0] - r2.B[0], r2.C[1] - r2.B[1]) > 0.01) nv.push(r2.C[0], r2.C[1], 0); } // 中 → クランク → 外
     }
     out.push([s.sid, nv, s.closed]);
   }
@@ -1610,6 +1689,7 @@ function updatePickBar(){
       ${scope}
       <div class="frow"><button class="btn ${pk.multi ? 'sel' : ''}" data-a="multi" style="flex:1">${pk.multi ? '✓ ' : '＋'}追加で選ぶ</button><span class="confirm" style="flex:1.3;display:flex"><button class="btn" data-a="others" style="flex:1" ${sel.length ? '' : 'disabled'}>これ以外を隠す</button></span></div>
       <div class="frow"><button class="btn" data-a="omove" style="flex:1" ${sel.length ? '' : 'disabled'}>✥ 移動</button><span class="confirm" style="flex:1;display:flex"><button class="btn del" data-a="otek" style="flex:1" ${sel.length ? '' : 'disabled'}>撤去</button></span>${sel.length === 1 && isKiki(sel[0]) ? '<button class="btn" data-a="orot" style="flex:1">↻ 向き</button>' : ''}${sel.length === 1 && isNp(sel[0]) ? '<button class="btn" data-a="onp" style="flex:1">✏️ 直す</button>' : ''}</div>
+      <div class="frow"><button class="btn" data-a="olay" style="flex:1" ${sel.length ? '' : 'disabled'}>🗂 レイヤーを変える</button><button class="btn" data-a="odup" style="flex:1" ${sel.length ? '' : 'disabled'}>⧉ 複製</button></div>
       <div class="frow"><button class="btn" data-a="ohide" style="flex:1" ${sel.length ? '' : 'disabled'}>非表示</button><button class="btn del" data-a="odel" style="flex:1" ${sel.length ? '' : 'disabled'}>削除</button></div>
       ${pk.boxHidden && pk.boxHidden.filter(e => S.hideObj.has(e)).length ? `<button class="btn" data-a="boxshow">囲んだ所の隠した部品を表示（${pk.boxHidden.filter(e => S.hideObj.has(e)).length}個）</button>` : ''}`;
   } else {
@@ -1646,6 +1726,9 @@ function updatePickBar(){
     }
     else if (a === 'ohide'){ const sel = [...pk.sel]; exec(cmdObjs(sel, 'hide')); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を非表示にしました（↶で戻せます）`); S.pick = null; }
     else if (a === 'omove'){ mvgStart([...pk.sel]); return; }
+    else if (a === 'olay'){ openLaySheet([...pk.sel]); return; }
+    else if (a === 'odup'){ const sel = [...pk.sel], all = sel.concat(compOf(sel).filter(e => !sel.includes(e))), b = outlineBox(sel) || partsBox(sel), u = unitMM(), c = cmdDup(all, [b ? (b[2] - b[0]) + 300/u : 1000/u, 0]);
+      if (!c.list.length){ toast('この部品は複製できません'); return; } exec(c); renderTabs(); S.pick = {...pk, sel:new Set(c.list), parts:c.list, pi:0, multi:false}; toast(`${c.list.length}個を複製しました。指で動かして置く所を決めてください（↶で戻せます）`); mvgStart(c.list); if (S.mvg){ S.mvg.useS = false; S.mvg.useC = false; S.mvg.comp = []; updatePickBar(); } return; } // 複製した物は、まわりの配管をつなぎ直さない
     else if (a === 'onp'){ const it = npOf([...pk.sel][0]); if (it){ npStart(it); return; } }
     else if (a === 'orot'){ const k = kikiOf([...pk.sel][0]); if (k){ exec(cmdKikiRot(k)); toast('向きを変えました'); } }
     else if (a === 'otek'){ if (!btn.dataset.ok){ btn.dataset.ok = '1'; btn.textContent = '撤去する'; return; } const sel = [...pk.sel]; exec(cmdTekkyo(sel)); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を撤去にしました（点線の×で残します・↶で戻せます）`); S.pick = null; }
@@ -1703,7 +1786,18 @@ function refreshGeom(){
     for (let q = 0; q < kinds.length; q++){ const x1 = f[2*q], y1 = f[2*q+1], x2 = f[2*q+2], y2 = f[2*q+3]; if (x1 === x2 && y1 === y2) continue; es.push(x1, y1, x2, y2, sh.li, kinds[q], sid, sh.eid); if (!kinds[q]) ep.push((x1+x2)/2, (y1+y2)/2, sh.li, 1, sid, sh.eid); }
     for (let q = 0; q < o.verts.length; q += 3) ep.push(o.verts[q], o.verts[q+1], sh.li, 0, sid, sh.eid);
   }
-  for (const e of [...G.eidPolys.keys()]) if (isKiki(e) || isNp(e) || isCl(e)){ G.eidPolys.delete(e); G.pbox.delete(e); delete G.parts[e]; }
+  for (const e of [...G.eidPolys.keys()]) if (isKiki(e) || isNp(e) || isCl(e) || isDup(e)){ G.eidPolys.delete(e); G.pbox.delete(e); delete G.parts[e]; }
+  for (const l of G.L){ const a = G.textsBy[l.idx]; if (a && a.some(t => isDup(t.eid))) G.textsBy[l.idx] = a.filter(t => !isDup(t.eid)); } if (G.fills.some(f => isDup(f.eid))) G.fills = G.fills.filter(f => !isDup(f.eid));
+  for (const d of S.dups){ // 複製した部品：元の部品の形（動かす前）を T で置く。ふつうの部品と同じに選べる・動かせる・寸法が取れる
+    const e = KB4 + d.no, src = G.parts[d.src]; if (!src) continue; const M = tMul(d.T, tInv(S.mov.get(d.src) || TID)), ang = Math.atan2(M[1], M[0]), l2 = d.lay ? layIdx(d.lay) : null, pls = [], lis = new Set(); let bx = null;
+    const ap = a => { const o = new Array(a.length); for (let i = 0; i + 1 < a.length; i += 2){ const q = tAp(M, a[i], a[i+1]); o[i] = q[0]; o[i+1] = q[1]; if (!bx) bx = [q[0], q[1], q[0], q[1]]; else { bx[0] = Math.min(bx[0], q[0]); bx[1] = Math.min(bx[1], q[1]); bx[2] = Math.max(bx[2], q[0]); bx[3] = Math.max(bx[3], q[1]); } } return o; };
+    for (const pl of G.eidPolys.get(d.src) || []){ const q = {li:l2 ?? pl.li, ck:pl.ck, a:ap(pl.a), sid:-1, eid:e}, f = q.a; pls.push(q); ovPolys.push(q); lis.add(q.li);
+      for (let k = 0; k + 3 < f.length; k += 2){ es.push(f[k], f[k+1], f[k+2], f[k+3], q.li, 0, -1, e); ep.push((f[k]+f[k+2])/2, (f[k+1]+f[k+3])/2, q.li, 1, -1, e); } for (let k = 0; k < f.length; k += 2) ep.push(f[k], f[k+1], q.li, 0, -1, e); }
+    const tx = []; for (const l of G.L) for (const t of G.textsBy[l.idx] || []) if (t.eid === d.src) tx.push(t);
+    for (const t of tx){ const q = tAp(M, t.x, t.y), li = l2 ?? t.li; G.textsBy[li].push({...t, eid:e, li, x:q[0], y:q[1], a:t.a + ang}); lis.add(li); if (!bx) bx = [q[0], q[1], q[0], q[1]]; }
+    for (const f of G.fills.filter(f => f.eid === d.src)) G.fills.push({...f, eid:e, li:l2 ?? f.li, rings:f.rings.map(ap)});
+    if (!bx) continue; G.eidPolys.set(e, pls); G.pbox.set(e, [bx[0], bx[1], bx[2], bx[3], lis]); G.parts[e] = {name:'複製 ' + src.name, h:null, li:l2 ?? src.li};
+  }
   if (S.kiki.length){ // 追加した機器：上から見た四角と品番。ふつうの部品と同じに選べる・寸法が取れる
     const li = kikiLayer(); G.textsBy[li] = [];
     for (const k of S.kiki){
@@ -2339,10 +2433,13 @@ function inverseOf(e){
     if (e.label === 'メモを追加') return cur ? cmdNote('del', cur) : null;
     if (e.label === 'メモを削除') return cur ? null : cmdNote('add', {...r});
     if (e.label === 'メモを変更') return cur && e.noteOld != null ? cmdNote('edit', cur, e.noteOld) : null;
+    if (e.label === 'メモを動かす') return cur && e.mvFrom ? cmdNoteMove(cur, [cur.x, cur.y], e.mvFrom) : null;
     return null;
   }
   if (e.kind === 'obj' && e.tr && e.eids) return cmdXform(e.eids, tInv(e.tr), e.ovp || [], e.label, e.detail, e.gO, e.gN, (e.rg || []).map(([x, a, b]) => [x, -a, -b]));
   if (e.kind === 'obj' && e.mv && e.eids) return cmdMove(e.eids, -e.mv[0], -e.mv[1]);
+  if (e.kind === 'obj' && e.lay && e.eids) return cmdLay(e.eids, e.layOld || e.eids.map(() => null));
+  if (e.kind === 'obj' && e.dup && e.eids){ const live = e.eids.filter(x => !gone(x) && G.parts[x]); return live.length ? cmdObjs(live, 'del') : null; }
   if (e.kind === 'obj' && e.label === '機器の向きを変える' && e.eids){ const k = kikiOf(e.eids[0]); return k ? cmdKikiRot(k) : null; }
   if (e.kind === 'obj' && e.label === '機器を追加' && e.eids) return cmdObjs(e.eids, 'del');
   if (e.kind === 'obj' && (e.label === '配管を引く' || e.label === '芯線を引く') && e.eids) return cmdObjs(e.eids, 'del');
@@ -2614,7 +2711,8 @@ function updateHint(){
   if (S.lpick){ if (MS.dragging){ h.hidden = true; return; } h.hidden = false; $('#hintTxt').textContent = `${S.lpick.kind === 'wall' ? '壁' : '通り芯'}の線をタップ（光っている線＝選んだレイヤー・${S.lpick.set.size}個。もう一度で外す）`; $('#bHint3').hidden = false; $('#bHint3').textContent = '✓ 決定'; $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = 'やめる'; return; }
   if (S.sinPick){ h.hidden = false; $('#hintTxt').textContent = S.sinPick.kind === 'line' ? '基準にする壁の線（縦か横）をタップ' : S.sinPick.first ? 'もう1つの照明・器具をタップ（2つの間）' : '基準にする照明・器具をタップ'; $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = 'やめる'; return; }
   if (S.mode === 'kiki'){ h.hidden = false; $('#hintTxt').textContent = `「${S.kput ? S.kput.nm : ''}」を置く所（機器の真ん中）をタップ`; $('#bCancelPt').hidden = true; return; }
-  if (S.mode === 'note'){ h.hidden = false; $('#hintTxt').textContent = 'メモを置きたい所をタップ（置いたメモはタップで直せます）'; $('#bCancelPt').hidden = true; return; }
+  if (S.mode === 'note'){ h.hidden = false; if (S.pnote){ $('#hintTxt').textContent = '赤い印の所に置きます。印を指で動かすか、ほかの所をタップ'; $('#bHint3').hidden = false; $('#bHint3').textContent = '✏️ ここに書く'; $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = 'やめる'; }
+    else { $('#hintTxt').textContent = 'メモを置きたい所をタップ（置いたメモはタップで直す・指で動かせます）'; $('#bHint3').hidden = true; $('#bCancelPt').hidden = true; } return; }
   if (S.mode === 'box'){
     h.hidden = false; $('#hintTxt').textContent = '指でなぞって四角で囲む（2本指で移動）';
     $('#bCancelPt').hidden = false; $('#bCancelPt').textContent = boxCross ? '✓ かかっている物も' : 'かかっている物も'; return;
@@ -2647,7 +2745,7 @@ function updateHint(){
   return;
   $('#bCancelPt').hidden = !MS.p1;
 }
-$('#bCancelPt').onclick = () => { if (S.sinPick){ const m = S.sinPick.m, f = S.sinPick.first; S.sinPick = null; updateUi(); openSinSheet(m, f); return; } if (S.lpick){ lpickDone(false); return; } if (S.mode === 'dim' && S.autoDim && S.autoDim.g4 && S.autoDim.g4.pickDir){ S.autoDim.g4.pickDir = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && S.autoDim){ S.autoDim = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
+$('#bCancelPt').onclick = () => { if (S.mode === 'note' && S.pnote){ S.pnote = null; drawOverlay(); updateUi(); return; } if (S.sinPick){ const m = S.sinPick.m, f = S.sinPick.first; S.sinPick = null; updateUi(); openSinSheet(m, f); return; } if (S.lpick){ lpickDone(false); return; } if (S.mode === 'dim' && S.autoDim && S.autoDim.g4 && S.autoDim.g4.pickDir){ S.autoDim.g4.pickDir = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && S.autoDim){ S.autoDim = null; drawOverlay(); updateUi(); return; } if (S.mode === 'dim' && !MS.p1){ openDimGroupSheet(); return; } if (S.mode === 'box'){ boxCross = !boxCross; try { localStorage.setItem('zumen-boxcross', boxCross ? '1' : '0'); } catch(e){} updateHint(); toast(boxCross ? '四角にかかっている物も選びます' : '四角に全部入っている物だけ選びます'); return; } if (S.mode === 'route'){ routeReset(); updateRouteUi(); return; } MS.p1 = null; MS.cur = null; drawOverlay(); updateHint(); updatePill(); };
 
 function updateDimPanel(){
   const p = $('#dimPanel'); const d = S.selDim;
@@ -2694,6 +2792,7 @@ $('#mBox').onclick = () => { S.mode = 'box'; S.selDim = null; MS.p1 = null; MS.c
 $('#mRoute').onclick = () => { S.mode = 'route'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#tOrtho').onclick = () => { S.ortho = !S.ortho; updateUi(); toast(S.ortho ? '縦横まっすぐ：オン' : '縦横まっすぐ：オフ'); };
 $('#bHint3').onclick = () => {
+  if (S.mode === 'note' && S.pnote){ const q = S.pnote; S.pnote = null; drawOverlay(); updateUi(); openNoteEditor(null, [q.x, q.y]); return; }
   if (S.mode === 'route'){ npStart(null); return; }
   if (S.lpick){ lpickDone(true); return; }
   if (S.mode !== 'dim') return;
@@ -2703,7 +2802,7 @@ $('#bHint3').onclick = () => {
 $('#bHint4').onclick = () => { if (S.mode === 'dim') openAutoDimSheet(); }; // 置きかけの始点は、芯出しを選んだ時に取り消す
 $('#bHint2').onclick = () => { if (S.mode !== 'dim') return; S.chain = !S.chain; updateUi(); toast(S.chain ? '連続寸法：オン（終点が次の始点に）' : '連続寸法：オフ'); };
 $('#mKiki').onclick = () => { if (G) openKikiSheet(); };
-$('#mNote').onclick = () => { S.mode = 'note'; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
+$('#mNote').onclick = () => { S.mode = 'note'; S.pnote = null; S.selDim = null; MS.p1 = null; MS.cur = null; routeReset(); drawOverlay(); updateUi(); };
 $('#tSnap').onclick = () => { S.snapOn = !S.snapOn; updateUi(); toast(S.snapOn ? '吸着：オン' : '吸着：オフ'); };
 $('#bFit').onclick = fit;
 $('#bUndo').onclick = undo; $('#bRedo').onclick = redo;
@@ -2966,7 +3065,7 @@ const dbGet = (s, k) => dbOp(s, 'readonly', st => st.get(k));
 const dbPut = (s, v) => dbOp(s, 'readwrite', st => st.put(v));
 const dbDel = (s, k) => dbOp(s, 'readwrite', st => st.delete(k));
 const dbAll = s => dbOp(s, 'readonly', st => st.getAll());
-function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n,g,to,c}) => ({x1,y1,x2,y2,n:n||1,g,...(to ? {to:to.slice()} : {}),...(c != null ? {c} : {})})), dimGroups:S.dimGroups, curDG:S.curDG, routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, mov:{n:G.shapes.length, list:[...S.mov].map(([e, d]) => [e, ...d])}, kiki:S.kiki, grps:S.grps, sins:S.sins, np:S.np, clines:S.clines, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
+function stateRecord(){ const groups = {}; G.L.forEach(l => { if (l.g !== autoGroup(l.name)) groups[l.name] = l.g; }); return {groups, deleted:G.L.filter(l => l.deleted).map(l => l.name), hidden:G.L.filter(l => !l.on).map(l => l.name), dims:S.dims.map(({x1,y1,x2,y2,n,g,to,c}) => ({x1,y1,x2,y2,n:n||1,g,...(to ? {to:to.slice()} : {}),...(c != null ? {c} : {})})), dimGroups:S.dimGroups, curDG:S.curDG, routes:{n:G.shapes.length, ov:[...S.ov].map(([k, o]) => [k, o.verts, o.closed]), ghosts:S.ghosts}, log:S.log, objs:{n:G.shapes.length, hide:[...S.hideObj], del:[...S.delObj]}, mov:{n:G.shapes.length, list:[...S.mov].map(([e, d]) => [e, ...d]), lay:[...S.lay], dups:S.dups}, kiki:S.kiki, grps:S.grps, sins:S.sins, np:S.np, clines:S.clines, views:{n:G.shapes.length, list:S.views}, notes:S.notes.map(noteRec)}; }
 let autoT = 0;
 function autosave(dirty = true){
   if (dirty && G) S.dirty = true;
@@ -2998,7 +3097,7 @@ async function openText(text, srcName, opts = {}){
     const u = parseInt(doc.header.$INSUNITS?.[70]); S.units = ({1:'in',2:'ft',4:'mm',5:'cm',6:'m'})[u] || 'mm';
     G = prepare(flat); G.kkSkip = !!doc.meta;
     const st = opts.state || (doc.meta ? {deleted:[], hidden:doc.meta.hidden || [], dims:doc.meta.dims || [], dimGroups:doc.meta.dimGroups, curDG:doc.meta.curDG, groups:doc.meta.groups || {}, log:doc.meta.log || [], views:doc.meta.views, notes:doc.meta.notes, kiki:doc.meta.kiki, sins:doc.meta.sins, np:doc.meta.np, clines:doc.meta.clines} : null);
-    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; S.dimGroups = []; S.curDG = null; S.autoDim = null; S.lpick = null; S.mov = new Map(); S.kiki = []; S.grps = []; S.sins = []; S.np = []; S.clines = []; S.npe = null; S.mvg = null; S.kput = null; routeReset();
+    S.dims = []; S.undo = []; S.redo = []; S.selDim = null; S.tab = null; S.group = null; MS.p1 = null; MS.cur = null; S.ov = new Map(); S.ghosts = []; S.log = []; HL = null; S.hideObj = new Set(); S.delObj = new Set(); S.views = []; S.viewId = null; S.notes = []; S.dimGroups = []; S.curDG = null; S.autoDim = null; S.lpick = null; S.mov = new Map(); S.lay = new Map(); S.dups = []; S.kiki = []; S.grps = []; S.sins = []; S.np = []; S.clines = []; S.npe = null; S.mvg = null; S.kput = null; routeReset();
     for (const [k, t] of Object.entries(G.parts)) if (t.inv) S.hideObj.add(+k);
     { const pref = loadGroupPrefs(); G.L.forEach(l => { if (pref[l.name] && GROUPS.some(g => g.id === pref[l.name])) l.g = pref[l.name]; }); }
     if (st){
@@ -3019,6 +3118,7 @@ async function openText(text, srcName, opts = {}){
       if (st.objs && st.objs.n === G.shapes.length){ (st.objs.hide || []).forEach(e => S.hideObj.add(+e)); (st.objs.del || []).forEach(e => S.delObj.add(+e)); }
       if (st.mov && st.mov.n === G.shapes.length) for (const [e, ...d] of st.mov.list || []) setMov(+e, d);
       if (st.mov && st.mov.n === G.shapes.length && Array.isArray(st.grps)) S.grps = st.grps;
+      if (st.mov && st.mov.n === G.shapes.length){ for (const [e, nm] of st.mov.lay || []) setLay(+e, nm); S.dups = Array.isArray(st.mov.dups) ? st.mov.dups.filter(d => d && G.parts[d.src]).map(d => ({...d})) : []; }
       S.kiki = Array.isArray(st.kiki) ? st.kiki.filter(k => k && k.w > 0 && k.d > 0).map(k => ({...k})) : [];
       if (st.routes && st.routes.n === G.shapes.length){ for (const [k, v, c] of st.routes.ov || []) if (G.shapes[k]) S.ov.set(+k, {verts:v, closed:!!c}); S.ghosts = st.routes.ghosts || []; }
     }
@@ -3195,6 +3295,8 @@ function buildExport(name, opt = {}){
   for (const e of S.delObj){ const t = G.parts[e]; if (t && t.h) delH.add(t.h); }
   for (const e of S.hideObj){ const t = G.parts[e]; if (t && t.h) (opt.dropHidden ? delH : hideH).add(t.h); }
   const movH = new Map(); for (const [e, d] of S.mov){ const t = G.parts[e]; if (t && t.h) movH.set(t.h, d); }
+  const layH = new Map(); for (const [e, nm] of S.lay){ const t = G.parts[e]; if (t && t.h) layH.set(t.h, nm); } // レイヤーを変えた部品：8（レイヤー）を書き換える
+  const dupH = new Map(); for (const d of S.dups){ const e = KB4 + d.no; if (S.delObj.has(e) || (opt.dropHidden && S.hideObj.has(e))) continue; const h = G.parts[d.src] && G.parts[d.src].h; if (!h) continue; if (!dupH.has(h)) dupH.set(h, []); dupH.get(h).push(d); } // 複製：元の部品をそのまま写して置く
   for (const [sid, o] of S.ov){
     const sh = G.shapes[sid]; if (!sh || G.L[sh.li].deleted) continue; if (sh.h) ovHandles.add(sh.h);
     const M = sh.M, det = M[0]*M[3] - M[1]*M[2];
@@ -3228,6 +3330,7 @@ function buildExport(name, opt = {}){
     for (const s of S.sins){ newEnts.push(s.dir === 'v' ? line(s.c, B.y0, s.c, B.y1) : line(B.x0, s.c, B.x1, s.c)); newEnts.push(s.dir === 'v' ? text(s.c + th*0.8, B.y1 - th*2, th, 90, sinName(s), 2) : text(B.x0 + th*8, s.c + th*0.8, th, 0, sinName(s), 2)); } // 芯出し：図面の端から端までの線と「X2から右1500」
     DL = dl0; DX = dx0; }
   const needLayers = S.dimGroups.filter(g => S.dims.some(d => d.g === g.id)).map(g => [dgLayer(g), g.on === false ? -1 : 1]);
+  for (const nm of new Set([...layH.values(), ...S.dups.map(d => d.lay).filter(Boolean)])) needLayers.push([nm, 7]);
   if (S.dims.some(d => !dgOf(d))) needLayers.push([DIM_LAYER, 1]); if (S.ghosts.length) needLayers.push([GHOST_LAYER, 8]); if (S.notes.length) needLayers.push([NOTE_LAYER, 6]); if (kks.length) needLayers.push([KIKI_LAYER, 1]); if (S.sins.length || S.clines.length) needLayers.push([SIN_LAYER, 6]); if (S.np.length) needLayers.push([NP_LAYER, 6]);
   for (const [lname, lcol] of needLayers){
     if (exLayers.has(lname)) continue;
@@ -3239,7 +3342,24 @@ function buildExport(name, opt = {}){
   }
   const meta = {v:1, name, notes:S.notes.map(noteRec), kiki:kks, sins:S.sins, np:S.np.filter(p => !S.delObj.has(KB2 + p.no)), clines:S.clines.filter(l => !S.delObj.has(KB3 + l.no)), dimGroups:S.dimGroups, curDG:S.curDG, dims:stateRecord().dims, groups:stateRecord().groups, log:S.log, views:{byHandle:true, list:S.views.map(v => ({id:v.id, name:v.name, on:v.on, t:v.t, hideH:v.hide.map(e => G.parts[e] && G.parts[e].h).filter(Boolean)}))}, hidden:G.L.filter(l => !l.on && !l.deleted).map(l => l.name)};
   const out = [...P(999, META + JSON.stringify(meta))];
-  let section = null, table = null, dropSeq = false, curBlock = null, movSeq = null;
+  let section = null, table = null, dropSeq = false, curBlock = null, movSeq = null, laySeq = null, pend = null;
+  const xfCodes = (i, j, t, md) => { // 動かした部品：点は回して・ずらす、向き（MTEXT・ELLIPSE の 11）は回すだけ、角度（50・51）は足す。HATCH・POLYLINE の最初の 10 は高さの点なのでそのまま
+    const pts = /^(LINE|TEXT|ATTRIB|ATTDEF|HATCH|SPLINE)$/.test(t) ? [10, 11] : /^(SOLID|TRACE|3DFACE)$/.test(t) ? [10, 11, 12, 13] : [10], rep = new Map(); let add50 = null;
+    const deg = Math.atan2(md[1], md[0])*180/Math.PI, vec = /^(MTEXT|ELLIPSE)$/.test(t) ? [11] : []; let sk = t === 'HATCH' || t === 'POLYLINE';
+    for (let k = i; k < j; k++){ const c = codes[k]; if (!(pts.includes(c) || vec.includes(c)) || codes[k+1] !== c + 10) continue; if (sk && c === 10){ sk = false; continue; }
+      const x = parseFloat(vals[k]), y = parseFloat(vals[k+1]), q = vec.includes(c) ? [md[0]*x - md[1]*y, md[1]*x + md[0]*y] : tAp(md, x, y); rep.set(k, num(q[0])); rep.set(k+1, num(q[1])); }
+    if (Math.abs(deg) > 1e-9){ let h50 = false, h11 = false; for (let k = i; k < j; k++){ if (codes[k] === 50) h50 = true; if (codes[k] === 11) h11 = true; }
+      const angs = t === 'ARC' || t === 'HATCH' ? [50, 51] : /^(INSERT|TEXT|ATTRIB|ATTDEF|MTEXT)$/.test(t) ? [50] : [];
+      for (let k = i; k < j; k++) if (angs.includes(codes[k])) rep.set(k, num(((parseFloat(vals[k]) + deg) % 360 + 360) % 360));
+      if ((!h50 && /^(INSERT|TEXT|ATTRIB|ATTDEF)$/.test(t)) || (t === 'MTEXT' && !h50 && !h11)) add50 = num((deg + 360) % 360); }
+    return {rep, add50}; };
+  const dupCopy = (a, b, d, ly) => { const o = []; let k = a, h0 = null, h1 = null; // 元の部品（続きの ATTRIB・VERTEX も）を写す：新しい番号・T で置く・レイヤー
+    while (k < b){ let k2 = k + 1; while (k2 < b && codes[k2] !== 0) k2++; const tt = vals[k].trim(), {rep, add50} = xfCodes(k, k2, tt, d.T); let a50 = add50;
+      for (let q = k; q < k2; q++){ let v = rep.has(q) ? rep.get(q) : vals[q];
+        if (codes[q] === 5){ const nh = H(); if (h0 === null){ h0 = vals[q].trim(); h1 = nh; } v = nh; } else if (codes[q] === 330 && h0 !== null && vals[q].trim() === h0) v = h1; else if (codes[q] === 8 && ly) v = ly;
+        o.push(String(codes[q]).padStart(3, ' '), v); if (a50 !== null && (codes[q] === 30 || (codes[q] === 20 && codes[q+1] !== 30))){ o.push(' 50', a50); a50 = null; } }
+      k = k2; }
+    return o; };
   let i = 0;
   while (i < n){
     const c = codes[i], v = vals[i];
@@ -3262,27 +3382,21 @@ function buildExport(name, opt = {}){
         const mv0 = section === 'ENTITIES' && hdl !== null ? movH.get(hdl) : null, sub = t === 'VERTEX' || t === 'ATTRIB' || t === 'SEQEND';
         if (mv0) movSeq = mv0; else if (!sub || section !== 'ENTITIES') movSeq = null;
         const md = mv0 || (movSeq && sub ? movSeq : null); // 動かした部品：位置の座標だけずらす（ブロックの中身はそのまま）
-        const pts = md ? (/^(LINE|TEXT|ATTRIB|ATTDEF|HATCH|SPLINE)$/.test(t) ? [10, 11] : /^(SOLID|TRACE|3DFACE)$/.test(t) ? [10, 11, 12, 13] : [10]) : null;
-        let rep = null, add50 = null;
-        if (md && !drop){ // 点は回して・ずらす、向き（MTEXT・ELLIPSE の 11）は回すだけ、角度（50・51）は足す。HATCH・POLYLINE の最初の 10 は高さの点なのでそのまま
-          rep = new Map(); const deg = Math.atan2(md[1], md[0])*180/Math.PI, vec = /^(MTEXT|ELLIPSE)$/.test(t) ? [11] : []; let sk = t === 'HATCH' || t === 'POLYLINE';
-          for (let k = i; k < j; k++){ const c = codes[k]; if (!(pts.includes(c) || vec.includes(c)) || codes[k+1] !== c + 10) continue; if (sk && c === 10){ sk = false; continue; }
-            const x = parseFloat(vals[k]), y = parseFloat(vals[k+1]), q = vec.includes(c) ? [md[0]*x - md[1]*y, md[1]*x + md[0]*y] : tAp(md, x, y); rep.set(k, num(q[0])); rep.set(k+1, num(q[1])); }
-          if (Math.abs(deg) > 1e-9){ let h50 = false, h11 = false; for (let k = i; k < j; k++){ if (codes[k] === 50) h50 = true; if (codes[k] === 11) h11 = true; }
-            const angs = t === 'ARC' || t === 'HATCH' ? [50, 51] : /^(INSERT|TEXT|ATTRIB|ATTDEF|MTEXT)$/.test(t) ? [50] : [];
-            for (let k = i; k < j; k++) if (angs.includes(codes[k])) rep.set(k, num(((parseFloat(vals[k]) + deg) % 360 + 360) % 360));
-            if ((!h50 && /^(INSERT|TEXT|ATTRIB|ATTDEF)$/.test(t)) || (t === 'MTEXT' && !h50 && !h11)) add50 = num((deg + 360) % 360); }
-        }
+        let rep = null, add50 = null; if (md && !drop) ({rep, add50} = xfCodes(i, j, t, md));
+        const ly0 = section === 'ENTITIES' && hdl !== null ? layH.get(hdl) : null; if (ly0) laySeq = ly0; else if (!sub || section !== 'ENTITIES') laySeq = null; const ly = ly0 || (laySeq && sub ? laySeq : null);
+        if (section === 'ENTITIES' && hdl !== null && dupH.has(hdl)){ let e2 = j; if (t === 'POLYLINE' || (t === 'INSERT' && attFollow)){ let k = j; while (k < n){ const tt = vals[k].trim(); let k2 = k + 1; while (k2 < n && codes[k2] !== 0) k2++; k = k2; if (tt === 'SEQEND') break; } e2 = k; }
+          pend = {end:e2, out:dupH.get(hdl).flatMap(d => dupCopy(i, e2, d, d.lay || ly0))}; }
         if (!drop){
           const inv = section === 'ENTITIES' && hdl !== null && hideH.has(hdl);
           let put60 = false;
           for (let k = i; k < j; k++){
             if (inv && codes[k] === 60) continue;
-            out.push(String(codes[k]).padStart(3, ' '), rep && rep.has(k) ? rep.get(k) : vals[k]);
+            out.push(String(codes[k]).padStart(3, ' '), rep && rep.has(k) ? rep.get(k) : ly && codes[k] === 8 ? ly : vals[k]);
             if (add50 !== null && (codes[k] === 30 || (codes[k] === 20 && codes[k+1] !== 30))){ out.push(' 50', add50); add50 = null; }
             if (inv && !put60 && codes[k] === 8){ out.push(' 60', '1'); put60 = true; }
           }
         }
+        if (pend && j >= pend.end){ out.push(...pend.out); pend = null; }
         i = j; continue;
       }
     }
@@ -4161,6 +4275,8 @@ function sharedState(){
   for (const l of G.L) if (l.deleted) m.set('L:' + l.name, '1');
   for (const e of S.delObj) m.set('o:' + e, '1');
   for (const [e, d] of S.mov) m.set('m:' + e, JSON.stringify(d));
+  for (const [e, nm] of S.lay) m.set('y:' + e, JSON.stringify(nm));
+  for (const d of S.dups) m.set('u:' + d.id, JSON.stringify(d));
   for (const k of S.kiki) m.set('k:' + k.id, JSON.stringify(k));
   for (const g of S.grps) m.set('q:' + g.id, JSON.stringify(g));
   for (const [sid, o] of S.ov) m.set('r:' + sid, JSON.stringify({v:o.verts, c:!!o.closed}));
@@ -4210,6 +4326,10 @@ function applyItem(k, v, kinds){
     if (v) S.delObj.add(+id); else S.delObj.delete(+id); kinds.add('obj');
   } else if (t === 'm'){
     setMov(+id, Array.isArray(v) ? v : TID); kinds.add('obj');
+  } else if (t === 'y'){
+    setLay(+id, typeof v === 'string' ? v : null); kinds.add('obj');
+  } else if (t === 'u'){
+    const x = S.dups.find(w => w.id === id); if (v){ if (x) Object.assign(x, v); else S.dups.push({...v}); } else if (x) S.dups = S.dups.filter(w => w !== x); kinds.add('obj');
   } else if (t === 'q'){
     S.grps = S.grps.filter(x => x.id !== id); if (v) S.grps.push(v); kinds.add('obj');
   } else if (t === 'k'){
@@ -4233,7 +4353,7 @@ function applyItem(k, v, kinds){
   }
 }
 function shReset(){
-  for (const e of [...S.mov.keys()]) setMov(e, TID); S.kiki = []; S.grps = []; S.mvg = null;
+  for (const e of [...S.mov.keys()]) setMov(e, TID); for (const e of [...S.lay.keys()]) setLay(e, null); S.dups = []; S.kiki = []; S.grps = []; S.mvg = null;
   S.sins = []; S.np = []; S.clines = [];
   S.dims = []; S.notes = []; S.ov = new Map(); S.ghosts = []; S.views = []; S.log = []; S.delObj = new Set(); S.selDim = null;
   const keepOn = new Map(S.dimGroups.map(g => [g.id, g.on])); S.dimGroups = []; SH.keepOn = keepOn;

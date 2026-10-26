@@ -1555,6 +1555,8 @@ function pipeDropOut(src,yT,walls){const V=THREE.Vector3;let hit=null;
  const out=[];pts.forEach(p=>{if(out.length&&out[out.length-1].distanceTo(p)<1)return;
   if(out.length>=2){const a=out[out.length-2],b=out[out.length-1],d0=b.clone().sub(a).normalize(),d1=p.clone().sub(b).normalize();if(d0.dot(d1)>0.999){b.copy(p);return}}out.push(p.clone())});
  return out}
+/* 文字の真ん中（図面編集で回した機器の品番など、回った文字も）。r＝反時計回りの角度 */
+function txC(t){const a=(t.r||0)*Math.PI/180,c=Math.cos(a),s=Math.sin(a);return[t.x+c*t.w/2-s*t.h/2,t.y-s*t.w/2-c*t.h/2]}
 function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線のデータがある図面（CADのPDF）で使えます");return}
  if(!P.mmpp||!P.org){toast("先に縮尺と原点を決めてください");return}
  const mm=P.mmpp,BL=planClusters(isBlue),norm=s=>normTx(s).toUpperCase().replace(/[\s\-‐ー－]/g,"");
@@ -1562,7 +1564,7 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
  /* ① 室内機：品番の文字 → それを囲む青いかたまり */
  const inds=[];
  (P.texts||[]).forEach(t=>{const nt=norm(t.s);if(nt.length<6)return;const hit=models.find(m=>m.n===nt||(nt.length>=8&&(m.n.startsWith(nt)||nt.startsWith(m.n))));if(!hit)return;
-  const tx=t.x+t.w/2,ty=t.y-t.h/2,c=BL.filter(c2=>tx>=c2.x0&&tx<=c2.x1&&ty>=c2.y0&&ty<=c2.y1&&Math.max(c2.w,c2.h)>=CAS2M[hit.k].L*0.6&&Math.max(c2.w,c2.h)<=CAS2M[hit.k].L*1.8).sort((a,b)=>a.w*a.h-b.w*b.h)[0];
+  const [tx,ty]=txC(t),c=BL.filter(c2=>tx>=c2.x0&&tx<=c2.x1&&ty>=c2.y0&&ty<=c2.y1&&Math.max(c2.w,c2.h)>=CAS2M[hit.k].L*0.6&&Math.max(c2.w,c2.h)<=CAS2M[hit.k].L*1.8).sort((a,b)=>a.w*a.h-b.w*b.h)[0];
   if(c&&!inds.some(o=>o.c===c))inds.push({c,k:hit.k,t})});
  if(!inds.length){toast("品番の分かる室内機が見つかりませんでした（青い記号の中に品番が必要です）");return}
  const I=inds[0],ctr=[I.c.cx,I.c.cy];
@@ -1583,7 +1585,7 @@ function planReadAll(){const P=PLAN;if(!P||!P.segs||P.segs.length<50){toast("線
     ・天カセ：「FL+3000下端」＝本体の下面＝パネルの設置面＝仕上げ天井（パネルはその下に付く）。CH=が無い時だけ、これを天井高にする
     ・ビルトイン：天井裏にしまうので、図面の「下端」どおりの高さに置く（天井高は変えない）
     ・下端の文字は、その室内機の記号の中にあるものを使う（近くのほかの機器＝ロスナイ等の下端を拾わない） */
- const RX_BOT=/FL\s*\+\s*(\d{3,4})\s*下端/,inC=t=>{const x=t.x+t.w/2,y=t.y-t.h/2;return x>=I.c.x0-3&&x<=I.c.x1+3&&y>=I.c.y0-3&&y<=I.c.y1+3};
+ const RX_BOT=/FL\s*\+\s*(\d{3,4})\s*下端/,inC=t=>{const [x,y]=txC(t);return x>=I.c.x0-3&&x<=I.c.x1+3&&y>=I.c.y0-3&&y<=I.c.y1+3};
  const chT=planNearText(/C\.?\s?H\s*=?\s*\d{4}/,ctr[0],ctr[1],1e9),bot=(P.texts||[]).filter(t=>RX_BOT.test(normTx(t.s))).find(inC)||planNearText(RX_BOT,ctr[0],ctr[1],1000/mm);
  const BI=!!CAS2M[I.k].bi,botFL=bot?+normTx(bot.s).match(RX_BOT)[1]:null;
  let CH=chT?+normTx(chT.s).match(/(\d{4})/)[1]:(P.CH||st.gnd.ch||2500);if(!chT&&!BI&&botFL>=1800&&botFL<=6000)CH=botFL;

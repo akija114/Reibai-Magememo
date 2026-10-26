@@ -210,7 +210,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <button class="tb" id="b3D" aria-label="3Dで見る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>3D</button>
   </div>
 </div>
-<div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px;white-space:nowrap">🧊 3D</b><button class="btn" data-v="top" style="height:40px;padding:0 10px">真上</button><button class="btn" data-v="iso" style="height:40px;padding:0 10px">斜め</button><button class="btn pri" id="v3dMg" style="height:40px;padding:0 10px;font-weight:800">曲げ共有へ</button><button class="btn" id="v3dX" style="height:40px;padding:0 12px;font-weight:800">✕ 戻る</button></div><div id="v3dT" style="display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto"><button class="btn sel" data-t3="wall" style="height:34px;padding:0 12px;flex:none">壁</button><button class="btn sel" data-t3="ub" style="height:34px;padding:0 12px;flex:none">ユニットバス</button><button class="btn sel" data-t3="unit" style="height:34px;padding:0 12px;flex:none">機器</button><button class="btn sel" data-t3="plan" style="height:34px;padding:0 12px;flex:none">図面の線</button><select id="v3dM" aria-label="室内機の機種" style="height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:14px;flex:none;max-width:220px"></select></div><div id="v3dS" style="flex:1;position:relative;overflow:hidden;touch-action:none"><div id="v3dN" class="note" style="position:absolute;left:8px;bottom:8px;right:8px;pointer-events:none;background:var(--panel);opacity:.9;border-radius:10px;padding:6px 8px"></div></div></div>
+<div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px;white-space:nowrap">🧊 3D</b><button class="btn" data-v="top" style="height:40px;padding:0 10px">真上</button><button class="btn" data-v="iso" style="height:40px;padding:0 10px">斜め</button><button class="btn pri" id="v3dMg" style="height:40px;padding:0 10px;font-weight:800">曲げ共有へ</button><button class="btn" id="v3dX" style="height:40px;padding:0 12px;font-weight:800">✕ 戻る</button></div><div id="v3dT" style="display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto"><button class="btn sel" data-t3="wall" style="height:34px;padding:0 12px;flex:none">壁</button><button class="btn sel" data-t3="ub" style="height:34px;padding:0 12px;flex:none">ユニットバス</button><button class="btn sel" data-t3="unit" style="height:34px;padding:0 12px;flex:none">機器</button><button class="btn sel" data-t3="plan" style="height:34px;padding:0 12px;flex:none">図面の線</button><select id="v3dM" aria-label="室内機の機種" style="height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:14px;flex:none;max-width:220px"></select></div><div id="v3dS" style="flex:1;position:relative;overflow:hidden;touch-action:none"><iframe id="v3dF" hidden title="3D" style="position:absolute;inset:0;width:100%;height:100%;border:0;z-index:2"></iframe><div id="v3dN" class="note" style="position:absolute;left:8px;bottom:8px;right:8px;pointer-events:none;background:var(--panel);opacity:.9;border-radius:10px;padding:6px 8px"></div></div></div>
 <input type="file" id="fileIn" hidden>
 <div id="sheetRoot"></div>
 
@@ -3382,7 +3382,9 @@ function v3dAna(){
     walls = walls.filter(w => !hasT(w)); }
   walls = walls.filter(w => !ubs.some(b => (w[0] + w[2])/2 > b.x0 - 30 && (w[0] + w[2])/2 < b.x1 + 30 && (w[1] + w[3])/2 > b.y0 - 30 && (w[1] + w[3])/2 < b.y1 + 30)); // ユニットバスの中・まわりの線は壁にしない
   const inB = c => !bld || ((c.x0 + c.x1)/2 >= bld[0] && (c.x0 + c.x1)/2 <= bld[2] && (c.y0 + c.y1)/2 >= bld[1] && (c.y0 + c.y1)/2 <= bld[3]);
-  return {walls, ubs:ubs.filter(inB), units:units.filter(inB), insp:insp.filter(inB), outs:outs.filter(inB), bld, CH0, wallH:CH0}; // 壁は天井の高さまで（天井の上の機器が見えるように）
+  let un = units.filter(inB); const mg = mageOk(); if (mg && mg.units.length){ const f = un.filter(c => mg.units.some(o => o.x >= c.x0 - 300 && o.x <= c.x1 + 300 && o.y >= c.y0 - 300 && o.y <= c.y1 + 300)); if (f.length) un = f; } // 曲げメモで室内機と読めた物だけ（ロスナイなどの機器は除く）
+  if (mg && mg.walls.length) walls = mg.walls; // 壁も曲げメモの読み取り（軽量壁など）
+  return {walls, ubs:ubs.filter(inB), units:un, insp:insp.filter(inB), outs:outs.filter(inB), bld, CH0, wallH:CH0}; // 壁は天井の高さまで（天井の上の機器が見えるように）
 }
 /* 🧊 3D：図面編集の中だけで出す3D（three.js）。床＝見えているレイヤーの線、1から引いた冷媒配管＝区間ごとの高さで管（高さの変わる所はたて管）、追加機器＝天井の下の箱。
    1本指で回す・2本指で動かす／ひろげる。図面のデータは変えない（見るだけ） */
@@ -3400,7 +3402,16 @@ function v3dPoses(A, md){ return A.units.map(m => { const ccx = (m.x0 + m.x1)/2,
   if (md){ const px = md.L/2 + 60, pz = md.gas.z, dx = px*Math.cos(th) + pz*Math.sin(th), dz = -px*Math.sin(th) + pz*Math.cos(th); port = [ccx + dx, ccy - dz]; ph = m.ch + md.gas.y; } // 3Dの z は図面の y と逆向き
   return {m, cx:ccx, cy:ccy, f, th, port, ph:Math.round(ph)}; }); }
 function loadModels(){ if (!mdlP) mdlP = new Promise(ok => { if (typeof CAS2M !== 'undefined') return ok(true); const sc = document.createElement('script'); sc.src = '../models.js?v=304'; sc.onload = () => ok(typeof CAS2M !== 'undefined'); sc.onerror = () => { mdlP = null; ok(false); }; document.head.appendChild(sc); }); return mdlP; } // 曲げ共有の機器の模型データ（同じサイトの models.js）
-const v3dMdl = () => { try { const k = localStorage.getItem('zumen-3dunit'); return k == null ? 'mbz2822' : k; } catch(e){ return 'mbz2822'; } };
+/* 室内機の機種：この図面で選び直した物 → 曲げメモの「全部自動」で決まった物 → 図面の品番の文字（曲げメモと同じ探し方） → 三菱 MBZ-2822AS-IN */
+const v3dMdl = () => { try { const k = localStorage.getItem('zumen-3dunit'), f = localStorage.getItem('zumen-3dunitF'); if (k != null && (f == null || f === (S.srcName || ''))) return k; } catch(e){}
+  const mg = mageOk(); if (mg && mg.units.length) return mg.units[0].k; return v3dMdlTx() || 'mbz2822'; };
+function v3dMdlTx(){ if (typeof CAS2M === 'undefined' || !G) return ''; if (V3.tx && V3.tx.G === G) return V3.tx.k;
+  const nm = t => String(t).normalize('NFKC').toUpperCase().replace(/[\s\-‐ー－]/g, ''), M = Object.keys(CAS2M).map(k => ({k, n:nm(CAS2M[k].n)})).filter(m => m.n.length >= 6); let k = '';
+  for (const l of G.L){ if (l.deleted || k) continue; for (const t of G.textsBy[l.idx] || []){ if (gone(t.eid)) continue; const z = nm(t.lines.join('')); if (z.length < 6) continue; const h = M.find(m => m.n === z || (z.length >= 8 && (m.n.startsWith(z) || z.startsWith(m.n)))); if (h){ k = h.k; break; } } }
+  V3.tx = {G, k}; return k; }
+/* 曲げメモの読み取り（3Dを開いた時に返ってくる・壁と室内機は図面の mm）。図面を直したら使わない */
+const mageOk = () => V3.mage && V3.mage.G === G && V3.mage.last === S.undo[S.undo.length-1] ? V3.mage : null;
+window.cad3dDone = r => { V3.mage = {...r, units:r.units || [], walls:r.walls || [], G, last:S.undo[S.undo.length-1]}; };
 /* 室内機の模型：曲げ共有（core.js の makeUnit の cas2）と同じ作り。天井の面＝y0、長手＝x、配管口は +x の端面、正面（吹出し）は −x */
 function v3dUnit(TH, md){
   const g = new TH.Group(), M = c => new TH.MeshStandardMaterial({color:c, roughness:.5, metalness:.1}), em = new TH.LineBasicMaterial({color:0x1f2937});
@@ -3417,12 +3428,30 @@ function v3dUnit(TH, md){
   if (!md.nodr && md.dr) cyl(17, 90, Lb/2 + 45, md.dr.y, md.dr.z, 0xe5e7eb, 1); // ドレン
   return g;
 }
+/* 🧊 3D は曲げメモと同じ読み方で出す：今の図面（削除・非表示のレイヤーを除く）と1から引いた冷媒配管を ../zumen.html?from=cad3d に渡して、図面編集の中に重ねる。
+   曲げメモの「全部自動」と同じ（室内機の機種・位置・冷媒配管のルート・壁・ダクト・衛生）。曲げ共有の現場のデータには書かない（zumen.html の頭で保存先を分けている）。
+   曲げ共有と同じサイトに置いた時だけ。ほかで開いた時は今までの3D（open3Dold）
+   渡す物：IndexedDB pbmShare / f / "dxf3d" → {blob, name, hide, np（mm の点と区間ごとの高さ）} */
+const MAGE3D = ON_MAGE_SITE || /\/cad\/(index\.html)?$/.test(location.pathname);
 async function open3D(){
   if (!G){ toast('先に図面を開いてください'); return; }
+  if (!MAGE3D) return open3Dold();
+  try {
+    const name = S.name || (S.srcName || '図面').replace(/\.[^.]+$/, ''), u = unitMM();
+    const rec = {blob:new Blob([buildExport(name, {dropHidden:true})], {type:'application/dxf'}), name:name + '.dxf', hide:G.L.filter(l => !l.on && !l.deleted).map(l => l.name),
+      np:S.np.filter(p => !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no)).map(p => ({pts:p.pts.map(q => [q[0]*u, q[1]*u]), h:npH(p, p.pts.length - 1)}))};
+    await new Promise((ok, ng) => { const o = indexedDB.open('pbmShare', 1); o.onupgradeneeded = () => { if (!o.result.objectStoreNames.contains('f')) o.result.createObjectStore('f'); }; o.onerror = () => ng(o.error);
+      o.onsuccess = () => { try { const db = o.result, tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(rec, 'dxf3d'); tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = tx.onabort = () => ng(tx.error); } catch(e){ ng(e); } }; });
+    V3.mg = true; $('#v3dT').hidden = true; $('#v3dN').hidden = true; if (V3.r) V3.r.domElement.style.display = 'none';
+    const f = $('#v3dF'); f.hidden = false; f.src = '../zumen.html?from=cad3d&t=' + Date.now(); $('#v3d').hidden = false;
+  } catch(e){ toast('3Dを開けませんでした（' + ((e && e.message) || e) + '）'); }
+}
+async function open3Dold(){
+  V3.mg = false; $('#v3dF').hidden = true; $('#v3dT').hidden = false; $('#v3dN').hidden = false;
   let TH; try { TH = await loadThree(); } catch(e){ toast(e.message); return; } await loadModels();
   $('#v3d').hidden = false; const box = $('#v3dS'), u = unitMM(), CH = 2700;
   { const sel = $('#v3dM'), k0 = v3dMdl(); sel.innerHTML = '<option value="">室内機：箱（機種なし）</option>' + (typeof CAS2_ORDER !== 'undefined' ? CAS2_ORDER.filter(k => CAS2M[k]).map(k => `<option value="${k}" ${k === k0 ? 'selected' : ''}>室内機：${esc(CAS2M[k].n)}</option>`).join('') : ''); if (!k0) sel.value = ''; }
-  if (!V3.r){ V3.r = new TH.WebGLRenderer({antialias:true}); V3.r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); box.prepend(V3.r.domElement); V3.r.domElement.style.display = 'block'; v3dCtl(); }
+  if (V3.r) V3.r.domElement.style.display = 'block'; if (!V3.r){ V3.r = new TH.WebGLRenderer({antialias:true}); V3.r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); box.prepend(V3.r.domElement); V3.r.domElement.style.display = 'block'; v3dCtl(); }
   const sc = new TH.Scene(); sc.background = new TH.Color(tok.dark ? '#1b1f24' : '#f4f6f8'); sc.add(new TH.HemisphereLight(0xffffff, 0x777777, 0.9)); const dl = new TH.DirectionalLight(0xffffff, 0.6); dl.position.set(1, 2, 1.5); sc.add(dl);
   const npi = G.L.findIndex(l => l.name === NP_LAYER), B = G.bounds, cx = (B.x0 + B.x1)/2*u, cy = (B.y0 + B.y1)/2*u, W = (x, y) => [x*u - cx, -(y*u - cy)];
   // 床：見えているレイヤーの線（色はレイヤーの色）
@@ -3500,10 +3529,10 @@ async function sendPipes(){
     autosave(false); toast('曲げ共有を開いています…'); setTimeout(() => { location.href = '../index.html?from=cadpipes'; }, 900); // 端末への保存（0.8秒後）が済んでから
   } catch(e){ toast('渡せませんでした（' + ((e && e.message) || e) + '）'); }
 }
-$('#v3dMg').onclick = sendPipes;
-$('#v3dM').onchange = e => { try { localStorage.setItem('zumen-3dunit', e.target.value); } catch(err){} open3D(); }; // 室内機の機種を変えたら作り直す
-$('#v3d').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) v3dView(b.dataset.v); const t = e.target.closest('[data-t3]'); if (t && V3.sc){ const k = t.dataset.t3; V3.on[k] = V3.on[k] === false; t.classList.toggle('sel', V3.on[k] !== false); for (const o of V3.sc.children) if (o.userData.k === k) o.visible = V3.on[k] !== false; v3dDraw(); } }); // 壁・ユニットバス・機器・図面の線を出す／消す
-$('#v3dX').onclick = () => { $('#v3d').hidden = true; if (V3.sc){ V3.sc.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material){ if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); V3.sc = null; } };
+$('#v3dMg').onclick = () => { if (V3.mg && !S.np.some(p => !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no))) return sendToMage(S.name || (S.srcName || '図面').replace(/\.[^.]+$/, '')); sendPipes(); }; // 1から引いた配管が無い時は、図面ごと曲げメモへ（3Dと同じ読み方）
+$('#v3dM').onchange = e => { try { localStorage.setItem('zumen-3dunit', e.target.value); localStorage.setItem('zumen-3dunitF', S.srcName || ''); } catch(err){} open3D(); }; // 室内機の機種を変えたら作り直す
+$('#v3d').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b){ if (V3.mg){ try { $('#v3dF').contentWindow.cad3dView(b.dataset.v); } catch(err){} } else v3dView(b.dataset.v); } const t = e.target.closest('[data-t3]'); if (t && V3.sc){ const k = t.dataset.t3; V3.on[k] = V3.on[k] === false; t.classList.toggle('sel', V3.on[k] !== false); for (const o of V3.sc.children) if (o.userData.k === k) o.visible = V3.on[k] !== false; v3dDraw(); } }); // 壁・ユニットバス・機器・図面の線を出す／消す
+$('#v3dX').onclick = () => { $('#v3d').hidden = true; if (V3.mg){ $('#v3dF').src = 'about:blank'; V3.mg = false; } if (V3.sc){ V3.sc.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material){ if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); V3.sc = null; } };
 /* 曲げ共有（同じサイト akija114.github.io）の図面画面へ渡す：IndexedDB pbmShare / f / "dxf" → zumen.html?from=fix */
 async function sendToMage(name){
   if (!ON_MAGE_SITE){ toast('ここからは渡せません。曲げ共有のサイトの図面修正ページで開いてください'); const n = $('#mageNote'); if (n) n.style.color = 'var(--danger)'; return; }

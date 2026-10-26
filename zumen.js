@@ -724,12 +724,42 @@ plLastInfo();
  try{let r=null;
   if(q.has("dxf")){const u=q.get("dxf"),res=await fetch(u);if(!res.ok)throw new Error("HTTP "+res.status);const bl=await res.blob();r={blob:bl,name:decodeURIComponent((u.split("?")[0].split("/").pop())||"zumen.dxf")}}
   else r=await new Promise((ok,ng)=>{const o=indexedDB.open("pbmShare",1);o.onupgradeneeded=()=>o.result.createObjectStore("f");o.onerror=()=>ng(o.error);
-   o.onsuccess=()=>{try{const t=o.result.transaction("f","readonly").objectStore("f").get("dxf");t.onsuccess=()=>ok(t.result);t.onerror=()=>ng(t.error)}catch(e){ok(null)}}});
+   o.onsuccess=()=>{try{const t=o.result.transaction("f","readonly").objectStore("f").get(q.get("from")==="cad3d"?"dxf3d":"dxf");t.onsuccess=()=>ok(t.result);t.onerror=()=>ng(t.error)}catch(e){ok(null)}}});
   if(!r||!r.blob){toast("図面修正アプリから図面が届いていません。図面修正アプリの「曲げ共有で開く」から開いてください");return}
   if(Array.isArray(r.hide))try{localStorage.setItem("pbm_dxfhide",JSON.stringify(r.hide))}catch(e){}
+  if(q.get("from")==="cad3d"&&window.CAD3D_MODE){await cad3dGo(r);return}
   openDraw();const nm=r.name||"zumen.dxf",f=new File([r.blob],nm,{type:r.type||(/\.pdf$/i.test(nm)?"application/pdf":"application/dxf")});await planLoad(f);
   toast("図面修正アプリから「"+nm+"」を受け取りました");try{history.replaceState(null,"",location.pathname)}catch(e){}}
  catch(e){console.warn(e);toast("図面を受け取れませんでした（"+(e.message||e)+"）")}})();
+/* 図面編集アプリの「🧊 3D」（?from=cad3d）：届いた図面を、ここで「全部自動」と同じに読んで（室内機の機種・位置・冷媒配管のルート・壁・ダクト・衛生）、すぐ3Dの全画面にする。
+   1から引いた冷媒配管（r.np：DXFの mm の点・区間ごとの高さ＝床から）は3Dに足す。読めた物は図面編集へ返す（親の cad3dDone：壁・室内機は DXF の mm） */
+let CAD3D=[];
+async function cad3dGo(r){
+ openDraw();await planLoad(new File([r.blob],r.name||"zumen.dxf",{type:"application/dxf"}),true);
+ const P=PLAN;if(!P||!P.dxf){toast("図面を3Dにできませんでした");return}
+ CAD3D=Array.isArray(r.np)?r.np.filter(p=>p&&p.pts&&p.pts.length>1):[];
+ if(!window.__cad3dHook){window.__cad3dHook=1;const b0=build3D;build3D=function(){const v=b0.apply(this,arguments);try{cad3dPipes()}catch(e){console.warn(e)}return v}}
+ window.yomiCheck=undefined;let res=null;try{res=planAutoAll();if(res&&typeof res.then==="function")res=await res}catch(e){console.warn("cad3d",e)}   // 読み取りチェックの画面は出さない
+ if(!st.dln){try{const D=planDrawLines();if(D&&DL_KINDS.some(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)))st.dln=D}catch(e){console.warn(e)}}
+ if(!P.org)P.org=[P.W/2,P.H0/2];if(!P.CH)P.CH=2700;
+ try{wz3D()}catch(e){console.warn(e)}try{setFull(true)}catch(e){}
+ try{const mm=q=>[Math.round(P.dX0+q[0]*P.mmpp),Math.round(P.dY1-q[1]*P.mmpp)],xf=xfOf(),walls=[],units=[],r90=v=>Math.abs((((v||0)%90)+90)%90)<0.5||Math.abs((((v||0)%90)+90)%90-90)<0.5;
+  for(const o of st.bld){if(o.k==="wall"&&r90(o.r)&&r90(xf.r)){const v=Math.abs((((o.r||0)%180)+180)%180-90)<1,hx=(v?o.d:o.w)/2,hz=(v?o.w:o.d)/2,C=[[-1,-1],[1,1]].map(([i,j])=>mm(btP(o.x+i*hx,o.z+j*hz)));   // 壁の四角（3Dの向き）を図面の mm へ
+    walls.push([Math.min(C[0][0],C[1][0]),Math.min(C[0][1],C[1][1]),Math.max(C[0][0],C[1][0]),Math.max(C[0][1],C[1][1])])}
+   if(o.k==="ind"&&o.m){const c=mm(btP(o.x,o.z));units.push({k:o.m,x:c[0],y:c[1]})}}
+  if(res&&st.units&&st.units.ms&&CAS2M[st.units.ms]){const c=mm(P.org);units.unshift({k:st.units.ms,x:c[0],y:c[1],main:1})}   // 配管の始まりの室内機（全部自動で置いた物）
+  if(parent!==window&&typeof parent.cad3dDone==="function")parent.cad3dDone({walls,units,ch:P.CH,ind:res&&res.ind||""})}catch(e){console.warn(e)}
+}
+function cad3dPipes(){if(!T||!T.grp||!CAD3D.length||!PLAN||!PLAN.dxf||!PLAN.org)return;const P=PLAN,V=THREE.Vector3,GY=T.GYr!=null?T.GYr:-(st.gnd.ch||P.CH||2700);
+ const px=q=>[(q[0]-P.dX0)/P.mmpp,(P.dY1-q[1])/P.mmpp],mat=new THREE.MeshStandardMaterial({color:0xc8763a,metalness:.5,roughness:.4}),R=12;
+ CAD3D.forEach(p=>{const pts=[];p.pts.forEach((q,i)=>{const w=btWx(px(q)),hs=[];if(i>0)hs.push(p.h[i-1]);if(i<p.pts.length-1)hs.push(p.h[i]);
+   [...new Set(hs)].forEach(h=>pts.push(new V(w[0],GY+(+h||0),w[1])))});   // 高さの変わる所はたて管
+  for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],L=a.distanceTo(b);if(L<1)continue;const m=new THREE.Mesh(new THREE.CylinderGeometry(R,R,L,12),mat);
+   m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new V(0,1,0),b.clone().sub(a).normalize());T.grp.add(m)}
+  pts.forEach(q=>{const s=new THREE.Mesh(new THREE.SphereGeometry(R,12,8),mat);s.position.copy(q);T.grp.add(s)})});
+ T.dirty=true}
+/* 図面編集の「真上」「斜め」 */
+window.cad3dView=k=>{if(!T)return;const v=VIEWS[k==="top"?2:0];fitT(true);T.th=v[1];T.ph=v[2];T.dirty=true};
 async function planLoad(f,resume){
  try{
   if(!resume){W.resume=false;plSaveLast(f)}

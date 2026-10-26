@@ -752,6 +752,7 @@ async function cad3dGo(r){
   if(T&&T.sc)T.sc.updateMatrixWorld(true);   // 見えない画面では描かないので、位置・向きをここで確定してから送る
   if(T&&T.grp)for(const o of T.grp.children){const u=o.userData||{};const gp=o.geometry&&o.geometry.type==="PlaneGeometry"&&o.geometry.parameters;if(o.type==="Sprite"||o.type==="GridHelper"||u.planFloor||u.ezk||u.dimcat||u.cat||u.flag||(gp&&gp.width>5000))continue;   // 文字・方眼・図面の絵・寸法の矢印・地面と空の大きな板は送らない
    let k="pipe";if(u.bld){const b=st.bld[u.bld-1];k=b&&/^(ind|out|eq|ins)$/.test(b.k)?"unit":"wall"}else if(u.dl)k=u.dl==="duct"?"duct":u.dl==="eisei"?"eisei":"pipe";
+   o.traverse(q=>{const g=q.geometry;if(g&&/^(Extrude|Shape|Edges)Geometry$/.test(g.type))q.geometry=new THREE.BufferGeometry().copy(g)});   // 作った後に回した形（室内機の本体など）は、作り方ではなく点の位置で送る（受け取った側で向きが戻らないように）
    try{objs.push({k,j:o.toJSON()})}catch(e){}}
   done({walls,units,ch:P.CH,ind:res&&res.ind||"",M:{O,ex:[A[0]-O[0],A[1]-O[1]],ez:[B[0]-O[0],B[1]-O[1]],GY},objs})}catch(e){console.warn(e);done({err:String(e&&e.message||e)})}
 }

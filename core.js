@@ -1005,9 +1005,9 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
  const flag=(pt,txt,bg,fg,col)=>{
   const h=ext*0.13;
   const pole=new THREE.Mesh(new THREE.CylinderGeometry(rad*0.28,rad*0.28,h,8),new THREE.MeshStandardMaterial({color:col,roughness:.5}));
-  pole.position.copy(pt);pole.position.y+=h/2;T.grp.add(pole);
+  pole.position.copy(pt);pole.position.y+=h/2;pole.userData.flag=1;T.grp.add(pole);   // flag：図面編集の3Dへは送らない（旗の文字と一緒の物）
   const ball=new THREE.Mesh(new THREE.SphereGeometry(rad*0.8,14,10),new THREE.MeshStandardMaterial({color:col,roughness:.4}));
-  ball.position.copy(pt);ball.position.y+=h;T.grp.add(ball);
+  ball.position.copy(pt);ball.position.y+=h;ball.userData.flag=1;T.grp.add(ball);
   const s=label(txt,ext*0.05,bg,fg);s.position.copy(pt);s.position.y+=h;s.userData.cat="flag";pxl(s,26,{t:"up"},rad*0.8);T.grp.add(s);
  };
  if(typeof PLAN!=="undefined"&&PLAN&&PLAN.show&&(PLAN.map||(PLAN.img&&PLAN.mmpp&&PLAN.org))&&!GM){try{addPlan3D()}catch(e){console.warn("plan3d",e)}}

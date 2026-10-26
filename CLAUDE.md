@@ -29,6 +29,7 @@
 | `kiki.html`（品番でさがす） | 🔩 機器の画面の上に品番の欄（`qGo`）。ハイフン・空白・全角はちがっても同じ、一部でも探す。無い品番は端末の「調べてほしい品番」（`pbm_kiki_req`）に残し、ユーザーに教えてもらって `models.js` に登録する（メーカーの外形図の値だけ。分からない値は入れない） |
 | `cad/index.html` | 📐 図面編集（別アプリ・1ファイル。曲げ共有にはまだ統合しない：ユーザーの指示）。下の「図面編集」の節を見る。オフラインは `cad/sw.js` の `VER`（cad-v○○、変えたら1つ上げる） |
 | `docs/beginner-mode-plan.md` | 初心者モードの経緯・仕様・テスト結果 |
+| `docs/ideas.md` | 💡 アイデア帳。**ユーザーのアイデアはどのスレッドでも全部ここに書き足す**（🔥すぐ要る／👍あると便利／💭いつか／✅作った）。作るのはユーザーと選んだ物だけ。作ったら ✅ に移して日付と版の番号 |
 
 ## 図面編集（cad/index.html）
 - **作り**：DXF（PDFは `pdfToDxf` でDXFにしてから）を `flatten` → `G`（線 `G.segs`、点 `G.pts`、部品 `G.parts`／`G.eidPolys`／`G.pbox`、変えられる線 `G.shapes`）。状態は `S`。変更は必ず `exec(cmd)`（do/undo・変更の記録 `S.log`）→ `changed(kind)`。保存は `stateRecord`、DXF書き出しは `buildExport`（999行目のメタに寸法・メモ・追加物）、PDFは `buildPdf`、共有は `sharedState`／`applyItem`（1文字の頭で種類：d 寸法・n メモ・r 線の形・o 消した部品・m 動かした部品・k 追加機器・q 一緒に動かす組・c 芯・p 引いた配管・l 芯線）

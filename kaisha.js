@@ -117,11 +117,13 @@ function card(){const box=document.getElementById("coCard");if(!box)return;const
  box.querySelector("#coSync").onclick=()=>sync();box.querySelector("#coLeave").onclick=leave;
  if(adm()){box.querySelector("#coInv").onclick=invite;box.querySelector("#coMem").onclick=members}{const r=box.querySelector("#coRules");if(r)r.onclick=e=>{e.preventDefault();rulesHelp()}}}
 /* ネットの守りのルール（初めの1回だけ・社長）：まだ入っていないと「許可がありません（permission-denied）」になる。写して Firebase の画面に貼る */
-function rulesHelp(){const ov=document.createElement("div");ov.className="sheet";ov.innerHTML=`<div class="sbox" style="max-height:88vh"><h2>🔐 ネットの守りのルールを入れる（初めの1回だけ）</h2>
- <div class="note" style="color:var(--ink)">会社のなかまの機能を使うには、ネットの保管場所に「だれが何を見られるか」のルールを入れます。パソコンかスマホのブラウザで：<br>
- 1. 下の「📋 ルールを写す」を押す<br>2. Firebase の画面（setubi-zumen）を開く →「Firestore Database」→「ルール」<br>3. 中身を全部消して貼り付け →「公開」<br>4. このアプリに戻って、もう一度「会社を作る」／「そろえる」</div>
- <button class="btn pri" data-c="1">📋 ルールを写す</button><a class="btn" href="https://console.firebase.google.com/project/setubi-zumen/firestore/rules" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">🌐 Firebase の画面を開く</a><button class="btn" data-x="1">閉じる</button></div>`;
- document.body.appendChild(ov);ov.onclick=async e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.x)){ov.remove();return}if(b&&b.dataset.c){try{const t=await (await fetch("cad/firestore.rules",{cache:"no-store"})).text();await navigator.clipboard.writeText(t);toast("写しました。Firebase の画面のルールに貼り付けてください")}catch(err){toast("写せませんでした（"+err.message+"）")}}}}
+function rulesHelp(){const ov=document.createElement("div");ov.className="sheet";ov.innerHTML=`<div class="sbox" style="max-height:88vh"><h2>🔐 まだ準備ができていません</h2>
+ <div class="note" style="color:var(--ink)">会社のなかまの機能は、<b>このアプリを作った人（管理する人）が1回だけ</b>準備をすると、だれでも「会社を作る」を押すだけで使えるようになります。<br>ほかの会社の社長・社員さんは、何もしなくて大丈夫です。少し待ってから、もう一度押してください。</div>
+ <details style="margin-top:6px"><summary class="note" style="font-weight:800">（アプリを作った人へ）1回だけの準備のしかた</summary><div class="note" style="color:var(--ink)">
+ 1. 下の「📋 ルールを写す」<br>2.「🌐 ネットの保管場所の画面を開く」（アプリを作った時のグーグルのアカウントで入る）<br>3. 出てきた文を全部消して貼り付け →「公開」<br>これで終わりです。次からはだれも、この画面を見ません。</div>
+ <button class="btn pri" data-c="1" style="width:100%;margin-top:6px">📋 ルールを写す</button><a class="btn" href="https://console.firebase.google.com/project/setubi-zumen/firestore/rules" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;width:100%;margin-top:6px;text-decoration:none">🌐 ネットの保管場所の画面を開く</a></details>
+ <button class="btn" data-x="1">閉じる</button></div>`;
+ document.body.appendChild(ov);ov.onclick=async e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.x)){ov.remove();return}if(b&&b.dataset.c){try{const t=await (await fetch("cad/firestore.rules",{cache:"no-store"})).text();await navigator.clipboard.writeText(t);toast("写しました。保管場所の画面のルールに貼り付けて「公開」")}catch(err){toast("写せませんでした（"+err.message+"）")}}}}
 const denied=e=>/permission/i.test((e&&(e.code||e.message))||"");
 async function makeCo(){const C=cal(),nm=(prompt("会社名（屋号）",C.myco||"")||"").trim();if(!nm)return;
  try{const f=await fx(),cid=rid("c").replace(/[^A-Za-z0-9]/g,"");await f.set(`cos/${cid}`,{owner:f.uid,name:nm,myco:nm,coInfo:C.coInfo||{},at:Date.now()});

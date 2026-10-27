@@ -88,7 +88,7 @@ function freeUrls(){while(urls.length)URL.revokeObjectURL(urls.pop())}
 function save(){if(!cur)return;cur.updated=Date.now();clearTimeout(saveT);saveT=setTimeout(()=>putSite(cur).catch(()=>toast("保存できませんでした")),300)}
 function go(id){location.hash=id?"#"+id:"";}
 window.addEventListener("hashchange",route);
-async function route(){clearTimeout(saveT);if(cur)await putSite(cur).catch(()=>{});const id=location.hash.slice(1);if(id==="list"){cur=null;renderList();return}if(id==="people"){cur=null;renderPeople();return}if(id[0]==="p"&&id.length>1){cur=null;try{pName=decodeURIComponent(id.slice(1))}catch(e){pName=""}renderPerson();return}if(/^ky?\d{4}-\d\d-\d\d$/.test(id)){cur=null;const y=id[1]==="y";renderKosu(id.slice(y?2:1),y);return}if(/^w\d{4}-\d\d-\d\d$/.test(id)){cur=null;wk=monday(id.slice(1));renderWeek();return}if(id){const s=await getSite(id);if(s){cur=s;renderEdit();return}}cur=null;renderMenu()}
+async function route(){clearTimeout(saveT);if(cur)await putSite(cur).catch(()=>{});if(pSnap&&location.hash!=="#p"+encodeURIComponent(pSnap.n)){if(pDirty()){pAsk();return}pSnap=null}const id=location.hash.slice(1);if(id==="list"){cur=null;renderList();return}if(id==="people"){cur=null;renderPeople();return}if(id[0]==="p"&&id.length>1){cur=null;try{pName=decodeURIComponent(id.slice(1))}catch(e){pName=""}renderPerson();return}if(/^ky?\d{4}-\d\d-\d\d$/.test(id)){cur=null;const y=id[1]==="y";renderKosu(id.slice(y?2:1),y);return}if(/^w\d{4}-\d\d-\d\d$/.test(id)){cur=null;wk=monday(id.slice(1));renderWeek();return}if(id){const s=await getSite(id);if(s){cur=s;renderEdit();return}}cur=null;renderMenu()}
 /* 📋 現場のはじめの画面：現場一覧・週の割り振り・個人情報から選ぶ（2026-10-27 ユーザー：いきなり現場を出さずに選ばせて） */
 async function renderMenu(){
  freeUrls();document.querySelector(".bar")?.remove();const ss=await allSites(),C=cal(),t=ymdOf(new Date()),now=ss.filter(s=>onDay(s,t)).length;
@@ -109,7 +109,7 @@ function moveKind(n,to){const C=cal();if(to==="h"){C.staff=C.staff.filter(x=>x!=
 /* 👤 個人情報：社員の一覧（📌・順番は週の割り振りと同じ）。タップでその人のページ（個人情報・緊急連絡先・資格証・人工・残業・交通費） */
 function renderPeople(){
  freeUrls();document.querySelector(".bar")?.remove();const C=cal();
- $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 現場メニュー</button><span class="grow"></span></h1>
+ $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 現場メニュー</button><span class="grow"></span><button class="btn sm" id="bPLog">🕘 変更の記録</button></h1>
  <button class="btn pri" id="bCImp" style="width:100%;margin:0 0 8px">📇 スマホの連絡帳から読み込む（確かめてから入れる）</button><input type="file" id="fCImp" accept=".vcf,text/vcard,text/x-vcard" multiple hidden>
  <div class="card"><h2>👤 個人情報（社員）</h2>
   <label class="f" for="fMyco">🏢 会社名（屋号）・従業員の数</label><div class="row" style="margin:0 0 6px;gap:6px"><input id="fMyco" placeholder="自分の会社名（例：小川設備）" value="${esc(C.myco)}" class="grow"><input id="fMyEmp" type="number" inputmode="numeric" placeholder="従業員" value="${(C.coInfo[C.myco]||{}).emp||""}" style="width:80px"><span class="note">人</span></div>
@@ -134,7 +134,7 @@ function renderPeople(){
  const add=v=>{v=baseNm(v||"");if(!v)return;const C2=cal();if(!C2.staff.includes(v))C2.staff.push(v);calSave(C2);backTo="people";go("p"+encodeURIComponent(v))};   // 足したらすぐ、その人のページで入れる
  $("#bStaff").onclick=()=>add($("#fStaff").value);$("#fStaff").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();add($("#fStaff").value)}};
  $("#sugg").onclick=e=>{const b=e.target.closest("[data-as]");if(b)add(b.dataset.as)};
- $("#staff").onclick=$("#helpers").onclick=e=>{const m=e.target.closest("[data-mv]");if(m){moveKind(m.dataset.mv,m.dataset.to);renderPeople();toast(m.dataset.to==="h"?"協力会社へ移しました":"社員へ移しました");return}
+ $("#staff").onclick=$("#helpers").onclick=e=>{const m=e.target.closest("[data-mv]");if(m){{const id=(cal().prof[m.dataset.mv]||{}).id||"",h=m.dataset.to==="h";plogAdd({k:"kind",n:m.dataset.mv,id,d:[{f:"社員／協力会社",a:h?"社員":"協力会社",b:h?"協力会社":"社員"}]})}moveKind(m.dataset.mv,m.dataset.to);renderPeople();toast(m.dataset.to==="h"?"協力会社へ移しました":"社員へ移しました");return}
   const c=e.target.closest("[data-addco]");if(c){$("#fHco").value=c.dataset.addco;$("#fHelper").scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>$("#fHelper").focus(),350);return}
   const b=e.target.closest("[data-pp]");if(b){backTo="people";go("p"+encodeURIComponent(b.dataset.pp))}};
  const addH=v=>{v=baseNm(v||"");if(!v)return;const C2=cal();if(C2.staff.includes(v)){toast("社員に同じ名前の人がいます");return}if(!C2.helpers.includes(v))C2.helpers.push(v);const co=$("#fHco").value.trim();if(co)prof(C2,v).co=co;calSave(C2);backTo="people";go("p"+encodeURIComponent(v))};
@@ -143,7 +143,7 @@ function renderPeople(){
  $("#fMyco").onchange=e=>{const C2=cal(),old=C2.myco,v=e.target.value.trim();if(old&&C2.coInfo[old]&&!C2.coInfo[v])C2.coInfo[v]=C2.coInfo[old];C2.myco=v;calSave(C2);toast("会社名を入れました")};
  $("#fMyEmp").oninput=e=>{const C2=cal(),k=C2.myco||"";(C2.coInfo[k]=C2.coInfo[k]||{}).emp=Math.max(0,parseInt(e.target.value)||0);calSave(C2)};
  $("#helpers").oninput=e=>{const t=e.target;if(t.dataset.emp==null)return;const C2=cal();(C2.coInfo[t.dataset.emp]=C2.coInfo[t.dataset.emp]||{}).emp=Math.max(0,parseInt(t.value)||0);calSave(C2)};
- $("#bCImp").onclick=pickContacts;$("#fCImp").onchange=async e=>{const fs=[...e.target.files];e.target.value="";let a=[];for(const f of fs)a=a.concat(parseVcf(await f.text()));reviewContacts(a)};
+ $("#bPLog").onclick=()=>plogSheet();$("#bCImp").onclick=pickContacts;$("#fCImp").onchange=async e=>{const fs=[...e.target.files];e.target.value="";let a=[];for(const f of fs)a=a.concat(parseVcf(await f.text()));reviewContacts(a)};
  $("#bVcfAll").onclick=()=>{if(!C.staff.length){toast("社員がいません");return}addContacts(ordNames(C,C.staff))};
 }
 /* 📇 スマホの連絡帳から読み込む：アンドロイド（連絡先を選ぶ画面がある時）は選んだ人、無い時（iPhone）は連絡先のファイル（.vcf）を選ぶ。
@@ -592,9 +592,10 @@ const ymdJ=s=>{if(!s)return "";const [y,m,d]=s.split("-").map(Number);return `${
 async function renderPerson(){
  freeUrls();document.querySelector(".bar")?.remove();
  const C=cal(),n=pName,isH=C.helpers.includes(n);if(!C.staff.includes(n)&&!isH){go(wk?"w"+wk:"w"+monday());return}
- const p=prof(C,n),ok=()=>calSave(C);
+ const p=prof(C,n),ok=()=>calSave(C);if(!p.id){p.id=rid("u");ok()}
+ if(!pSnap||pSnap.n!==n)pSnap={n,j:JSON.stringify(p),bt:backTo};   // 開いた時の形（戻る時に「保存しますか？」）
  const F2=(id,label,v,ph,type)=>`<label class="f" for="${id}">${label}</label><input id="${id}" ${type?`type="${type}"`:""} placeholder="${esc(ph||"")}" value="${esc(v||"")}">`;
- $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">${backTo==="people"?"← 個人情報の一覧":"← 週の割り振り"}</button><span class="grow"></span><button class="btn sm del" id="bDelP">この人を消す</button></h1>
+ $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">${backTo==="people"?"← 個人情報の一覧":"← 週の割り振り"}</button><span class="grow"></span><button class="btn sm pri" id="bSaveP">💾 保存</button><button class="btn sm del" id="bDelP">この人を消す</button></h1>
  <div class="note" style="margin:0 4px 6px;display:flex;align-items:center;gap:8px"><span class="grow">${isH?"🤝 協力会社":"👤 社員"}</span><button class="btn sm" id="bKind">${isH?"👤 社員にする":"🤝 協力会社にする"}</button></div>
  <div class="card"><h2 style="display:flex;align-items:center;gap:6px"><span class="grow">📊 ${esc(n)} の人工・残業・交通費</span><button class="btn sm" id="pSp">‹</button><button class="btn sm" id="pSn">›</button></h2><div id="pSum" class="note">集計しています…</div></div>
  <div class="card"><h2>🏷 タグ</h2><div class="note">タップでつける・外す。🙈の付いたタグは、この画面だけに出ます（表・送る文章には出ません）。</div>
@@ -631,9 +632,13 @@ async function renderPerson(){
   <div class="row" style="margin-top:8px"><button class="btn line grow" id="bPSend">💬 文章を送る</button><button class="btn grow" id="bPPh">📷 資格証の写真</button></div>
   <button class="btn" id="bPFile" style="width:100%;margin-top:8px">📲 相手のアプリに入れられるファイルで送る</button>
   <button class="btn pri" id="bVcf" style="width:100%;margin-top:8px">📇 スマホの連絡先に入れる（iPhone・アンドロイド）</button>
-  <div class="note">相手は 📋 現場 →「📅 週の割り振り」→ 社員の欄の「📥 受け取った人を入れる」で読み込めます。</div></div>`;
+  <div class="note">相手は 📋 現場 →「📅 週の割り振り」→ 社員の欄の「📥 受け取った人を入れる」で読み込めます。</div></div>
+ <div class="card"><h2>🕘 変更の記録</h2><div class="note">「💾 保存」・戻る時に保存した変更が残ります。「↩️ この変更をもどす」でその変更の所だけ前にもどせます（もどしたことも記録に残ります）。</div><div id="pLog"></div></div>`;
+ $("#bSaveP").onclick=()=>{if(pCommit()){toast("保存しました（変更の記録に残しました）");renderPerson()}else toast("変えた所はありません")};
+ $("#pLog").innerHTML=plogHtml(plog().filter(e=>e.id?e.id===p.id:e.n===n).reverse().slice(0,30),false);
+ $("#pLog").onclick=e=>{const b=e.target.closest("[data-pr]");if(b)plogRestore(+b.dataset.pr)};
  const reP=()=>{ok();renderPerson()};
- $("#bKind").onclick=()=>{if(isH){C.helpers=C.helpers.filter(x=>x!==n);if(!C.staff.includes(n))C.staff.push(n)}else{C.staff=C.staff.filter(x=>x!==n);if(!C.helpers.includes(n))C.helpers.push(n);if(C.pin)C.pin=C.pin.filter(x=>x!==n)}reP()};
+ $("#bKind").onclick=()=>{plogAdd({k:"kind",n,id:p.id,d:[{f:"社員／協力会社",a:isH?"協力会社":"社員",b:isH?"社員":"協力会社"}]});if(isH){C.helpers=C.helpers.filter(x=>x!==n);if(!C.staff.includes(n))C.staff.push(n)}else{C.staff=C.staff.filter(x=>x!==n);if(!C.helpers.includes(n))C.helpers.push(n);if(C.pin)C.pin=C.pin.filter(x=>x!==n)}reP()};
  /* この人の期間（締め日）のまとめ：‹ › で前後の期間 */
  const pSum=async()=>{const [a,b]=kPeriod(C,pPer||ymdOf(new Date())),{R,ST}=await kosuData(C,a,b),r=R[n];$("#pSum").innerHTML=`<b>${esc(dateTxt(a))}〜${esc(dateTxt(b))}</b>`+(r?personHtml(n,r,ST):`<div class="sub">この期間は現場に入っていません</div>`)};
  $("#pSp").onclick=()=>{pPer=addDay(kPeriod(C,pPer||ymdOf(new Date()))[0],-1);pSum()};$("#pSn").onclick=()=>{pPer=addDay(kPeriod(C,pPer||ymdOf(new Date()))[1],1);pSum()};pSum();
@@ -652,9 +657,10 @@ async function renderPerson(){
  const kn=()=>[$("#pKs").value.trim(),$("#pKm").value.trim()].filter(Boolean).join(" ");bind("pKs",()=>p.kana=kn());bind("pKm",()=>p.kana=kn());bind("pNick",v=>p.nick=v);if(isH)bind("pCo",v=>p.co=v);bind("pRole",v=>p.role=v.trim());bind("pBirth",v=>p.birth=v);bind("pHc",v=>p.hc=v);bind("pBpH",v=>p.bpH=v.trim());bind("pBpL",v=>p.bpL=v.trim());bind("pTel",v=>p.tel=v);$("#pBlood").onchange=e=>{p.blood=e.target.value;ok();pUpd()};
  bind("eN",v=>p.em.n=v);bind("eKana",v=>p.em.kana=v);bind("eRel",v=>p.em.rel=v);bind("eAddr",v=>p.em.addr=v);bind("eTel",v=>p.em.tel=v);
  $("#pSei").onchange=$("#pMei").onchange=()=>{const back=()=>{$("#pSei").value=nmSp(n)[0];$("#pMei").value=nmSp(n)[1]},v=baseNm([$("#pSei").value.trim(),$("#pMei").value.trim()].filter(Boolean).join(" "));if(!v||v===n){if(!v)back();return}if(C.staff.includes(v)||C.helpers.includes(v)){toast("同じ名前の人がいます");back();return}
-  if(isH)C.helpers[C.helpers.indexOf(n)]=v;else C.staff[C.staff.indexOf(n)]=v;C.prof[v]=p;delete C.prof[n];for(const y in C.off)C.off[y]=C.off[y].map(x=>x===n?v:x);if(C.pin)C.pin=C.pin.map(x=>x===n?v:x);for(const d in C.ot||{})if(C.ot[d][n]){C.ot[d][v]=C.ot[d][n];delete C.ot[d][n]}ok();toast("名前を変えました（現場のメンバーの名前はそのままです）");pName=v;location.replace("#p"+encodeURIComponent(v))};
+  if(isH)C.helpers[C.helpers.indexOf(n)]=v;else C.staff[C.staff.indexOf(n)]=v;C.prof[v]=p;delete C.prof[n];for(const y in C.off)C.off[y]=C.off[y].map(x=>x===n?v:x);if(C.pin)C.pin=C.pin.map(x=>x===n?v:x);for(const d in C.ot||{})if(C.ot[d][n]){C.ot[d][v]=C.ot[d][n];delete C.ot[d][n]}ok();plogAdd({k:"name",n:v,id:p.id,d:[{f:"名前",a:n,b:v}]});if(pSnap)pSnap.n=v;toast("名前を変えました（現場のメンバーの名前はそのままです）");pName=v;location.replace("#p"+encodeURIComponent(v))};
  $("#bDelP").onclick=async e=>{const b=e.currentTarget;if(!b.dataset.ok){b.dataset.ok="1";b.textContent="本当に消す";setTimeout(()=>{if(b.isConnected){b.dataset.ok="";b.textContent="この人を消す"}},3000);return}
-  for(const l of p.lic)for(const id of l.ph||[])await delPhoto(id).catch(()=>{});C.staff=C.staff.filter(x=>x!==n);C.helpers=C.helpers.filter(x=>x!==n);delete C.prof[n];ok();toast("消しました");const t=backTo==="people"?"people":"";backTo="";go(t||"w"+(wk||monday()))};
+  plogAdd({k:"del",n,id:p.id,kind:isH?"h":"s",a:p,d:[{f:"この人を消した",a:n,b:""}]});pSnap=null;   // 資格証の写真は記録から戻せるように残す（記録から消えたら pGc で消す）
+  C.staff=C.staff.filter(x=>x!==n);C.helpers=C.helpers.filter(x=>x!==n);delete C.prof[n];ok();toast("消しました");const t=backTo==="people"?"people":"";backTo="";go(t||"w"+(wk||monday()))};
  const addLic=v=>{v=v.trim();if(!v)return;p.lic.push({n:v,no:"",ph:[]});$("#fLic").value="";reP()};
  $("#bLic").onclick=()=>addLic($("#fLic").value);$("#fLic").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addLic($("#fLic").value)}};
  $("#licSug").onclick=e=>{const b=e.target.closest("[data-ls]");if(b)addLic(b.dataset.ls)};
@@ -666,11 +672,11 @@ async function renderPerson(){
  lb.oninput=e=>{const t=e.target;if(t.dataset.no!=null){p.lic[+t.dataset.no].no=t.value;ok();pUpd()}};
  lb.onclick=async e=>{const t=e.target;if(t.dataset.big){showBig(t.dataset.big);return}const b=t.closest("button");if(!b)return;const d=b.dataset;
   if(d.ap!=null){phTo=+d.ap;$("#fLicPh").click()}
-  else if(d.rmp){const [i,id]=d.rmp.split(":");p.lic[+i].ph=p.lic[+i].ph.filter(x=>x!==id);await delPhoto(id).catch(()=>{});reP()}
-  else if(d.rl!=null){if(!b.dataset.ok){b.dataset.ok="1";b.textContent="消す？";return}for(const id of p.lic[+d.rl].ph||[])await delPhoto(id).catch(()=>{});p.lic.splice(+d.rl,1);reP()}};
+  else if(d.rmp){const [i,id]=d.rmp.split(":");p.lic[+i].ph=p.lic[+i].ph.filter(x=>x!==id);reP()}
+  else if(d.rl!=null){if(!b.dataset.ok){b.dataset.ok="1";b.textContent="消す？";return}p.lic.splice(+d.rl,1);reP()}};
  const opt=()=>({P:$("#xP").checked,E:$("#xE").checked,L:$("#xL").checked,T:$("#xT").checked});
  ["xP","xE","xL","xT"].forEach(id=>$("#"+id).onchange=pUpd);
- function pUpd(){const a=ageOf(p.birth);$("#pAge").textContent=a!==""?a+"歳":"—";
+ function pUpd(){$("#bSaveP").disabled=!pDirty();const a=ageOf(p.birth);$("#pAge").textContent=a!==""?a+"歳":"—";
   {const h=hcSt(p.hc);$("#pHcA").innerHTML=h.t?`<div class="need ${h.c||"ok"}" style="${h.c?"":"font-weight:600;color:var(--sub)"}">${esc(h.t)}</div>`:`<div class="note">健康診断の日を入れると、1年過ぎた時に赤でお知らせします</div>`}
   $("#pTelA").innerHTML=p.tel?`<div class="note"><a class="map" href="tel:${esc(p.tel.replace(/[^\d+]/g,""))}">📞 電話をかける</a></div>`:"";
   $("#eTelA").innerHTML=p.em.tel?`<div class="note"><a class="map" href="tel:${esc(p.em.tel.replace(/[^\d+]/g,""))}">📞 電話をかける</a></div>`:"";
@@ -692,6 +698,51 @@ async function renderPerson(){
   const tags=o.T?tagsOf(C,n).map(t=>({n:t.n,c:t.c})):[];
   shareFiles([new File([JSON.stringify({app:"genba-person",v:1,t:Date.now(),name:n,prof:q,tags,photos})],`${n}_社員の情報.json`.replace(/[\\/:*?"<>|\s]/g,""),{type:"application/json"})],n+"の情報")};
 }
+/* 🕘 個人情報の変更の記録（genba_plog・この端末だけ）：保存した時・戻る時に保存した時・消した時・社員⇄協力会社・名前を変えた時。
+   前の形 a と後の形 b を持つので「↩️ もどす」で戻せる。資格証の写真は記録にある間は消さない（pGc） */
+const PLF=[["kana","ふりがな"],["nick","ニックネーム"],["role","役職"],["co","会社名"],["birth","生年月日"],["blood","血液型"],["hc","健康診断の日"],["bpH","血圧（上）"],["bpL","血圧（下）"],["tel","電話番号"],["em.n","緊急連絡先の名前"],["em.kana","緊急連絡先のふりがな"],["em.rel","続柄"],["em.addr","緊急連絡先の住所"],["em.tel","緊急連絡先の電話"],["trades","職種と経験"],["lic","保持資格"],["tags","タグ"]];
+function plog(){try{const a=JSON.parse(localStorage.getItem("genba_plog")||"[]");return Array.isArray(a)?a:[]}catch(e){return []}}
+function plogAdd(o){const L=plog();L.push({t:Date.now(),...JSON.parse(JSON.stringify(o))});while(L.length>500)L.shift();try{localStorage.setItem("genba_plog",JSON.stringify(L))}catch(e){toast("記録を残せませんでした（いっぱいです）")}}
+const pv=(C,p,k)=>{if(!p)return "";if(k.startsWith("em."))return String((p.em||{})[k.slice(3)]||"");const v=p[k];
+ if(k==="trades")return (v||[]).map(t=>t.n+(t.since?`（${ymdJ(t.since)}から）`:"")).join("・");if(k==="lic")return (v||[]).map(l=>l.n+(l.no?`（${l.no}）`:"")+((l.ph||[]).length?`📷${l.ph.length}`:"")).join("・");
+ if(k==="tags")return (v||[]).map(id=>(C.tags.find(t=>t.id===id)||{}).n||"").filter(Boolean).join("・");if(k==="birth"||k==="hc")return v?ymdJ(v):"";if(k==="blood")return v?v+"型":"";return v==null?"":String(v)};
+const pDiff=(C,a,b)=>PLF.map(([k,l])=>({f:l,a:pv(C,a,k),b:pv(C,b,k)})).filter(d=>d.a!==d.b);
+let pSnap=null;   // 個人のページを開いた時の形 {n:名前, j:その時の形, bt:戻り先}
+const pDirty=()=>{if(!pSnap)return false;const C=cal(),p=C.prof[pSnap.n];return !!p&&pDiff(C,JSON.parse(pSnap.j),p).length>0};
+function pCommit(){if(!pDirty())return false;const C=cal(),b=C.prof[pSnap.n],a=JSON.parse(pSnap.j);plogAdd({k:"edit",n:pSnap.n,id:b.id||"",d:pDiff(C,a,b),a,b});pSnap.j=JSON.stringify(b);pGc();return true}
+function pRevert(){const C=cal();if(!pSnap||!C.prof[pSnap.n])return;C.prof[pSnap.n]=JSON.parse(pSnap.j);calSave(C);pGc()}
+const dHtml=d=>d.map(x=>`<div class="sub">・${esc(x.f)}：${x.a===""?"（なし）":esc(x.a)} → <b>${x.b===""?"（なし）":esc(x.b)}</b></div>`).join("");
+/* 戻る時：変えた所があれば「保存しますか？」 */
+function pAsk(){const C=cal(),S=pSnap,d=pDiff(C,JSON.parse(S.j),C.prof[S.n]),to=location.hash,ov=document.createElement("div");ov.className="sheet";
+ ov.innerHTML=`<div class="sbox" style="max-height:88vh"><h2>💾 ${esc(S.n)} の変えた所を保存しますか？</h2>${dHtml(d)}
+ <button class="btn pri" data-a="s">💾 保存する（変更の記録に残す）</button><button class="btn" data-a="r">↩️ 保存しない（開いた時の形にもどす）</button><button class="btn" data-a="c">✏️ まだ直す</button></div>`;
+ document.body.appendChild(ov);ov.onclick=e=>{const b=e.target.closest("[data-a]");if(!b)return;ov.remove();const a=b.dataset.a;
+  if(a==="c"){backTo=S.bt;location.hash="#p"+encodeURIComponent(S.n);return}
+  if(a==="s"){pCommit();toast("保存しました")}else{pRevert();toast("もどしました（保存していません）")}pSnap=null;if(location.hash===to)route();else location.hash=to}}
+addEventListener("pagehide",()=>{try{if(pDirty())pCommit()}catch(e){}});   // アプリを閉じた時は保存した物として記録に残す
+const KL={edit:"✏️ 直した",restore:"↩️ もどした",del:"🗑 消した",kind:"🔁 社員／協力会社",name:"🔤 名前を変えた",back:"↩️ 消した人をもどした"};
+function plogHtml(es,all){if(!es.length)return `<div class="note">まだありません</div>`;const L=plog();
+ return es.map(e=>{const i=L.findIndex(x=>x.t===e.t&&x.k===e.k&&x.n===e.n),dt=new Date(e.t),tt=`${dt.getMonth()+1}月${dt.getDate()}日 ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,"0")}`,can=e.k==="edit"||e.k==="restore"||e.k==="kind"||e.k==="del";
+  return `<div style="border-top:1px solid var(--line);padding:6px 0"><div class="row"><b class="grow">${tt}　${KL[e.k]||""}${all?"　"+esc(e.n):""}</b>${can?`<button class="btn sm" data-pr="${i}">↩️ ${e.k==="del"?"この人をもどす":"この変更をもどす"}</button>`:""}</div>${dHtml(e.d||[])}</div>`}).join("")}
+/* もどす：直した・もどした → その前の形に。社員／協力会社 → 前の方へ。消した → 名簿にもどす */
+function plogRestore(i){const e=plog()[i];if(!e)return;const C=cal(),nm=Object.keys(C.prof).find(k=>e.id&&C.prof[k].id===e.id&&(C.staff.includes(k)||C.helpers.includes(k)))||(C.staff.includes(e.n)||C.helpers.includes(e.n)?e.n:"");
+ if(e.k==="del"){if(nm){toast("この人は名簿にいます");return}if(!confirm(`${e.n} を名簿にもどしますか？`))return;if(C.prof[e.n]&&!C.staff.includes(e.n)&&!C.helpers.includes(e.n))delete C.prof[e.n];if(C.prof[e.n]){toast("同じ名前の人がいます");return}
+  (e.kind==="h"?C.helpers:C.staff).push(e.n);C.prof[e.n]=e.a;calSave(C);plogAdd({k:"back",n:e.n,id:e.id,d:[{f:"名簿にもどした",a:"",b:e.n}]});toast("もどしました");document.querySelector(".sheet")?.remove();if(location.hash==="#people")renderPeople();return}
+ if(!nm){toast("この人は名簿にいません（消した人は、個人情報の一覧の「🕘 変更の記録」からもどせます）");return}
+ if(e.k==="kind"){const toH=e.d[0].a==="協力会社";if(!confirm(`${nm} を${toH?"協力会社":"社員"}にもどしますか？`))return;moveKind(nm,toH?"h":"s");plogAdd({k:"kind",n:nm,id:e.id,d:[{f:"社員／協力会社",a:toH?"社員":"協力会社",b:toH?"協力会社":"社員"}]});toast("もどしました");reNow();return}
+ if(pSnap&&pSnap.n===nm&&pDirty())pCommit();
+ const now=C.prof[nm],back=JSON.parse(JSON.stringify(now));   // この変更で変わった所だけ、変更の前の形にもどす（ほかの所はそのまま）
+ for(const [k] of PLF)if(pv(C,e.a,k)!==pv(C,e.b,k)){if(k.startsWith("em.")){back.em=back.em||{};back.em[k.slice(3)]=((e.a||{}).em||{})[k.slice(3)]||""}else back[k]=JSON.parse(JSON.stringify((e.a||{})[k]===undefined?(k==="trades"||k==="lic"||k==="tags"?[]:""):e.a[k]))}
+ const d=pDiff(C,now,back);
+ if(!d.length){toast("今と同じです");return}if(!confirm(`${nm} のこの変更をもどしますか？\n${d.map(x=>`${x.f}：${x.b||"（なし）"}`).join("\n")}`))return;
+ C.prof[nm]=back;calSave(C);plogAdd({k:"restore",n:nm,id:now.id,d,a:now,b:back});if(pSnap&&pSnap.n===nm)pSnap.j=JSON.stringify(back);toast("もどしました（もどしたことも記録に残しました）");reNow()}
+const reNow=()=>{document.querySelector(".sheet")?.remove();if(/^#p./.test(location.hash)&&location.hash!=="#people")renderPerson();else if(location.hash==="#people")renderPeople()};
+function plogSheet(){const ov=document.createElement("div");ov.className="sheet";const es=plog().slice().reverse().slice(0,100);
+ ov.innerHTML=`<div class="sbox" style="max-height:88vh"><h2>🕘 変更の記録（みんな・新しい順）</h2><div class="note">この端末で直した記録です（ほかの人のスマホの分は入りません）。消した人も「↩️ この人をもどす」でもどせます。</div><div>${plogHtml(es,true)}</div><button class="btn" data-x="1">閉じる</button></div>`;
+ document.body.appendChild(ov);ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.x)){ov.remove();return}if(b&&b.dataset.pr)plogRestore(+b.dataset.pr)}}
+/* 資格証の写真：名簿にも記録にも無い物だけ消す */
+async function pGc(){try{const C=cal(),keep=new Set(),add=p=>{for(const l of (p&&p.lic)||[])for(const id of l.ph||[])keep.add(id)};for(const p of Object.values(C.prof))add(p);for(const e of plog()){add(e.a);add(e.b)}
+ const all=await dbDo("photos","readonly",s=>s.getAllKeys());for(const id of all){if(keep.has(id))continue;const x=await getPhoto(id);if(x&&String(x.site||"").startsWith("person:"))await delPhoto(id)}}catch(e){}}
 function personText(C,n,o){const p=prof(C,n),L=[`【${n}さんの情報】`];
  if(o.P){L.push("","👤 個人情報",`名前：${n}${p.kana?`（${p.kana}）`:""}`);if(p.nick)L.push(`ニックネーム：${p.nick}`);if(p.birth){const a=ageOf(p.birth);L.push(`生年月日：${ymdJ(p.birth)}${a!==""?`（${a}歳）`:""}`)}if(p.blood)L.push(`血液型：${p.blood}型`);if(p.hc)L.push(`健康診断：${ymdJ(p.hc)}${hcSt(p.hc).c==="ng"?"（1年過ぎ・更新が必要）":""}`);if(p.bpH||p.bpL)L.push(`血圧：${p.bpH||"—"}／${p.bpL||"—"}`);if(p.tel)L.push(`電話番号：${p.tel}`);if(coOf(C,n))L.push(`会社名（屋号）：${coOf(C,n)}`);if(p.role)L.push(`役職：${p.role}`);for(const t of p.trades||[])L.push(`職種：${t.n}${t.since?`（${ymdJ(t.since)}から・経験${expOf(t.since)||"1か月未満"}）`:""}`)}
  if(o.E&&(p.em.n||p.em.tel||p.em.addr)){L.push("","🚑 緊急連絡先");if(p.em.n)L.push(`名前：${p.em.n}${p.em.kana?`（${p.em.kana}）`:""}${p.em.rel?`・${p.em.rel}`:""}`);if(p.em.addr)L.push(`住所：${p.em.addr}`);if(p.em.tel)L.push(`電話番号：${p.em.tel}`)}

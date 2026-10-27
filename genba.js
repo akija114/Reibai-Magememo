@@ -110,17 +110,20 @@ function moveKind(n,to){const C=cal();if(to==="h"){C.staff=C.staff.filter(x=>x!=
 function renderPeople(){
  freeUrls();document.querySelector(".bar")?.remove();const C=cal();
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 現場メニュー</button><span class="grow"></span></h1>
- <div class="card"><h2>👤 個人情報（社員）</h2><div class="note">名前をタップ → 個人情報・緊急連絡先・資格証の写真・タグ、その人の人工・残業・交通費。ここに入れた人が週の割り振りの表に出ます。</div>
+ <div class="card"><h2>👤 個人情報（社員）</h2>
+  <label class="f" for="fMyco">🏢 会社名（屋号）・従業員の数</label><div class="row" style="margin:0 0 6px;gap:6px"><input id="fMyco" placeholder="自分の会社名（例：小川設備）" value="${esc(C.myco)}" class="grow"><input id="fMyEmp" type="number" inputmode="numeric" placeholder="従業員" value="${(C.coInfo[C.myco]||{}).emp||""}" style="width:80px"><span class="note">人</span></div>
+  <div class="note">名前をタップ → 個人情報・緊急連絡先・資格証の写真・タグ、その人の人工・残業・交通費。ここに入れた人が週の割り振りの表に出ます。</div>
   <div id="staff">${ordNames(C,C.staff).map(n=>{const p=C.prof[n]||{},nl=(p.lic||[]).length,em=p.em||{};return `<div class="prow"><button class="site" data-pp="${esc(n)}"><b>${(C.pin||[]).includes(n)?"📌":""}${esc(n)}</b>${p.nick?` <span class="sub">「${esc(p.nick)}」</span>`:""}${p.kana?` <span class="sub">${esc(p.kana)}</span>`:""}${ageOf(p.birth)!==""?` <span class="sub">${ageOf(p.birth)}歳</span>`:""}
-   ${p.co||(p.trades||[]).length?`<div class="sub">${p.co?"🏢 "+esc(p.co)+" ":""}${(p.trades||[]).map(t=>"🔧"+esc(t.n)+(t.since&&expOf(t.since)?" "+expOf(t.since):"")).join(" ")}</div>`:""}<div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div><div>${tagHtml(tagsOf(C,n))}</div></button><button class="btn sm mv" data-mv="${esc(n)}" data-to="h">→ 🤝<br>応援へ</button></div>`}).join("")||`<span class="note">まだいません。下で名前を入れてください。</span>`}</div>
+   ${p.role?` <span class="role">${esc(p.role)}</span>`:""}${(p.trades||[]).length?`<div class="sub">${(p.trades||[]).map(t=>"🔧"+esc(t.n)+(t.since&&expOf(t.since)?" "+expOf(t.since):"")).join(" ")}</div>`:""}<div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div><div>${tagHtml(tagsOf(C,n))}</div></button><button class="btn sm mv" data-mv="${esc(n)}" data-to="h">→ 🤝<br>応援へ</button></div>`}).join("")||`<span class="note">まだいません。下で名前を入れてください。</span>`}</div>
   <div class="row" style="margin-top:8px"><input id="fStaff" placeholder="名前（例：服部）" enterkeyhint="done"><button class="btn pri" id="bStaff">追加</button></div>
   <div class="chips" id="sugg">${[...new Set(people().map(baseNm))].filter(n=>n&&!C.staff.includes(n)&&!C.helpers.includes(n)).slice(0,20).map(n=>`<button class="chip" data-as="${esc(n)}">＋ ${esc(n)}</button>`).join("")}</div>
   <button class="btn" id="bPImp" style="width:100%;margin-top:8px">📥 受け取った人を入れる</button><input type="file" id="fPImp" accept=".json,application/json" hidden>
   <button class="btn" id="bVcfAll" style="width:100%;margin-top:8px">📇 社員みんなをスマホの連絡先に入れる</button></div>
  <div class="card"><h2>🤝 応援さん</h2><div class="note">ほかの会社から来てくれる人。名前をタップ → 会社名・電話・緊急連絡先・資格証など（社員と同じ）。現場に入れると週の割り振りの表に「（応援）」で出て、人工・交通費も数えます。</div>
   <div id="helpers">${(()=>{const G=new Map();for(const n of C.helpers){const k=((C.prof[n]||{}).co||"").trim();if(!G.has(k))G.set(k,[]);G.get(k).push(n)}   /* 会社ごと（会社名＝その人の「会社名（屋号）」）。会社名なしは下 */
-   return [...G.keys()].sort((a,b)=>(!a)-(!b)||a.localeCompare(b,"ja")).map(k=>`<div class="row" style="margin:10px 0 4px"><b class="grow">🏢 ${k?esc(k):"会社名なし"}（${G.get(k).length}人）</b>${k?`<button class="btn sm" data-addco="${esc(k)}">＋ この会社に足す</button>`:""}</div>
-   ${G.get(k).map(n=>{const p=C.prof[n]||{},nl=(p.lic||[]).length,em=p.em||{};return `<div class="prow"><button class="site" data-pp="${esc(n)}"><b>${esc(n)}</b>${p.nick?` <span class="sub">「${esc(p.nick)}」</span>`:""}${p.kana?` <span class="sub">${esc(p.kana)}</span>`:""}
+   return [...G.keys()].sort((a,b)=>(!a)-(!b)||a.localeCompare(b,"ja")).map(k=>`<div class="row" style="margin:10px 0 4px"><b class="grow">🏢 ${k?esc(k):"会社名なし"}（登録 ${G.get(k).length}人）</b>${k?`<button class="btn sm" data-addco="${esc(k)}">＋ この会社に足す</button>`:""}</div>
+   ${k?`<div class="row" style="margin:0 0 4px;gap:6px"><span class="note">従業員の数</span><input data-emp="${esc(k)}" type="number" inputmode="numeric" placeholder="—" value="${(C.coInfo[k]||{}).emp||""}" style="width:80px"><span class="note">人</span></div>`:""}
+   ${G.get(k).map(n=>{const p=C.prof[n]||{},nl=(p.lic||[]).length,em=p.em||{};return `<div class="prow"><button class="site" data-pp="${esc(n)}"><b>${esc(n)}</b>${p.role?` <span class="role">${esc(p.role)}</span>`:""}${p.nick?` <span class="sub">「${esc(p.nick)}」</span>`:""}${p.kana?` <span class="sub">${esc(p.kana)}</span>`:""}
     <div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div></button><button class="btn sm mv" data-mv="${esc(n)}" data-to="s">→ 👤<br>社員へ</button></div>`}).join("")}`).join("")})()||`<span class="note">まだいません。下で会社名と名前を入れてください。</span>`}</div>
   <label class="f" for="fHco" style="margin-top:10px">会社名（屋号）</label><input id="fHco" placeholder="例：〇〇設備" list="coList">
   <datalist id="coList">${[...new Set(C.helpers.map(n=>((C.prof[n]||{}).co||"").trim()).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
@@ -136,12 +139,15 @@ function renderPeople(){
  const addH=v=>{v=baseNm(v||"");if(!v)return;const C2=cal();if(C2.staff.includes(v)){toast("社員に同じ名前の人がいます");return}if(!C2.helpers.includes(v))C2.helpers.push(v);const co=$("#fHco").value.trim();if(co)prof(C2,v).co=co;calSave(C2);backTo="people";go("p"+encodeURIComponent(v))};
  $("#bHelper").onclick=()=>addH($("#fHelper").value);$("#fHelper").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();addH($("#fHelper").value)}};
  $("#bPImp").onclick=()=>$("#fPImp").click();$("#fPImp").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)importAll(f)};
+ $("#fMyco").onchange=e=>{const C2=cal(),old=C2.myco,v=e.target.value.trim();if(old&&C2.coInfo[old]&&!C2.coInfo[v])C2.coInfo[v]=C2.coInfo[old];C2.myco=v;calSave(C2);toast("会社名を入れました")};
+ $("#fMyEmp").oninput=e=>{const C2=cal(),k=C2.myco||"";(C2.coInfo[k]=C2.coInfo[k]||{}).emp=Math.max(0,parseInt(e.target.value)||0);calSave(C2)};
+ $("#helpers").oninput=e=>{const t=e.target;if(t.dataset.emp==null)return;const C2=cal();(C2.coInfo[t.dataset.emp]=C2.coInfo[t.dataset.emp]||{}).emp=Math.max(0,parseInt(t.value)||0);calSave(C2)};
  $("#bVcfAll").onclick=()=>{if(!C.staff.length){toast("社員がいません");return}addContacts(ordNames(C,C.staff))};
 }
 /* 📇 スマホの連絡先に入れる：連絡先のファイル（vCard 3.0）を作って開く。iPhone は開くと「新規連絡先を作成」（何人もの時は「○件の連絡先をすべて追加」）、
    アンドロイドは保存したファイルを開くと連絡先のアプリで入る。名前・ふりがな・ニックネーム・会社名・電話・誕生日、職種・経験・血液型・緊急連絡先はメモに */
 function vcardOf(C,n){const p=prof(C,n),e=v=>String(v||"").replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/[,;]/g,m=>"\\"+m),L=["BEGIN:VCARD","VERSION:3.0",`N:${e(n)};;;;`,`FN:${e(n)}`];
- if(p.kana)L.push(`X-PHONETIC-LAST-NAME:${e(p.kana)}`,`SORT-STRING:${e(p.kana)}`);if(p.nick)L.push(`NICKNAME:${e(p.nick)}`);if(p.co)L.push(`ORG:${e(p.co)}`);if(p.tel)L.push(`TEL;TYPE=CELL:${e(p.tel)}`);if(p.birth)L.push(`BDAY:${p.birth}`);
+ if(p.kana)L.push(`X-PHONETIC-LAST-NAME:${e(p.kana)}`,`SORT-STRING:${e(p.kana)}`);if(p.nick)L.push(`NICKNAME:${e(p.nick)}`);if(coOf(C,n))L.push(`ORG:${e(coOf(C,n))}`);if(p.role)L.push(`TITLE:${e(p.role)}`);if(p.tel)L.push(`TEL;TYPE=CELL:${e(p.tel)}`);if(p.birth)L.push(`BDAY:${p.birth}`);
  const m=[];for(const t of p.trades||[])m.push(`職種：${t.n}${t.since?`（${ymdJ(t.since)}から・経験${expOf(t.since)||"1か月未満"}）`:""}`);if(p.blood)m.push(`血液型：${p.blood}型`);
  const em=p.em||{};if(em.n||em.tel)m.push(`緊急連絡先：${em.n||""}${em.rel?`（${em.rel}）`:""} ${em.tel||""}`.trim());if(m.length)L.push(`NOTE:${e(m.join("\n"))}`);
  if(em.n&&em.tel){L.push(`item1.TEL:${e(em.tel)}`,`item1.X-ABLABEL:緊急連絡先（${e(em.n)}）`)}
@@ -284,7 +290,9 @@ function upd(){
 /* ===== 📅 週の割り振り：だれがどの現場か・休み・応援さん・人数（最低○名・余裕がなければ＋○名）
    社員の名前と休みは localStorage「genba_cal」（{staff:[名前], off:{"2026-10-27":[名前]}}）。現場の方は sites に end（終わりの日）・need {min,plus}・help [{co,n}]、
    メンバーに d（入る日だけ。無い時は現場の日ぜんぶ） ===== */
-function cal(){let o={};try{o=JSON.parse(localStorage.getItem("genba_cal")||"{}")}catch(e){}if(!Array.isArray(o.staff))o.staff=[];if(!o.off||typeof o.off!=="object")o.off={};if(!Array.isArray(o.tags))o.tags=[];if(!o.prof||typeof o.prof!=="object")o.prof={};if(!Array.isArray(o.helpers))o.helpers=[];return o}   /* helpers：🤝 応援さん（ほかの会社の人・個人情報は社員と同じ C.prof） */
+function cal(){let o={};try{o=JSON.parse(localStorage.getItem("genba_cal")||"{}")}catch(e){}if(!Array.isArray(o.staff))o.staff=[];if(!o.off||typeof o.off!=="object")o.off={};if(!Array.isArray(o.tags))o.tags=[];if(!o.prof||typeof o.prof!=="object")o.prof={};if(!Array.isArray(o.helpers))o.helpers=[];if(typeof o.myco!=="string")o.myco="";if(!o.coInfo||typeof o.coInfo!=="object")o.coInfo={};return o}   /* myco：自分の会社名（社員の会社）・coInfo[会社名]={emp:従業員の数} */
+const coOf=(C,n)=>C.helpers.includes(n)?((C.prof[n]||{}).co||""):C.myco||"";   /* その人の会社：社員は自分の会社・応援さんはその人の会社名 */
+const ROLEP=["社長","副社長","専務","常務","部長","課長","係長","主任","職長","現場代理人","親方","番頭","職人","見習い"];   /* helpers：🤝 応援さん（ほかの会社の人・個人情報は社員と同じ C.prof） */
 function calSave(o){try{localStorage.setItem("genba_cal",JSON.stringify(o))}catch(e){toast("保存できませんでした")}}
 const pad2=n=>String(n).padStart(2,"0"),ymdOf=d=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 const dOf=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
@@ -551,7 +559,8 @@ async function renderPerson(){
    <div class="row" style="margin-top:8px"><input id="fTag" placeholder="新しいタグ（例：溶接できる）" enterkeyhint="done"><button class="btn pri" id="bTag">作る</button></div>
    <div class="chips" id="tagSug">${TAGP.filter(x=>!C.tags.some(t=>t.n===x)).map(x=>`<button class="chip" data-ts="${esc(x)}">＋ ${esc(x)}</button>`).join("")}</div></details></div>
  <div class="card"><h2>👤 個人情報</h2>
-  ${F2("pN","名前",n,"例：服部 太郎")}${F2("pKana","ふりがな",p.kana,"例：はっとり たろう")}${F2("pNick","ニックネーム（呼び名）",p.nick,"例：はっちゃん")}${F2("pCo","会社名（屋号）",p.co,"例：小川設備")}
+  ${F2("pN","名前",n,"例：服部 太郎")}${F2("pKana","ふりがな",p.kana,"例：はっとり たろう")}${F2("pNick","ニックネーム（呼び名）",p.nick,"例：はっちゃん")}<label class="f" for="pRole">役職</label><input id="pRole" list="roleList" placeholder="例：社長・職長" value="${esc(p.role||"")}"><datalist id="roleList">${ROLEP.map(x=>`<option value="${x}">`).join("")}</datalist>
+  ${isH?F2("pCo","会社名（屋号）",p.co,"例：小川設備"):`<div class="note" style="margin-top:6px">🏢 会社：${C.myco?esc(C.myco):"（まだ入っていません）"}（社員の会社名は、個人情報の一覧の上で入れます）</div>`}
   <div class="row"><div class="grow">${F2("pBirth","生年月日",p.birth,"","date")}</div><div style="width:110px"><label class="f">年齢</label><div class="age" id="pAge"></div></div></div>
   <label class="f" for="pBlood">血液型</label><select id="pBlood">${["","A","B","O","AB"].map(x=>`<option value="${x}" ${p.blood===x?"selected":""}>${x?x+"型":"（入れない）"}</option>`).join("")}</select>
   ${F2("pTel","電話番号",p.tel,"例：090-1234-5678","tel")}<div id="pTelA"></div></div>
@@ -593,7 +602,7 @@ async function renderPerson(){
   else if(d.td!=null){if(!b.dataset.ok){b.dataset.ok="1";b.textContent="消す？";return}const id=C.tags[+d.td].id;C.tags.splice(+d.td,1);for(const q of Object.values(C.prof))if(q.tags)q.tags=q.tags.filter(x=>x!==id);reP()}};
  $("#app").querySelector("details").open=sessionStorage.getItem("genba_tagEd")==="1";$("#app").querySelector("details").ontoggle=e=>{try{sessionStorage.setItem("genba_tagEd",e.target.open?"1":"")}catch(_){}};
  const bind=(id,set)=>{const el=$("#"+id);el.oninput=()=>{set(el.value);ok();pUpd()}};
- bind("pKana",v=>p.kana=v);bind("pNick",v=>p.nick=v);bind("pCo",v=>p.co=v);bind("pBirth",v=>p.birth=v);bind("pTel",v=>p.tel=v);$("#pBlood").onchange=e=>{p.blood=e.target.value;ok();pUpd()};
+ bind("pKana",v=>p.kana=v);bind("pNick",v=>p.nick=v);if(isH)bind("pCo",v=>p.co=v);bind("pRole",v=>p.role=v.trim());bind("pBirth",v=>p.birth=v);bind("pTel",v=>p.tel=v);$("#pBlood").onchange=e=>{p.blood=e.target.value;ok();pUpd()};
  bind("eN",v=>p.em.n=v);bind("eKana",v=>p.em.kana=v);bind("eRel",v=>p.em.rel=v);bind("eAddr",v=>p.em.addr=v);bind("eTel",v=>p.em.tel=v);
  $("#pN").onchange=e=>{const v=baseNm(e.target.value);if(!v||v===n){e.target.value=n;return}if(C.staff.includes(v)||C.helpers.includes(v)){toast("同じ名前の人がいます");e.target.value=n;return}
   if(isH)C.helpers[C.helpers.indexOf(n)]=v;else C.staff[C.staff.indexOf(n)]=v;C.prof[v]=p;delete C.prof[n];for(const y in C.off)C.off[y]=C.off[y].map(x=>x===n?v:x);ok();toast("名前を変えました（現場のメンバーの名前はそのままです）");pName=v;location.replace("#p"+encodeURIComponent(v))};
@@ -630,13 +639,13 @@ async function renderPerson(){
  $("#bPSend").onclick=()=>shareText(personText(C,n,opt()));
  $("#bPPh").onclick=async()=>{const fs=[];for(const l of p.lic)for(const [k,id] of (l.ph||[]).entries()){const x=await getPhoto(id);if(x)fs.push(new File([x.blob],`${n}_${l.n}${k?"_"+(k+1):""}.jpg`.replace(/[\\/:*?"<>|\s]/g,""),{type:"image/jpeg"}))}if(!fs.length){toast("資格証の写真がありません");return}shareFiles(fs,n+"の資格証")};
  $("#bVcf").onclick=()=>addContacts([n]);
- $("#bPFile").onclick=async()=>{const o=opt(),q={};if(o.P)Object.assign(q,{nick:p.nick||"",kana:p.kana||"",birth:p.birth||"",blood:p.blood||"",tel:p.tel||"",co:p.co||"",trades:(p.trades||[]).map(t=>({...t}))});if(o.E)q.em={...p.em};const photos=[];
+ $("#bPFile").onclick=async()=>{const o=opt(),q={};if(o.P)Object.assign(q,{nick:p.nick||"",kana:p.kana||"",birth:p.birth||"",blood:p.blood||"",tel:p.tel||"",co:coOf(C,n),role:p.role||"",trades:(p.trades||[]).map(t=>({...t}))});if(o.E)q.em={...p.em};const photos=[];
   if(o.L){q.lic=[];for(const l of p.lic){q.lic.push({n:l.n,no:l.no||"",ph:[...(l.ph||[])]});for(const id of l.ph||[]){const x=await getPhoto(id);if(x)photos.push({id,type:x.blob.type,b64:await b64(x.blob)})}}}
   const tags=o.T?tagsOf(C,n).map(t=>({n:t.n,c:t.c})):[];
   shareFiles([new File([JSON.stringify({app:"genba-person",v:1,t:Date.now(),name:n,prof:q,tags,photos})],`${n}_社員の情報.json`.replace(/[\\/:*?"<>|\s]/g,""),{type:"application/json"})],n+"の情報")};
 }
 function personText(C,n,o){const p=prof(C,n),L=[`【${n}さんの情報】`];
- if(o.P){L.push("","👤 個人情報",`名前：${n}${p.kana?`（${p.kana}）`:""}`);if(p.nick)L.push(`ニックネーム：${p.nick}`);if(p.birth){const a=ageOf(p.birth);L.push(`生年月日：${ymdJ(p.birth)}${a!==""?`（${a}歳）`:""}`)}if(p.blood)L.push(`血液型：${p.blood}型`);if(p.tel)L.push(`電話番号：${p.tel}`);if(p.co)L.push(`会社名（屋号）：${p.co}`);for(const t of p.trades||[])L.push(`職種：${t.n}${t.since?`（${ymdJ(t.since)}から・経験${expOf(t.since)||"1か月未満"}）`:""}`)}
+ if(o.P){L.push("","👤 個人情報",`名前：${n}${p.kana?`（${p.kana}）`:""}`);if(p.nick)L.push(`ニックネーム：${p.nick}`);if(p.birth){const a=ageOf(p.birth);L.push(`生年月日：${ymdJ(p.birth)}${a!==""?`（${a}歳）`:""}`)}if(p.blood)L.push(`血液型：${p.blood}型`);if(p.tel)L.push(`電話番号：${p.tel}`);if(coOf(C,n))L.push(`会社名（屋号）：${coOf(C,n)}`);if(p.role)L.push(`役職：${p.role}`);for(const t of p.trades||[])L.push(`職種：${t.n}${t.since?`（${ymdJ(t.since)}から・経験${expOf(t.since)||"1か月未満"}）`:""}`)}
  if(o.E&&(p.em.n||p.em.tel||p.em.addr)){L.push("","🚑 緊急連絡先");if(p.em.n)L.push(`名前：${p.em.n}${p.em.kana?`（${p.em.kana}）`:""}${p.em.rel?`・${p.em.rel}`:""}`);if(p.em.addr)L.push(`住所：${p.em.addr}`);if(p.em.tel)L.push(`電話番号：${p.em.tel}`)}
  if(o.L&&p.lic.length){L.push("","📜 保持資格",...p.lic.map(l=>`＊${l.n}${l.no?`（${l.no}）`:""}`));if(p.lic.some(l=>(l.ph||[]).length))L.push("（資格証の写真を別で送ります📷）")}
  if(o.T){const ts=tagsOf(C,n);if(ts.length)L.push("","🏷 "+ts.map(t=>t.n).join("・"))}
@@ -645,7 +654,7 @@ function showBig(u){const ov=document.createElement("div");ov.className="sheet b
 async function importPerson(o){
  const C=cal(),n=baseNm(o.name||"");if(!n)throw new Error("名前がありません");
  const had=C.staff.includes(n),p=prof(C,n),q=o.prof||{};if(!had)C.staff.push(n);
- for(const k of ["kana","nick","birth","blood","tel","co"])if(q[k])p[k]=q[k];if(Array.isArray(q.trades)&&q.trades.length)p.trades=q.trades.map(t=>({n:String(t.n||""),since:String(t.since||"")})).filter(t=>t.n);if(q.em)p.em={...p.em,...q.em};
+ for(const k of ["kana","nick","birth","blood","tel","co","role"])if(q[k])p[k]=q[k];if(Array.isArray(q.trades)&&q.trades.length)p.trades=q.trades.map(t=>({n:String(t.n||""),since:String(t.since||"")})).filter(t=>t.n);if(q.em)p.em={...p.em,...q.em};
  const idm={};for(const x of o.photos||[]){const bin=atob(x.b64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);const id=rid("p");idm[x.id]=id;await putPhoto({id,site:"person:"+n,t:Date.now(),blob:new Blob([u8],{type:x.type||"image/jpeg"})})}
  for(const l of q.lic||[]){const ph=(l.ph||[]).map(x=>idm[x]).filter(Boolean),old=p.lic.find(x=>x.n===l.n);if(old){if(l.no)old.no=l.no;old.ph.push(...ph)}else p.lic.push({n:l.n,no:l.no||"",ph})}
  for(const t of o.tags||[]){let x=C.tags.find(y=>y.n===t.n);if(!x){x={id:rid("t"),n:t.n,c:t.c||TAGC[C.tags.length%TAGC.length],hide:false};C.tags.push(x)}if(!p.tags.includes(x.id))p.tags.push(x.id)}

@@ -96,7 +96,7 @@ async function renderMenu(){
  $("#app").innerHTML=`<h1><span class="grow">📋 現場</span></h1>
  ${big("mList","📋","現場一覧",`現場カード ${ss.length}件${now?`・今日の現場 ${now}件`:""}（日時・住所・駐車場・メンバー・LINEに送る）`)}
  ${big("mWeek","📅","週の割り振り","だれがどこ・休み・応援・人数・残業・📊人工")}
- ${big("mPeople","👤","個人情報",`社員 ${C.staff.length}人・応援さん ${C.helpers.length}人（名前・ふりがな・生年月日・電話・緊急連絡先・資格証・交通費のまとめ）`)}
+ ${big("mPeople","👤","個人情報",`${(()=>{const k=[...C.staff,...C.helpers].filter(n=>hcSt((C.prof[n]||{}).hc).c==="ng").length;return k?`<b style="color:var(--danger)">🩺 健康診断の更新が必要：${k}人</b><br>`:""})()}社員 ${C.staff.length}人・応援さん ${C.helpers.length}人（名前・ふりがな・生年月日・電話・緊急連絡先・資格証・交通費のまとめ）`)}
  <button class="btn" id="mStat" style="width:100%;margin:6px 0 10px;background:#ecfdf5;border-color:#a7f3d0;color:#065f46">👀 見た人を確認（チームに送った現場）</button>
  <div class="card"><h2>💾 バックアップ</h2><div class="note">現場のデータ・個人情報はこのiPhoneの中だけにあります。時々「書き出す」でファイルに残してください（写真も入ります）。</div>
  <div class="row" style="margin-top:8px"><button class="btn grow" id="bExp">書き出す</button><button class="btn grow" id="bImp">読み込む</button></div><input type="file" id="fImp" accept=".json,application/json" hidden></div>`;
@@ -115,7 +115,7 @@ function renderPeople(){
   <label class="f" for="fMyco">🏢 会社名（屋号）・従業員の数</label><div class="row" style="margin:0 0 6px;gap:6px"><input id="fMyco" placeholder="自分の会社名（例：小川設備）" value="${esc(C.myco)}" class="grow"><input id="fMyEmp" type="number" inputmode="numeric" placeholder="従業員" value="${(C.coInfo[C.myco]||{}).emp||""}" style="width:80px"><span class="note">人</span></div>
   <div class="note">名前をタップ → 個人情報・緊急連絡先・資格証の写真・タグ、その人の人工・残業・交通費。ここに入れた人が週の割り振りの表に出ます。</div>
   <div id="staff">${ordNames(C,C.staff).map(n=>{const p=C.prof[n]||{},nl=(p.lic||[]).length,em=p.em||{};return `<div class="prow"><button class="site" data-pp="${esc(n)}"><b>${(C.pin||[]).includes(n)?"📌":""}${esc(n)}</b>${p.nick?` <span class="sub">「${esc(p.nick)}」</span>`:""}${p.kana?` <span class="sub">${esc(p.kana)}</span>`:""}${ageOf(p.birth)!==""?` <span class="sub">${ageOf(p.birth)}歳</span>`:""}
-   ${p.role?` <span class="role">${esc(p.role)}</span>`:""}${(p.trades||[]).length?`<div class="sub">${(p.trades||[]).map(t=>"🔧"+esc(t.n)+(t.since&&expOf(t.since)?" "+expOf(t.since):"")).join(" ")}</div>`:""}<div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div><div>${tagHtml(tagsOf(C,n))}</div></button><button class="btn sm mv" data-mv="${esc(n)}" data-to="h">→ 🤝<br>応援へ</button></div>`}).join("")||`<span class="note">まだいません。下で名前を入れてください。</span>`}</div>
+   ${p.role?` <span class="role">${esc(p.role)}</span>`:""}${(p.trades||[]).length?`<div class="sub">${(p.trades||[]).map(t=>"🔧"+esc(t.n)+(t.since&&expOf(t.since)?" "+expOf(t.since):"")).join(" ")}</div>`:""}<div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div><div>${tagHtml(tagsOf(C,n))}</div>${hcSt(p.hc).c?`<div class="need ${hcSt(p.hc).c}" style="font-size:12.5px">${esc(hcSt(p.hc).c==="ng"?"🩺 健康診断の更新が必要（1年過ぎ）":hcSt(p.hc).t)}</div>`:""}</button><button class="btn sm mv" data-mv="${esc(n)}" data-to="h">→ 🤝<br>応援へ</button></div>`}).join("")||`<span class="note">まだいません。下で名前を入れてください。</span>`}</div>
   <div class="row" style="margin-top:8px"><input id="fStaff" placeholder="名前（例：服部）" enterkeyhint="done"><button class="btn pri" id="bStaff">追加</button></div>
   <div class="chips" id="sugg">${[...new Set(people().map(baseNm))].filter(n=>n&&!C.staff.includes(n)&&!C.helpers.includes(n)).slice(0,20).map(n=>`<button class="chip" data-as="${esc(n)}">＋ ${esc(n)}</button>`).join("")}</div>
   <button class="btn" id="bPImp" style="width:100%;margin-top:8px">📥 受け取った人を入れる</button><input type="file" id="fPImp" accept=".json,application/json" hidden>
@@ -125,7 +125,7 @@ function renderPeople(){
    return [...G.keys()].sort((a,b)=>(!a)-(!b)||a.localeCompare(b,"ja")).map(k=>`<div class="row" style="margin:10px 0 4px"><b class="grow">🏢 ${k?esc(k):"会社名なし"}（登録 ${G.get(k).length}人）</b>${k?`<button class="btn sm" data-addco="${esc(k)}">＋ この会社に足す</button>`:""}</div>
    ${k?`<div class="row" style="margin:0 0 4px;gap:6px"><span class="note">従業員の数</span><input data-emp="${esc(k)}" type="number" inputmode="numeric" placeholder="—" value="${(C.coInfo[k]||{}).emp||""}" style="width:80px"><span class="note">人</span></div>`:""}
    ${G.get(k).map(n=>{const p=C.prof[n]||{},nl=(p.lic||[]).length,em=p.em||{};return `<div class="prow"><button class="site" data-pp="${esc(n)}"><b>${esc(n)}</b>${p.role?` <span class="role">${esc(p.role)}</span>`:""}${p.nick?` <span class="sub">「${esc(p.nick)}」</span>`:""}${p.kana?` <span class="sub">${esc(p.kana)}</span>`:""}
-    <div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div></button><button class="btn sm mv" data-mv="${esc(n)}" data-to="s">→ 👤<br>社員へ</button></div>`}).join("")}`).join("")})()||`<span class="note">まだいません。下で会社名と名前を入れてください。</span>`}</div>
+    <div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div>${hcSt(p.hc).c?`<div class="need ${hcSt(p.hc).c}" style="font-size:12.5px">${esc(hcSt(p.hc).c==="ng"?"🩺 健康診断の更新が必要（1年過ぎ）":hcSt(p.hc).t)}</div>`:""}</button><button class="btn sm mv" data-mv="${esc(n)}" data-to="s">→ 👤<br>社員へ</button></div>`}).join("")}`).join("")})()||`<span class="note">まだいません。下で会社名と名前を入れてください。</span>`}</div>
   <label class="f" for="fHco" style="margin-top:10px">会社名（屋号）</label><input id="fHco" placeholder="例：〇〇設備" list="coList">
   <datalist id="coList">${[...new Set(C.helpers.map(n=>((C.prof[n]||{}).co||"").trim()).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
   <div class="row" style="margin-top:6px"><input id="fHelper" placeholder="名前（例：田中）" enterkeyhint="done"><button class="btn pri" id="bHelper">追加</button></div></div>
@@ -582,6 +582,9 @@ const tagHtml=(ts,cls)=>ts.map(t=>`<span class="tg ${cls||""}" style="background
 /* 経験：始めた日から今日まで「○年○か月」 */
 function expOf(d){if(!d)return "";const a=dOf(d),t=new Date();let m=(t.getFullYear()-a.getFullYear())*12+t.getMonth()-a.getMonth();if(t.getDate()<a.getDate())m--;if(m<0)return "";return (Math.floor(m/12)?Math.floor(m/12)+"年":"")+(m%12?m%12+"か月":Math.floor(m/12)?"":"1か月未満")}
 const TRADEP=["空調工事","冷媒配管","ダクト工事","保温工事","電気工事","管工事（給排水・衛生）","設備工事","板金","内装","建築","鳶","解体"];
+/* 🩺 健康診断：受けた日から1年過ぎたら赤（更新して）、1か月前から黄色。{c:"ng"|"mid"|"",t} */
+function hcSt(d){if(!d)return {c:"",t:""};const a=dOf(d),due=new Date(a.getFullYear()+1,a.getMonth(),a.getDate()),t=new Date();t.setHours(0,0,0,0);const left=Math.round((due-t)/864e5);
+ if(left<0)return {c:"ng",t:`🩺 健康診断から1年過ぎました（${-left}日）。更新してください`};if(left<=30)return {c:"mid",t:`🩺 あと${left}日で健康診断から1年です`};return {c:"",t:`🩺 次の健康診断は ${ymdJ(ymdOf(due))} までに`}}
 function ageOf(b){if(!b)return "";const d=dOf(b),t=new Date();let a=t.getFullYear()-d.getFullYear();if(t.getMonth()<d.getMonth()||(t.getMonth()===d.getMonth()&&t.getDate()<d.getDate()))a--;return a>=0&&a<130?a:""}
 const ymdJ=s=>{if(!s)return "";const [y,m,d]=s.split("-").map(Number);return `${y}年${m}月${d}日`};
 async function renderPerson(){
@@ -603,6 +606,8 @@ async function renderPerson(){
   ${isH?F2("pCo","会社名（屋号）",p.co,"例：小川設備"):`<div class="note" style="margin-top:6px">🏢 会社：${C.myco?esc(C.myco):"（まだ入っていません）"}（社員の会社名は、個人情報の一覧の上で入れます）</div>`}
   <div class="row"><div class="grow">${F2("pBirth","生年月日",p.birth,"","date")}</div><div style="width:110px"><label class="f">年齢</label><div class="age" id="pAge"></div></div></div>
   <label class="f" for="pBlood">血液型</label><select id="pBlood">${["","A","B","O","AB"].map(x=>`<option value="${x}" ${p.blood===x?"selected":""}>${x?x+"型":"（入れない）"}</option>`).join("")}</select>
+  <div class="row" style="gap:6px"><div class="grow">${F2("pHc","🩺 健康診断の日",p.hc,"","date")}</div><div style="width:150px"><label class="f">血圧（上／下）</label><div class="row" style="gap:4px"><input id="pBpH" type="number" inputmode="numeric" placeholder="上" value="${esc(p.bpH||"")}"><span>/</span><input id="pBpL" type="number" inputmode="numeric" placeholder="下" value="${esc(p.bpL||"")}"></div></div></div>
+  <div id="pHcA"></div>
   ${F2("pTel","電話番号",p.tel,"例：090-1234-5678","tel")}<div id="pTelA"></div></div>
  <div class="card"><h2>🔧 職種と経験</h2><div class="note">どの工事を・いつから始めたかを入れると、経験年数を出します（今日まで）。</div>
   <div id="trades"></div>
@@ -642,7 +647,7 @@ async function renderPerson(){
   else if(d.td!=null){if(!b.dataset.ok){b.dataset.ok="1";b.textContent="消す？";return}const id=C.tags[+d.td].id;C.tags.splice(+d.td,1);for(const q of Object.values(C.prof))if(q.tags)q.tags=q.tags.filter(x=>x!==id);reP()}};
  $("#app").querySelector("details").open=sessionStorage.getItem("genba_tagEd")==="1";$("#app").querySelector("details").ontoggle=e=>{try{sessionStorage.setItem("genba_tagEd",e.target.open?"1":"")}catch(_){}};
  const bind=(id,set)=>{const el=$("#"+id);el.oninput=()=>{set(el.value);ok();pUpd()}};
- bind("pKana",v=>p.kana=v);bind("pNick",v=>p.nick=v);if(isH)bind("pCo",v=>p.co=v);bind("pRole",v=>p.role=v.trim());bind("pBirth",v=>p.birth=v);bind("pTel",v=>p.tel=v);$("#pBlood").onchange=e=>{p.blood=e.target.value;ok();pUpd()};
+ bind("pKana",v=>p.kana=v);bind("pNick",v=>p.nick=v);if(isH)bind("pCo",v=>p.co=v);bind("pRole",v=>p.role=v.trim());bind("pBirth",v=>p.birth=v);bind("pHc",v=>p.hc=v);bind("pBpH",v=>p.bpH=v.trim());bind("pBpL",v=>p.bpL=v.trim());bind("pTel",v=>p.tel=v);$("#pBlood").onchange=e=>{p.blood=e.target.value;ok();pUpd()};
  bind("eN",v=>p.em.n=v);bind("eKana",v=>p.em.kana=v);bind("eRel",v=>p.em.rel=v);bind("eAddr",v=>p.em.addr=v);bind("eTel",v=>p.em.tel=v);
  $("#pN").onchange=e=>{const v=baseNm(e.target.value);if(!v||v===n){e.target.value=n;return}if(C.staff.includes(v)||C.helpers.includes(v)){toast("同じ名前の人がいます");e.target.value=n;return}
   if(isH)C.helpers[C.helpers.indexOf(n)]=v;else C.staff[C.staff.indexOf(n)]=v;C.prof[v]=p;delete C.prof[n];for(const y in C.off)C.off[y]=C.off[y].map(x=>x===n?v:x);ok();toast("名前を変えました（現場のメンバーの名前はそのままです）");pName=v;location.replace("#p"+encodeURIComponent(v))};
@@ -664,6 +669,7 @@ async function renderPerson(){
  const opt=()=>({P:$("#xP").checked,E:$("#xE").checked,L:$("#xL").checked,T:$("#xT").checked});
  ["xP","xE","xL","xT"].forEach(id=>$("#"+id).onchange=pUpd);
  function pUpd(){const a=ageOf(p.birth);$("#pAge").textContent=a!==""?a+"歳":"—";
+  {const h=hcSt(p.hc);$("#pHcA").innerHTML=h.t?`<div class="need ${h.c||"ok"}" style="${h.c?"":"font-weight:600;color:var(--sub)"}">${esc(h.t)}</div>`:`<div class="note">健康診断の日を入れると、1年過ぎた時に赤でお知らせします</div>`}
   $("#pTelA").innerHTML=p.tel?`<div class="note"><a class="map" href="tel:${esc(p.tel.replace(/[^\d+]/g,""))}">📞 電話をかける</a></div>`:"";
   $("#eTelA").innerHTML=p.em.tel?`<div class="note"><a class="map" href="tel:${esc(p.em.tel.replace(/[^\d+]/g,""))}">📞 電話をかける</a></div>`:"";
   $("#pOut").textContent=personText(C,n,opt());$("#bPPh").disabled=!(opt().L&&p.lic.some(l=>(l.ph||[]).length))}
@@ -679,13 +685,13 @@ async function renderPerson(){
  $("#bPSend").onclick=()=>shareText(personText(C,n,opt()));
  $("#bPPh").onclick=async()=>{const fs=[];for(const l of p.lic)for(const [k,id] of (l.ph||[]).entries()){const x=await getPhoto(id);if(x)fs.push(new File([x.blob],`${n}_${l.n}${k?"_"+(k+1):""}.jpg`.replace(/[\\/:*?"<>|\s]/g,""),{type:"image/jpeg"}))}if(!fs.length){toast("資格証の写真がありません");return}shareFiles(fs,n+"の資格証")};
  $("#bVcf").onclick=()=>addContacts([n]);
- $("#bPFile").onclick=async()=>{const o=opt(),q={};if(o.P)Object.assign(q,{nick:p.nick||"",kana:p.kana||"",birth:p.birth||"",blood:p.blood||"",tel:p.tel||"",co:coOf(C,n),role:p.role||"",trades:(p.trades||[]).map(t=>({...t}))});if(o.E)q.em={...p.em};const photos=[];
+ $("#bPFile").onclick=async()=>{const o=opt(),q={};if(o.P)Object.assign(q,{nick:p.nick||"",kana:p.kana||"",birth:p.birth||"",blood:p.blood||"",hc:p.hc||"",bpH:p.bpH||"",bpL:p.bpL||"",tel:p.tel||"",co:coOf(C,n),role:p.role||"",trades:(p.trades||[]).map(t=>({...t}))});if(o.E)q.em={...p.em};const photos=[];
   if(o.L){q.lic=[];for(const l of p.lic){q.lic.push({n:l.n,no:l.no||"",ph:[...(l.ph||[])]});for(const id of l.ph||[]){const x=await getPhoto(id);if(x)photos.push({id,type:x.blob.type,b64:await b64(x.blob)})}}}
   const tags=o.T?tagsOf(C,n).map(t=>({n:t.n,c:t.c})):[];
   shareFiles([new File([JSON.stringify({app:"genba-person",v:1,t:Date.now(),name:n,prof:q,tags,photos})],`${n}_社員の情報.json`.replace(/[\\/:*?"<>|\s]/g,""),{type:"application/json"})],n+"の情報")};
 }
 function personText(C,n,o){const p=prof(C,n),L=[`【${n}さんの情報】`];
- if(o.P){L.push("","👤 個人情報",`名前：${n}${p.kana?`（${p.kana}）`:""}`);if(p.nick)L.push(`ニックネーム：${p.nick}`);if(p.birth){const a=ageOf(p.birth);L.push(`生年月日：${ymdJ(p.birth)}${a!==""?`（${a}歳）`:""}`)}if(p.blood)L.push(`血液型：${p.blood}型`);if(p.tel)L.push(`電話番号：${p.tel}`);if(coOf(C,n))L.push(`会社名（屋号）：${coOf(C,n)}`);if(p.role)L.push(`役職：${p.role}`);for(const t of p.trades||[])L.push(`職種：${t.n}${t.since?`（${ymdJ(t.since)}から・経験${expOf(t.since)||"1か月未満"}）`:""}`)}
+ if(o.P){L.push("","👤 個人情報",`名前：${n}${p.kana?`（${p.kana}）`:""}`);if(p.nick)L.push(`ニックネーム：${p.nick}`);if(p.birth){const a=ageOf(p.birth);L.push(`生年月日：${ymdJ(p.birth)}${a!==""?`（${a}歳）`:""}`)}if(p.blood)L.push(`血液型：${p.blood}型`);if(p.hc)L.push(`健康診断：${ymdJ(p.hc)}${hcSt(p.hc).c==="ng"?"（1年過ぎ・更新が必要）":""}`);if(p.bpH||p.bpL)L.push(`血圧：${p.bpH||"—"}／${p.bpL||"—"}`);if(p.tel)L.push(`電話番号：${p.tel}`);if(coOf(C,n))L.push(`会社名（屋号）：${coOf(C,n)}`);if(p.role)L.push(`役職：${p.role}`);for(const t of p.trades||[])L.push(`職種：${t.n}${t.since?`（${ymdJ(t.since)}から・経験${expOf(t.since)||"1か月未満"}）`:""}`)}
  if(o.E&&(p.em.n||p.em.tel||p.em.addr)){L.push("","🚑 緊急連絡先");if(p.em.n)L.push(`名前：${p.em.n}${p.em.kana?`（${p.em.kana}）`:""}${p.em.rel?`・${p.em.rel}`:""}`);if(p.em.addr)L.push(`住所：${p.em.addr}`);if(p.em.tel)L.push(`電話番号：${p.em.tel}`)}
  if(o.L&&p.lic.length){L.push("","📜 保持資格",...p.lic.map(l=>`＊${l.n}${l.no?`（${l.no}）`:""}`));if(p.lic.some(l=>(l.ph||[]).length))L.push("（資格証の写真を別で送ります📷）")}
  if(o.T){const ts=tagsOf(C,n);if(ts.length)L.push("","🏷 "+ts.map(t=>t.n).join("・"))}
@@ -694,7 +700,7 @@ function showBig(u){const ov=document.createElement("div");ov.className="sheet b
 async function importPerson(o){
  const C=cal(),n=baseNm(o.name||"");if(!n)throw new Error("名前がありません");
  const had=C.staff.includes(n),p=prof(C,n),q=o.prof||{};if(!had)C.staff.push(n);
- for(const k of ["kana","nick","birth","blood","tel","co","role"])if(q[k])p[k]=q[k];if(Array.isArray(q.trades)&&q.trades.length)p.trades=q.trades.map(t=>({n:String(t.n||""),since:String(t.since||"")})).filter(t=>t.n);if(q.em)p.em={...p.em,...q.em};
+ for(const k of ["kana","nick","birth","blood","hc","bpH","bpL","tel","co","role"])if(q[k])p[k]=q[k];if(Array.isArray(q.trades)&&q.trades.length)p.trades=q.trades.map(t=>({n:String(t.n||""),since:String(t.since||"")})).filter(t=>t.n);if(q.em)p.em={...p.em,...q.em};
  const idm={};for(const x of o.photos||[]){const bin=atob(x.b64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);const id=rid("p");idm[x.id]=id;await putPhoto({id,site:"person:"+n,t:Date.now(),blob:new Blob([u8],{type:x.type||"image/jpeg"})})}
  for(const l of q.lic||[]){const ph=(l.ph||[]).map(x=>idm[x]).filter(Boolean),old=p.lic.find(x=>x.n===l.n);if(old){if(l.no)old.no=l.no;old.ph.push(...ph)}else p.lic.push({n:l.n,no:l.no||"",ph})}
  for(const t of o.tags||[]){let x=C.tags.find(y=>y.n===t.n);if(!x){x={id:rid("t"),n:t.n,c:t.c||TAGC[C.tags.length%TAGC.length],hide:false};C.tags.push(x)}if(!p.tags.includes(x.id))p.tags.push(x.id)}

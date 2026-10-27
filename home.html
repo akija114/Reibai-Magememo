@@ -37,7 +37,12 @@ h2 .grow{flex:1}
 .empty{color:var(--sub);text-align:center;padding:22px 8px;font-size:14px;line-height:1.7;background:var(--card);border:1.5px dashed var(--line);border-radius:14px;margin-top:8px}
 .more{width:100%;background:none;border:0;color:var(--acc);font:inherit;font-weight:800;font-size:14px;padding:10px}
 .tools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.tool{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px;font-weight:800;font-size:14.5px;display:flex;align-items:center;gap:8px;min-height:52px}
+.tool{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-weight:800;font-size:14.5px;display:flex;align-items:flex-start;gap:8px;min-height:62px}
+.tool .ic{font-size:20px;line-height:1.2;flex:none}.tool small{display:block;color:var(--sub);font-size:11.5px;font-weight:600;margin-top:2px;line-height:1.35}
+.grp{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:10px;margin-top:10px}
+.grp .gh{font-size:14px;font-weight:900;margin:2px 4px 8px;display:flex;align-items:center;gap:6px}.grp .gh small{color:var(--sub);font-weight:600;font-size:12px}
+.grp .tool{background:var(--bg);border-color:transparent}
+.guide{display:flex;align-items:center;gap:10px;background:var(--card);border:1.5px solid var(--acc);border-radius:14px;padding:12px 14px;margin-top:10px;color:var(--acc);font-weight:800}
 .set{display:flex;align-items:center;gap:10px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px;margin-top:8px;font-size:14px}
 .set .grow{flex:1}.set small{display:block;color:var(--sub);font-size:12px;margin-top:2px}
 .sw{flex:none;width:52px;height:32px;border-radius:16px;border:0;background:var(--line);position:relative}
@@ -80,25 +85,37 @@ function whenTag(s){const d=dOf(s);if(!d)return["未定",""];const n=Math.round(
  if(n===0)return["今日","today"];if(n===1)return["明日","soon"];if(n>1&&n<=7)return["あと"+n+"日","soon"];if(n>7)return["あと"+n+"日",""];return["済","old"]}
 /* 設定：アプリを開いた時に入口を出す */
 const homeOn=()=>{try{return localStorage.getItem("pbm_home")!=="0"}catch(e){return true}};
-let showOld=false;
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const monday=()=>{const d=today();d.setDate(d.getDate()-(d.getDay()+6)%7);return ymd(d)};
+/* 道具：仕事の流れでまとめる（2026-10-27 ユーザー：ごちゃごちゃしてるから見やすく） */
+const TOOL=(href,ic,t,sub)=>`<a class="tool" href="${href}"><span class="ic">${ic}</span><span>${t}<small>${sub}</small></span></a>`;
+function toolsHtml(){return [
+ ["🗓","段取り・会社","現場の予定と人",[TOOL("genba.html#list","📋","現場の一覧","現場カード・LINEで送る"),TOOL("genba.html#w"+monday(),"📅","週の割り振り","だれがどこ・休み・応援"),TOOL("genba.html#k"+ymd(today()),"📊","人工・残業","1か月・1年・交通費"),TOOL("genba.html#people","👤","社員・個人情報","タグ・資格証・緊急連絡先")]],
+ ["📐","図面・3D","図面から3D・材料",[TOOL("zumen.html","🧊","図面・3D","読み込んで全部自動・材料拾い"),TOOL("cad/","✏️","図面編集","寸法・メモ・機器の移動")]],
+ ["🔍","現場で","見る・測る・さがす",[TOOL("genchou.html","📹","現調","写真・寸法・メモ"),TOOL("kiki.html","🔩","機器をさがす","品番から大きさ・模型")]],
+ ["📘","しらべる","分からない時に",[TOOL("kiki.html?kiso=","📘","空調の種類と電線","方式・形・施工手順"),TOOL("guide.html","❓","使い方のまとめ","どこで何ができるか")]]
+].map(([ic,t,sub,ts])=>`<div class="grp"><div class="gh">${ic} ${t} <small>${sub}</small></div><div class="tools">${ts.join("")}</div></div>`).join("")}
+let showOld=false,showUp=false;
 async function renderList(){
  const ss=await allSites(),t0=today();
  const up=ss.filter(s=>{const d=dOf(s.date);return !d||d>=t0}).sort((a,b)=>(a.date||"9").localeCompare(b.date||"9")||b.updated-a.updated);
  const old=ss.filter(s=>{const d=dOf(s.date);return d&&d<t0}).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+ const N=3,more=up.length>N&&!showUp,upS=more?up.slice(0,N):up;   // これからの現場は近い3件だけ（「すべて」で全部）
  const card=s=>{const[w,c]=whenTag(s.date);return `<button class="site${c==="old"?" old":""}" data-id="${esc(s.id)}"><div class="t"><b>${esc(s.name||"（名前なし）")}</b><div class="sub">${esc(dateTxt(s.date))}${s.time?" "+esc(s.time):""}${s.members&&s.members.length?` ・ ${s.members.length}人`:""}${s.addr?` ・ 📍${esc(s.addr)}`:""}</div></div><span class="when ${c}">${esc(w)}</span></button>`};
  $("#app").innerHTML=`<h1>🏠 曲げ共有</h1>
  <a class="big bend" href="index.html"><span class="ic">🔧</span><span><b>すぐ曲げを送る</b><small>寸法を入れて、LINEで「これ曲げて」と頼む</small></span></a>
  <h2><span class="grow">📋 これからの現場</span></h2>
- ${up.length?up.map(card).join(""):`<div class="empty">これからの現場はまだありません。<br>下の「＋ 新しい現場」で作れます。</div>`}
+ ${up.length?upS.map(card).join("")+(up.length>N?`<button class="more" id="bUp">${more?"▼ これからの現場をすべて（"+up.length+"件）":"▲ 近い3件だけ"}</button>`:""):`<div class="empty">これからの現場はまだありません。<br>下の「＋ 新しい現場」で作れます。</div>`}
  <button class="big new" id="bNew"><span class="ic">＋</span><span><b style="font-size:16px">新しい現場</b><small style="color:var(--sub)">日時・住所・メンバーを入れて、前日までにみんなへ</small></span></button>
  ${old.length?`<button class="more" id="bOld">${showOld?"▲ 終わった現場をしまう":"▼ 終わった現場（"+old.length+"件）"}</button>${showOld?old.map(card).join(""):""}`:""}
- <h2>🧰 そのほかの道具</h2>
- <div class="tools"><a class="tool" href="zumen.html">📐 図面・3D</a><a class="tool" href="genchou.html">📹 現調</a><a class="tool" href="kiki.html">🔩 機器</a><a class="tool" href="genba.html">📋 現場カード</a></div>
+ <h2>🧰 道具（仕事ごと）</h2>
+ ${toolsHtml()}
  <h2>⚙️ 設定</h2>
  <div class="set"><div class="grow">アプリを開いた時にこの画面を出す<small>オフにすると、今までどおり曲げ共有から始まります</small></div><button class="sw${homeOn()?" on":""}" id="swHome" aria-label="入口を出す"></button></div>`;
  document.querySelectorAll(".site").forEach(b=>b.onclick=()=>{location.hash=b.dataset.id});
  $("#bNew").onclick=async()=>{const s=newSite();try{await dbDo("readwrite",st=>st.put(s))}catch(e){alert("作れませんでした");return}location.href="genba.html#"+s.id};
  const bo=$("#bOld");if(bo)bo.onclick=()=>{showOld=!showOld;renderList()};
+ const bu=$("#bUp");if(bu)bu.onclick=()=>{showUp=!showUp;renderList()};
  $("#swHome").onclick=()=>{try{localStorage.setItem("pbm_home",homeOn()?"0":"1")}catch(e){}renderList()};
 }
 async function renderSite(id){

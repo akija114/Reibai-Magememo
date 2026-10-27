@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja" data-app="guide">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>使い方のまとめ - 冷媒配管の曲げ共有</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="曲げ共有 v1.00">
+<!-- ❓ 使い方のまとめ：どの画面で何ができるか（2026-10-27 ユーザー：ごちゃごちゃしてるから見やすくまとめて）。入口（home.html）から開く。機能を足したらここにも1行足す -->
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--panel:#e2e8f0}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a}
+*,*:before,*:after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0 auto;max-width:560px;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px calc(env(safe-area-inset-bottom,0px) + 30px);line-height:1.6}
+a{color:var(--acc);font-weight:800;text-decoration:none}
+.back{display:inline-block;padding:6px 0;font-size:15px}
+h1{font-size:20px;margin:4px 2px 4px}
+.lead{color:var(--sub);font-size:13.5px;margin:0 2px 10px}
+.flow{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;font-size:14px}
+.flow ol{margin:4px 0 0;padding-left:22px}.flow li{margin:3px 0}
+details{background:var(--card);border:1.5px solid var(--line);border-radius:14px;margin-top:10px;overflow:hidden}
+summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:10px;font-weight:900;font-size:16px}
+summary::-webkit-details-marker{display:none}
+summary .ic{font-size:24px;flex:none}summary small{display:block;color:var(--sub);font-weight:600;font-size:12.5px}
+summary:after{content:"▾";margin-left:auto;color:var(--sub);transition:transform .15s}details[open] summary:after{transform:rotate(180deg)}
+.body{padding:0 14px 12px;font-size:14.5px}
+.body h3{font-size:14px;margin:12px 0 4px;color:var(--acc)}
+.body ul{margin:0;padding-left:18px}.body li{margin:3px 0}
+.go{display:inline-block;margin-top:10px;background:var(--acc);color:#fff;border-radius:10px;padding:8px 14px;font-size:14px}
+.tip{background:var(--panel);border-radius:10px;padding:8px 10px;font-size:13px;margin-top:8px;color:var(--ink)}
+</style>
+</head>
+<body>
+<a class="back" href="home.html">‹ 入口へ</a>
+<h1>❓ 使い方のまとめ</h1>
+<p class="lead">どの画面で何ができるかの一覧です。見たい所をタップすると開きます。</p>
+
+<div class="flow"><b>ふだんの流れ</b>
+<ol>
+<li>📋 <b>現場</b>で現場カードを作る（日時・住所・メンバー）</li>
+<li>📹 <b>現調</b>で写真・寸法をとる</li>
+<li>📐 <b>図面・3D</b>で図面を読み込んで3Dに。材料も拾う</li>
+<li>📤 前日までに<b>現場カードをLINEで送る</b></li>
+<li>🔧 当日は<b>曲げ共有</b>で寸法を送って曲げてもらう</li>
+</ol></div>
+
+<details><summary><span class="ic">🔧</span><span>曲げ共有<small>寸法を入れて「これ曲げて」と頼む</small></span></summary><div class="body">
+<h3>できること</h3>
+<ul>
+<li>配管の長さ・曲げの角度・向きを入れると、曲げ位置（引き）を自動で計算</li>
+<li>3Dで配管の形を見る・曲げる順番（曲げ手順）を見る</li>
+<li>持っているベンダーを登録すると、その配管の太さで使える物で計算</li>
+<li>LINEなどで送る（短いリンク）・チームに送ると、だれが見たか分かる</li>
+<li>初心者モード：STEP 1〜4 の順に進むだけ（くわしい表示とデータは同じ）</li>
+<li>📐 図面の配管：図面編集から送った配管の一覧。タップするとその配管の曲げを調べる</li>
+<li>保存・元に戻す・端末に保存した現場を開く</li>
+</ul>
+<a class="go" href="index.html">曲げ共有を開く</a></div></details>
+
+<details><summary><span class="ic">🧊</span><span>図面・3D<small>図面を読み込んで、全部自動で3Dに</small></span></summary><div class="body">
+<h3>できること</h3>
+<ul>
+<li>図面のファイル（DXF・PDF）を読み込む</li>
+<li>「全部自動」：室内機・冷媒配管のルート・壁・天井高を読む。📋 読み取りチェックで、読めた物を✓／⚠️で確かめる</li>
+<li>3D：ダクト（吹出口・フレキ）・衛生（給水・給湯・汚水・排水・通気）・ドレン・天井・点検口。🗂 表示で出す／消す</li>
+<li>🚽 下の図面：衛生などの図面をもう1枚、床に映す</li>
+<li>ルートおまかせ：機器の位置から配管のルートを作る</li>
+<li>🧾 材料拾い・見積もり：配管・ドレン・電線（エアコンの種類で変わる）・単価表</li>
+</ul>
+<a class="go" href="zumen.html">図面・3Dを開く</a></div></details>
+
+<details><summary><span class="ic">✏️</span><span>図面編集<small>図面を直す・寸法・メモ・機器を動かす</small></span></summary><div class="body">
+<h3>見る・選ぶ</h3>
+<ul>
+<li>レイヤーを空調・ダクト・衛生などのグループで出す／消す</li>
+<li>部品をタップで選ぶ・長押しで追加・「範囲」で囲んで選ぶ</li>
+</ul>
+<h3>書きこむ</h3>
+<ul>
+<li>寸法（芯出し：通り芯・機器の芯・壁から）</li>
+<li>メモ：置く前に赤い印で場所を確かめる・置いたメモは指で動かせる</li>
+<li>1から冷媒配管を引く（高さも区間ごとに）</li>
+</ul>
+<h3>機器を動かす（✥ 移動）</h3>
+<ul>
+<li>指でずらす・数字で mm・芯に合わせる</li>
+<li>回す：90°ずつ（↺ ↻）・好きな角度（30°・45°など）</li>
+<li>📐 壁の向きに合わせる → 壁から○mm 離して置く／2枚の壁の真ん中に置く</li>
+<li>回しても、つながった配管・ダクトはついてくる（機器をよけてつなぎ直す）</li>
+</ul>
+<h3>部品をなおす</h3>
+<ul>
+<li>🗂 レイヤーを変える・⧉ 複製・撤去（点線の×で残す）・非表示・削除</li>
+</ul>
+<h3>3D・送る</h3>
+<ul>
+<li>🧊 3D：図面編集の中で3Dを見る。「曲げ共有へ」で配管を曲げ共有に送る</li>
+<li>チームで同じ図面を見る・図面のファイル（DXF・PDF）で書き出す</li>
+</ul>
+<div class="tip">↶ で、たいていの操作は元に戻せます。</div>
+<a class="go" href="cad/">図面編集を開く</a></div></details>
+
+<details><summary><span class="ic">📹</span><span>現調<small>現場で写真・寸法・メモ</small></span></summary><div class="body">
+<ul>
+<li>写真を背景にして、配管・機器の3Dを重ねて見る</li>
+<li>寸法の計算・機器の模型を置く・配管の太さを選ぶ</li>
+<li>現場情報のメモ・保存して送る</li>
+</ul>
+<a class="go" href="genchou.html">現調を開く</a></div></details>
+
+<details><summary><span class="ic">🔩</span><span>機器・📘 空調の種類と電線<small>品番でさがす・分からない時に調べる</small></span></summary><div class="body">
+<h3>機器をさがす</h3>
+<ul>
+<li>品番で大きさ・模型をさがす（ハイフン・空白はちがっても、一部だけでも探せる）</li>
+<li>無い品番は「調べてほしい品番」に残る → 教えてもらえれば登録します</li>
+</ul>
+<h3>📘 空調の種類と電線</h3>
+<ul>
+<li>方式（ルーム・パッケージ・ビルマルなど）・室内機の形・換気・関連設備</li>
+<li>電源・連絡線・伝送線・リモコン線を線の絵で（目安。最後はメーカーの説明書で確かめる）</li>
+<li>施工手順：エアコンの入替工事（5つの段階）・持っていく道具と材料</li>
+<li>ヒートポンプのしくみ・集中リモコン・ドレン・冷媒配管の保温</li>
+</ul>
+<a class="go" href="kiki.html">機器を開く</a> <a class="go" href="kiki.html?kiso=">空調の種類と電線を開く</a></div></details>
+
+<details><summary><span class="ic">📋</span><span>現場<small>現場カード・週の割り振り・人工・社員</small></span></summary><div class="body">
+<h3>現場カード</h3>
+<ul>
+<li>日時・住所・駐車場（場所・写真）・メンバー⭐・作業内容・持ち物</li>
+<li>LINEに送る文章を自動で作る・チームに送ると、だれが見たか分かる</li>
+<li>日程は続けて、または飛び飛び（📆カレンダー）・昼／夜・人数（最低○名＋余裕）・応援さん・交通費</li>
+</ul>
+<h3>📅 週の割り振り</h3>
+<ul>
+<li>だれがどの現場か・休み・空いている人・足りない現場が色で分かる</li>
+<li>表のマスをタップで入れる／外す・休み・残業。週の割り振りをLINEで送る</li>
+</ul>
+<h3>📊 人工・残業</h3>
+<ul>
+<li>締め日ごとの1か月・1年。日勤・夜勤・休日出勤・残業・交通費を人ごと・現場ごとに</li>
+</ul>
+<h3>👤 社員・個人情報</h3>
+<ul>
+<li>タグ（溶接・電気工事士など。🙈で隠せる）・個人情報・緊急連絡先・資格証の写真</li>
+<li>文章・資格証の写真・ファイルで相手に渡せる</li>
+</ul>
+<div class="tip">現場のデータはこのiPhoneの中だけです。時々「バックアップ」で書き出してください。</div>
+<a class="go" href="genba.html">現場を開く</a></div></details>
+
+<details><summary><span class="ic">🔄</span><span>アプリの更新<small>新しい版にする</small></span></summary><div class="body">
+<ol>
+<li>アプリを開き直す</li>
+<li>「新しい版があります」が出たら［更新する］</li>
+<li>曲げ共有の ❓ の画面のいちばん下「今の版」で、版の番号を確かめる</li>
+</ol>
+<div class="tip">入口をオフにすると、今までどおり曲げ共有から始まります（入口のいちばん下の設定）。</div></div></details>
+
+<script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});</script>
+</body>
+</html>

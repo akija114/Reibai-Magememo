@@ -526,7 +526,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="genchou";</script>
 <script src="models.js?v=304"></script>
-<script src="core.js?v=330"></script>
+<script src="core.js?v=331"></script>
 <script src="drain.js?v=268"></script>
 <script src="genchou.js?v=228"></script>
 <script>
@@ -536,9 +536,9 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
  b.onclick=()=>{openAR.anchor=b;openAR()};
  /* 最初に「どう使うか」を選ぶ。勝手にカメラ・録画は始めない */
  const st0=document.createElement("div");st0.id="genStart";
- st0.innerHTML=`<h2>📹 現調</h2><button class="main" data-v="cam">📷 カメラで見る<small>カメラの上に3Dを重ねます。写真・動画は、ボタンを押した時だけ撮ります</small></button><button data-v="3d">🧊 機械と配管だけ見る<small>カメラなし・録画なし。電池と熱にやさしい</small></button><button data-v="back">◀ 曲げ共有に戻る</button>`;
+ st0.innerHTML=`<h2>📹 現調</h2><button class="main" data-v="cam">📷 カメラで見る<small>カメラの上に3Dを重ねます。写真・動画は、ボタンを押した時だけ撮ります</small></button><button data-v="unit">🧊 機器を実物大で置く<small>床をタップして機器だけを置く。壁から何mmかも決められる</small></button><button data-v="back">◀ 曲げ共有に戻る</button>`;
  $("#stage").appendChild(st0);
- st0.onclick=ev=>{const x=ev.target.closest("button");if(!x)return;const v=x.dataset.v;if(v==="back"){location.href="index.html";return}st0.classList.remove("on");if(v==="cam")genCamOn()};
+ st0.onclick=ev=>{const x=ev.target.closest("button");if(!x)return;const v=x.dataset.v;if(v==="back"){location.href="index.html";return}st0.classList.remove("on");if(v==="cam")genCamOn();if(v==="unit"){openAR.anchor=$("#genAR");openAR()}};
  const go=()=>{if(T&&!GEN.on){genOpen({cam:false});st0.classList.add("on")}};
  if(document.readyState==="complete")setTimeout(go,50);else addEventListener("load",()=>setTimeout(go,50));
 })();

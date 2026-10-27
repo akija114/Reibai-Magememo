@@ -2505,10 +2505,32 @@ function openAR(){
    <button class="pm" data-a="xr">機器を置いて配管を引く</button>`,r.left,r.top+r.height/2,()=>startXR());return}
  const a0=document.createElement("a");
  if(!(a0.relList&&a0.relList.supports&&a0.relList.supports("ar"))){toast("ARはiPhone・iPadのSafari、またはAndroidのChromeで使えます");return}
+ if(typeof APP!=="undefined"&&APP==="genchou"){arUnitSheet();return}   // 現調は機器だけ（機器の位置を決める）
  placeMenu(`<div class="pt" style="pointer-events:none"><img alt="" src="${NICO.ar}" style="width:1.4em;height:1.4em;vertical-align:-.35em;margin-right:4px">ARで見る</div>
-  <button class="pm" data-a="all">配管と機器</button><button class="pm" data-a="unit">機器だけ（芯と吊りピッチ）</button>`,r.left,r.top+r.height/2,k=>runAR(k==="unit"));
+  <button class="pm" data-a="all">配管と機器</button><button class="pm" data-a="unit">機器だけ（壁から離して置く）</button>`,r.left,r.top+r.height/2,k=>k==="unit"?arUnitSheet():runAR(false));
 }
-function runAR(onlyUnit){
+/* 機器だけを実物大で置く（現調）：壁の側と壁からの距離を選ぶ → 灰色の「壁の板」を本物の壁に合わせると、機器が壁からその距離になる（2026-10-27 ユーザー） */
+function arUnitSheet(){
+ const UN=(T.UN||[]).filter(u=>u.g);if(!UN.length){toast("機器の模型を選んでください");return}
+ const IN=["cas","cas2","ceil","wall","flr"],U=UN.find(u=>u.t==="s"&&IN.includes(st.units[u.t]))||UN.find(u=>IN.includes(st.units[u.t]))||UN[0],ty=st.units[U.t];
+ const how=ty==="flr"?"床置き（床に置く）":ty==="wall"?"壁掛け（壁につける）":"天吊（天井から吊る）";let A={};try{A=JSON.parse(localStorage.getItem("pbm_arwall")||"{}")}catch(e){}
+ const side=A.side||0,d=A[ty]!=null?A[ty]:(ty==="wall"?0:300);
+ const ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:300;background:#0008;display:flex;align-items:flex-end;justify-content:center";
+ const sb=(v,t)=>`<button data-s="${v}" style="flex:1;min-width:46%;height:44px;border-radius:12px;border:2px solid ${v===side?"#0369a1":"#cbd5e1"};background:${v===side?"#e0f2fe":"#fff"};color:#0f172a;font-weight:800;font-size:14px">${t}</button>`;
+ ov.innerHTML=`<div style="background:#fff;color:#0f172a;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 16px);font-family:-apple-system,'Hiragino Sans',sans-serif">
+  <div style="font-size:18px;font-weight:900">🧊 機器だけを実物大で置く</div>
+  <div style="font-size:13px;color:#5b6b7e;margin:4px 0 10px">置き方：<b style="color:#0f172a">${how}</b>（機種から）。床をタップして置いたら、灰色の「壁の板」を本物の壁に合わせてください</div>
+  <div style="font-size:13px;font-weight:800;margin-bottom:6px">壁はどの側？</div>
+  <div id="arSide" style="display:flex;flex-wrap:wrap;gap:6px">${sb(0,"配管が出る側")+sb(1,"その反対側")+sb(2,"横（片方）")+sb(3,"横（もう片方）")}</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-top:12px"><span style="font-size:14px;font-weight:800;white-space:nowrap">壁から</span><input id="arD" type="number" inputmode="numeric" value="${d}" style="width:120px;min-width:0;height:44px;border-radius:10px;border:1.5px solid #cbd5e1;padding:0 10px;font-size:18px"><span style="font-size:14px;font-weight:800;white-space:nowrap">mm</span></div>
+  <div style="font-size:12px;color:#5b6b7e;margin-top:4px">壁から機器のツラまでの距離。${ty==="wall"?"壁掛けは 0 で壁にぴったり":"0 にすると壁にぴったり"}</div>
+  <div style="display:flex;gap:8px;margin-top:14px"><button id="arNo" style="flex:1;height:48px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800;font-size:15px">やめる</button><button id="arGo" style="flex:2;height:48px;border-radius:12px;border:0;background:#0369a1;color:#fff;font-weight:800;font-size:16px">実物大で置く</button></div></div>`;
+ document.body.appendChild(ov);let sd=side;
+ ov.querySelector("#arSide").onclick=e=>{const b=e.target.closest("[data-s]");if(!b)return;sd=+b.dataset.s;ov.querySelectorAll("#arSide button").forEach(x=>{const on=+x.dataset.s===sd;x.style.borderColor=on?"#0369a1":"#cbd5e1";x.style.background=on?"#e0f2fe":"#fff"})};
+ ov.querySelector("#arNo").onclick=()=>ov.remove();ov.onclick=e=>{if(e.target===ov)ov.remove()};
+ ov.querySelector("#arGo").onclick=()=>{const v=Math.max(0,Math.min(5000,Math.round(+ov.querySelector("#arD").value||0)));A.side=sd;A[ty]=v;try{localStorage.setItem("pbm_arwall",JSON.stringify(A))}catch(e){}ov.remove();runAR(true,{side:sd,d:v})};
+}
+function runAR(onlyUnit,wo){
  const IN=["cas","cas2","ceil","wall","flr"],UN=(T.UN||[]).filter(u=>u.g),U=UN.find(u=>u.t==="s"&&IN.includes(st.units[u.t]))||UN.find(u=>IN.includes(st.units[u.t]));
  if(onlyUnit&&!UN.length){toast("機器の模型を選んでください");return}
  const a=document.createElement("a");
@@ -2529,11 +2551,21 @@ function runAR(onlyUnit){
   if(T.cy!=null||ctr)mk.cross(mk.P,cx,cz,300,18,110,(T.cy!=null?T.cy:ctr.y)-3);  // 天井の芯
   if(bolts){bolts.forEach(b=>mk.cross(mk.Q,b.x,b.z,90,14,45,fy2));             // 床に吊りボルトの位置
    for(let i=0;i<4;i++){const b1=bolts[i],b2=bolts[(i+1)%4];mk.bar(mk.Q,b1.x,b1.z,b2.x,b2.z,10,fy2)}}
+  let wTxt="";
+  if(wo&&ctr){ /* 壁の板：配管の出る向き（起点＝配管の始まり）を基準に側を決めて、機器のツラから wo.d 離れた所に立てる。床に寸法の線 */
+   const px=-ctr.x,pz=-ctr.z,ax=Math.abs(px)>=Math.abs(pz)?"x":"z",sg=(ax==="x"?px:pz)>=0?1:-1,a=wo.side<2?ax:(ax==="x"?"z":"x"),s2=wo.side===0?sg:wo.side===1?-sg:wo.side===2?1:-1,b=a==="x"?"z":"x";
+   const edge=s2>0?bb.max[a]:bb.min[a],wp=edge+s2*wo.d,o0=bb.min[b]-400,o1=bb.max[b]+400,top=T.cy!=null?T.cy:fy+2700,P3=(u,y,v)=>a==="x"?[u,y,v]:[v,y,u];
+   parts.push({col:[.55,.58,.62],op:.45,metal:false,pos:[...P3(wp,fy,o0),...P3(wp,fy,o1),...P3(wp,top,o1),...P3(wp,top,o0)],nrm:[...P3(s2,0,0),...P3(s2,0,0),...P3(s2,0,0),...P3(s2,0,0)],idx:[0,1,2,0,2,3]});
+   const cb=a==="x"?cz:cx,L=(u1,v1,u2,v2,w,M)=>{const q1=P3(u1,0,v1),q2=P3(u2,0,v2);mk.bar(M,q1[0],q1[2],q2[0],q2[2],w,fy2)};
+   L(wp,o0,wp,o1,30,mk.P);   // 床の壁の線（赤）
+   if(wo.d>0){L(edge,cb,wp,cb,16,mk.Q);L(edge,cb-120,edge,cb+120,12,mk.Q);L(wp,cb-120,wp,cb+120,12,mk.Q)}   // 機器のツラ → 壁（オレンジの寸法の線）
+   wTxt=`灰色の板を本物の壁に合わせると、壁から ${fmt(wo.d)}mm（機器のツラまで）です。`}
   parts.push(mk.P);if(mk.Q.idx.length)parts.push(mk.Q);
   parts.forEach(p=>{for(let k=0;k<p.pos.length;k+=3){p.pos[k]=(p.pos[k]-cx)/1000;p.pos[k+1]=(p.pos[k+1]-fy)/1000;p.pos[k+2]=(p.pos[k+2]-cz)/1000}});
   const url=URL.createObjectURL(makeUSDZ(parts));
   a.rel="ar";a.href=url+"#allowsContentScaling=0";a.appendChild(document.createElement("img"));a.style.display="none";document.body.appendChild(a);a.click();
   setTimeout(()=>{a.remove()},3000);
+  if(wTxt){toast(wTxt+"床の赤い十字＝機器の芯");return}
   toast(ctr?"床の赤い十字＝室内機の芯。床の芯に合わせて置いてください"+(bolts?"（オレンジ＝吊りボルト "+U.c2.ba+"×"+U.c2.bb+"）":""):"床を映してタップすると、実物大で置けます");
  }catch(e){console.warn(e);toast("ARの準備に失敗しました")}
 }

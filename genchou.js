@@ -368,3 +368,67 @@ function genShowOut(blob,type){
  $("#genShare").onclick=async()=>{try{await navigator.share({files:[file],title:name})}catch(e){if(e&&e.name!=="AbortError")toast("共有できませんでした。「保存」を使ってください")}};
  $("#genOut").classList.add("on");
 }
+
+/* ===== 🕳 穴まで配管（現調）：床をタップして穴の場所 → 穴の高さ → ルートおまかせ → 好きなルートを選ぶ（2026-10-27 ユーザー：数字はだいたいでいい・早く）
+   ルートの作り方は図面の画面の「ルートおまかせ」（zumen.js の polyToRows・autoRoutes）と同じ物を写した。穴は st.bld の hole（auto:"gh"） ===== */
+function gPolyRows(P){
+ const V=THREE.Vector3;let d=new V(1,0,0),u=new V(0,1,0),r=new V(0,0,1);const rows=[];
+ for(let i=0;i<P.length-1;i++){const seg=P[i+1].clone().sub(P[i]),l=Math.round(seg.length());let a=0,t=0;
+  if(i<P.length-2){const d1=seg.clone().normalize(),d2=P[i+2].clone().sub(P[i+1]).normalize(),c=Math.max(-1,Math.min(1,d1.dot(d2)));a=Math.round(Math.acos(c)*180/Math.PI);
+   if(a>0){const b=d2.clone().addScaledVector(d1,-c).normalize();t=normT(Math.round(Math.atan2(b.dot(r),b.dot(u))*180/Math.PI));
+    const ax=d1.clone().cross(d2).normalize(),ang=Math.acos(c);u=u.clone().applyAxisAngle(ax,ang);r=r.clone().applyAxisAngle(ax,ang);d=d2.clone()}}
+  rows.push({l,a:ANG.includes(a)?a:(a>60?90:45),t,o:false})}
+ return rows;
+}
+function gAutoRoutes(X,Y,Z,o){
+ const V=THREE.Vector3,S=Math.max(150,o.stub||300),M=150,out=[];
+ const mk=(name,legs)=>{const P=[new V()];legs.forEach(v=>{if(v.length()<1)return;const last=P[P.length-1],prevDir=P.length>1?last.clone().sub(P[P.length-2]).normalize():null,nd=v.clone().normalize();
+   if(prevDir&&prevDir.dot(nd)>0.999)last.add(v);else P.push(last.clone().add(v))});
+  for(let i=1;i<P.length-1;i++)if(P[i].distanceTo(P[i-1])<M||P[i+1].distanceTo(P[i])<M)return;   // 曲げと曲げの間が短すぎるものは除く
+  if(P[1]&&P[1].distanceTo(P[0])<Math.min(S,150))return;
+  let L=0;for(let i=1;i<P.length;i++)L+=P[i].distanceTo(P[i-1]);
+  const key=P.map(p=>[p.x,p.y,p.z].map(Math.round).join(",")).join("|");if(out.some(x=>x.key===key))return;
+  out.push({name,P,L:Math.round(L/10)*10,n:P.length-2,key})};
+ const x=new V(1,0,0),y=new V(0,1,0),z=new V(0,0,1);
+ const fx=X>=S?X:S,rx=X-fx;   // 前に出る分（足りなければ最初のまっすぐだけ出して、あとで戻る）
+ mk("前→横→上下",[x.clone().multiplyScalar(fx),z.clone().multiplyScalar(Z),x.clone().multiplyScalar(rx),y.clone().multiplyScalar(Y)]);
+ mk("前→上下→横",[x.clone().multiplyScalar(fx),y.clone().multiplyScalar(Y),z.clone().multiplyScalar(Z),x.clone().multiplyScalar(rx)]);
+ mk("少し出て横→前→上下",[x.clone().multiplyScalar(S),z.clone().multiplyScalar(Z),x.clone().multiplyScalar(X-S),y.clone().multiplyScalar(Y)]);
+ mk("少し出て上下→前→横",[x.clone().multiplyScalar(S),y.clone().multiplyScalar(Y),x.clone().multiplyScalar(X-S),z.clone().multiplyScalar(Z)]);
+ mk("少し出て上下→横→前",[x.clone().multiplyScalar(S),y.clone().multiplyScalar(Y),z.clone().multiplyScalar(Z),x.clone().multiplyScalar(X-S)]);
+ if(o.d45){const az=Math.abs(Z),sz=Math.sign(Z)||1;
+  if(az>=M&&X-S-az>=0){mk("45°で寄せて→前→上下",[x.clone().multiplyScalar(S),new V(az,0,sz*az),x.clone().multiplyScalar(X-S-az),y.clone().multiplyScalar(Y)]);
+   mk("前→45°で寄せて→上下",[x.clone().multiplyScalar(X-az),new V(az,0,sz*az),y.clone().multiplyScalar(Y)])}}
+ out.forEach(r=>{r.rows=gPolyRows(r.P)});
+ return out.filter(r=>r.rows.every(w=>w.l>0)).sort((a,b)=>a.L-b.L||a.n-b.n);
+}
+const HP={h:2400};try{Object.assign(HP,JSON.parse(localStorage.getItem("pbm_hole")||"{}"))}catch(e){}
+const holeIdx=()=>(st.bld||[]).findIndex(o=>o.k==="hole"&&o.auto==="gh");
+function holeStart(){
+ if(!T){toast("3Dの準備中です");return}if(!st.units.on||!st.units.s){toast("先に室内機の機種を選んでください");return}
+ if(!st.gnd.on){st.gnd.on=true;save(true);build3D()}   // 床が無いと場所を決められない
+ document.getElementById("hpPanel")?.remove();const ov=document.createElement("div");ov.id="hpPick";ov.style.cssText="position:fixed;inset:0;z-index:60";
+ ov.innerHTML=`<div style="position:absolute;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 70px);background:#0f172aee;color:#fff;border-radius:14px;padding:12px 14px;font-size:15px;font-weight:800;line-height:1.5;text-align:center">🕳 穴の真下あたりの床をタップ<br><small style="font-weight:600;opacity:.85">だいたいで大丈夫。あとで高さを決めます</small><br><button id="hpNo" style="margin-top:8px;height:40px;border-radius:10px;border:0;padding:0 16px;font-weight:800">やめる</button></div>`;
+ document.body.appendChild(ov);
+ ov.onclick=e=>{if(e.target.id==="hpNo"){ov.remove();return}if(e.target!==ov)return;const p=bldFloorAt(e.clientX,e.clientY);if(!p){toast("床が見つかりません。床の見える所をタップしてください");return}
+  ov.remove();const o={k:"hole",x:p.x,z:p.z,w:75,d:150,y:HP.h,r:Math.abs(p.x)>=Math.abs(p.z)?90:0,auto:"gh"},i=holeIdx();if(i>=0)st.bld[i]=o;else st.bld.push(o);st.bld=normBld(st.bld);bldChanged();holePanel()};
+}
+function holeXYZ(){const o=st.bld[holeIdx()];if(!o)return null;const V=THREE.Vector3,GY=T&&T.GYr!=null?T.GYr:0,D0=(st.units.s==="wall"&&(WALLX[st.units.ws]||WALLX.rb).k==="d")?new V(0,-1,0):new V(1,0,0),F=frameFor(D0),p=new V(o.x,GY+o.y,o.z);   // core.js の holeToPipe と同じ
+ return[Math.round(p.dot(F.ex)),Math.round(p.dot(F.ey)),Math.round(p.dot(F.ez))]}
+function holePanel(sel){
+ document.getElementById("hpPanel")?.remove();const o=st.bld[holeIdx()];if(!o)return;const p=document.createElement("div");p.id="hpPanel";
+ p.style.cssText="position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:55;background:#fff;color:#0f172a;border-radius:16px;padding:10px 12px;box-shadow:0 6px 24px #0005;font-family:-apple-system,'Hiragino Sans',sans-serif;max-height:55vh;overflow:auto";
+ const B=(id,t,st2)=>`<button id="${id}" style="height:42px;border-radius:10px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800;font-size:14px;${st2||""}">${t}</button>`;
+ p.innerHTML=`<div style="display:flex;align-items:center;gap:6px"><b style="flex:1;font-size:15px">🕳 穴まで配管</b>${B("hpX","✕","width:42px")}</div>
+  <div style="display:flex;align-items:center;gap:6px;margin-top:8px"><span style="font-size:13px;font-weight:800;white-space:nowrap">穴の高さ（床から）</span>${B("hpM","−100","flex:1")}<b id="hpH" style="font-size:18px;min-width:64px;text-align:center">${fmt(o.y)}</b>${B("hpP","＋100","flex:1")}</div>
+  <div style="display:flex;gap:6px;margin-top:8px">${B("hpRe","📍 場所をやり直す","flex:1")}${B("hpGo","🧭 ルートおまかせ","flex:1.3;background:#2563eb;border-color:#2563eb;color:#fff")}</div>
+  <div id="hpList" style="margin-top:6px"></div>`;
+ document.body.appendChild(p);
+ const setH=d=>{const i=holeIdx();if(i<0)return;st.bld[i].y=Math.max(100,Math.min(6000,st.bld[i].y+d));HP.h=st.bld[i].y;try{localStorage.setItem("pbm_hole",JSON.stringify(HP))}catch(e){}bldChanged();$("#hpH").textContent=fmt(st.bld[i].y);$("#hpList").innerHTML=""};
+ $("#hpM").onclick=()=>setH(-100);$("#hpP").onclick=()=>setH(100);$("#hpX").onclick=()=>p.remove();$("#hpRe").onclick=()=>{p.remove();holeStart()};
+ $("#hpGo").onclick=()=>{const q0=holeXYZ();if(!q0)return;const q=q0.map((v,k)=>k&&Math.abs(v)<150?0:v),R=gAutoRoutes(q[0],q[1],q[2],{stub:300,d45:true}).slice(0,6);
+  if(!R.length){$("#hpList").innerHTML='<div style="font-size:13px;color:#64748b;padding:6px 2px">ルートが作れませんでした。穴の場所を室内機から少し離してください</div>';return}
+  $("#hpList").innerHTML='<div style="font-size:12.5px;color:#64748b;margin:4px 2px">タップで3Dに出します（長さはだいたい）</div>'+R.map((r,k)=>`<button data-r="${k}" style="display:flex;width:100%;align-items:center;gap:8px;margin-top:6px;min-height:46px;border-radius:12px;border:1.5px solid #cbd5e1;background:#f8fafc;padding:6px 10px;font:inherit;text-align:left"><b style="flex:1;font-size:14px">${k+1}. ${r.name}</b><span style="font-size:13px;color:#334155;white-space:nowrap">約${(r.L/1000).toFixed(1)}m・曲げ${r.n}</span></button>`).join("");
+  $("#hpList").onclick=e=>{const b=e.target.closest("[data-r]");if(!b)return;const r=R[+b.dataset.r];st.rows=r.rows.map(w=>({...w}));save(true);build3D();try{fitT()}catch(err){}if(T)T.dirty=true;
+   $("#hpList").querySelectorAll("[data-r]").forEach(x=>{x.style.borderColor=x===b?"#2563eb":"#cbd5e1";x.style.background=x===b?"#dbeafe":"#f8fafc"});toast(`冷媒配管 約${(r.L/1000).toFixed(1)}m（だいたい）・曲げ${r.n}か所`)}};
+}

@@ -161,8 +161,11 @@ function parseVcf(t){const L=String(t).replace(/\r\n|\r/g,"\n").replace(/\n[ \t]
 async function pickContacts(){
  if(navigator.contacts&&navigator.contacts.select){try{const props=await navigator.contacts.getProperties().catch(()=>["name","tel"]),r=await navigator.contacts.select(props.filter(x=>["name","tel"].includes(x)),{multiple:true});
    reviewContacts(r.map(o=>({name:((o.name||[])[0]||"").trim(),kana:"",nick:"",co:"",role:"",tel:(o.tel||[])[0]||"",birth:""})).filter(o=>o.name));return}catch(e){if(e&&e.name==="AbortError"||e&&e.name==="InvalidStateError")return}}
- const ov=document.createElement("div");ov.className="sheet";ov.innerHTML=`<div class="sbox"><h2>📇 連絡帳から読み込む</h2>
- <div class="note"><b>iPhone</b>：連絡先のアプリ → 入れたい人を開く → 下の「連絡先を送信」→「"ファイル"に保存」。何人もの時は、連絡先のアプリの「リスト」を長押し →「書き出す」。<br>そのあと、下のボタンで保存したファイル（○○.vcf）を選んでください。<br><b>アンドロイド</b>：連絡先のアプリ → 人を選ぶ → 共有 → ファイルに保存、でも同じです。</div>
+ const ios=/iPhone|iPad|iPod/.test(navigator.userAgent),ov=document.createElement("div");ov.className="sheet";ov.innerHTML=`<div class="sbox" style="max-height:88vh"><h2>📇 連絡帳から読み込む</h2>
+ ${ios?`<div class="note" style="color:var(--ink)"><b>① 連絡先から直接選ぶ（おすすめ・初めの1回だけ設定）</b><br>iPhoneは、そのままでは連絡先を開けない作りです。iPhoneの設定で次をオンにすると、このボタンで連絡先の一覧が開いて選べるようになります。<br>
+  <b>設定 → アプリ → Safari → 詳細 → 機能フラグ →「Contact Picker API」をオン</b><br>（古いiPhoneは「設定 → Safari → 詳細 → 機能フラグ」）<br>オンにしたら、このアプリを閉じて開き直し、もう一度「📇 スマホの連絡帳から読み込む」を押してください。</div>
+ <div class="note" style="color:var(--ink);border-top:1px solid var(--line);padding-top:8px"><b>② ファイルで入れる</b>（設定を変えたくない時）<br>1. <b>先に</b>連絡先のアプリで入れたい人を開く → 下の「連絡先を送信」→「"ファイル"に保存」<br>2. このアプリに戻って、下のボタン → 保存したファイル（名前.vcf）を選ぶ<br>※ ファイルを保存していないと、ボタンを押しても「最近使った項目なし」と出ます。</div>`
+ :`<div class="note" style="color:var(--ink)">このスマホでは連絡先の一覧を開けませんでした。連絡先のアプリ → 人を選ぶ → 共有 →「ファイルに保存」（.vcf）してから、下のボタンで選んでください。</div>`}
  <button class="btn pri" data-f="1">📂 連絡先のファイルを選ぶ</button><button class="btn" data-x="1">閉じる</button></div>`;
  document.body.appendChild(ov);ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.x)){ov.remove();return}if(b&&b.dataset.f){ov.remove();$("#fCImp").click()}}}
 function reviewContacts(a){if(!a.length){toast("連絡先が読めませんでした");return}const C=cal(),ov=document.createElement("div");ov.className="sheet";

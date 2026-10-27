@@ -38,6 +38,40 @@ service cloud.firestore {
         }
       }
     }
+    // 現場「会社のなかま」（cos）：招待のリンクを開いた人は「許可待ち」で入る。社長（作った人）と番頭（role boss・bantou）が許可・役割・見ていい物を決める。
+    // 個人情報は見せる物ごとに分けて置く（c/{種類}/p/{人}）。その種類を許可された人だけが読める（許可されていない物は相手のスマホに届かない）。
+    // 直す＝社長・番頭と「直していい（edit）」を許可された人。人を消す・なかまを外す・許可を変えるのは社長・番頭だけ
+    function cmem(cid) { return get(/databases/$(database)/documents/cos/$(cid)/mem/$(request.auth.uid)).data; }
+    function cHas(cid) { return signedIn() && exists(/databases/$(database)/documents/cos/$(cid)/mem/$(request.auth.uid)); }
+    function cOwner(cid) { return signedIn() && get(/databases/$(database)/documents/cos/$(cid)).data.owner == request.auth.uid; }
+    function cOk(cid) { return cHas(cid) && cmem(cid).st == 'ok'; }
+    function cAdm(cid) { return cOwner(cid) || (cOk(cid) && cmem(cid).role in ['boss', 'bantou']); }
+    function cCan(cid, k) { return cAdm(cid) || (cOk(cid) && cmem(cid).perms.get(k, false) == true); }
+    match /cos/{cid} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
+      allow update: if cAdm(cid) && request.resource.data.owner == resource.data.owner;
+      allow delete: if cOwner(cid);
+      match /mem/{uid} {
+        allow read: if cOk(cid) || cOwner(cid) || (signedIn() && request.auth.uid == uid);
+        allow create: if signedIn() && request.auth.uid == uid && exists(/databases/$(database)/documents/cos/$(cid))
+          && ((request.resource.data.st == 'wait' && request.resource.data.role == 'mem' && request.resource.data.perms.size() == 0) || cOwner(cid));
+        allow update: if cAdm(cid)
+          || (signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'at']));
+        allow delete: if cAdm(cid) || (signedIn() && request.auth.uid == uid);
+      }
+      match /c/{cat}/p/{pid} {
+        allow read: if cCan(cid, cat);
+        allow create, update: if cAdm(cid) || cCan(cid, 'edit');
+        allow delete: if cAdm(cid);
+      }
+      match /lph/{phid} {
+        allow read: if cCan(cid, 'lic');
+        allow create, update: if cAdm(cid) || cCan(cid, 'edit');
+        allow delete: if cAdm(cid);
+      }
+    }
     match /groups/{code} {
       allow get: if signedIn();
       allow list: if false;

@@ -41,6 +41,7 @@ async function fxReal(){
  return{uid:u.uid,
   get:async p=>{const s=await F.getDoc(R(p));return s.exists()?s.data():null},
   set:(p,d,m)=>F.setDoc(R(p),d,m?{merge:true}:{}),
+  del:p=>F.deleteDoc(R(p)),
   list:async(p,n)=>{const c=F.collection(db,p),s=await F.getDocs(n?F.query(c,F.orderBy("at","desc"),F.limit(n)):c);return s.docs.map(d=>({id:d.id,data:d.data()}))}};
 }
 
@@ -197,5 +198,5 @@ if(PAGE==="bend"){
  if(cur)window.renderEdit();else if(location.hash==="#list")window.renderList();   /* 現場のはじめはメニュー（一覧は #list） */
 }
 const P=params();if(P)setTimeout(()=>openShared(P.tm,P.sh,P.k),PAGE==="bend"&&P.k==="g"?0:300);
-window.__TM={sendTeam,openStatus,openShared,LIFF_ID,PAGE};   // 確認・テスト用
+window.__TM={sendTeam,openStatus,openShared,LIFF_ID,PAGE,fx};   // fx：会社のなかま（kaisha.js）も同じログインで使う   // 確認・テスト用
 })();

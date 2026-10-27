@@ -369,8 +369,9 @@ function genShowOut(blob,type){
  $("#genOut").classList.add("on");
 }
 
-/* ===== 🕳 穴まで配管（現調）：床をタップして穴の場所 → 穴の高さ → ルートおまかせ → 好きなルートを選ぶ（2026-10-27 ユーザー：数字はだいたいでいい・早く）
-   ルートの作り方は図面の画面の「ルートおまかせ」（zumen.js の polyToRows・autoRoutes）と同じ物を写した。穴は st.bld の hole（auto:"gh"） ===== */
+/* ===== 📍 2点でルート（カメラの画面の中だけ・iPhoneでも）：①天井の室内機の真ん中をタップ ②穴の真下の床 ③穴（高さ）→ ルートの案（2026-10-27 ユーザー：全部AR上で・2か所決めたら簡単に）
+   iPhoneのブラウザは床や天井を見つけられないので、スマホの傾き（genGyroQ）と「天井の高さ」「スマホを持つ高さ」から、タップした所の位置を計算する（立ったまま動かない）。
+   長さはだいたい。「決める」で曲げの行（st.rows）に入れる（最初の横の向きを +x に回して gPolyRows） ===== */
 function gPolyRows(P){
  const V=THREE.Vector3;let d=new V(1,0,0),u=new V(0,1,0),r=new V(0,0,1);const rows=[];
  for(let i=0;i<P.length-1;i++){const seg=P[i+1].clone().sub(P[i]),l=Math.round(seg.length());let a=0,t=0;
@@ -380,55 +381,61 @@ function gPolyRows(P){
   rows.push({l,a:ANG.includes(a)?a:(a>60?90:45),t,o:false})}
  return rows;
 }
-function gAutoRoutes(X,Y,Z,o){
- const V=THREE.Vector3,S=Math.max(150,o.stub||300),M=150,out=[];
- const mk=(name,legs)=>{const P=[new V()];legs.forEach(v=>{if(v.length()<1)return;const last=P[P.length-1],prevDir=P.length>1?last.clone().sub(P[P.length-2]).normalize():null,nd=v.clone().normalize();
-   if(prevDir&&prevDir.dot(nd)>0.999)last.add(v);else P.push(last.clone().add(v))});
-  for(let i=1;i<P.length-1;i++)if(P[i].distanceTo(P[i-1])<M||P[i+1].distanceTo(P[i])<M)return;   // 曲げと曲げの間が短すぎるものは除く
-  if(P[1]&&P[1].distanceTo(P[0])<Math.min(S,150))return;
-  let L=0;for(let i=1;i<P.length;i++)L+=P[i].distanceTo(P[i-1]);
-  const key=P.map(p=>[p.x,p.y,p.z].map(Math.round).join(",")).join("|");if(out.some(x=>x.key===key))return;
-  out.push({name,P,L:Math.round(L/10)*10,n:P.length-2,key})};
- const x=new V(1,0,0),y=new V(0,1,0),z=new V(0,0,1);
- const fx=X>=S?X:S,rx=X-fx;   // 前に出る分（足りなければ最初のまっすぐだけ出して、あとで戻る）
- mk("前→横→上下",[x.clone().multiplyScalar(fx),z.clone().multiplyScalar(Z),x.clone().multiplyScalar(rx),y.clone().multiplyScalar(Y)]);
- mk("前→上下→横",[x.clone().multiplyScalar(fx),y.clone().multiplyScalar(Y),z.clone().multiplyScalar(Z),x.clone().multiplyScalar(rx)]);
- mk("少し出て横→前→上下",[x.clone().multiplyScalar(S),z.clone().multiplyScalar(Z),x.clone().multiplyScalar(X-S),y.clone().multiplyScalar(Y)]);
- mk("少し出て上下→前→横",[x.clone().multiplyScalar(S),y.clone().multiplyScalar(Y),x.clone().multiplyScalar(X-S),z.clone().multiplyScalar(Z)]);
- mk("少し出て上下→横→前",[x.clone().multiplyScalar(S),y.clone().multiplyScalar(Y),z.clone().multiplyScalar(Z),x.clone().multiplyScalar(X-S)]);
- if(o.d45){const az=Math.abs(Z),sz=Math.sign(Z)||1;
-  if(az>=M&&X-S-az>=0){mk("45°で寄せて→前→上下",[x.clone().multiplyScalar(S),new V(az,0,sz*az),x.clone().multiplyScalar(X-S-az),y.clone().multiplyScalar(Y)]);
-   mk("前→45°で寄せて→上下",[x.clone().multiplyScalar(X-az),new V(az,0,sz*az),y.clone().multiplyScalar(Y)])}}
- out.forEach(r=>{r.rows=gPolyRows(r.P)});
- return out.filter(r=>r.rows.every(w=>w.l>0)).sort((a,b)=>a.L-b.L||a.n-b.n);
-}
-const HP={h:2400};try{Object.assign(HP,JSON.parse(localStorage.getItem("pbm_hole")||"{}"))}catch(e){}
-const holeIdx=()=>(st.bld||[]).findIndex(o=>o.k==="hole"&&o.auto==="gh");
-function holeStart(){
- if(!T){toast("3Dの準備中です");return}if(!st.units.on||!st.units.s){toast("先に室内機の機種を選んでください");return}
- if(!st.gnd.on){st.gnd.on=true;save(true);build3D()}   // 床が無いと場所を決められない
- document.getElementById("hpPanel")?.remove();const ov=document.createElement("div");ov.id="hpPick";ov.style.cssText="position:fixed;inset:0;z-index:60";
- ov.innerHTML=`<div style="position:absolute;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 70px);background:#0f172aee;color:#fff;border-radius:14px;padding:12px 14px;font-size:15px;font-weight:800;line-height:1.5;text-align:center">🕳 穴の真下あたりの床をタップ<br><small style="font-weight:600;opacity:.85">だいたいで大丈夫。あとで高さを決めます</small><br><button id="hpNo" style="margin-top:8px;height:40px;border-radius:10px;border:0;padding:0 16px;font-weight:800">やめる</button></div>`;
- document.body.appendChild(ov);
- ov.onclick=e=>{if(e.target.id==="hpNo"){ov.remove();return}if(e.target!==ov)return;const p=bldFloorAt(e.clientX,e.clientY);if(!p){toast("床が見つかりません。床の見える所をタップしてください");return}
-  ov.remove();const o={k:"hole",x:p.x,z:p.z,w:75,d:150,y:HP.h,r:Math.abs(p.x)>=Math.abs(p.z)?90:0,auto:"gh"},i=holeIdx();if(i>=0)st.bld[i]=o;else st.bld.push(o);st.bld=normBld(st.bld);bldChanged();holePanel()};
-}
-function holeXYZ(){const o=st.bld[holeIdx()];if(!o)return null;const V=THREE.Vector3,GY=T&&T.GYr!=null?T.GYr:0,D0=(st.units.s==="wall"&&(WALLX[st.units.ws]||WALLX.rb).k==="d")?new V(0,-1,0):new V(1,0,0),F=frameFor(D0),p=new V(o.x,GY+o.y,o.z);   // core.js の holeToPipe と同じ
- return[Math.round(p.dot(F.ex)),Math.round(p.dot(F.ey)),Math.round(p.dot(F.ez))]}
-function holePanel(sel){
- document.getElementById("hpPanel")?.remove();const o=st.bld[holeIdx()];if(!o)return;const p=document.createElement("div");p.id="hpPanel";
- p.style.cssText="position:fixed;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:55;background:#fff;color:#0f172a;border-radius:16px;padding:10px 12px;box-shadow:0 6px 24px #0005;font-family:-apple-system,'Hiragino Sans',sans-serif;max-height:55vh;overflow:auto";
- const B=(id,t,st2)=>`<button id="${id}" style="height:42px;border-radius:10px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800;font-size:14px;${st2||""}">${t}</button>`;
- p.innerHTML=`<div style="display:flex;align-items:center;gap:6px"><b style="flex:1;font-size:15px">🕳 穴まで配管</b>${B("hpX","✕","width:42px")}</div>
-  <div style="display:flex;align-items:center;gap:6px;margin-top:8px"><span style="font-size:13px;font-weight:800;white-space:nowrap">穴の高さ（床から）</span>${B("hpM","−100","flex:1")}<b id="hpH" style="font-size:18px;min-width:64px;text-align:center">${fmt(o.y)}</b>${B("hpP","＋100","flex:1")}</div>
-  <div style="display:flex;gap:6px;margin-top:8px">${B("hpRe","📍 場所をやり直す","flex:1")}${B("hpGo","🧭 ルートおまかせ","flex:1.3;background:#2563eb;border-color:#2563eb;color:#fff")}</div>
-  <div id="hpList" style="margin-top:6px"></div>`;
- document.body.appendChild(p);
- const setH=d=>{const i=holeIdx();if(i<0)return;st.bld[i].y=Math.max(100,Math.min(6000,st.bld[i].y+d));HP.h=st.bld[i].y;try{localStorage.setItem("pbm_hole",JSON.stringify(HP))}catch(e){}bldChanged();$("#hpH").textContent=fmt(st.bld[i].y);$("#hpList").innerHTML=""};
- $("#hpM").onclick=()=>setH(-100);$("#hpP").onclick=()=>setH(100);$("#hpX").onclick=()=>p.remove();$("#hpRe").onclick=()=>{p.remove();holeStart()};
- $("#hpGo").onclick=()=>{const q0=holeXYZ();if(!q0)return;const q=q0.map((v,k)=>k&&Math.abs(v)<150?0:v),R=gAutoRoutes(q[0],q[1],q[2],{stub:300,d45:true}).slice(0,6);
-  if(!R.length){$("#hpList").innerHTML='<div style="font-size:13px;color:#64748b;padding:6px 2px">ルートが作れませんでした。穴の場所を室内機から少し離してください</div>';return}
-  $("#hpList").innerHTML='<div style="font-size:12.5px;color:#64748b;margin:4px 2px">タップで3Dに出します（長さはだいたい）</div>'+R.map((r,k)=>`<button data-r="${k}" style="display:flex;width:100%;align-items:center;gap:8px;margin-top:6px;min-height:46px;border-radius:12px;border:1.5px solid #cbd5e1;background:#f8fafc;padding:6px 10px;font:inherit;text-align:left"><b style="flex:1;font-size:14px">${k+1}. ${r.name}</b><span style="font-size:13px;color:#334155;white-space:nowrap">約${(r.L/1000).toFixed(1)}m・曲げ${r.n}</span></button>`).join("");
-  $("#hpList").onclick=e=>{const b=e.target.closest("[data-r]");if(!b)return;const r=R[+b.dataset.r];st.rows=r.rows.map(w=>({...w}));save(true);build3D();try{fitT()}catch(err){}if(T)T.dirty=true;
-   $("#hpList").querySelectorAll("[data-r]").forEach(x=>{x.style.borderColor=x===b?"#2563eb":"#cbd5e1";x.style.background=x===b?"#dbeafe":"#f8fafc"});toast(`冷媒配管 約${(r.L/1000).toFixed(1)}m（だいたい）・曲げ${r.n}か所`)}};
+const AR2={ch:2600,ph:1400,fov:62};try{Object.assign(AR2,JSON.parse(localStorage.getItem("pbm_ar2")||"{}"))}catch(e){}
+async function ar2Start(){
+ try{if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function"){const p=await DeviceOrientationEvent.requestPermission();if(p!=="granted"){toast("向きのセンサーが許可されませんでした");return}}}catch(e){toast("向きのセンサーが使えませんでした");return}
+ let stream=null;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false})}catch(e){toast("カメラが使えませんでした");return}
+ if(st.gnd&&st.gnd.ch)AR2.ch=st.gnd.ch;
+ const V=THREE.Vector3,ov=document.createElement("div");ov.id="ar2";ov.style.cssText="position:fixed;inset:0;z-index:400;background:#000;font-family:-apple-system,'Hiragino Sans',sans-serif;touch-action:none";
+ ov.innerHTML=`<video id="ar2v" playsinline muted autoplay style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video><canvas id="ar2c" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+  <div id="ar2t" style="position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);background:#0f172add;color:#fff;border-radius:14px;padding:10px 12px;font-size:15px;font-weight:800;line-height:1.45"></div>
+  <div id="ar2aim" style="position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border:2px solid #fbbf24;border-radius:50%;pointer-events:none"></div>
+  <div id="ar2b" style="position:absolute;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;flex-direction:column;gap:6px"></div>`;
+ document.body.appendChild(ov);const vid=ov.querySelector("#ar2v");vid.srcObject=stream;try{await vid.play()}catch(e){}
+ const cv=ov.querySelector("#ar2c"),R=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true});R.setPixelRatio(Math.min(2,devicePixelRatio||1));
+ const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(AR2.fov,1,10,60000);sc.add(new THREE.HemisphereLight(0xffffff,0x667788,1.0));
+ const size=()=>{R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.fov=AR2.fov;cam.updateProjectionMatrix()};size();addEventListener("resize",size);
+ const X={step:1,U:null,F:null,h:AR2.ch+200,pick:0,routes:[],q:null},grp=new THREE.Group();sc.add(grp);
+ const md=(typeof CAS2M!=="undefined"&&CAS2M[st.units.ms])||{L:840,W:840,H:250},cu=new THREE.MeshStandardMaterial({color:0xc2703a,metalness:.35,roughness:.4});
+ const onOri=ev=>{if(ev.alpha==null&&ev.beta==null)return;X.q=genGyroQ(ev).clone()};addEventListener("deviceorientation",onOri);
+ const ray=(cx,cy)=>{cam.position.set(0,AR2.ph,0);if(X.q)cam.quaternion.copy(X.q);cam.updateMatrixWorld();const rc=new THREE.Raycaster();rc.setFromCamera({x:cx/innerWidth*2-1,y:-(cy/innerHeight)*2+1},cam);return rc.ray};
+ const hitY=(r,y)=>{if(Math.abs(r.direction.y)<1e-4)return null;const t=(y-r.origin.y)/r.direction.y;return t>0?r.origin.clone().addScaledVector(r.direction,t):null};
+ const save2=()=>{try{localStorage.setItem("pbm_ar2",JSON.stringify({ch:AR2.ch,ph:AR2.ph,fov:AR2.fov}))}catch(e){}};
+ /* ルートの案：天井の中（天井＋150）を通る。室内機の真上から出て、横に進み、穴の所で穴の高さへ。L字は始めた時の向き（スマホを向けた正面）にそろえる */
+ const mkRoutes=()=>{const U=X.U,F=X.F;if(!U||!F)return[];const y0=AR2.ch+150,A=new V(U.x,y0,U.z),H=new V(F.x,X.h,F.z),E=new V(F.x,y0,F.z),out=[];
+  const add=(nm,P)=>{const Q=[];P.forEach(p=>{const l=Q[Q.length-1];if(!l||l.distanceTo(p)>30)Q.push(p.clone())});for(let i=1;i+1<Q.length;i++){const a=Q[i].clone().sub(Q[i-1]).normalize(),b=Q[i+1].clone().sub(Q[i]).normalize();if(a.dot(b)>0.999){Q.splice(i,1);i--}}
+   let L=0;for(let i=1;i<Q.length;i++)L+=Q[i].distanceTo(Q[i-1]);out.push({nm,P:Q,L,n:Math.max(0,Q.length-2)})};
+  add("L字（先に奥へ）",[A,new V(A.x,y0,E.z),E,H]);add("L字（先に横へ）",[A,new V(E.x,y0,A.z),E,H]);add("まっすぐ（ななめ）",[A,E,H]);
+  return out};
+ const drawAll=()=>{while(grp.children.length)grp.remove(grp.children[0]);const tube=(a,b,r,m)=>{const l=a.distanceTo(b);if(l<1)return;const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,14),m);c.position.copy(a).add(b).multiplyScalar(.5);c.quaternion.setFromUnitVectors(new V(0,1,0),b.clone().sub(a).normalize());grp.add(c)};
+  if(X.U){const b=new THREE.Mesh(new THREE.BoxGeometry(md.L,md.H,md.W),new THREE.MeshStandardMaterial({color:0xf1f5f9,transparent:true,opacity:.85}));b.position.set(X.U.x,AR2.ch+md.H/2-40,X.U.z);grp.add(b);
+   const p=new THREE.Mesh(new THREE.BoxGeometry(md.L+80,20,md.W+80),new THREE.MeshStandardMaterial({color:0xffffff}));p.position.set(X.U.x,AR2.ch-10,X.U.z);grp.add(p)}
+  if(X.F){const rm=new THREE.MeshBasicMaterial({color:0xef4444});const ring=new THREE.Mesh(new THREE.TorusGeometry(70,12,8,28),rm);ring.rotation.x=Math.PI/2;ring.position.set(X.F.x,4,X.F.z);grp.add(ring);
+   tube(new V(X.F.x,0,X.F.z),new V(X.F.x,X.h,X.F.z),6,new THREE.MeshBasicMaterial({color:0xfbbf24}));const hole=new THREE.Mesh(new THREE.TorusGeometry(60,14,8,28),rm);hole.position.set(X.F.x,X.h,X.F.z);grp.add(hole)}
+  const r=X.routes[X.pick];if(r)for(let i=1;i<r.P.length;i++){tube(r.P[i-1],r.P[i],20,cu);const s2=new THREE.Mesh(new THREE.SphereGeometry(26,12,8),cu);s2.position.copy(r.P[i]);grp.add(s2)}};
+ const B=(id,t,bg,fx)=>`<button id="${id}" style="flex:${fx||1};height:48px;border-radius:12px;border:0;font-weight:800;font-size:14.5px;background:${bg||"#ffffffee"};color:${bg?"#fff":"#0f172a"};padding:0 8px">${t}</button>`;
+ const ui=()=>{const T2=ov.querySelector("#ar2t"),Bb=ov.querySelector("#ar2b"),r=X.routes[X.pick];
+  T2.innerHTML=X.step===1?"① 天井の、<b>室内機の真ん中</b>をタップ<br><small style='font-weight:600;opacity:.85'>立ったまま動かないで使います（天井 "+fmt(AR2.ch)+"・スマホ "+fmt(AR2.ph)+"）</small>"
+   :X.step===2?"② <b>穴の真下の床</b>をタップ":X.step===3?"③ <b>穴</b>をタップ（天井の中などで見えない時は ± で高さ）<br><small style='font-weight:600;opacity:.85'>穴の高さ 床から "+fmt(X.h)+"</small>"
+   :`🧭 ルート ${X.pick+1}／${X.routes.length}：${r?r.nm:""}<br><b style="font-size:18px">冷媒配管 約${r?(r.L/1000).toFixed(1):"-"}m</b>（だいたい）・曲げ${r?r.n:0}<small style='font-weight:600;opacity:.85'>　穴 床から ${fmt(X.h)}</small>`;
+  Bb.innerHTML=(X.step>=3?`<div style="display:flex;gap:6px">${B("aHm","穴 −100")}${B("aHp","穴 ＋100")}${X.step===4?B("aNx","次のルート ›","#2563eb",1.4):B("aOk","この高さで決める","#2563eb",1.6)}</div>`:"")
+   +(X.step===0?"":`<div style="display:flex;gap:6px">${X.step>1?B("aBk","‹ 1つ戻る"):""}${B("aSet","⚙ 高さ")}${X.step===4?B("aUse","✓ 曲げに入れる","#16a34a",1.4):""}${B("aEnd","終了","#ef4444")}</div>`)
+   +(X.set?`<div style="display:flex;gap:6px;flex-wrap:wrap;background:#0f172add;border-radius:12px;padding:8px">${[["ch","天井の高さ"],["ph","スマホの高さ"],["fov","画角（ずれる時）"]].map(([k,t])=>`<div style="flex:1 1 30%;color:#fff;font-size:12px;font-weight:800;text-align:center">${t}<br><button data-k="${k}" data-d="-1" style="width:34px;height:34px;border-radius:8px;border:0">−</button> <b style="font-size:14px">${k==="fov"?AR2.fov+"°":fmt(AR2[k])}</b> <button data-k="${k}" data-d="1" style="width:34px;height:34px;border-radius:8px;border:0">＋</button></div>`).join("")}</div>`:"");
+  const on=(id,f)=>{const e=ov.querySelector("#"+id);if(e)e.onclick=ev=>{ev.stopPropagation();f()}};
+  on("aHm",()=>{X.h=Math.max(100,X.h-100);if(X.step===4)X.routes=mkRoutes();drawAll();ui()});on("aHp",()=>{X.h=Math.min(8000,X.h+100);if(X.step===4)X.routes=mkRoutes();drawAll();ui()});
+  on("aOk",()=>{X.step=4;X.routes=mkRoutes();X.pick=0;drawAll();ui()});on("aNx",()=>{X.pick=(X.pick+1)%Math.max(1,X.routes.length);drawAll();ui()});
+  on("aBk",()=>{if(X.step===4)X.step=3;else if(X.step===3){X.step=2;X.F=null}else if(X.step===2){X.step=1;X.U=null}X.routes=[];drawAll();ui()});
+  on("aSet",()=>{X.set=!X.set;ui()});on("aEnd",end);on("aUse",use);
+  ov.querySelectorAll("[data-k]").forEach(b=>b.onclick=ev=>{ev.stopPropagation();const k=b.dataset.k,d=+b.dataset.d;AR2[k]=k==="fov"?Math.max(40,Math.min(90,AR2.fov+d)):Math.max(k==="ch"?1800:500,Math.min(k==="ch"?6000:2200,AR2[k]+d*50));save2();size();if(X.step===4)X.routes=mkRoutes();drawAll();ui()});
+  ov.querySelector("#ar2aim").style.display=X.step===4?"none":""};
+ ov.addEventListener("click",e=>{if(e.target.closest("button"))return;const r=ray(e.clientX,e.clientY);
+  if(X.step===1){const p=hitY(r,AR2.ch);if(!p){toast("天井の方をタップしてください");return}X.U=p;X.step=2}
+  else if(X.step===2){const p=hitY(r,0);if(!p){toast("床の方をタップしてください");return}X.F=p;X.step=3}
+  else if(X.step===3){const o=r.origin,d=r.direction,hd=Math.hypot(d.x,d.z);if(hd<1e-3)return;const t=((X.F.x-o.x)*d.x+(X.F.z-o.z)*d.z)/(hd*hd);if(t<=0)return;X.h=Math.max(100,Math.round((o.y+d.y*t)/50)*50);X.step=4;X.routes=mkRoutes();X.pick=0}   // 穴の真下の床から上へのばした線の、タップした所の高さ
+  else return;drawAll();ui()});
+ function use(){const r=X.routes[X.pick];if(!r)return;const a=r.P[1].clone().sub(r.P[0]),th=Math.atan2(a.z,a.x),P=r.P.map(p=>p.clone().sub(r.P[0]).applyAxisAngle(new V(0,1,0),th));   // 最初の横の向きを +x に
+  st.rows=gPolyRows(P);save(true);build3D();try{fitT()}catch(e){}toast(`曲げに入れました：冷媒配管 約${(r.L/1000).toFixed(1)}m（だいたい）`);end()}
+ function end(){removeEventListener("deviceorientation",onOri);removeEventListener("resize",size);try{stream.getTracks().forEach(t=>t.stop())}catch(e){}cancelAnimationFrame(X.raf);try{R.dispose()}catch(e){}ov.remove()}
+ const loop2=()=>{X.raf=requestAnimationFrame(loop2);cam.position.set(0,AR2.ph,0);if(X.q)cam.quaternion.copy(X.q);R.render(sc,cam)};loop2();
+ ui();toast("室内機の真下あたりに立って、天井を映してください");
 }

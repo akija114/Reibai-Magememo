@@ -92,7 +92,7 @@ const TOOL=(href,ic,t,sub)=>`<a class="tool" href="${href}"><span class="ic">${i
 function toolsHtml(){return [
  ["🗓","段取り・会社","現場の予定と人",[TOOL("genba.html#list","📋","現場の一覧","現場カード・LINEで送る"),TOOL("genba.html#w"+monday(),"📅","週の割り振り","だれがどこ・休み・応援"),TOOL("genba.html#k"+ymd(today()),"📊","人工・残業","1か月・1年・交通費"),TOOL("genba.html#people","👤","社員・個人情報","タグ・資格証・緊急連絡先")]],
  ["📐","図面・3D","図面から3D・材料",[TOOL("zumen.html","🧊","図面・3D","読み込んで全部自動・材料拾い"),TOOL("cad/","✏️","図面編集","寸法・メモ・機器の移動")]],
- ["🔍","現場で","見る・測る・さがす",[TOOL("genchou.html","📹","現調","写真・寸法・メモ"),TOOL("kiki.html","🔩","機器をさがす","品番から大きさ・模型")]],
+ ["🔍","現場で","見る・測る・さがす",[TOOL("genchou.html","📹","現調","カメラに3Dを重ねる・実物大"),TOOL("sunpou.html","📏","写真に寸法","撮って、なぞって、数字を入れる"),TOOL("kiki.html","🔩","機器をさがす","品番から大きさ・模型")]],
  ["📘","しらべる","分からない時に",[TOOL("kiki.html?kiso=","📘","空調の種類と電線","方式・形・施工手順"),TOOL("guide.html","❓","使い方のまとめ","どこで何ができるか")]]
 ].map(([ic,t,sub,ts])=>`<div class="grp"><div class="gh">${ic} ${t} <small>${sub}</small></div><div class="tools">${ts.join("")}</div></div>`).join("")}
 let showOld=false,showUp=false;

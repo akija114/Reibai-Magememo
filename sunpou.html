@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja" data-app="sunpou">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>写真に寸法 - 冷媒配管の曲げ共有</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="曲げ共有 v1.00">
+<!-- 📏 写真に寸法：写真を撮って、指でなぞった所に測った数字を書きこむ（2026-10-27 ユーザー：案A・簡単に）。
+     データはこのiPhoneの中（IndexedDB「sunpou」の memos：写真（縮めたJPEG）と線・文字）。現場（IndexedDB「genba」の sites）は読むだけ。
+     items：{k:"d", a:[x,y], b:[x,y], v:"2450"}＝寸法の線、{k:"t", p:[x,y], v:"梁下"}＝文字。座標は写真のピクセル -->
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--panel:#e2e8f0;--danger:#dc2626;--line2:#06c755}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171}
+*,*:before,*:after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 20px)}
+.apps{display:flex;gap:4px;margin:0 0 10px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:3px}
+.apps a{flex:1;text-align:center;padding:7px 0;border-radius:9px;font-size:13px;font-weight:800;color:var(--sub);text-decoration:none;white-space:nowrap}
+h1{font-size:19px;margin:4px 2px 10px}
+.btn{height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:15px;padding:0 12px;white-space:nowrap}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}.btn.line{background:var(--line2);border-color:var(--line2);color:#fff}.btn.del{color:var(--danger)}.btn.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.big{display:flex;align-items:center;gap:12px;width:100%;border-radius:16px;padding:14px 16px;font:inherit;border:0;text-align:left;color:#fff;background:var(--acc);min-height:66px;margin-top:8px}
+.big b{font-size:18px;display:block}.big small{font-size:12.5px;opacity:.9;display:block;margin-top:2px;font-weight:600}.big .ic{font-size:28px}
+.big.sub{background:var(--card);color:var(--acc);border:2px solid var(--acc)}
+.memo{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:8px;margin-top:8px;color:var(--ink);font:inherit}
+.memo img{width:76px;height:76px;object-fit:cover;border-radius:10px;flex:none;background:var(--panel)}
+.memo b{font-size:16px;display:block}.memo .sub{color:var(--sub);font-size:12.5px;margin-top:3px}
+h2{font-size:14px;color:var(--sub);margin:18px 2px 4px}
+.empty{color:var(--sub);text-align:center;padding:20px 8px;font-size:14px;line-height:1.7;background:var(--card);border:1.5px dashed var(--line);border-radius:14px;margin-top:8px}
+/* 書きこむ画面 */
+body.ed{padding:0;overflow:hidden;position:fixed;inset:0}
+.top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;display:flex;gap:6px;align-items:center;background:var(--card);border-bottom:1.5px solid var(--line);z-index:3}
+.top input{flex:1;min-width:0;height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px;padding:0 10px}
+.top .btn{height:40px;font-size:14px;padding:0 10px}
+#cv{position:absolute;left:0;right:0;touch-action:none;background:#111}
+.bot{position:absolute;left:0;right:0;bottom:0;padding:6px 8px calc(env(safe-area-inset-bottom,0px) + 8px);background:var(--card);border-top:1.5px solid var(--line);z-index:3}
+.bot .row{display:flex;gap:6px}.bot .btn{flex:1;height:48px;font-size:15px;padding:0 6px}
+.hint{font-size:12.5px;color:var(--sub);text-align:center;margin-bottom:6px}
+.sheet{position:fixed;inset:0;background:#0007;z-index:9;display:flex;align-items:flex-end}
+.sbox{background:var(--card);width:100%;border-radius:18px 18px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 14px)}
+.sbox input{width:100%;height:56px;border-radius:12px;border:2px solid var(--acc);background:var(--bg);color:var(--ink);font:inherit;font-size:26px;font-weight:800;padding:0 12px;text-align:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.chip{border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 12px;font:inherit;font-size:14px;font-weight:700}
+.sbox .row{display:flex;gap:8px;margin-top:10px}.sbox .row .btn{flex:1;height:50px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 110px);transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:88vw;text-align:center;z-index:20;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<input type="file" id="fCam" accept="image/*" capture="environment" hidden><input type="file" id="fPick" accept="image/*" hidden>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const rid=()=>"m"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+let toastT=0;function toast(m){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t)}t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,Math.min(6000,1800+m.length*40))}
+/* ===== 保存（IndexedDB「sunpou」） ===== */
+let dbP=null;
+function db(){if(!dbP)dbP=new Promise((ok,ng)=>{const o=indexedDB.open("sunpou",1);o.onupgradeneeded=()=>{const d=o.result;if(!d.objectStoreNames.contains("memos"))d.createObjectStore("memos",{keyPath:"id"})};o.onsuccess=()=>ok(o.result);o.onerror=()=>ng(o.error)});return dbP}
+async function dbDo(mode,fn){const d=await db();return new Promise((ok,ng)=>{const tx=d.transaction("memos",mode),s=tx.objectStore("memos");let r;try{r=fn(s)}catch(e){ng(e);return}tx.oncomplete=()=>ok(r&&"result"in r?r.result:undefined);tx.onerror=()=>ng(tx.error)})}
+const allMemos=()=>dbDo("readonly",s=>s.getAll()),getMemo=id=>dbDo("readonly",s=>s.get(id)),putMemo=m=>dbDo("readwrite",s=>s.put(m)),delMemo=id=>dbDo("readwrite",s=>s.delete(id));
+/* 現場（genba.html と同じ入れ物・読むだけ） */
+function genbaSites(){return new Promise(ok=>{try{const o=indexedDB.open("genba",1);o.onupgradeneeded=()=>{const d=o.result;if(!d.objectStoreNames.contains("sites"))d.createObjectStore("sites",{keyPath:"id"});if(!d.objectStoreNames.contains("photos"))d.createObjectStore("photos",{keyPath:"id"})};
+ o.onsuccess=()=>{try{const r=o.result.transaction("sites","readonly").objectStore("sites").getAll();r.onsuccess=()=>ok(r.result||[]);r.onerror=()=>ok([])}catch(e){ok([])}};o.onerror=()=>ok([])}catch(e){ok([])}})}
+/* 写真：長い辺 2000px の JPEG に縮める（文字が読める大きさ） */
+function shrink(file){return new Promise((ok,ng)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,2000/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement("canvas");c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok({b,w:c.width,h:c.height}):ng(new Error("写真を読めませんでした")),"image/jpeg",.85)};im.onerror=()=>{URL.revokeObjectURL(u);ng(new Error("写真を読めませんでした"))};im.src=u})}
+const dTxt=t=>{const d=new Date(t);return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`};
+const urls=[];const freeUrls=()=>{while(urls.length)URL.revokeObjectURL(urls.pop())};
+
+/* ===== 一覧 ===== */
+async function renderList(){
+ document.body.className="";freeUrls();const ms=(await allMemos()).sort((a,b)=>b.u-a.u);
+ $("#app").innerHTML=`<nav class="apps"><a href="home.html" style="flex:0 0 38px" aria-label="入口">🏠</a><a href="genchou.html">📹 現調</a><a href="genba.html">📋 現場</a></nav>
+ <h1>📏 写真に寸法</h1>
+ <button class="big" id="bCam"><span class="ic">📷</span><span><b>写真を撮る</b><small>撮ったら、測った所を指でなぞって数字を入れるだけ</small></span></button>
+ <button class="big sub" id="bPick"><span class="ic">🖼</span><span><b>写真から選ぶ</b><small style="color:var(--sub)">前に撮った写真に書きこむ</small></span></button>
+ <h2>書きこんだ写真（${ms.length}）</h2>
+ ${ms.length?ms.map(m=>{const u=URL.createObjectURL(m.img);urls.push(u);const n=m.items.filter(i=>i.k==="d").length;return `<button class="memo" data-id="${m.id}"><img src="${u}" alt=""><span><b>${esc(m.title||"（名前なし）")}</b><span class="sub">${esc(dTxt(m.u))}${m.siteName?" ・ 📋"+esc(m.siteName):""}<br>寸法 ${n}か所${m.items.length>n?"・メモ "+(m.items.length-n):""}</span></span></button>`}).join(""):`<div class="empty">まだありません。<br>「写真を撮る」から始めてください。</div>`}`;
+ $("#bCam").onclick=()=>$("#fCam").click();$("#bPick").onclick=()=>$("#fPick").click();
+ $("#app").querySelectorAll(".memo").forEach(b=>b.onclick=()=>{location.hash=b.dataset.id});
+}
+async function newFrom(file){try{const {b,w,h}=await shrink(file),m={id:rid(),t:Date.now(),u:Date.now(),title:"",site:"",siteName:"",img:b,w,h,items:[]};await putMemo(m);location.hash=m.id}catch(e){toast(e.message||"写真を読めませんでした")}}
+["#fCam","#fPick"].forEach(id=>$(id).onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)newFrom(f)});
+
+/* ===== 書きこむ ===== */
+let M=null,IMG=null,cv=null,cx=null,V={s:1,tx:0,ty:0},mode="d",G=null,saveT=0,loupe=null;
+const ptrs=new Map();
+function save(){if(!M)return;M.u=Date.now();clearTimeout(saveT);saveT=setTimeout(()=>putMemo(M).catch(()=>toast("保存できませんでした")),250)}
+async function renderEdit(id){
+ const m=await getMemo(id);if(!m){location.hash="";return}M=m;document.body.className="ed";freeUrls();
+ $("#app").innerHTML=`<div class="top"><button class="btn" id="bBack">‹ 一覧</button><input id="fTitle" placeholder="名前（例：2F 事務室 天井）" value="${esc(m.title)}"><button class="btn line" id="bSend">送る</button></div>
+ <canvas id="cv"></canvas>
+ <div class="bot"><div class="hint" id="hint"></div><div class="row"><button class="btn" id="mD">📏 寸法</button><button class="btn" id="mT">💬 文字</button><button class="btn" id="bUndo">↶ 戻す</button><button class="btn" id="bMore">…</button></div></div>`;
+ cv=$("#cv");cx=cv.getContext("2d");
+ const u=URL.createObjectURL(m.img);urls.push(u);IMG=new Image();IMG.onload=()=>{layout();fit();draw()};IMG.src=u;
+ $("#bBack").onclick=()=>{clearTimeout(saveT);putMemo(M).finally(()=>{location.hash=""})};
+ $("#fTitle").oninput=e=>{M.title=e.target.value;save()};
+ $("#mD").onclick=()=>{mode="d";ui()};$("#mT").onclick=()=>{mode="t";ui()};
+ $("#bUndo").onclick=()=>{if(!M.items.length){toast("戻す物がありません");return}M.items.pop();save();draw()};
+ $("#bSend").onclick=sendImg;$("#bMore").onclick=moreSheet;
+ cv.onpointerdown=pDown;cv.onpointermove=pMove;cv.onpointerup=e=>pUp(e,false);cv.onpointercancel=e=>pUp(e,true);
+ ui();
+}
+function ui(){$("#mD").classList.toggle("on",mode==="d");$("#mT").classList.toggle("on",mode==="t");
+ $("#hint").textContent=mode==="d"?"測った所を指でなぞる → 数字を入れる（2本指で拡大・移動）":"文字を置く所をタップ（2本指で拡大・移動）"}
+function layout(){const t=$(".top").getBoundingClientRect().bottom,b=$(".bot").getBoundingClientRect().top,d=devicePixelRatio||1;cv.style.top=t+"px";cv.style.height=(b-t)+"px";cv.width=innerWidth*d;cv.height=(b-t)*d;cv.style.width=innerWidth+"px"}
+function fit(){const W=cv.width/(devicePixelRatio||1),H=cv.height/(devicePixelRatio||1);V.s=Math.min(W/M.w,H/M.h);V.tx=(W-M.w*V.s)/2;V.ty=(H-M.h*V.s)/2}
+addEventListener("resize",()=>{if(M&&cv){layout();fit();draw()}});
+const s2i=(x,y)=>[(x-V.tx)/V.s,(y-V.ty)/V.s],i2s=(x,y)=>[x*V.s+V.tx,y*V.s+V.ty];
+function evP(e){const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
+/* 線・文字を描く（画面と送る画像で同じ）。k＝線の太さの倍率 */
+function paint(c,P,k,sel){
+ c.lineCap="round";c.lineJoin="round";
+ for(const it of M.items){
+  if(it.k==="d"){const a=P(it.a),b=P(it.b),dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,nx=-uy,ny=ux,t=9*k,ah=12*k;
+   c.strokeStyle="#ffffff";c.lineWidth=6*k;c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke();   // 白いふち（どんな写真でも見える）
+   c.strokeStyle=it===sel?"#f59e0b":"#e11d48";c.lineWidth=3*k;c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);
+   for(const [p,s] of [[a,1],[b,-1]]){c.moveTo(p[0]+nx*t,p[1]+ny*t);c.lineTo(p[0]-nx*t,p[1]-ny*t);c.moveTo(p[0],p[1]);c.lineTo(p[0]+(ux*s)*ah+nx*ah*.45,p[1]+(uy*s)*ah+ny*ah*.45);c.moveTo(p[0],p[1]);c.lineTo(p[0]+(ux*s)*ah-nx*ah*.45,p[1]+(uy*s)*ah-ny*ah*.45)}
+   c.stroke();if(it.v)label(c,(a[0]+b[0])/2,(a[1]+b[1])/2,it.v,k,"#ffffff","#e11d48",it===sel)}
+  else if(it.k==="t"){const p=P(it.p),y=p[1]-31*k<0?p[1]+18*k:p[1]-18*k;c.fillStyle="#e11d48";c.beginPath();c.arc(p[0],p[1],4*k,0,Math.PI*2);c.fill();label(c,p[0],y,it.v,k,"#fef08a","#0f172a",it===sel)}}   // 上の端に近い文字は点の下に
+}
+function label(c,x,y,s,k,bg,fg,sel){c.font=`800 ${Math.round(17*k)}px -apple-system,"Hiragino Sans",sans-serif`;const w=c.measureText(s).width+14*k,h=26*k;
+ c.fillStyle=bg;c.strokeStyle=sel?"#f59e0b":fg;c.lineWidth=2*k;c.beginPath();c.roundRect?c.roundRect(x-w/2,y-h/2,w,h,7*k):c.rect(x-w/2,y-h/2,w,h);c.fill();c.stroke();
+ c.fillStyle=fg;c.textAlign="center";c.textBaseline="middle";c.fillText(s,x,y+1*k)}
+function draw(){if(!cx||!IMG)return;const d=devicePixelRatio||1;cx.setTransform(d,0,0,d,0,0);const W=cv.width/d,H=cv.height/d;cx.fillStyle="#111";cx.fillRect(0,0,W,H);
+ cx.drawImage(IMG,V.tx,V.ty,M.w*V.s,M.h*V.s);paint(cx,p=>i2s(p[0],p[1]),1,G&&G.sel);
+ if(G&&G.type==="d"&&G.b){const a=i2s(...G.a),b=i2s(...G.b);cx.strokeStyle="#f59e0b";cx.lineWidth=3;cx.setLineDash([8,6]);cx.beginPath();cx.moveTo(a[0],a[1]);cx.lineTo(b[0],b[1]);cx.stroke();cx.setLineDash([]);
+  const L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L>4)drawLoupe(b,W)}}
+/* 指の下が見えるように、上の角に拡大して出す */
+function drawLoupe(p,W){const R=58,Z=2.5,d=devicePixelRatio||1,lx=p[0]<W/2?W-R-10:R+10,ly=R+10;
+ cx.save();cx.beginPath();cx.arc(lx,ly,R,0,Math.PI*2);cx.clip();cx.fillStyle="#111";cx.fillRect(lx-R,ly-R,R*2,R*2);
+ const ip=s2i(p[0],p[1]),is=R/(V.s*Z);cx.drawImage(IMG,ip[0]-is,ip[1]-is,is*2,is*2,lx-R,ly-R,R*2,R*2);
+ cx.strokeStyle="#f59e0b";cx.lineWidth=1.5;cx.beginPath();cx.moveTo(lx-12,ly);cx.lineTo(lx+12,ly);cx.moveTo(lx,ly-12);cx.lineTo(lx,ly+12);cx.stroke();cx.restore();
+ cx.strokeStyle="#fff";cx.lineWidth=3;cx.beginPath();cx.arc(lx,ly,R,0,Math.PI*2);cx.stroke()}
+/* 指：1本＝なぞる（寸法）・タップ（文字・直す）、2本＝拡大・移動 */
+function hitItem(p){let best=null,bd=26;for(const it of M.items){let d;if(it.k==="d"){const a=i2s(...it.a),b=i2s(...it.b),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;d=Math.min(Math.hypot(p[0]-mx,p[1]-my),segD(p,a,b)+6)}else{const q=i2s(...it.p);d=Math.min(Math.hypot(p[0]-q[0],p[1]-q[1]),Math.hypot(p[0]-q[0],p[1]-(q[1]-18)))}if(d<bd){bd=d;best=it}}return best}
+function segD(p,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],L=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L));return Math.hypot(p[0]-a[0]-dx*t,p[1]-a[1]-dy*t)}
+function pDown(e){cv.setPointerCapture(e.pointerId);const p=evP(e);ptrs.set(e.pointerId,p);
+ if(ptrs.size===1)G={type:"d",start:p,a:s2i(...p),b:null,moved:false,t:performance.now()};
+ else if(ptrs.size===2){const [a,b]=[...ptrs.values()];G={type:"pinch",d0:Math.hypot(a[0]-b[0],a[1]-b[1])||1,c0:[(a[0]+b[0])/2,(a[1]+b[1])/2],v0:{...V}};draw()}}
+function pMove(e){if(!ptrs.has(e.pointerId)||!G)return;const p=evP(e);ptrs.set(e.pointerId,p);
+ if(G.type==="d"){if(!G.moved&&Math.hypot(p[0]-G.start[0],p[1]-G.start[1])>10)G.moved=true;if(G.moved&&mode==="d"){G.b=s2i(...p);draw()}}
+ else if(G.type==="pinch"&&ptrs.size>=2){const [a,b]=[...ptrs.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),c=[(a[0]+b[0])/2,(a[1]+b[1])/2],v0=G.v0,ix=(G.c0[0]-v0.tx)/v0.s,iy=(G.c0[1]-v0.ty)/v0.s;
+  V.s=Math.max(0.02,Math.min(20,v0.s*d/G.d0));V.tx=c[0]-ix*V.s;V.ty=c[1]-iy*V.s;draw()}}
+function pUp(e,cancel){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);const g=G;if(!g)return;
+ if(g.type==="pinch"){if(!ptrs.size)G=null;else G={type:"none"};return}
+ if(g.type!=="d"||ptrs.size)return;G=null;if(cancel){draw();return}
+ if(!g.moved){const it=hitItem(g.start);if(it){editItem(it);return}if(mode==="t"){const it2={k:"t",p:g.a,v:""};askVal(it2,true)}else toast("測った所を指でなぞってください");draw();return}
+ if(mode!=="d"||!g.b){draw();return}const a=i2s(...g.a),b=i2s(...g.b);if(Math.hypot(b[0]-a[0],b[1]-a[1])<16){draw();return}
+ askVal({k:"d",a:g.a,b:g.b,v:""},true)}
+/* 数字・文字を入れる（大きい欄・よく使う言葉はタップで頭に付ける） */
+const WORDS_D=["天井高","梁下","壁から","芯から","幅","奥行","高さ","床から"],WORDS_T=["梁あり","点検口","配管ルート","ドレン","電源","障害物","吊りボルト","ここに室内機"];
+function askVal(it,isNew){
+ const ov=document.createElement("div");ov.className="sheet";const words=it.k==="d"?WORDS_D:WORDS_T;
+ ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px;margin-bottom:8px">${it.k==="d"?"📏 寸法（mm）":"💬 文字"}</div>
+  <input id="vIn" ${it.k==="d"?'inputmode="decimal"':""} value="${esc(it.v)}" placeholder="${it.k==="d"?"例：2450":"例：梁あり"}" autocomplete="off">
+  <div class="chips">${words.map(w=>`<button class="chip" data-w="${esc(w)}">${esc(w)}</button>`).join("")}</div>
+  <div class="row">${isNew?'<button class="btn" data-a="no">やめる</button>':'<button class="btn del" data-a="del">消す</button>'}<button class="btn pri" data-a="ok" style="flex:2">決める</button></div></div>`;
+ document.body.appendChild(ov);const inp=ov.querySelector("#vIn"),t0=performance.now();   // t0：指を離した時のクリックで、すぐ閉じないようにsetTimeout(()=>{try{inp.focus()}catch(e){}},30);
+ const done=ok=>{const v=inp.value.trim();ov.remove();if(ok){if(!v&&it.k==="t"){draw();return}it.v=v;if(isNew)M.items.push(it);save()}draw()};
+ inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();done(true)}};
+ ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov){if(performance.now()-t0>450)done(!isNew||it.k==="d");return}if(!b)return;
+  if(b.dataset.w){const w=b.dataset.w;inp.value=it.k==="d"?w+" "+inp.value.replace(/^[^\d]*/,"").trim():(inp.value?inp.value+" ":"")+w;   /* 寸法は言葉を頭に（入れ直すと入れかえ）・文字は後ろに足す */inp.focus();return}
+  const a=b.dataset.a;if(a==="ok")done(true);else if(a==="no"){ov.remove();draw()}else if(a==="del"){M.items=M.items.filter(x=>x!==it);ov.remove();save();draw()}};
+}
+function editItem(it){G={sel:it};draw();G=null;askVal(it,false)}
+/* 送る：写真に線と数字を書きこんだ画像（写真の大きさ） */
+function composeBlob(){return new Promise(ok=>{const c=document.createElement("canvas");c.width=M.w;c.height=M.h;const g=c.getContext("2d");g.drawImage(IMG,0,0,M.w,M.h);paint(g,p=>p,Math.max(1.2,Math.max(M.w,M.h)/700));
+ if(M.title){const k=Math.max(1.2,Math.max(M.w,M.h)/700);g.font=`800 ${Math.round(18*k)}px -apple-system,"Hiragino Sans",sans-serif`;const w=g.measureText(M.title).width+20*k;g.fillStyle="#0f172acc";g.fillRect(0,0,w,34*k);g.fillStyle="#fff";g.textBaseline="middle";g.textAlign="left";g.fillText(M.title,10*k,17*k)}
+ c.toBlob(b=>ok(b),"image/jpeg",.9)})}
+async function sendImg(){const b=await composeBlob();const nm=((M.title||"寸法")+".jpg").replace(/[\\/:*?"<>|\s]/g,""),f=new File([b],nm,{type:"image/jpeg"}),txt=[M.title,...M.items.filter(i=>i.v).map(i=>(i.k==="d"?"📏 ":"💬 ")+i.v)].filter(Boolean).join("\n");
+ try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:M.title||"寸法"});return}}catch(e){if(e&&e.name==="AbortError")return}
+ const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=nm;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000);if(txt)toast("画像を保存しました")}
+async function moreSheet(){
+ const ss=(await genbaSites()).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,30),ov=document.createElement("div");ov.className="sheet";
+ const list=M.items.filter(i=>i.v).map(i=>(i.k==="d"?"📏 ":"💬 ")+esc(i.v)).join("<br>");
+ ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px">この写真</div>
+  <div style="font-size:13px;color:var(--sub);margin:6px 0 4px">📋 どの現場？</div><select id="sSite" style="width:100%;height:44px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px"><option value="">（決めない）</option>${ss.map(s=>`<option value="${esc(s.id)}" ${s.id===M.site?"selected":""}>${esc((s.name||"（名前なし）")+(s.date?" "+s.date.slice(5).replace("-","/"):""))}</option>`).join("")}</select>
+  ${list?`<div style="font-size:13px;color:var(--sub);margin:10px 0 2px">書きこんだ物</div><div style="font-size:15px;line-height:1.7;max-height:30vh;overflow:auto">${list}</div>`:""}
+  <div class="row"><button class="btn" data-a="fit">全体を見る</button><button class="btn" data-a="cp">📋 寸法をコピー</button></div>
+  <div class="row"><button class="btn del" data-a="del">写真ごと消す</button><button class="btn pri" data-a="ok">閉じる</button></div></div>`;
+ document.body.appendChild(ov);
+ ov.querySelector("#sSite").onchange=e=>{const s=ss.find(x=>x.id===e.target.value);M.site=s?s.id:"";M.siteName=s?(s.name||""):"";save()};
+ ov.onclick=async e=>{const b=e.target.closest("button");if(e.target===ov){ov.remove();return}if(!b)return;const a=b.dataset.a;
+  if(a==="ok")ov.remove();else if(a==="fit"){fit();draw();ov.remove()}
+  else if(a==="cp"){const t=[M.title,...M.items.filter(i=>i.v).map(i=>i.v)].filter(Boolean).join("\n");try{await navigator.clipboard.writeText(t);toast("コピーしました")}catch(err){toast("コピーできませんでした")}}
+  else if(a==="del"){if(!b.dataset.ok){b.dataset.ok="1";b.textContent="本当に消す";return}clearTimeout(saveT);await delMemo(M.id);M=null;ov.remove();location.hash=""}};
+}
+/* ===== 画面の切りかえ ===== */
+async function route(){const id=location.hash.slice(1);if(M&&M.id!==id){clearTimeout(saveT);await putMemo(M).catch(()=>{});M=null}if(id){renderEdit(id);return}renderList()}
+addEventListener("hashchange",route);
+addEventListener("pagehide",()=>{if(M){clearTimeout(saveT);putMemo(M)}});
+route();
+if("serviceWorker"in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>

@@ -96,7 +96,7 @@ async function renderMenu(){
  $("#app").innerHTML=`<h1><span class="grow">📋 現場</span></h1>
  ${big("mList","📋","現場一覧",`現場カード ${ss.length}件${now?`・今日の現場 ${now}件`:""}（日時・住所・駐車場・メンバー・LINEに送る）`)}
  ${big("mWeek","📅","週の割り振り","だれがどこ・休み・応援・人数・残業・📊人工")}
- ${big("mPeople","👤","個人情報",`${(()=>{const k=[...C.staff,...C.helpers].filter(n=>hcSt((C.prof[n]||{}).hc).c==="ng").length;return k?`<b style="color:var(--danger)">🩺 健康診断の更新が必要：${k}人</b><br>`:""})()}社員 ${C.staff.length}人・応援さん ${C.helpers.length}人（名前・ふりがな・生年月日・電話・緊急連絡先・資格証・交通費のまとめ）`)}
+ ${big("mPeople","👤","個人情報",`${(()=>{const k=[...C.staff,...C.helpers].filter(n=>hcSt((C.prof[n]||{}).hc).c==="ng").length;return k?`<b style="color:var(--danger)">🩺 健康診断の更新が必要：${k}人</b><br>`:""})()}社員 ${C.staff.length}人・協力会社 ${C.helpers.length}人（名前・ふりがな・生年月日・電話・緊急連絡先・資格証・交通費のまとめ）`)}
  <button class="btn" id="mStat" style="width:100%;margin:6px 0 10px;background:#ecfdf5;border-color:#a7f3d0;color:#065f46">👀 見た人を確認（チームに送った現場）</button>
  <div class="card"><h2>💾 バックアップ</h2><div class="note">現場のデータ・個人情報はこのiPhoneの中だけにあります。時々「書き出す」でファイルに残してください（写真も入ります）。</div>
  <div class="row" style="margin-top:8px"><button class="btn grow" id="bExp">書き出す</button><button class="btn grow" id="bImp">読み込む</button></div><input type="file" id="fImp" accept=".json,application/json" hidden></div>`;
@@ -104,7 +104,7 @@ async function renderMenu(){
  $("#mStat").onclick=()=>{if(window.__TM&&__TM.openStatus)__TM.openStatus();else toast("少し待ってからもう一度押してください")};
  $("#bExp").onclick=exportAll;$("#bImp").onclick=()=>$("#fImp").click();$("#fImp").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)importAll(f)};
 }
-/* 社員⇄応援さんを移す（入れまちがえた時）。個人情報（C.prof）はそのまま */
+/* 社員⇄協力会社を移す（入れまちがえた時）。個人情報（C.prof）はそのまま */
 function moveKind(n,to){const C=cal();if(to==="h"){C.staff=C.staff.filter(x=>x!==n);if(!C.helpers.includes(n))C.helpers.push(n);if(C.pin)C.pin=C.pin.filter(x=>x!==n)}else{C.helpers=C.helpers.filter(x=>x!==n);if(!C.staff.includes(n))C.staff.push(n)}calSave(C)}
 /* 👤 個人情報：社員の一覧（📌・順番は週の割り振りと同じ）。タップでその人のページ（個人情報・緊急連絡先・資格証・人工・残業・交通費） */
 function renderPeople(){
@@ -115,12 +115,12 @@ function renderPeople(){
   <label class="f" for="fMyco">🏢 会社名（屋号）・従業員の数</label><div class="row" style="margin:0 0 6px;gap:6px"><input id="fMyco" placeholder="自分の会社名（例：小川設備）" value="${esc(C.myco)}" class="grow"><input id="fMyEmp" type="number" inputmode="numeric" placeholder="従業員" value="${(C.coInfo[C.myco]||{}).emp||""}" style="width:80px"><span class="note">人</span></div>
   <div class="note">名前をタップ → 個人情報・緊急連絡先・資格証の写真・タグ、その人の人工・残業・交通費。ここに入れた人が週の割り振りの表に出ます。</div>
   <div id="staff">${ordNames(C,C.staff).map(n=>{const p=C.prof[n]||{},nl=(p.lic||[]).length,em=p.em||{};return `<div class="prow"><button class="site" data-pp="${esc(n)}"><b>${(C.pin||[]).includes(n)?"📌":""}${esc(n)}</b>${p.nick?` <span class="sub">「${esc(p.nick)}」</span>`:""}${p.kana?` <span class="sub">${esc(p.kana)}</span>`:""}${ageOf(p.birth)!==""?` <span class="sub">${ageOf(p.birth)}歳</span>`:""}
-   ${p.role?` <span class="role">${esc(p.role)}</span>`:""}${(p.trades||[]).length?`<div class="sub">${(p.trades||[]).map(t=>"🔧"+esc(t.n)+(t.since&&expOf(t.since)?" "+expOf(t.since):"")).join(" ")}</div>`:""}<div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div><div>${tagHtml(tagsOf(C,n))}</div>${hcSt(p.hc).c?`<div class="need ${hcSt(p.hc).c}" style="font-size:12.5px">${esc(hcSt(p.hc).c==="ng"?"🩺 健康診断の更新が必要（1年過ぎ）":hcSt(p.hc).t)}</div>`:""}</button><button class="btn sm mv" data-mv="${esc(n)}" data-to="h">→ 🤝<br>応援へ</button></div>`}).join("")||`<span class="note">まだいません。下で名前を入れてください。</span>`}</div>
+   ${p.role?` <span class="role">${esc(p.role)}</span>`:""}${(p.trades||[]).length?`<div class="sub">${(p.trades||[]).map(t=>"🔧"+esc(t.n)+(t.since&&expOf(t.since)?" "+expOf(t.since):"")).join(" ")}</div>`:""}<div class="sub">${p.tel?"📞 "+esc(p.tel)+" ":""}${em.n||em.tel?"🚑 緊急連絡先あり ":""}${nl?"📜 資格 "+nl+"件":""}${!p.tel&&!(em.n||em.tel)&&!nl?"まだ入っていません":""}</div><div>${tagHtml(tagsOf(C,n))}</div>${hcSt(p.hc).c?`<div class="need ${hcSt(p.hc).c}" style="font-size:12.5px">${esc(hcSt(p.hc).c==="ng"?"🩺 健康診断の更新が必要（1年過ぎ）":hcSt(p.hc).t)}</div>`:""}</button><button class="btn sm mv" data-mv="${esc(n)}" data-to="h">→ 🤝<br>協力会社へ</button></div>`}).join("")||`<span class="note">まだいません。下で名前を入れてください。</span>`}</div>
   <div class="row" style="margin-top:8px"><input id="fStaff" placeholder="名前（例：服部）" enterkeyhint="done"><button class="btn pri" id="bStaff">追加</button></div>
   <div class="chips" id="sugg">${[...new Set(people().map(baseNm))].filter(n=>n&&!C.staff.includes(n)&&!C.helpers.includes(n)).slice(0,20).map(n=>`<button class="chip" data-as="${esc(n)}">＋ ${esc(n)}</button>`).join("")}</div>
   <button class="btn" id="bPImp" style="width:100%;margin-top:8px">📥 受け取った人を入れる</button><input type="file" id="fPImp" accept=".json,application/json" hidden>
   <button class="btn" id="bVcfAll" style="width:100%;margin-top:8px">📇 社員みんなをスマホの連絡先に入れる</button></div>
- <div class="card"><h2>🤝 応援さん</h2><div class="note">ほかの会社から来てくれる人。名前をタップ → 会社名・電話・緊急連絡先・資格証など（社員と同じ）。現場に入れると週の割り振りの表に「（応援）」で出て、人工・交通費も数えます。</div>
+ <div class="card"><h2>🤝 協力会社</h2><div class="note">ほかの会社から来てくれる人。名前をタップ → 会社名・電話・緊急連絡先・資格証など（社員と同じ）。現場に入れると週の割り振りの表に「（協力）」で出て、人工・交通費も数えます。</div>
   <div id="helpers">${(()=>{const G=new Map();for(const n of C.helpers){const k=((C.prof[n]||{}).co||"").trim();if(!G.has(k))G.set(k,[]);G.get(k).push(n)}   /* 会社ごと（会社名＝その人の「会社名（屋号）」）。会社名なしは下 */
    return [...G.keys()].sort((a,b)=>(!a)-(!b)||a.localeCompare(b,"ja")).map(k=>`<div class="row" style="margin:10px 0 4px"><b class="grow">🏢 ${k?esc(k):"会社名なし"}（登録 ${G.get(k).length}人）</b>${k?`<button class="btn sm" data-addco="${esc(k)}">＋ この会社に足す</button>`:""}</div>
    ${k?`<div class="row" style="margin:0 0 4px;gap:6px"><span class="note">従業員の数</span><input data-emp="${esc(k)}" type="number" inputmode="numeric" placeholder="—" value="${(C.coInfo[k]||{}).emp||""}" style="width:80px"><span class="note">人</span></div>`:""}
@@ -134,7 +134,7 @@ function renderPeople(){
  const add=v=>{v=baseNm(v||"");if(!v)return;const C2=cal();if(!C2.staff.includes(v))C2.staff.push(v);calSave(C2);backTo="people";go("p"+encodeURIComponent(v))};   // 足したらすぐ、その人のページで入れる
  $("#bStaff").onclick=()=>add($("#fStaff").value);$("#fStaff").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();add($("#fStaff").value)}};
  $("#sugg").onclick=e=>{const b=e.target.closest("[data-as]");if(b)add(b.dataset.as)};
- $("#staff").onclick=$("#helpers").onclick=e=>{const m=e.target.closest("[data-mv]");if(m){moveKind(m.dataset.mv,m.dataset.to);renderPeople();toast(m.dataset.to==="h"?"応援さんへ移しました":"社員へ移しました");return}
+ $("#staff").onclick=$("#helpers").onclick=e=>{const m=e.target.closest("[data-mv]");if(m){moveKind(m.dataset.mv,m.dataset.to);renderPeople();toast(m.dataset.to==="h"?"協力会社へ移しました":"社員へ移しました");return}
   const c=e.target.closest("[data-addco]");if(c){$("#fHco").value=c.dataset.addco;$("#fHelper").scrollIntoView({behavior:"smooth",block:"center"});setTimeout(()=>$("#fHelper").focus(),350);return}
   const b=e.target.closest("[data-pp]");if(b){backTo="people";go("p"+encodeURIComponent(b.dataset.pp))}};
  const addH=v=>{v=baseNm(v||"");if(!v)return;const C2=cal();if(C2.staff.includes(v)){toast("社員に同じ名前の人がいます");return}if(!C2.helpers.includes(v))C2.helpers.push(v);const co=$("#fHco").value.trim();if(co)prof(C2,v).co=co;calSave(C2);backTo="people";go("p"+encodeURIComponent(v))};
@@ -147,7 +147,7 @@ function renderPeople(){
  $("#bVcfAll").onclick=()=>{if(!C.staff.length){toast("社員がいません");return}addContacts(ordNames(C,C.staff))};
 }
 /* 📇 スマホの連絡帳から読み込む：アンドロイド（連絡先を選ぶ画面がある時）は選んだ人、無い時（iPhone）は連絡先のファイル（.vcf）を選ぶ。
-   読んだ後に「確かめて入れる」画面：社員／応援さん・名前などを直して、足りない所（ふりがな・電話・誕生日・緊急連絡先・職種）を見せる。同じ名前の人がいる時は空いている所だけ入れる */
+   読んだ後に「確かめて入れる」画面：社員／協力会社・名前などを直して、足りない所（ふりがな・電話・誕生日・緊急連絡先・職種）を見せる。同じ名前の人がいる時は空いている所だけ入れる */
 function vUnesc(v){return String(v).replace(/\\n/gi,"\n").replace(/\\([,;\\])/g,"$1").trim()}
 function parseVcf(t){const L=String(t).replace(/\r\n|\r/g,"\n").replace(/\n[ \t]/g,"").split("\n"),out=[];let c=null;
  for(const ln of L){const i=ln.indexOf(":");if(i<0)continue;const k0=ln.slice(0,i),v=ln.slice(i+1),k=k0.toUpperCase().replace(/^ITEM\d+\./,""),key=k.split(";")[0];
@@ -171,9 +171,9 @@ async function pickContacts(){
 function reviewContacts(a){if(!a.length){toast("連絡先が読めませんでした");return}const C=cal(),ov=document.createElement("div");ov.className="sheet";
  a.forEach(o=>{o.on=true;o.k=o.co&&C.myco&&o.co.trim()!==C.myco.trim()?"h":"s";o.ex=C.staff.includes(o.name)||C.helpers.includes(o.name)});
  const miss=o=>{const p=o.ex?(C.prof[o.name]||{}):{},em=p.em||{},m=[];if(!(o.kana||p.kana))m.push("ふりがな");if(!(o.tel||p.tel))m.push("電話");if(!(o.birth||p.birth))m.push("生年月日");if(!(em.n||em.tel))m.push("緊急連絡先");if(!(p.trades||[]).length)m.push("職種・経験");if(o.k==="h"&&!(o.co||p.co))m.push("会社名");return m};
- const draw=()=>{ov.innerHTML=`<div class="sbox" style="max-height:88vh"><h2>📇 確かめて入れる（${a.length}人）</h2><div class="note">入れない人はチェックを外す。社員か応援さんかを選んで、名前などを直してください。<b style="color:var(--danger)">赤い字</b>は、入れた後にその人のページで足してほしい所です。</div>
+ const draw=()=>{ov.innerHTML=`<div class="sbox" style="max-height:88vh"><h2>📇 確かめて入れる（${a.length}人）</h2><div class="note">入れない人はチェックを外す。社員か協力会社かを選んで、名前などを直してください。<b style="color:var(--danger)">赤い字</b>は、入れた後にその人のページで足してほしい所です。</div>
   ${a.map((o,i)=>`<div style="border-top:1px solid var(--line);padding:8px 0;${o.on?"":"opacity:.45"}"><div class="row"><label style="display:flex;align-items:center;gap:6px;flex:1"><input type="checkbox" style="width:auto" data-on="${i}" ${o.on?"checked":""}><b>${esc(o.name)}</b></label>
-   <select data-k="${i}" style="width:auto"><option value="s" ${o.k==="s"?"selected":""}>👤 社員</option><option value="h" ${o.k==="h"?"selected":""}>🤝 応援さん</option></select></div>${o.ex?`<div class="note">（もう入っています → 空いている所だけ足します）</div>`:""}
+   <select data-k="${i}" style="width:auto"><option value="s" ${o.k==="s"?"selected":""}>👤 社員</option><option value="h" ${o.k==="h"?"selected":""}>🤝 協力会社</option></select></div>${o.ex?`<div class="note">（もう入っています → 空いている所だけ足します）</div>`:""}
    <div class="row" style="flex-wrap:wrap;gap:4px;margin-top:4px">${[["name","名前"],["kana","ふりがな"],["nick","ニックネーム"],["role","役職"],["tel","電話"]].concat(o.k==="h"?[["co","会社名"]]:[]).map(([f,t])=>`<input data-i="${i}" data-fd="${f}" value="${esc(o[f]||"")}" placeholder="${t}" style="flex:1 1 45%;min-width:0;font-size:15px;padding:7px 8px">`).join("")}
     <input data-i="${i}" data-fd="birth" type="date" value="${esc(o.birth||"")}" style="flex:1 1 45%;min-width:0;font-size:15px;padding:7px 8px"></div>
    ${miss(o).length?`<div class="note" style="color:var(--danger)">足りない所：${miss(o).join("・")}</div>`:`<div class="note" style="color:#15803d">そろっています</div>`}</div>`).join("")}
@@ -184,10 +184,12 @@ function reviewContacts(a){if(!a.length){toast("連絡先が読めませんで�
   const C2=cal();let nA=0,nU=0;for(const o of a){if(!o.on||!o.name)continue;const n=o.name,had=C2.staff.includes(n)||C2.helpers.includes(n);
    if(!had){(o.k==="h"?C2.helpers:C2.staff).push(n);nA++}else nU++;const p=prof(C2,n);for(const f of ["kana","nick","role","tel","birth"])if(o[f]&&!p[f])p[f]=o[f];if(o.k==="h"&&o.co&&!p.co)p.co=o.co}
   calSave(C2);ov.remove();toast(`入れました：新しく ${nA}人${nU?`・足した ${nU}人`:""}。足りない所は名前をタップして入れてください`);renderPeople()}}
+/* 名前・ふりがなを名字と名前に分ける（最初の空白で。空白が無い時は全部が名字） */
+const nmSp=v=>{const a=String(v||"").trim().split(/[\s　]+/);return [a[0]||"",a.slice(1).join(" ")]};
 /* 📇 スマホの連絡先に入れる：連絡先のファイル（vCard 3.0）を作って開く。iPhone は開くと「新規連絡先を作成」（何人もの時は「○件の連絡先をすべて追加」）、
    アンドロイドは保存したファイルを開くと連絡先のアプリで入る。名前・ふりがな・ニックネーム・会社名・電話・誕生日、職種・経験・血液型・緊急連絡先はメモに */
-function vcardOf(C,n){const p=prof(C,n),e=v=>String(v||"").replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/[,;]/g,m=>"\\"+m),L=["BEGIN:VCARD","VERSION:3.0",`N:${e(n)};;;;`,`FN:${e(n)}`];
- if(p.kana)L.push(`X-PHONETIC-LAST-NAME:${e(p.kana)}`,`SORT-STRING:${e(p.kana)}`);if(p.nick)L.push(`NICKNAME:${e(p.nick)}`);if(coOf(C,n))L.push(`ORG:${e(coOf(C,n))}`);if(p.role)L.push(`TITLE:${e(p.role)}`);if(p.tel)L.push(`TEL;TYPE=CELL:${e(p.tel)}`);if(p.birth)L.push(`BDAY:${p.birth}`);
+function vcardOf(C,n){const p=prof(C,n),e=v=>String(v||"").replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/[,;]/g,m=>"\\"+m),nm=nmSp(n),kn=nmSp(p.kana),L=["BEGIN:VCARD","VERSION:3.0",`N:${e(nm[0])};${e(nm[1])};;;`,`FN:${e(n)}`];
+ if(kn[0])L.push(`X-PHONETIC-LAST-NAME:${e(kn[0])}`,`SORT-STRING:${e(p.kana)}`);if(kn[1])L.push(`X-PHONETIC-FIRST-NAME:${e(kn[1])}`);if(p.nick)L.push(`NICKNAME:${e(p.nick)}`);if(coOf(C,n))L.push(`ORG:${e(coOf(C,n))}`);if(p.role)L.push(`TITLE:${e(p.role)}`);if(p.tel)L.push(`TEL;TYPE=CELL:${e(p.tel)}`);if(p.birth)L.push(`BDAY:${p.birth}`);
  const m=[];for(const t of p.trades||[])m.push(`職種：${t.n}${t.since?`（${ymdJ(t.since)}から・経験${expOf(t.since)||"1か月未満"}）`:""}`);if(p.blood)m.push(`血液型：${p.blood}型`);
  const em=p.em||{};if(em.n||em.tel)m.push(`緊急連絡先：${em.n||""}${em.rel?`（${em.rel}）`:""} ${em.tel||""}`.trim());if(m.length)L.push(`NOTE:${e(m.join("\n"))}`);
  if(em.n&&em.tel){L.push(`item1.TEL:${e(em.tel)}`,`item1.X-ABLABEL:緊急連絡先（${e(em.n)}）`)}
@@ -234,7 +236,7 @@ function renderEdit(){
  <div class="card"><h2>👥 人数・応援</h2>
   <div class="row"><div class="grow"><label class="f" for="fMin">最低これだけ要る</label><input id="fMin" type="number" inputmode="numeric" min="0" placeholder="例：3"></div><div class="grow"><label class="f" for="fPlus">余裕がなければ＋</label><input id="fPlus" type="number" inputmode="numeric" min="0" placeholder="例：2"></div></div>
   <div class="note" id="needInfo"></div>
-  <label class="f">🤝 応援さん（どこの会社から・何人）</label><div id="helps"></div>
+  <label class="f">🤝 協力会社（どこの会社から・何人）</label><div id="helps"></div>
   <div class="row" style="margin-top:8px"><button class="btn grow" id="bHelp">＋ 応援を足す</button></div></div>
  <div class="card"><h2>🚗 交通費（1日・往復）</h2><div class="note">人ごとに住んでいる所がちがうので、高速代・ガソリン代をこの現場に1日行くといくらかを入れてください。📊 人工の画面で月ごと・人ごと・現場ごとに合計します。</div><div id="costs"></div></div>
  <div class="card"><h2>🔧 作業内容</h2>${FIELD("fWork","1行に1つ（→ で始めると前の行の続き）","天吊10馬力の入替\n口元流用\nガス回収\n→ 必要なら新しい物に交換",true)}</div>
@@ -327,12 +329,12 @@ function upd(){
  const st=needSt(s,s.date);$("#needInfo").innerHTML=s.need.min?`<span class="need ${st.c}">${esc(st.t)}</span>`:`今は ${st.n}名（メンバー＋応援）。最低の人数を入れると、足りているか分かります。`;
 }
 
-/* ===== 📅 週の割り振り：だれがどの現場か・休み・応援さん・人数（最低○名・余裕がなければ＋○名）
+/* ===== 📅 週の割り振り：だれがどの現場か・休み・協力会社・人数（最低○名・余裕がなければ＋○名）
    社員の名前と休みは localStorage「genba_cal」（{staff:[名前], off:{"2026-10-27":[名前]}}）。現場の方は sites に end（終わりの日）・need {min,plus}・help [{co,n}]、
    メンバーに d（入る日だけ。無い時は現場の日ぜんぶ） ===== */
 function cal(){let o={};try{o=JSON.parse(localStorage.getItem("genba_cal")||"{}")}catch(e){}if(!Array.isArray(o.staff))o.staff=[];if(!o.off||typeof o.off!=="object")o.off={};if(!Array.isArray(o.tags))o.tags=[];if(!o.prof||typeof o.prof!=="object")o.prof={};if(!Array.isArray(o.helpers))o.helpers=[];if(typeof o.myco!=="string")o.myco="";if(!o.coInfo||typeof o.coInfo!=="object")o.coInfo={};return o}   /* myco：自分の会社名（社員の会社）・coInfo[会社名]={emp:従業員の数} */
-const coOf=(C,n)=>C.helpers.includes(n)?((C.prof[n]||{}).co||""):C.myco||"";   /* その人の会社：社員は自分の会社・応援さんはその人の会社名 */
-const ROLEP=["社長","副社長","専務","常務","部長","課長","係長","主任","職長","現場代理人","親方","番頭","職人","見習い"];   /* helpers：🤝 応援さん（ほかの会社の人・個人情報は社員と同じ C.prof） */
+const coOf=(C,n)=>C.helpers.includes(n)?((C.prof[n]||{}).co||""):C.myco||"";   /* その人の会社：社員は自分の会社・協力会社はその人の会社名 */
+const ROLEP=["社長","副社長","専務","常務","部長","課長","係長","主任","職長","現場代理人","親方","番頭","職人","見習い"];   /* helpers：🤝 協力会社（ほかの会社の人・個人情報は社員と同じ C.prof） */
 function calSave(o){try{localStorage.setItem("genba_cal",JSON.stringify(o))}catch(e){toast("保存できませんでした")}}
 const pad2=n=>String(n).padStart(2,"0"),ymdOf=d=>`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
 const dOf=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
@@ -395,7 +397,7 @@ async function renderWeek(){
   <h2 style="margin-top:10px">👷 だれがどこに</h2>
   ${C.tags.some(t=>!t.hide&&names.some(n=>tagsOf(C,n).some(x=>x.id===t.id)))?`<div class="chips" style="margin:0 0 6px">${C.tags.filter(t=>!t.hide&&names.some(n=>tagsOf(C,n).some(x=>x.id===t.id))).map(t=>`<button class="chip" data-wt="${t.id}" style="${wTag===t.id?`background:${t.c};border-color:${t.c};color:#fff`:`border-color:${t.c}`}">🏷 ${esc(t.n)}</button>`).join("")}</div>`:""}
   ${names.length?`<div class="wtab"><table><tr><th></th>${days.map(y=>`<th class="${y===today?"td":""}">${+y.slice(8)}<br>${WD[dOf(y).getDay()]}</th>`).join("")}</tr>
-  ${names.map(n=>`<tr class="${wTag&&!tagsOf(C,n).some(t=>t.id===wTag)?"dim":""}"><th class="nm" data-nm="${esc(n)}">${(C.pin||[]).includes(n)?"📌":""}${esc(n)}${C.staff.includes(n)?"":`<div class="sub" style="font-size:10px">${C.helpers.includes(n)?"（応援）":"（社員外）"}</div>`}${tagsOf(C,n).length?`<div class="dots">${tagsOf(C,n).map(t=>`<i style="background:${t.c}"></i>`).join("")}</div>`:""}</th>${days.map(y=>cell(n,y)).join("")}</tr>`).join("")}</table></div>
+  ${names.map(n=>`<tr class="${wTag&&!tagsOf(C,n).some(t=>t.id===wTag)?"dim":""}"><th class="nm" data-nm="${esc(n)}">${(C.pin||[]).includes(n)?"📌":""}${esc(n)}${C.staff.includes(n)?"":`<div class="sub" style="font-size:10px">${C.helpers.includes(n)?"（協力）":"（社員外）"}</div>`}${tagsOf(C,n).length?`<div class="dots">${tagsOf(C,n).map(t=>`<i style="background:${t.c}"></i>`).join("")}</div>`:""}</th>${days.map(y=>cell(n,y)).join("")}</tr>`).join("")}</table></div>
   <div class="note">マスをタップ → 現場に入れる・外す・休みにする。名前をタップ → 📌固定・順番。⚠️＝休みの日に入っている／時間のかぶる現場に入っている。🌙＝夜勤・⏱＝残業あり。${names.some(n=>!C.staff.includes(n))?"「（社員外）」の人は、現場に入っているけれど、下の「社員」に入れていない人です。":""}</div><button class="btn sm" id="bAddP" style="margin-top:6px">＋ 人を足す（何人でも）</button>`:`<div class="note">下の「社員の名前」に名前を入れると、ここに表が出ます。</div>`}
   ${ss.length?`<div class="chips">${ss.map(s=>`<button class="chip" data-sd="${s.id}" style="border-color:${col(s)}"><span style="color:${col(s)}">■</span> ${esc(s.name||"（名前なし）")} ›</button>`).join("")}</div>`:""}</div>
  ${days.map(y=>{const here=ss.filter(s=>onDay(s,y)),off=C.off[y]||[],busy=new Set(Object.keys(at).filter(n=>(at[n][y]||[]).length)),free=names.filter(n=>!busy.has(n)&&!off.includes(n));
@@ -410,7 +412,7 @@ async function renderWeek(){
   ${names.length&&here.length?`<div class="note">🙋 空いている人：${free.length?esc(free.join("・")):"いません"}</div>`:""}</div>`}).join("")}
  <div class="card"><h2>💬 この週の割り振りを送る</h2><pre class="out" id="out"></pre>
   <div class="row" style="margin-top:8px"><button class="btn grow" id="bCopy">📋 コピー</button><button class="btn line grow" id="bSend">💬 送る</button></div></div>
- <div class="card"><h2>👷 社員（表に出す人）</h2><div class="note">会社のメンバーを入れておくと、だれが空いているか・休みかが分かります。名前をタップ → タグ・個人情報・緊急連絡先・資格証。応援さんは現場の「👥 人数・応援」に入れてください。</div>
+ <div class="card"><h2>👷 社員（表に出す人）</h2><div class="note">会社のメンバーを入れておくと、だれが空いているか・休みかが分かります。名前をタップ → タグ・個人情報・緊急連絡先・資格証。協力会社は現場の「👥 人数・応援」に入れてください。</div>
   <div id="staff">${ordNames(C,C.staff).map(n=>{const p=C.prof[n]||{},nl=(p.lic||[]).length;return `<button class="site" data-pp="${esc(n)}"><b>${(C.pin||[]).includes(n)?"📌":""}${esc(n)}</b>${ageOf(p.birth)!==""?` <span class="sub">${ageOf(p.birth)}歳</span>`:""}${nl?` <span class="sub">📜${nl}</span>`:""}<div>${tagHtml(tagsOf(C,n))}</div></button>`}).join("")||`<span class="note">まだいません</span>`}</div>
   <button class="btn" id="bPImp" style="width:100%;margin-top:8px">📥 受け取った人を入れる</button><input type="file" id="fPImp" accept=".json,application/json" hidden>
   <div class="row" style="margin-top:8px"><input id="fStaff" placeholder="名前（例：服部）" enterkeyhint="done"><button class="btn pri" id="bStaff">追加</button></div>
@@ -438,7 +440,7 @@ async function renderWeek(){
 function nameSheet(n){const C=cal(),pin=C.pin||[],ov=document.createElement("div");ov.className="sheet";const st=C.staff.includes(n),on=pin.includes(n);
  ov.innerHTML=`<div class="sbox"><h2>${on?"📌":""}${esc(n)}</h2>
  <button class="btn ${on?"pri":""}" data-a="pin">${on?"📌 固定を外す":"📌 いちばん上に固定する"}</button>
- ${st?`<div class="row"><button class="btn grow" data-a="up">▲ 上へ</button><button class="btn grow" data-a="dn">▼ 下へ</button></div><button class="btn" data-a="top">⤒ ${on?"固定の中で":""}いちばん上へ</button><button class="btn" data-a="pp">👤 個人のページ</button>`:C.helpers.includes(n)?`<button class="btn" data-a="pp">👤 個人のページ（🤝 応援さん）</button>`:`<button class="btn" data-a="add">＋ 社員に入れる（順番を変えられるように）</button>`}
+ ${st?`<div class="row"><button class="btn grow" data-a="up">▲ 上へ</button><button class="btn grow" data-a="dn">▼ 下へ</button></div><button class="btn" data-a="top">⤒ ${on?"固定の中で":""}いちばん上へ</button><button class="btn" data-a="pp">👤 個人のページ</button>`:C.helpers.includes(n)?`<button class="btn" data-a="pp">👤 個人のページ（🤝 協力会社）</button>`:`<button class="btn" data-a="add">＋ 社員に入れる（順番を変えられるように）</button>`}
  <div class="note">📌の人はいつも表のいちばん上（📌どうしは社員の順）。▲▼で社員の順番を変えます。</div><button class="btn" data-a="x">閉じる</button></div>`;
  document.body.appendChild(ov);
  ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.a==="x")){ov.remove();return}if(!b)return;const a=b.dataset.a,C2=cal();C2.pin=C2.pin||[];
@@ -593,7 +595,7 @@ async function renderPerson(){
  const p=prof(C,n),ok=()=>calSave(C);
  const F2=(id,label,v,ph,type)=>`<label class="f" for="${id}">${label}</label><input id="${id}" ${type?`type="${type}"`:""} placeholder="${esc(ph||"")}" value="${esc(v||"")}">`;
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">${backTo==="people"?"← 個人情報の一覧":"← 週の割り振り"}</button><span class="grow"></span><button class="btn sm del" id="bDelP">この人を消す</button></h1>
- <div class="note" style="margin:0 4px 6px;display:flex;align-items:center;gap:8px"><span class="grow">${isH?"🤝 応援さん":"👤 社員"}</span><button class="btn sm" id="bKind">${isH?"👤 社員にする":"🤝 応援さんにする"}</button></div>
+ <div class="note" style="margin:0 4px 6px;display:flex;align-items:center;gap:8px"><span class="grow">${isH?"🤝 協力会社":"👤 社員"}</span><button class="btn sm" id="bKind">${isH?"👤 社員にする":"🤝 協力会社にする"}</button></div>
  <div class="card"><h2 style="display:flex;align-items:center;gap:6px"><span class="grow">📊 ${esc(n)} の人工・残業・交通費</span><button class="btn sm" id="pSp">‹</button><button class="btn sm" id="pSn">›</button></h2><div id="pSum" class="note">集計しています…</div></div>
  <div class="card"><h2>🏷 タグ</h2><div class="note">タップでつける・外す。🙈の付いたタグは、この画面だけに出ます（表・送る文章には出ません）。</div>
   <div class="chips" id="ptags">${C.tags.map(t=>{const on=p.tags.includes(t.id);return `<button class="chip ${on?"on":""}" data-t="${t.id}" style="${on?`background:${t.c};border-color:${t.c};color:#fff`:`border-color:${t.c}`}">${t.hide?"🙈":""}${esc(t.n)}</button>`}).join("")||`<span class="note">まだタグがありません。下で作ってください。</span>`}</div>
@@ -602,7 +604,7 @@ async function renderPerson(){
    <div class="row" style="margin-top:8px"><input id="fTag" placeholder="新しいタグ（例：溶接できる）" enterkeyhint="done"><button class="btn pri" id="bTag">作る</button></div>
    <div class="chips" id="tagSug">${TAGP.filter(x=>!C.tags.some(t=>t.n===x)).map(x=>`<button class="chip" data-ts="${esc(x)}">＋ ${esc(x)}</button>`).join("")}</div></details></div>
  <div class="card"><h2>👤 個人情報</h2>
-  ${F2("pN","名前",n,"例：服部 太郎")}${F2("pKana","ふりがな",p.kana,"例：はっとり たろう")}${F2("pNick","ニックネーム（呼び名）",p.nick,"例：はっちゃん")}<label class="f" for="pRole">役職</label><input id="pRole" list="roleList" placeholder="例：社長・職長" value="${esc(p.role||"")}"><datalist id="roleList">${ROLEP.map(x=>`<option value="${x}">`).join("")}</datalist>
+  <div class="row"><div class="grow">${F2("pSei","名字",nmSp(n)[0],"例：服部")}</div><div class="grow">${F2("pMei","名前",nmSp(n)[1],"例：太郎")}</div></div><div class="row"><div class="grow">${F2("pKs","ふりがな（名字）",nmSp(p.kana)[0],"例：はっとり")}</div><div class="grow">${F2("pKm","ふりがな（名前）",nmSp(p.kana)[1],"例：たろう")}</div></div>${F2("pNick","ニックネーム（呼び名）",p.nick,"例：はっちゃん")}<label class="f" for="pRole">役職</label><input id="pRole" list="roleList" placeholder="例：社長・職長" value="${esc(p.role||"")}"><datalist id="roleList">${ROLEP.map(x=>`<option value="${x}">`).join("")}</datalist>
   ${isH?F2("pCo","会社名（屋号）",p.co,"例：小川設備"):`<div class="note" style="margin-top:6px">🏢 会社：${C.myco?esc(C.myco):"（まだ入っていません）"}（社員の会社名は、個人情報の一覧の上で入れます）</div>`}
   <div class="row"><div class="grow">${F2("pBirth","生年月日",p.birth,"","date")}</div><div style="width:110px"><label class="f">年齢</label><div class="age" id="pAge"></div></div></div>
   <label class="f" for="pBlood">血液型</label><select id="pBlood">${["","A","B","O","AB"].map(x=>`<option value="${x}" ${p.blood===x?"selected":""}>${x?x+"型":"（入れない）"}</option>`).join("")}</select>
@@ -647,10 +649,10 @@ async function renderPerson(){
   else if(d.td!=null){if(!b.dataset.ok){b.dataset.ok="1";b.textContent="消す？";return}const id=C.tags[+d.td].id;C.tags.splice(+d.td,1);for(const q of Object.values(C.prof))if(q.tags)q.tags=q.tags.filter(x=>x!==id);reP()}};
  $("#app").querySelector("details").open=sessionStorage.getItem("genba_tagEd")==="1";$("#app").querySelector("details").ontoggle=e=>{try{sessionStorage.setItem("genba_tagEd",e.target.open?"1":"")}catch(_){}};
  const bind=(id,set)=>{const el=$("#"+id);el.oninput=()=>{set(el.value);ok();pUpd()}};
- bind("pKana",v=>p.kana=v);bind("pNick",v=>p.nick=v);if(isH)bind("pCo",v=>p.co=v);bind("pRole",v=>p.role=v.trim());bind("pBirth",v=>p.birth=v);bind("pHc",v=>p.hc=v);bind("pBpH",v=>p.bpH=v.trim());bind("pBpL",v=>p.bpL=v.trim());bind("pTel",v=>p.tel=v);$("#pBlood").onchange=e=>{p.blood=e.target.value;ok();pUpd()};
+ const kn=()=>[$("#pKs").value.trim(),$("#pKm").value.trim()].filter(Boolean).join(" ");bind("pKs",()=>p.kana=kn());bind("pKm",()=>p.kana=kn());bind("pNick",v=>p.nick=v);if(isH)bind("pCo",v=>p.co=v);bind("pRole",v=>p.role=v.trim());bind("pBirth",v=>p.birth=v);bind("pHc",v=>p.hc=v);bind("pBpH",v=>p.bpH=v.trim());bind("pBpL",v=>p.bpL=v.trim());bind("pTel",v=>p.tel=v);$("#pBlood").onchange=e=>{p.blood=e.target.value;ok();pUpd()};
  bind("eN",v=>p.em.n=v);bind("eKana",v=>p.em.kana=v);bind("eRel",v=>p.em.rel=v);bind("eAddr",v=>p.em.addr=v);bind("eTel",v=>p.em.tel=v);
- $("#pN").onchange=e=>{const v=baseNm(e.target.value);if(!v||v===n){e.target.value=n;return}if(C.staff.includes(v)||C.helpers.includes(v)){toast("同じ名前の人がいます");e.target.value=n;return}
-  if(isH)C.helpers[C.helpers.indexOf(n)]=v;else C.staff[C.staff.indexOf(n)]=v;C.prof[v]=p;delete C.prof[n];for(const y in C.off)C.off[y]=C.off[y].map(x=>x===n?v:x);ok();toast("名前を変えました（現場のメンバーの名前はそのままです）");pName=v;location.replace("#p"+encodeURIComponent(v))};
+ $("#pSei").onchange=$("#pMei").onchange=()=>{const back=()=>{$("#pSei").value=nmSp(n)[0];$("#pMei").value=nmSp(n)[1]},v=baseNm([$("#pSei").value.trim(),$("#pMei").value.trim()].filter(Boolean).join(" "));if(!v||v===n){if(!v)back();return}if(C.staff.includes(v)||C.helpers.includes(v)){toast("同じ名前の人がいます");back();return}
+  if(isH)C.helpers[C.helpers.indexOf(n)]=v;else C.staff[C.staff.indexOf(n)]=v;C.prof[v]=p;delete C.prof[n];for(const y in C.off)C.off[y]=C.off[y].map(x=>x===n?v:x);if(C.pin)C.pin=C.pin.map(x=>x===n?v:x);for(const d in C.ot||{})if(C.ot[d][n]){C.ot[d][v]=C.ot[d][n];delete C.ot[d][n]}ok();toast("名前を変えました（現場のメンバーの名前はそのままです）");pName=v;location.replace("#p"+encodeURIComponent(v))};
  $("#bDelP").onclick=async e=>{const b=e.currentTarget;if(!b.dataset.ok){b.dataset.ok="1";b.textContent="本当に消す";setTimeout(()=>{if(b.isConnected){b.dataset.ok="";b.textContent="この人を消す"}},3000);return}
   for(const l of p.lic)for(const id of l.ph||[])await delPhoto(id).catch(()=>{});C.staff=C.staff.filter(x=>x!==n);C.helpers=C.helpers.filter(x=>x!==n);delete C.prof[n];ok();toast("消しました");const t=backTo==="people"?"people":"";backTo="";go(t||"w"+(wk||monday()))};
  const addLic=v=>{v=v.trim();if(!v)return;p.lic.push({n:v,no:"",ph:[]});$("#fLic").value="";reP()};

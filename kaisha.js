@@ -1,13 +1,13 @@
 /* 🏢 会社のなかま（現場の画面・genba.html）：社員どうし・許可した人と個人情報をオンラインで一緒に見る
    ・会社を作った人＝社長。招待のリンク（genba.html?co=番号）を開いた人は「許可待ち」で入り、社長・番頭が許可する
    ・社長・番頭が、なかまごとに役割（番頭／なかま）と「見ていい物」（CATS）・「直していい」（edit）を決める。チェックの無い物は相手のスマホに届かない（守りのルール：cad/firestore.rules の cos）
-   ・人を消す・社員⇄応援を移す・なかまを外す・許可を変えるのは社長・番頭だけ
+   ・人を消す・社員⇄協力会社を移す・なかまを外す・許可を変えるのは社長・番頭だけ
    ・保存先：team.js と同じ Firebase（同じログイン）。cos/{会社}/mem/{なかま}、cos/{会社}/c/{種類}/p/{人}、資格証の写真は cos/{会社}/lph/{写真}
    ・この端末の名簿（genba_cal）と、ネットの名簿を「そろえる」：直していい人は変わった所だけ上げる（pbm_co_h に前に上げた形）→ ネットの名簿を読んで入れる
    genba.js は変えずに、ここで包んで足すだけ（renderPeople・renderPerson・calSave） */
 (function(){
 if(typeof renderPeople!=="function"||typeof cal!=="function")return;
-const CATS=[["base","名前・電話（社員／応援・会社名）"],["pro","ふりがな・ニックネーム・役職"],["body","生年月日・年齢・血液型"],["health","健康診断・血圧"],["em","緊急連絡先"],["skill","職種・経験・タグ"],["lic","資格（資格証の写真も）"]];
+const CATS=[["base","名前・電話（社員／協力会社・会社名）"],["pro","ふりがな・ニックネーム・役職"],["body","生年月日・年齢・血液型"],["health","健康診断・血圧"],["em","緊急連絡先"],["skill","職種・経験・タグ"],["lic","資格（資格証の写真も）"]];
 const ROLE={boss:"👑 社長",bantou:"🧭 番頭",mem:"👷 なかま"};
 const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k)||"";if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return ""}};
 const lj=(k,d)=>{try{return JSON.parse(localStorage.getItem(k)||"")||d}catch(e){return d}};
@@ -70,7 +70,7 @@ async function sync(silent){
    if(!n&&(C.staff.includes(b.name)||C.helpers.includes(b.name)))n=b.name;   // 同じ名前の人がいれば、その人を同じ人にする
    if(n&&n!==b.name&&!dirty(n,id,"base")&&!C.staff.includes(b.name)&&!C.helpers.includes(b.name)){C.prof[b.name]=C.prof[n];delete C.prof[n];C.staff=C.staff.map(x=>x===n?b.name:x);C.helpers=C.helpers.map(x=>x===n?b.name:x);n=b.name}
    n=n||b.name;const p=prof(C,n);p.id=id;p.cid=K.cid;h[id]=h[id]||{};
-   if(!dirty(n,id,"base")){const to=b.kind==="h"?C.helpers:C.staff,fr=b.kind==="h"?C.staff:C.helpers;if(fr.includes(n))fr.splice(fr.indexOf(n),1);if(!to.includes(n))to.push(n)}   // 社員⇄応援が変わった時だけ動かす
+   if(!dirty(n,id,"base")){const to=b.kind==="h"?C.helpers:C.staff,fr=b.kind==="h"?C.staff:C.helpers;if(fr.includes(n))fr.splice(fr.indexOf(n),1);if(!to.includes(n))to.push(n)}   // 社員⇄協力会社が変わった時だけ動かす
    for(const [cat] of CATS){if(!can(cat)){if(cat!=="base")clear(C,n,cat);delete h[id][cat];continue}const d=g[cat];if(!d||dirty(n,id,cat))continue;const {at,...dd}=d;unpack(C,n,cat,dd);h[id][cat]=JSON.stringify(pack(C,n,cat))}}
   /* ネットから消えた人（社長・番頭が消した）は、この端末からも消す */
   for(const n of [...C.staff,...C.helpers]){const p=C.prof[n]||{};if(p.cid===K.cid&&p.id&&!live.has(p.id)&&can("base")){C.staff=C.staff.filter(x=>x!==n);C.helpers=C.helpers.filter(x=>x!==n);delete C.prof[n]}}
@@ -181,10 +181,10 @@ const rq=renderPerson;window.renderPerson=async function(){const r=await rq.appl
  if(!coAdm()){hide(document.getElementById("bDelP"));hide(document.getElementById("bKind"))}
  const card2=t=>[...app.querySelectorAll(".card")].find(c=>{const h=c.querySelector("h2");return h&&h.textContent.includes(t)});
  const fld=id=>{const el=document.getElementById(id);if(!el)return;const lb=app.querySelector(`label[for="${id}"]`);hide(lb);const row=el.closest(".row");hide(row&&row.querySelectorAll("input,select").length<=2?row:el)};
- if(!coCan("pro"))["pKana","pNick","pRole"].forEach(fld);if(!coCan("body")){fld("pBirth");fld("pBlood")}if(!coCan("health")){const r=document.getElementById("pHc");hide(r&&r.closest(".row"));hide(document.getElementById("pHcA"))}
+ if(!coCan("pro"))["pKs","pKm","pNick","pRole"].forEach(fld);if(!coCan("body")){fld("pBirth");fld("pBlood")}if(!coCan("health")){const r=document.getElementById("pHc");hide(r&&r.closest(".row"));hide(document.getElementById("pHcA"))}
  if(!coCan("em"))hide(card2("緊急連絡先"));if(!coCan("skill")){hide(card2("職種と経験"));hide(card2("タグ"))}if(!coCan("lic"))hide(card2("保持資格"));
  if(!coEdit()){app.querySelectorAll(".card input,.card select,.card textarea").forEach(el=>{if(!/^x[PELT]$/.test(el.id))el.disabled=true});
-  ["bTrade","fTrade","tradeSug","bLic","fLic","licSug","bTag","fTag","tagSug","pN"].forEach(id=>{const el=document.getElementById(id);if(el)(id==="pN"?el.disabled=true:(el.closest(".row")||el).style.display="none")});
+  ["bTrade","fTrade","tradeSug","bLic","fLic","licSug","bTag","fTag","tagSug","pSei","pMei"].forEach(id=>{const el=document.getElementById(id);if(el)(/^p(Sei|Mei)$/.test(id)?el.disabled=true:(el.closest(".row")||el).style.display="none")});
   app.querySelectorAll("[data-trm],[data-rl],[data-t],[data-pa],[data-tc],[data-th],[data-td]").forEach(b=>b.disabled=true);
   const n2=document.createElement("div");n2.className="note";n2.style.cssText="margin:0 4px 6px;color:var(--danger)";n2.textContent="🔒 見るだけです（直すには社長・番頭の許可がいります）";app.querySelector("h1").after(n2)}
  return r};

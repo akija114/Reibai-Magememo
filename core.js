@@ -2524,11 +2524,12 @@ function arUnitSheet(){
   <div id="arSide" style="display:flex;flex-wrap:wrap;gap:6px">${sb(0,"配管が出る側")+sb(1,"その反対側")+sb(2,"横（片方）")+sb(3,"横（もう片方）")}</div>
   <div style="display:flex;align-items:center;gap:8px;margin-top:12px"><span style="font-size:14px;font-weight:800;white-space:nowrap">壁から</span><input id="arD" type="number" inputmode="numeric" value="${d}" style="width:120px;min-width:0;height:44px;border-radius:10px;border:1.5px solid #cbd5e1;padding:0 10px;font-size:18px"><span style="font-size:14px;font-weight:800;white-space:nowrap">mm</span></div>
   <div style="font-size:12px;color:#5b6b7e;margin-top:4px">壁から機器のツラまでの距離。${ty==="wall"?"壁掛けは 0 で壁にぴったり":"0 にすると壁にぴったり"}</div>
+  ${(st.rows||[]).some(w=>w.l>0)?`<label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;font-weight:800"><input id="arPipe" type="checkbox" ${A.pipe!==false?"checked":""} style="width:22px;height:22px">配管も一緒に出す（穴まで配管・ルートおまかせで作ったルート）</label>`:""}
   <div style="display:flex;gap:8px;margin-top:14px"><button id="arNo" style="flex:1;height:48px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fff;font-weight:800;font-size:15px">やめる</button><button id="arGo" style="flex:2;height:48px;border-radius:12px;border:0;background:#0369a1;color:#fff;font-weight:800;font-size:16px">実物大で置く</button></div></div>`;
  document.body.appendChild(ov);let sd=side;
  ov.querySelector("#arSide").onclick=e=>{const b=e.target.closest("[data-s]");if(!b)return;sd=+b.dataset.s;ov.querySelectorAll("#arSide button").forEach(x=>{const on=+x.dataset.s===sd;x.style.borderColor=on?"#0369a1":"#cbd5e1";x.style.background=on?"#e0f2fe":"#fff"})};
  ov.querySelector("#arNo").onclick=()=>ov.remove();ov.onclick=e=>{if(e.target===ov)ov.remove()};
- ov.querySelector("#arGo").onclick=()=>{const v=Math.max(0,Math.min(5000,Math.round(+ov.querySelector("#arD").value||0)));A.side=sd;A[ty]=v;try{localStorage.setItem("pbm_arwall",JSON.stringify(A))}catch(e){}ov.remove();runAR(true,{side:sd,d:v})};
+ ov.querySelector("#arGo").onclick=()=>{const v=Math.max(0,Math.min(5000,Math.round(+ov.querySelector("#arD").value||0)));const pp=ov.querySelector("#arPipe"),wp=!!(pp&&pp.checked);if(pp)A.pipe=wp;A.side=sd;A[ty]=v;try{localStorage.setItem("pbm_arwall",JSON.stringify(A))}catch(e){}ov.remove();runAR(!wp,{side:sd,d:v})};
 }
 function runAR(onlyUnit,wo){
  const IN=["cas","cas2","ceil","wall","flr"],UN=(T.UN||[]).filter(u=>u.g),U=UN.find(u=>u.t==="s"&&IN.includes(st.units[u.t]))||UN.find(u=>IN.includes(st.units[u.t]));
@@ -2554,7 +2555,7 @@ function runAR(onlyUnit,wo){
   let wTxt="";
   if(wo&&ctr){ /* 壁の板：配管の出る向き（起点＝配管の始まり）を基準に側を決めて、機器のツラから wo.d 離れた所に立てる。床に寸法の線 */
    const px=-ctr.x,pz=-ctr.z,ax=Math.abs(px)>=Math.abs(pz)?"x":"z",sg=(ax==="x"?px:pz)>=0?1:-1,a=wo.side<2?ax:(ax==="x"?"z":"x"),s2=wo.side===0?sg:wo.side===1?-sg:wo.side===2?1:-1,b=a==="x"?"z":"x";
-   const edge=s2>0?bb.max[a]:bb.min[a],wp=edge+s2*wo.d,o0=bb.min[b]-400,o1=bb.max[b]+400,top=T.cy!=null?T.cy:fy+2700,P3=(u,y,v)=>a==="x"?[u,y,v]:[v,y,u];
+   const ub=onlyUnit?bb:collectAR(UN.map(u=>u.g)).bb,edge=s2>0?ub.max[a]:ub.min[a],wp=edge+s2*wo.d,o0=ub.min[b]-400,o1=ub.max[b]+400,   /* 配管も出す時も、壁からの距離は機器のツラから */top=T.cy!=null?T.cy:fy+2700,P3=(u,y,v)=>a==="x"?[u,y,v]:[v,y,u];
    parts.push({col:[.55,.58,.62],op:.45,metal:false,pos:[...P3(wp,fy,o0),...P3(wp,fy,o1),...P3(wp,top,o1),...P3(wp,top,o0)],nrm:[...P3(s2,0,0),...P3(s2,0,0),...P3(s2,0,0),...P3(s2,0,0)],idx:[0,1,2,0,2,3]});
    const cb=a==="x"?cz:cx,L=(u1,v1,u2,v2,w,M)=>{const q1=P3(u1,0,v1),q2=P3(u2,0,v2);mk.bar(M,q1[0],q1[2],q2[0],q2[2],w,fy2)};
    L(wp,o0,wp,o1,30,mk.P);   // 床の壁の線（赤）

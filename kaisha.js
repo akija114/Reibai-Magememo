@@ -65,7 +65,7 @@ async function two(f,h,pre,path,L,R,ed,apply,remove){let ch=false;
  const keys=new Set([...Object.keys(L),...(R?Object.keys(R):[]),...Object.keys(h).filter(x=>x.startsWith(pre)).map(x=>x.slice(pre.length))]);
  for(const k of keys){const loc=L[k],lj2=loc===undefined?undefined:cj(loc),bj=h[pre+k];
   if(!R&&lj2===bj)continue;
-  let rem;if(R)rem=R[k];else{rem=await f.get(path(k));if(rem&&rem.gone)rem=undefined;if(rem){rem={...rem};delete rem.at}}
+  let rem;if(R)rem=R[k];else{rem=await f.get(path(k))||undefined;if(rem&&rem.gone)rem=undefined;if(rem){rem={...rem};delete rem.at}}
   rem=cl(rem);const rj=rem===undefined?undefined:cj(rem);
   if(lj2===bj||(!ed&&(rem!==undefined||bj!==undefined))){   // この端末で変わっていない・直せない人：ネットの物にする
    if(rj!==lj2){if(rem!==undefined)await apply(k,rem);else await remove(k);ch=true}

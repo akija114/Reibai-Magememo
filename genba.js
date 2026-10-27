@@ -110,6 +110,7 @@ function moveKind(n,to){const C=cal();if(to==="h"){C.staff=C.staff.filter(x=>x!=
 function renderPeople(){
  freeUrls();document.querySelector(".bar")?.remove();const C=cal();
  $("#app").innerHTML=`<h1><button class="btn sm" id="bBack">← 現場メニュー</button><span class="grow"></span></h1>
+ <button class="btn pri" id="bCImp" style="width:100%;margin:0 0 8px">📇 スマホの連絡帳から読み込む（確かめてから入れる）</button><input type="file" id="fCImp" accept=".vcf,text/vcard,text/x-vcard" multiple hidden>
  <div class="card"><h2>👤 個人情報（社員）</h2>
   <label class="f" for="fMyco">🏢 会社名（屋号）・従業員の数</label><div class="row" style="margin:0 0 6px;gap:6px"><input id="fMyco" placeholder="自分の会社名（例：小川設備）" value="${esc(C.myco)}" class="grow"><input id="fMyEmp" type="number" inputmode="numeric" placeholder="従業員" value="${(C.coInfo[C.myco]||{}).emp||""}" style="width:80px"><span class="note">人</span></div>
   <div class="note">名前をタップ → 個人情報・緊急連絡先・資格証の写真・タグ、その人の人工・残業・交通費。ここに入れた人が週の割り振りの表に出ます。</div>
@@ -142,8 +143,44 @@ function renderPeople(){
  $("#fMyco").onchange=e=>{const C2=cal(),old=C2.myco,v=e.target.value.trim();if(old&&C2.coInfo[old]&&!C2.coInfo[v])C2.coInfo[v]=C2.coInfo[old];C2.myco=v;calSave(C2);toast("会社名を入れました")};
  $("#fMyEmp").oninput=e=>{const C2=cal(),k=C2.myco||"";(C2.coInfo[k]=C2.coInfo[k]||{}).emp=Math.max(0,parseInt(e.target.value)||0);calSave(C2)};
  $("#helpers").oninput=e=>{const t=e.target;if(t.dataset.emp==null)return;const C2=cal();(C2.coInfo[t.dataset.emp]=C2.coInfo[t.dataset.emp]||{}).emp=Math.max(0,parseInt(t.value)||0);calSave(C2)};
+ $("#bCImp").onclick=pickContacts;$("#fCImp").onchange=async e=>{const fs=[...e.target.files];e.target.value="";let a=[];for(const f of fs)a=a.concat(parseVcf(await f.text()));reviewContacts(a)};
  $("#bVcfAll").onclick=()=>{if(!C.staff.length){toast("社員がいません");return}addContacts(ordNames(C,C.staff))};
 }
+/* 📇 スマホの連絡帳から読み込む：アンドロイド（連絡先を選ぶ画面がある時）は選んだ人、無い時（iPhone）は連絡先のファイル（.vcf）を選ぶ。
+   読んだ後に「確かめて入れる」画面：社員／応援さん・名前などを直して、足りない所（ふりがな・電話・誕生日・緊急連絡先・職種）を見せる。同じ名前の人がいる時は空いている所だけ入れる */
+function vUnesc(v){return String(v).replace(/\\n/gi,"\n").replace(/\\([,;\\])/g,"$1").trim()}
+function parseVcf(t){const L=String(t).replace(/\r\n|\r/g,"\n").replace(/\n[ \t]/g,"").split("\n"),out=[];let c=null;
+ for(const ln of L){const i=ln.indexOf(":");if(i<0)continue;const k0=ln.slice(0,i),v=ln.slice(i+1),k=k0.toUpperCase().replace(/^ITEM\d+\./,""),key=k.split(";")[0];
+  if(key==="BEGIN"){c={tels:[]};continue}if(!c)continue;if(key==="END"){out.push(c);c=null;continue}
+  if(key==="FN")c.fn=vUnesc(v);else if(key==="N"){const a=v.split(";").map(vUnesc);c.n=((a[0]||"")+" "+(a[1]||"")).trim()}
+  else if(key==="X-PHONETIC-LAST-NAME")c.kl=vUnesc(v);else if(key==="X-PHONETIC-FIRST-NAME")c.kf=vUnesc(v);else if(key==="SORT-STRING"&&!c.kl)c.kl=vUnesc(v);
+  else if(key==="NICKNAME")c.nick=vUnesc(v);else if(key==="ORG")c.co=vUnesc(v.split(";")[0]);else if(key==="TITLE")c.role=vUnesc(v);
+  else if(key==="TEL")c.tels.push({v:vUnesc(v),cell:/CELL|IPHONE|MOBILE/.test(k)});
+  else if(key==="BDAY"){const m=v.replace(/-/g,"").match(/^(\d{4})(\d{2})(\d{2})/);if(m&&m[1]!=="1604")c.birth=`${m[1]}-${m[2]}-${m[3]}`}}   // 年の無い誕生日（iPhone）は入れない
+ return out.map(c=>({name:(c.fn||c.n||"").replace(/\s+/g," ").trim(),kana:[c.kl,c.kf].filter(Boolean).join(" "),nick:c.nick||"",co:c.co||"",role:c.role||"",tel:((c.tels.find(t=>t.cell)||c.tels[0])||{}).v||"",birth:c.birth||""})).filter(o=>o.name)}
+async function pickContacts(){
+ if(navigator.contacts&&navigator.contacts.select){try{const props=await navigator.contacts.getProperties().catch(()=>["name","tel"]),r=await navigator.contacts.select(props.filter(x=>["name","tel"].includes(x)),{multiple:true});
+   reviewContacts(r.map(o=>({name:((o.name||[])[0]||"").trim(),kana:"",nick:"",co:"",role:"",tel:(o.tel||[])[0]||"",birth:""})).filter(o=>o.name));return}catch(e){if(e&&e.name==="AbortError"||e&&e.name==="InvalidStateError")return}}
+ const ov=document.createElement("div");ov.className="sheet";ov.innerHTML=`<div class="sbox"><h2>📇 連絡帳から読み込む</h2>
+ <div class="note"><b>iPhone</b>：連絡先のアプリ → 入れたい人を開く → 下の「連絡先を送信」→「"ファイル"に保存」。何人もの時は、連絡先のアプリの「リスト」を長押し →「書き出す」。<br>そのあと、下のボタンで保存したファイル（○○.vcf）を選んでください。<br><b>アンドロイド</b>：連絡先のアプリ → 人を選ぶ → 共有 → ファイルに保存、でも同じです。</div>
+ <button class="btn pri" data-f="1">📂 連絡先のファイルを選ぶ</button><button class="btn" data-x="1">閉じる</button></div>`;
+ document.body.appendChild(ov);ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.x)){ov.remove();return}if(b&&b.dataset.f){ov.remove();$("#fCImp").click()}}}
+function reviewContacts(a){if(!a.length){toast("連絡先が読めませんでした");return}const C=cal(),ov=document.createElement("div");ov.className="sheet";
+ a.forEach(o=>{o.on=true;o.k=o.co&&C.myco&&o.co.trim()!==C.myco.trim()?"h":"s";o.ex=C.staff.includes(o.name)||C.helpers.includes(o.name)});
+ const miss=o=>{const p=o.ex?(C.prof[o.name]||{}):{},em=p.em||{},m=[];if(!(o.kana||p.kana))m.push("ふりがな");if(!(o.tel||p.tel))m.push("電話");if(!(o.birth||p.birth))m.push("生年月日");if(!(em.n||em.tel))m.push("緊急連絡先");if(!(p.trades||[]).length)m.push("職種・経験");if(o.k==="h"&&!(o.co||p.co))m.push("会社名");return m};
+ const draw=()=>{ov.innerHTML=`<div class="sbox" style="max-height:88vh"><h2>📇 確かめて入れる（${a.length}人）</h2><div class="note">入れない人はチェックを外す。社員か応援さんかを選んで、名前などを直してください。<b style="color:var(--danger)">赤い字</b>は、入れた後にその人のページで足してほしい所です。</div>
+  ${a.map((o,i)=>`<div style="border-top:1px solid var(--line);padding:8px 0;${o.on?"":"opacity:.45"}"><div class="row"><label style="display:flex;align-items:center;gap:6px;flex:1"><input type="checkbox" style="width:auto" data-on="${i}" ${o.on?"checked":""}><b>${esc(o.name)}</b></label>
+   <select data-k="${i}" style="width:auto"><option value="s" ${o.k==="s"?"selected":""}>👤 社員</option><option value="h" ${o.k==="h"?"selected":""}>🤝 応援さん</option></select></div>${o.ex?`<div class="note">（もう入っています → 空いている所だけ足します）</div>`:""}
+   <div class="row" style="flex-wrap:wrap;gap:4px;margin-top:4px">${[["name","名前"],["kana","ふりがな"],["nick","ニックネーム"],["role","役職"],["tel","電話"]].concat(o.k==="h"?[["co","会社名"]]:[]).map(([f,t])=>`<input data-i="${i}" data-fd="${f}" value="${esc(o[f]||"")}" placeholder="${t}" style="flex:1 1 45%;min-width:0;font-size:15px;padding:7px 8px">`).join("")}
+    <input data-i="${i}" data-fd="birth" type="date" value="${esc(o.birth||"")}" style="flex:1 1 45%;min-width:0;font-size:15px;padding:7px 8px"></div>
+   ${miss(o).length?`<div class="note" style="color:var(--danger)">足りない所：${miss(o).join("・")}</div>`:`<div class="note" style="color:#15803d">そろっています</div>`}</div>`).join("")}
+  <button class="btn pri" data-go="1">✅ チェックした ${a.filter(o=>o.on).length}人 を入れる</button><button class="btn" data-x="1">やめる</button></div>`};
+ draw();document.body.appendChild(ov);
+ ov.onchange=e=>{const t=e.target;if(t.dataset.on!=null){a[+t.dataset.on].on=t.checked;draw()}else if(t.dataset.k!=null){a[+t.dataset.k].k=t.value;draw()}else if(t.dataset.fd){const o=a[+t.dataset.i];o[t.dataset.fd]=t.value.trim();if(t.dataset.fd==="name"){o.name=baseNm(o.name);o.ex=C.staff.includes(o.name)||C.helpers.includes(o.name)}draw()}};
+ ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.x)){ov.remove();return}if(!b||!b.dataset.go)return;
+  const C2=cal();let nA=0,nU=0;for(const o of a){if(!o.on||!o.name)continue;const n=o.name,had=C2.staff.includes(n)||C2.helpers.includes(n);
+   if(!had){(o.k==="h"?C2.helpers:C2.staff).push(n);nA++}else nU++;const p=prof(C2,n);for(const f of ["kana","nick","role","tel","birth"])if(o[f]&&!p[f])p[f]=o[f];if(o.k==="h"&&o.co&&!p.co)p.co=o.co}
+  calSave(C2);ov.remove();toast(`入れました：新しく ${nA}人${nU?`・足した ${nU}人`:""}。足りない所は名前をタップして入れてください`);renderPeople()}}
 /* 📇 スマホの連絡先に入れる：連絡先のファイル（vCard 3.0）を作って開く。iPhone は開くと「新規連絡先を作成」（何人もの時は「○件の連絡先をすべて追加」）、
    アンドロイドは保存したファイルを開くと連絡先のアプリで入る。名前・ふりがな・ニックネーム・会社名・電話・誕生日、職種・経験・血液型・緊急連絡先はメモに */
 function vcardOf(C,n){const p=prof(C,n),e=v=>String(v||"").replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/[,;]/g,m=>"\\"+m),L=["BEGIN:VCARD","VERSION:3.0",`N:${e(n)};;;;`,`FN:${e(n)}`];

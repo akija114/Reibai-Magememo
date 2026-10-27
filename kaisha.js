@@ -92,7 +92,7 @@ async function sync(silent,full){
   /* はじめてそろえる時：この端末にある現場・名簿をみんなに見せるか聞く */
   const ss0=await allSites();
   if(!ls("pbm_co_h2")&&ed){const a=ss0.filter(s=>!s.loc).length,b=mine(C).length;
-   if((a||b)&&!confirm(`この端末にある 現場 ${a}件・名簿 ${b}人 を、会社のみんなと一緒に見ますか？\n（キャンセル：今ある物はこの端末だけに残します。これから作る物は一緒に見ます）`)){for(const s of ss0)if(!s.loc){s.loc=1;await putSite(s)}for(const n of mine(C))C.prof[n].coX=1}}
+   if((a||b)&&!confirm(`この端末にある 現場 ${a}件・名簿 ${b}人 を、会社のみんなと一緒に見ますか？\n（キャンセル：今ある物はこの端末だけに残します。これから作る物は一緒に見ます）`)){for(const s of ss0)if(!s.loc){s.loc=1;await putSite(s)}for(const n of mine(C))prof(C,n).coX=1}}
   for(const n of mine(C))pid(C,n);mapIds(C);
   /* ① 名簿（ニックネーム・社員／協力会社・会社名） */
   const L1={};for(const n of mine(C))L1[C.prof[n].id]=packR(C,n);
@@ -102,8 +102,9 @@ async function sync(silent,full){
   /* 社員の並び：社長・番頭の並び */
   {const ids=C.staff.map(n=>(C.prof[n]||{}).id).filter(id=>id&&h["r:"+id]!==undefined),oj=cj({a:ids});
    const sortBy=a=>{const ix=n=>{const i=a.indexOf((C.prof[n]||{}).id);return i<0?1e6:i};C.staff=C.staff.map((n,i)=>[n,i]).sort((x,y)=>ix(x[0])-ix(y[0])||x[1]-y[1]).map(x=>x[0])};
-   if(adm()&&oj!==h.ord){await f.set(P("ros","_ord"),{a:ids,at:Date.now()});h.ord=oj}
-   else if(ord&&cj({a:ord.a||[]})!==h.ord&&!(adm()&&oj!==h.ord)){sortBy(ord.a||[]);h.ord=cj({a:ord.a||[]})}}
+   const rj=ord?cj({a:ord.a||[]}):undefined;   // 社長・番頭がこの端末で並べ替えた時だけ上げる（はじめての端末は先にネットの並びにする）
+   if(adm()&&(h.ord!==undefined?oj!==h.ord:!ord)){await f.set(P("ros","_ord"),{a:ids,at:Date.now()});h.ord=oj}
+   else if(rj&&rj!==h.ord){sortBy(ord.a||[]);h.ord=rj}}
   /* ② 現場カード */
   const SM={};for(const s of ss0)SM[s.id]=s;
   const L2={};for(const s of ss0)if(!s.loc)L2[s.id]=packS(C,s);
@@ -129,7 +130,7 @@ async function sync(silent,full){
    else if(full){const rj=cj(pickSet(K.co));if(rj!==h.set){Object.assign(C,pickSet(K.co));h.set=rj;changed=true}}
    /* 前の版の個人情報がネットに残っていたら消す（1回だけ） */
    if(full&&!ls("pbm_co_clean")){for(const c of OLD)for(const d of await f.list(`${base}/c/${c}/p`).catch(()=>[]))await f.del(P(c,d.id)).catch(()=>{});for(const d of await f.list(`${base}/lph`).catch(()=>[]))await f.del(`${base}/lph/${d.id}`).catch(()=>{});ls("pbm_co_clean","1")}}
-  else if(full){const r=pickSet(K.co),rj=cj(r);if(rj!==h.set){Object.assign(C,r);h.set=rj}}
+  else if(full){const r=pickSet(K.co),rj=cj(r);if(rj!==cj(pickSet(C))||rj!==h.set){Object.assign(C,r);h.set=rj}}   // 社長・番頭でない人は、いつも会社の決まりにそろえる
   if(cj(C)!==before){calRaw(C);changed=true}
   setH(h);if(full){K.at=Date.now();ls("pbm_co_at",String(K.at))}}
  catch(e){console.warn("co sync",e);K.err=(e&&(e.code||e.message))||String(e);if(!silent)toast("そろえられませんでした（"+K.err+"）")}

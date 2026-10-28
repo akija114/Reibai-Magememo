@@ -909,7 +909,7 @@ function drawOverlay(){
   drawPick(octx); drawMvg(octx); drawNp(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
-  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawSins(octx);
+  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawSins(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
   drawSame(octx);
@@ -1812,6 +1812,7 @@ function updatePickBar(){
       ${scope}
       <div class="frow"><button class="btn ${pk.multi ? 'sel' : ''}" data-a="multi" style="flex:1">${pk.multi ? '✓ ' : '＋'}追加で選ぶ</button><span class="confirm" style="flex:1.3;display:flex"><button class="btn" data-a="others" style="flex:1" ${sel.length ? '' : 'disabled'}>これ以外を隠す</button></span></div>
       <div class="frow"><button class="btn" data-a="omove" style="flex:1" ${sel.length ? '' : 'disabled'}>✥ 移動</button><span class="confirm" style="flex:1;display:flex"><button class="btn del" data-a="otek" style="flex:1" ${sel.length ? '' : 'disabled'}>撤去</button></span>${sel.length === 1 && isKiki(sel[0]) ? '<button class="btn" data-a="orot" style="flex:1">↻ 向き</button>' : ''}${sel.length === 1 && isNp(sel[0]) ? '<button class="btn" data-a="onp" style="flex:1">✏️ 直す</button>' : ''}</div>
+      <div class="frow"><button class="btn pri" data-a="oshp" style="flex:1" ${sel.length ? '' : 'disabled'}>🏷 これは何？（形を登録して3Dに）</button></div>
       <div class="frow"><button class="btn" data-a="olay" style="flex:1" ${sel.length ? '' : 'disabled'}>🗂 レイヤーを変える</button><button class="btn" data-a="odup" style="flex:1" ${sel.length ? '' : 'disabled'}>⧉ 複製</button></div>
       <div class="frow"><button class="btn" data-a="ohide" style="flex:1" ${sel.length ? '' : 'disabled'}>非表示</button><button class="btn del" data-a="odel" style="flex:1" ${sel.length ? '' : 'disabled'}>削除</button></div>
       ${pk.boxHidden && pk.boxHidden.filter(e => S.hideObj.has(e)).length ? `<button class="btn" data-a="boxshow">囲んだ所の隠した部品を表示（${pk.boxHidden.filter(e => S.hideObj.has(e)).length}個）</button>` : ''}`;
@@ -1850,6 +1851,7 @@ function updatePickBar(){
     else if (a === 'ohide'){ const sel = [...pk.sel]; exec(cmdObjs(sel, 'hide')); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を非表示にしました（↶で戻せます）`); S.pick = null; }
     else if (a === 'omove'){ mvgStart([...pk.sel]); return; }
     else if (a === 'olay'){ openLaySheet([...pk.sel]); return; }
+    else if (a === 'oshp'){ openShapeSheet([...pk.sel]); return; }
     else if (a === 'odup'){ const sel = [...pk.sel], all = sel.concat(compOf(sel).filter(e => !sel.includes(e))), b = outlineBox(sel) || partsBox(sel), u = unitMM(), c = cmdDup(all, [b ? (b[2] - b[0]) + 300/u : 1000/u, 0]);
       if (!c.list.length){ toast('この部品は複製できません'); return; } exec(c); renderTabs(); S.pick = {...pk, sel:new Set(c.list), parts:c.list, pi:0, multi:false}; toast(`${c.list.length}個を複製しました。指で動かして置く所を決めてください（↶で戻せます）`); mvgStart(c.list); if (S.mvg){ S.mvg.useS = false; S.mvg.useC = false; S.mvg.comp = []; updatePickBar(); } return; } // 複製した物は、まわりの配管をつなぎ直さない
     else if (a === 'onp'){ const it = npOf([...pk.sel][0]); if (it){ npStart(it); return; } }
@@ -2315,6 +2317,43 @@ function autoDimAt(cur){
   MS.cur = null; drawOverlay(); updateHint(); toast(`${what}：${msg.join('　')}`);
 }
 /* ---- 同じ機器ぜんぶ：1台で決めた点（芯・吊りボルトなど）を、同じ形の機器ぜんぶの同じ所に置く。向き（90°ずつ・左右反対）も合わせる ---- */
+/* 🏷 図面の形を登録（2026-10-28 ユーザー：この形はこれ、を自分で登録したい）：選んだ部品の形（線の端の点の並び）を覚え、同じ形（回した・裏返した形も）を図面ぜんぶから探して、3Dにその種類で出す。
+   種類：wall 壁・door 扉・unit 室内機（mdl 機種）・insp 点検口・out 吹出口・col 柱・ign 家具など（3Dに出さない＝そこに読んだ壁・機器を消す）。この端末で覚えて、ほかの図面でも使う（zumen-shapes・長さは mm） */
+const SHPK = {wall:'🧱 壁', door:'🚪 扉', unit:'❄️ 室内機', insp:'🔲 点検口', out:'💨 吹出口・吸込口', col:'🏛 柱', ign:'🪑 家具など（3Dに出さない）'};
+function shpList(){ try { const a = JSON.parse(localStorage.getItem('zumen-shapes') || '[]'); return Array.isArray(a) ? a : []; } catch(e){ return []; } }
+function shpSave(a){ try { localStorage.setItem('zumen-shapes', JSON.stringify(a)); } catch(e){ toast('この端末に保存できませんでした'); } V3.shp = null; }
+function shpMake(sel){ // 選んだ部品 → 形の記録（いちばん大きい部品を目印に、その真ん中からの点の並び）
+  const u = unitMM(), bx = e => G.pbox.get(e); let an = null, aa = -1; for (const e of sel){ const b = bx(e); if (!b) continue; const a = (b[2] - b[0])*(b[3] - b[1]) + (b[2] - b[0]) + (b[3] - b[1]); if (a > aa){ aa = a; an = e; } } if (an == null) return null;
+  const ab = bx(an), C = [(ab[0] + ab[2])/2, (ab[1] + ab[3])/2], R = partsBox(sel) || ab, set = new Set(sel), p = G.pts, P = [];
+  for (const id of query(IX.pg, IX.ptMark, (R[0] + R[2])/2, (R[1] + R[3])/2, Math.hypot(R[2] - R[0], R[3] - R[1])/2 + 1)){ const k = id*PS; if (p[k+3] !== 0 || !set.has(p[k+5])) continue; const q = [(p[k] - C[0])*u, (p[k+1] - C[1])*u]; if (!P.some(o => Math.abs(o[0] - q[0]) < 8 && Math.abs(o[1] - q[1]) < 8)) P.push(q.map(Math.round)); }
+  if (P.length < 3) return null; const smp = P.length > 150 ? P.filter((q, i) => i % Math.ceil(P.length/150) === 0) : P;
+  return {aw:Math.round((ab[2] - ab[0])*u), ah:Math.round((ab[3] - ab[1])*u), aL:Math.round(partSig(an).L*u), lg:G.L[G.parts[an] ? G.parts[an].li : [...ab[4]][0]].g, off:[Math.round(((R[0] + R[2])/2 - C[0])*u), Math.round(((R[1] + R[3])/2 - C[1])*u)], W:Math.round((R[2] - R[0])*u), H:Math.round((R[3] - R[1])*u), pts:smp}; }
+function shpFind(r){ // 図面の中の同じ形 → [{b:[x0,y0,x1,y1]（mm）, C, O}]
+  const u = unitMM(), tol = Math.max(15, 0.02*Math.max(r.aw, r.ah))/u, tp = 12/u, p = G.pts, out = [];
+  const hit = (x, y) => { for (const id of query(IX.pg, IX.ptMark, x, y, tp)){ const k = id*PS; if (p[k+3] !== 0) continue; const l = G.L[p[k+2]]; if (l && l.on && !l.deleted && Math.abs(p[k] - x) <= tp && Math.abs(p[k+1] - y) <= tp && !gone(p[k+5])) return true; } return false; };
+  const aw = r.aw/u, ah = r.ah/u;
+  for (const [e, b] of G.pbox){ if (gone(e) || S.hideObj.has(e)) continue; const w = b[2] - b[0], h = b[3] - b[1], sw = Math.abs(w - aw) <= tol && Math.abs(h - ah) <= tol, rw = Math.abs(w - ah) <= tol && Math.abs(h - aw) <= tol; if (!sw && !rw) continue;
+    if (![...b[4]].some(x => G.L[x] && G.L[x].on && !G.L[x].deleted && G.L[x].g === r.lg)) continue; if (Math.abs(partSig(e).L*u - r.aL) > Math.max(2*tol*u, r.aL*0.06)) continue;
+    const C = [(b[0] + b[2])/2, (b[1] + b[3])/2]; let best = null;
+    for (const O of SAME_OPS){ const turn = O[0] === 0; if (turn ? !rw : !sw) continue; let n = 0; for (const q of r.pts){ const t = opAp(O, q[0]/u, q[1]/u); if (hit(C[0] + t[0], C[1] + t[1])) n++; } const sc = n/r.pts.length; if (!best || sc > best.sc) best = {O, sc}; }
+    if (!best || best.sc < 0.6) continue; const o = opAp(best.O, r.off[0]/u, r.off[1]/u), cx = (C[0] + o[0])*u, cy = (C[1] + o[1])*u, turn = best.O[0] === 0, W = turn ? r.H : r.W, H = turn ? r.W : r.H;
+    if (out.some(m => Math.hypot(m.c[0] - cx, m.c[1] - cy) < Math.max(W, H)/3)) continue; out.push({b:[cx - W/2, cy - H/2, cx + W/2, cy + H/2], c:[cx, cy], O:best.O, sc:best.sc}); }
+  return out; }
+function shpMatches(){ if (!G || !IX) return []; const L = shpList(), key = JSON.stringify(L.map(r => r.id)) + '|' + (S.undo[S.undo.length-1] ? S.undo.length : 0) + '|' + G.L.filter(l => l.on && !l.deleted).length;
+  if (V3.shp && V3.shp.G === G && V3.shp.key === key) return V3.shp.v; const v = []; for (const r of L) for (const m of shpFind(r)) v.push({...m, kind:r.kind, mdl:r.mdl}); V3.shp = {G, key, v}; return v; }
+function drawShpHL(c){ const H = S.shpHL; if (!H) return; if (performance.now() - H.t0 > 6000){ S.shpHL = null; return; } const u = unitMM(); c.save(); c.strokeStyle = '#ea580c'; c.lineWidth = 3; c.setLineDash([7, 4]); for (const b of H.bs){ const a = w2s(b[0]/u, b[1]/u), d = w2s(b[2]/u, b[3]/u); c.strokeRect(Math.min(a[0], d[0]) - 4, Math.min(a[1], d[1]) - 4, Math.abs(d[0] - a[0]) + 8, Math.abs(d[1] - a[1]) + 8); } c.restore(); }
+function openShapeSheet(sel){ const r = shpMake(sel); if (!r){ toast('この形は登録できません（線が少なすぎます）'); return; } if (Math.max(r.W, r.H) < 150){ toast('形が小さすぎます。「範囲」で囲むか「＋追加で選ぶ」で、形ぜんぶ（四角・線のかたまり）を選んでください'); return; } const ms = shpFind(r); let kind = '', mdl = ''; S.shpHL = {bs:ms.map(m => m.b), t0:performance.now()}; drawOverlay(); setTimeout(drawOverlay, 6100);
+  openSheet('🏷 これは何？', body => { const L = shpList();
+    body.innerHTML = `<div class="note">選んだ形（約 ${r.W}×${r.H}mm）と同じ形が、この図面に <b>${ms.length}か所</b> あります（オレンジの点線）。種類を選ぶと、3Dでその種類として出します。この端末で覚えて、ほかの図面でも同じ形を同じように読みます。${ms.length > 200 ? '<br><b style="color:var(--danger,#dc2626)">⚠️ 同じ形が多すぎます。形の一部だけを選んでいるかもしれません（「範囲」で形ぜんぶを囲んでください）</b>' : ''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0">${Object.keys(SHPK).map(k => `<button class="btn ${kind === k ? 'sel' : ''}" data-k="${k}" style="height:46px">${SHPK[k]}</button>`).join('')}</div>
+      ${kind === 'unit' ? `<select data-m style="width:100%;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:15px"><option value="">機種：わからない（箱で出す）</option>${(typeof CAS2_ORDER !== 'undefined' ? CAS2_ORDER : []).filter(k => CAS2M[k]).map(k => `<option value="${k}" ${k === mdl ? 'selected' : ''}>${esc(CAS2M[k].n)}（${esc(CAS2M[k].kind)}）</option>`).join('')}</select>` : ''}
+      <div class="frow"><button class="btn pri" data-a="ok" style="flex:1;height:48px" ${kind ? '' : 'disabled'}>この形を登録する</button></div>
+      ${L.length ? `<div class="ghead" style="margin-top:10px"><b>登録した形</b><span class="ct">${L.length}</span></div>` + L.map(q => `<div class="row"><div class="grow"><div class="nm">${SHPK[q.kind] || q.kind}${q.mdl && typeof CAS2M !== 'undefined' && CAS2M[q.mdl] ? '（' + esc(CAS2M[q.mdl].n) + '）' : ''}</div><div class="sub">約 ${q.W}×${q.H}mm・${new Date(q.t).toLocaleDateString('ja-JP')}</div></div><button class="btn del" data-x="${q.id}">消す</button></div>`).join('') : ''}`;
+    body.onchange = e => { if (e.target.dataset.m != null) mdl = e.target.value; };
+    body.onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return;
+      if (b.dataset.k){ kind = b.dataset.k; if (kind === 'unit') loadModels().then(() => refreshOpenSheet()); refreshOpenSheet(); }
+      else if (b.dataset.x){ shpSave(shpList().filter(q => q.id !== b.dataset.x)); toast('登録を消しました'); refreshOpenSheet(); }
+      else if (b.dataset.a === 'ok' && kind){ const a = shpList(); a.push({...r, id:'s' + Date.now().toString(36), kind, ...(kind === 'unit' ? {mdl} : {}), t:Date.now()}); shpSave(a); closeSheet(); S.pick = null; updatePickBar(); toast(`${SHPK[kind]}として登録しました（この図面に${ms.length}か所）。3Dで反映します`); drawOverlay(); } }; }); }
 const SAME_OPS = [[1,0,0,1],[0,-1,1,0],[-1,0,0,-1],[0,1,-1,0],[-1,0,0,1],[0,1,1,0],[1,0,0,-1],[0,-1,-1,0]]; // p' = [a x + b y, c x + d y]
 const opAp = (O, x, y) => [O[0]*x + O[1]*y, O[2]*x + O[3]*y];
 function partSig(e){ let n = 0, L = 0; for (const pl of G.eidPolys.get(e) || []){ const a = pl.a; for (let i = 0; i + 3 < a.length; i += 2){ n++; L += Math.hypot(a[i+2] - a[i], a[i+3] - a[i+1]); } } return {n, L}; }
@@ -3626,7 +3665,17 @@ function v3dAna(){
   const inB = c => !bld || ((c.x0 + c.x1)/2 >= bld[0] && (c.x0 + c.x1)/2 <= bld[2] && (c.y0 + c.y1)/2 >= bld[1] && (c.y0 + c.y1)/2 <= bld[3]);
   let un = units.filter(inB); const mg = mageOk(); if (mg && mg.units.length){ const f = un.filter(c => mg.units.some(o => o.x >= c.x0 - 300 && o.x <= c.x1 + 300 && o.y >= c.y0 - 300 && o.y <= c.y1 + 300)); if (f.length) un = f; } // 曲げメモで室内機と読めた物だけ（ロスナイなどの機器は除く）
   if (mg && mg.walls.length) walls = mg.walls; // 壁も曲げメモの読み取り（軽量壁など）
-  const doors = v3dDoors().filter(inD => !bld || (inD.c[0] >= bld[0] && inD.c[0] <= bld[2] && inD.c[1] >= bld[1] && inD.c[1] <= bld[3])); walls = v3dDoorCut(walls, doors); // 扉：開きの円弧の所は壁にしない
+  const doors = v3dDoors().filter(inD => !bld || (inD.c[0] >= bld[0] && inD.c[0] <= bld[2] && inD.c[1] >= bld[1] && inD.c[1] <= bld[3]));
+  { const SH = shpMatches(); if (SH.length){ // 🏷 登録した形：家具など＝そこに読んだ物を消す、ほかはその種類で足す
+    const cin = (x0, y0, x1, y1, b) => (x0 + x1)/2 > b[0] - 50 && (x0 + x1)/2 < b[2] + 50 && (y0 + y1)/2 > b[1] - 50 && (y0 + y1)/2 < b[3] + 50, ovl = (c, b) => c.x0 < b[2] && c.x1 > b[0] && c.y0 < b[3] && c.y1 > b[1];
+    for (const m of SH){ const b = m.b; if (m.kind !== 'ign' && m.kind !== 'unit') continue; un = un.filter(c => !(m.kind === 'ign' ? cin(c.x0, c.y0, c.x1, c.y1, b) : ovl(c, b))); if (m.kind === 'ign'){ walls = walls.filter(w => !cin(w[0], w[1], w[2], w[3], b)); for (const L of [insp, outs]) L.splice(0, L.length, ...L.filter(c => !cin(c.x0, c.y0, c.x1, c.y1, b))); for (let i = doors.length - 1; i >= 0; i--) if (cin(doors[i].c[0], doors[i].c[1], doors[i].c[0], doors[i].c[1], b)) doors.splice(i, 1); } }
+    const US = []; for (const m of SH){ const b = m.b, cx = (b[0] + b[2])/2, cy = (b[1] + b[3])/2, ch2 = chAt(cx, cy);
+      if (m.kind === 'wall' || m.kind === 'col') walls.push(b.slice(0, 4));
+      else if (m.kind === 'insp') insp.push({x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2}); else if (m.kind === 'out') outs.push({x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2});
+      else if (m.kind === 'unit'){ const c = {x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2, n:0, s:[], mdl:m.mdl || ''}; un.push(c); US.push(c); }
+      else if (m.kind === 'door'){ const hz = b[2] - b[0] >= b[3] - b[1], c = hz ? [b[0], cy] : [cx, b[1]], op = hz ? [b[2], cy] : [cx, b[3]], R = hz ? b[2] - b[0] : b[3] - b[1]; doors.push({c, op, leaf:hz ? [b[0], cy + R] : [cx + R, b[1]], R, reg:1}); } }
+    if (US.length) for (let i = 0; i < sg.length; i += SS){ const l = G.L[sg[i+4]]; if (!l || !l.on || l.deleted) continue; const x1 = sg[i]*u, y1 = sg[i+1]*u, x2 = sg[i+2]*u, y2 = sg[i+3]*u; for (const c of US) if (Math.min(x1, x2) >= c.x0 - 1 && Math.max(x1, x2) <= c.x1 + 1 && Math.min(y1, y2) >= c.y0 - 1 && Math.max(y1, y2) <= c.y1 + 1) c.s.push([x1, y1, x2, y2]); } } } // 室内機：本体の向きを読むための線
+  walls = v3dDoorCut(walls, doors); // 扉：開きの円弧の所は壁にしない
   return {walls, doors, ubs:ubs.filter(inB), units:un, insp:insp.filter(inB), outs:outs.filter(inB), bld, CH0, wallH:CH0}; // 壁は天井の高さまで（天井の上の機器が見えるように）
 }
 /* 扉：建築の線の開き戸の印（1/4の円弧＋扉の線）を探す（2026-10-28 ユーザー：三角の丸っぽい形が扉）。円弧は短い線のつながり（PDF）でも円弧でもよい。
@@ -3689,13 +3738,13 @@ function v3dBody(m, md){ if (!m.s || !md || !md.L || !md.W) return null; const S
 const v3dUKey = m => { const a = m.x1 - m.x0, b = m.y1 - m.y0; return Math.round(Math.max(a, b)/50)*50 + '×' + Math.round(Math.min(a, b)/50)*50; };
 function v3dUG(){ try { const o = JSON.parse(localStorage.getItem('zumen-3dunitG') || '{}'); return o[S.srcName || ''] || null; } catch(e){ return null; } }
 function v3dUGset(g){ try { const o = JSON.parse(localStorage.getItem('zumen-3dunitG') || '{}'); o[S.srcName || ''] = g; localStorage.setItem('zumen-3dunitG', JSON.stringify(o)); } catch(e){} }
-const v3dMdlKey = m => { const g = v3dUG(), k = g && g[v3dUKey(m)]; return k != null ? k : v3dMdl(); };
+const v3dMdlKey = m => { if (m.mdl != null) return m.mdl; const g = v3dUG(), k = g && g[v3dUKey(m)]; return k != null ? k : v3dMdl(); };
 const v3dMdOf = m => (typeof CAS2M !== 'undefined' && CAS2M[v3dMdlKey(m)]) || null;
 function v3dGuess(m){ if (typeof CAS2M === 'undefined') return ''; let bk = '', be = 1e9; for (const k of CAS2_ORDER){ const b = CAS2M[k] && v3dBody(m, CAS2M[k]); if (b && b.e < be - 1e-6){ be = b.e; bk = k; } } return bk; } // 形から見た目安
 /* 機種を聞く画面：品番が図面に無くて、まだ決めていない時（force で選び直し） */
 function askUnitModels(force){ return new Promise(ok => { if (!G || typeof CAS2M === 'undefined'){ ok(); return; } const A = v3dAna(); if (!A.units.length){ ok(); return; }
-  const grp = new Map(); for (const m of A.units){ const k = v3dUKey(m); const g = grp.get(k); if (g) g.n++; else grp.set(k, {k, n:1, m}); }
-  const G0 = v3dUG() || {}; if (!force && ([...grp.keys()].every(k => k in G0) || v3dMdlTx())){ ok(); return; }
+  const grp = new Map(); for (const m of A.units){ if (m.mdl != null) continue; const k = v3dUKey(m); const g = grp.get(k); if (g) g.n++; else grp.set(k, {k, n:1, m}); }
+  const G0 = v3dUG() || {}; if (!grp.size || (!force && ([...grp.keys()].every(k => k in G0) || v3dMdlTx()))){ ok(); return; }
   const L = [...grp.values()].sort((a, b) => b.n - a.n), sel = {}; L.forEach((g, i) => { const gs = v3dGuess(g.m); g.gs = gs; sel[g.k] = g.k in G0 ? G0[g.k] : gs || (i === 0 ? v3dMdl() : ''); });
   let done = false; const fin = save => { if (done) return; done = true; if (save) v3dUGset({...G0, ...sel}); closeSheet(); ok(); };
   openSheet('室内機の機種を決める', body => {

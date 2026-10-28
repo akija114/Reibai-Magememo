@@ -80,6 +80,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .stage{position:relative;flex:1;min-height:0;background:var(--paper);overflow:hidden}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #ov{touch-action:none}
+#shpBar{position:absolute;top:8px;left:8px;right:8px;z-index:5;background:var(--panel);border:2px solid #ea580c;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.22);padding:10px}
+#shpBar[hidden]{display:none}
 #miniBox{position:absolute;top:66px;right:8px;z-index:3;display:flex;border-radius:12px;border:2px solid var(--line);background:var(--paper);box-shadow:0 4px 14px rgba(0,0,0,.22);overflow:hidden;touch-action:none;transition:transform .2s}
 #miniBox[hidden]{display:none}
 .stage #mini{position:static;inset:auto;width:216px;height:162px;touch-action:none}
@@ -197,6 +199,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <div class="float" id="gridPanel" hidden></div>
     <div class="float" id="routePanel" hidden></div>
     <div class="float" id="pickBar" hidden></div>
+    <div id="shpBar" hidden></div>
     <div class="float" id="npPanel" hidden></div>
     <div class="float" id="samePanel" hidden></div>
     <div class="loading" id="loading">読み込み中…</div>
@@ -216,7 +219,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <button class="tb" id="b3D" aria-label="3Dで見る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>3D</button>
   </div>
 </div>
-<div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px;white-space:nowrap">🧊 3D</b><button class="btn" data-v="top" style="height:40px;padding:0 10px">真上</button><button class="btn" data-v="iso" style="height:40px;padding:0 10px">斜め</button><button class="btn pri" id="v3dMg" style="height:40px;padding:0 10px;font-weight:800">曲げ共有へ</button><button class="btn" id="v3dX" style="height:40px;padding:0 12px;font-weight:800">✕ 戻る</button></div><div id="v3dT" style="display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto"><button class="btn sel" data-t3="wall" style="height:34px;padding:0 12px;flex:none">壁</button><button class="btn sel" data-t3="ub" style="height:34px;padding:0 12px;flex:none">ユニットバス</button><button class="btn sel" data-t3="unit" style="height:34px;padding:0 12px;flex:none">機器</button><button class="btn sel" data-t3="pipe" style="height:34px;padding:0 12px;flex:none" hidden>冷媒配管</button><button class="btn sel" data-t3="duct" style="height:34px;padding:0 12px;flex:none" hidden>ダクト</button><button class="btn sel" data-t3="eisei" style="height:34px;padding:0 12px;flex:none" hidden>衛生</button><button class="btn sel" data-t3="plan" style="height:34px;padding:0 12px;flex:none">図面の線</button><button class="btn" id="v3dMB" style="height:34px;padding:0 12px;flex:none;font-weight:800">🔩 室内機の機種</button><select id="v3dM" hidden aria-label="室内機の機種" style="height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:14px;flex:none;max-width:220px"></select></div><div id="v3dS" style="flex:1;position:relative;overflow:hidden;touch-action:none"><div id="v3dN" class="note" style="position:absolute;left:8px;bottom:8px;right:8px;pointer-events:none;background:var(--panel);opacity:.9;border-radius:10px;padding:6px 8px"></div></div></div>
+<div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px;white-space:nowrap">🧊 3D</b><button class="btn" data-v="top" style="height:40px;padding:0 10px">真上</button><button class="btn" data-v="iso" style="height:40px;padding:0 10px">斜め</button><button class="btn pri" id="v3dMg" style="height:40px;padding:0 10px;font-weight:800">曲げ共有へ</button><button class="btn" id="v3dX" style="height:40px;padding:0 12px;font-weight:800">✕ 戻る</button></div><div id="v3dT" style="display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto"><button class="btn sel" data-t3="wall" style="height:34px;padding:0 12px;flex:none">壁</button><button class="btn sel" data-t3="ub" style="height:34px;padding:0 12px;flex:none">ユニットバス</button><button class="btn sel" data-t3="unit" style="height:34px;padding:0 12px;flex:none">機器</button><button class="btn sel" data-t3="pipe" style="height:34px;padding:0 12px;flex:none" hidden>冷媒配管</button><button class="btn sel" data-t3="duct" style="height:34px;padding:0 12px;flex:none" hidden>ダクト</button><button class="btn sel" data-t3="eisei" style="height:34px;padding:0 12px;flex:none" hidden>衛生</button><button class="btn sel" data-t3="plan" style="height:34px;padding:0 12px;flex:none">図面の線</button><span id="v3dR" style="display:contents"></span><button class="btn" id="v3dMB" style="height:34px;padding:0 12px;flex:none;font-weight:800">🔩 室内機の機種</button><select id="v3dM" hidden aria-label="室内機の機種" style="height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:14px;flex:none;max-width:220px"></select></div><div id="v3dS" style="flex:1;position:relative;overflow:hidden;touch-action:none"><div id="v3dN" class="note" style="position:absolute;left:8px;bottom:8px;right:8px;pointer-events:none;background:var(--panel);opacity:.9;border-radius:10px;padding:6px 8px"></div></div></div>
 <input type="file" id="fileIn" hidden>
 <div id="sheetRoot"></div>
 
@@ -781,7 +784,7 @@ const MINI = {c:null, key:'', f:null}, mini = $('#mini'), MW = 216, MH = 162; le
 function miniSet(off){ miniOff = off; try { localStorage.setItem('zumen-mini', off ? '0' : '1'); } catch(e){} drawMini(); }
 function miniFit(){ const b = G.bounds, W = MW, H = MH, bw = b.x1 - b.x0 || 1, bh = b.y1 - b.y0 || 1, k = Math.min(W/bw, H/bh)*0.92; return {k, ox:W/2 - (b.x0 + b.x1)/2*k, oy:H/2 + (b.y0 + b.y1)/2*k}; }
 function drawMini(){ if (!G || !cw){ $('#miniBox').hidden = $('#miniTab').hidden = true; return; } const b = G.bounds, fs = Math.min(cw/(b.x1 - b.x0 || 1), ch/(b.y1 - b.y0 || 1))*0.94;
-  const box = $('#miniBox'), tab = $('#miniTab'), want = !(view.s < fs*1.8 || (S.npe && S.mode === 'np' && gest && gest.type === 'np')); box.hidden = !want || miniOff; tab.hidden = !want || !miniOff; if (box.hidden) return;
+  const box = $('#miniBox'), tab = $('#miniTab'), want = !S.shpSel && !(view.s < fs*1.8 || (S.npe && S.mode === 'np' && gest && gest.type === 'np')); box.hidden = !want || miniOff; tab.hidden = !want || !miniOff; if (box.hidden) return;
   const r = Math.min(window.devicePixelRatio || 1, 2), W = MW*r, H = MH*r; if (mini.width !== W){ mini.width = W; mini.height = H; }
   const key = G.L.map(l => l.on && !l.deleted ? 1 : 0).join('') + '|' + tok.dark + '|' + (G.segs && G.segs.length);
   if (!MINI.c || MINI.key !== key || MINI.G !== G){ const oc = document.createElement('canvas'); oc.width = W; oc.height = H; const x = oc.getContext('2d'), F = miniFit(); x.fillStyle = tok.paper; x.fillRect(0, 0, W, H); x.setTransform(F.k*r, 0, 0, -F.k*r, F.ox*r, F.oy*r);
@@ -1215,6 +1218,7 @@ function boxSelect(a, b){
   if (!inside.length && !hidden.length){ toast(boxCross ? '囲んだ所に部品がありません' : '全部が四角に入っている部品がありません（「かかっている物も」をオンにすると、はみ出た物も選べます）'); return; }
   const lis = new Set(); inside.forEach(e => G.pbox.get(e)[4].forEach(li => lis.add(li)));
   pickScope = 'part'; S.mode = 'pan'; S.selDim = null;
+  if (S.shpSel && S.pick){ inside.forEach(e => S.pick.sel.add(e)); updateUi(); drawOverlay(); updatePickBar(); return; } // 形を選んでいる時は足す
   S.pick = {cands:[...lis], i:0, parts:inside.slice(0, 1), pi:0, sel:new Set(inside), multi:false, boxHidden:hidden};
   updateUi(); drawOverlay(); updatePickBar();
   toast(`${inside.length} 個えらびました${hidden.length ? `（隠した部品 ${hidden.length} 個も中にあります）` : ''}`);
@@ -1754,7 +1758,7 @@ function kikiPut(w){
   updateUi(); drawOverlay(); updatePickBar(); toast(`${k.nm} を置きました。「✥ 移動」で位置を直せます`);
 }
 function updatePickBar(){
-  const bar = $('#pickBar');
+  const bar = $('#pickBar'); shpBarDraw(); if (S.shpSel){ bar.hidden = true; return; }
   if (S.mvg && G){
     const m = S.mvg, inp = (id, v) => `<input id="${id}" type="number" value="${v}" style="flex:1;min-width:0;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 8px;font:16px var(--font-ui);color:var(--ink)">`;
     bar.hidden = false; $('#layerBar').hidden = true;
@@ -1851,7 +1855,7 @@ function updatePickBar(){
     else if (a === 'ohide'){ const sel = [...pk.sel]; exec(cmdObjs(sel, 'hide')); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を非表示にしました（↶で戻せます）`); S.pick = null; }
     else if (a === 'omove'){ mvgStart([...pk.sel]); return; }
     else if (a === 'olay'){ openLaySheet([...pk.sel]); return; }
-    else if (a === 'oshp'){ openShapeSheet([...pk.sel]); return; }
+    else if (a === 'oshp'){ shpSelStart(); return; }
     else if (a === 'odup'){ const sel = [...pk.sel], all = sel.concat(compOf(sel).filter(e => !sel.includes(e))), b = outlineBox(sel) || partsBox(sel), u = unitMM(), c = cmdDup(all, [b ? (b[2] - b[0]) + 300/u : 1000/u, 0]);
       if (!c.list.length){ toast('この部品は複製できません'); return; } exec(c); renderTabs(); S.pick = {...pk, sel:new Set(c.list), parts:c.list, pi:0, multi:false}; toast(`${c.list.length}個を複製しました。指で動かして置く所を決めてください（↶で戻せます）`); mvgStart(c.list); if (S.mvg){ S.mvg.useS = false; S.mvg.useC = false; S.mvg.comp = []; updatePickBar(); } return; } // 複製した物は、まわりの配管をつなぎ直さない
     else if (a === 'onp'){ const it = npOf([...pk.sel][0]); if (it){ npStart(it); return; } }
@@ -2319,7 +2323,7 @@ function autoDimAt(cur){
 /* ---- 同じ機器ぜんぶ：1台で決めた点（芯・吊りボルトなど）を、同じ形の機器ぜんぶの同じ所に置く。向き（90°ずつ・左右反対）も合わせる ---- */
 /* 🏷 図面の形を登録（2026-10-28 ユーザー：この形はこれ、を自分で登録したい）：選んだ部品の形（線の端の点の並び）を覚え、同じ形（回した・裏返した形も）を図面ぜんぶから探して、3Dにその種類で出す。
    種類：wall 壁・door 扉・unit 室内機（mdl 機種）・insp 点検口・out 吹出口・col 柱・ign 家具など（3Dに出さない＝そこに読んだ壁・機器を消す）。この端末で覚えて、ほかの図面でも使う（zumen-shapes・長さは mm） */
-const SHPK = {wall:'🧱 壁', door:'🚪 扉', unit:'❄️ 室内機', insp:'🔲 点検口', out:'💨 吹出口・吸込口', col:'🏛 柱', ign:'🪑 家具など（3Dに出さない）'};
+const SHPK = {wall:'🧱 壁', door:'🚪 扉', unit:'❄️ 室内機', insp:'🔲 点検口', out:'💨 吹出口・吸込口', col:'🏛 柱', win:'🪟 窓', stair:'🪜 階段', bed:'🛏 ベッド', ign:'🪑 家具など（3Dに出さない）'};
 function shpList(){ try { const a = JSON.parse(localStorage.getItem('zumen-shapes') || '[]'); return Array.isArray(a) ? a : []; } catch(e){ return []; } }
 function shpSave(a){ try { localStorage.setItem('zumen-shapes', JSON.stringify(a)); } catch(e){ toast('この端末に保存できませんでした'); } V3.shp = null; }
 function shpMake(sel){ // 選んだ部品 → 形の記録（いちばん大きい部品を目印に、その真ん中からの点の並び）
@@ -2342,6 +2346,18 @@ function shpFind(r){ // 図面の中の同じ形 → [{b:[x0,y0,x1,y1]（mm）, 
 function shpMatches(){ if (!G || !IX) return []; const L = shpList(), key = JSON.stringify(L.map(r => r.id)) + '|' + (S.undo[S.undo.length-1] ? S.undo.length : 0) + '|' + G.L.filter(l => l.on && !l.deleted).length;
   if (V3.shp && V3.shp.G === G && V3.shp.key === key) return V3.shp.v; const v = []; for (const r of L) for (const m of shpFind(r)) v.push({...m, kind:r.kind, mdl:r.mdl}); V3.shp = {G, key, v}; return v; }
 function drawShpHL(c){ const H = S.shpHL; if (!H) return; if (performance.now() - H.t0 > 6000){ S.shpHL = null; return; } const u = unitMM(); c.save(); c.strokeStyle = '#ea580c'; c.lineWidth = 3; c.setLineDash([7, 4]); for (const b of H.bs){ const a = w2s(b[0]/u, b[1]/u), d = w2s(b[2]/u, b[3]/u); c.strokeRect(Math.min(a[0], d[0]) - 4, Math.min(a[1], d[1]) - 4, Math.abs(d[0] - a[0]) + 8, Math.abs(d[1] - a[1]) + 8); } c.restore(); }
+/* 形を選ぶ間：下の大きな画面を消して、上に「何を選んでいるか」と OK（2026-10-28 ユーザー：図面が見にくい） */
+function shpSelStart(){ if (!S.pick) return; pickScope = 'part'; S.pick.multi = true; S.shpSel = true; updatePickBar(); drawOverlay(); }
+function shpSelEnd(){ S.shpSel = false; if (S.mode === 'box') S.mode = 'pan'; updateUi(); updatePickBar(); drawOverlay(); }
+function shpBarDraw(){ const el = $('#shpBar'); if (!el) return; if (!S.shpSel || !S.pick){ el.hidden = true; return; } el.hidden = false;
+  const sel = [...S.pick.sel].filter(e => !gone(e)), b = sel.length ? partsBox(sel) : null, u = unitMM(), box = S.mode === 'box';
+  el.innerHTML = `<div style="font-weight:800;font-size:15px;color:#ea580c">🏷 登録する形を選んでいます</div>
+    <div style="font-size:13px;color:var(--sub);margin:3px 0 6px">${box ? '指でなぞって四角で囲むと、中の部品をまとめて足します' : '図面の線をタップで足す・もう一度タップで外す。2本指で動かす・拡大'}</div>
+    <div style="font-size:14px;margin-bottom:8px">選んだ部品 <b>${sel.length}個</b>${b ? `・大きさ 約 <b>${Math.round((b[2] - b[0])*u)}×${Math.round((b[3] - b[1])*u)}mm</b>` : ''}</div>
+    <div class="frow" style="margin:0"><button class="btn" data-s="no" style="flex:1">やめる</button><button class="btn ${box ? 'sel' : ''}" data-s="box" style="flex:1">⬚ 囲む</button><button class="btn" data-s="clr" style="flex:1" ${sel.length ? '' : 'disabled'}>全部外す</button><button class="btn pri" data-s="ok" style="flex:1.3" ${sel.length ? '' : 'disabled'}>OK →</button></div>`;
+  el.onclick = e => { const t = e.target.closest('button'); if (!t || t.disabled) return; const a = t.dataset.s;
+    if (a === 'no'){ shpSelEnd(); } else if (a === 'box'){ S.mode = box ? 'pan' : 'box'; updateUi(); shpBarDraw(); } else if (a === 'clr'){ S.pick.sel.clear(); drawOverlay(); shpBarDraw(); }
+    else if (a === 'ok'){ const sel2 = [...S.pick.sel]; shpSelEnd(); openShapeSheet(sel2); } }; }
 function openShapeSheet(sel){ const r = shpMake(sel); if (!r){ toast('この形は登録できません（線が少なすぎます）'); return; } if (Math.max(r.W, r.H) < 150){ toast('形が小さすぎます。「範囲」で囲むか「＋追加で選ぶ」で、形ぜんぶ（四角・線のかたまり）を選んでください'); return; } const ms = shpFind(r); let kind = '', mdl = ''; S.shpHL = {bs:ms.map(m => m.b), t0:performance.now()}; drawOverlay(); setTimeout(drawOverlay, 6100);
   openSheet('🏷 これは何？', body => { const L = shpList();
     body.innerHTML = `<div class="note">選んだ形（約 ${r.W}×${r.H}mm）と同じ形が、この図面に <b>${ms.length}か所</b> あります（オレンジの点線）。種類を選ぶと、3Dでその種類として出します。この端末で覚えて、ほかの図面でも同じ形を同じように読みます。${ms.length > 200 ? '<br><b style="color:var(--danger,#dc2626)">⚠️ 同じ形が多すぎます。形の一部だけを選んでいるかもしれません（「範囲」で形ぜんぶを囲んでください）</b>' : ''}</div>
@@ -3666,17 +3682,22 @@ function v3dAna(){
   let un = units.filter(inB); const mg = mageOk(); if (mg && mg.units.length){ const f = un.filter(c => mg.units.some(o => o.x >= c.x0 - 300 && o.x <= c.x1 + 300 && o.y >= c.y0 - 300 && o.y <= c.y1 + 300)); if (f.length) un = f; } // 曲げメモで室内機と読めた物だけ（ロスナイなどの機器は除く）
   if (mg && mg.walls.length) walls = mg.walls; // 壁も曲げメモの読み取り（軽量壁など）
   const doors = v3dDoors().filter(inD => !bld || (inD.c[0] >= bld[0] && inD.c[0] <= bld[2] && inD.c[1] >= bld[1] && inD.c[1] <= bld[3]));
-  { const SH = shpMatches(); if (SH.length){ // 🏷 登録した形：家具など＝そこに読んだ物を消す、ほかはその種類で足す
+  const SH = shpMatches(); { if (SH.length){ // 🏷 登録した形：家具など＝そこに読んだ物を消す、ほかはその種類で足す
     const cin = (x0, y0, x1, y1, b) => (x0 + x1)/2 > b[0] - 50 && (x0 + x1)/2 < b[2] + 50 && (y0 + y1)/2 > b[1] - 50 && (y0 + y1)/2 < b[3] + 50, ovl = (c, b) => c.x0 < b[2] && c.x1 > b[0] && c.y0 < b[3] && c.y1 > b[1];
     for (const m of SH){ const b = m.b; if (m.kind !== 'ign' && m.kind !== 'unit') continue; un = un.filter(c => !(m.kind === 'ign' ? cin(c.x0, c.y0, c.x1, c.y1, b) : ovl(c, b))); if (m.kind === 'ign'){ walls = walls.filter(w => !cin(w[0], w[1], w[2], w[3], b)); for (const L of [insp, outs]) L.splice(0, L.length, ...L.filter(c => !cin(c.x0, c.y0, c.x1, c.y1, b))); for (let i = doors.length - 1; i >= 0; i--) if (cin(doors[i].c[0], doors[i].c[1], doors[i].c[0], doors[i].c[1], b)) doors.splice(i, 1); } }
     const US = []; for (const m of SH){ const b = m.b, cx = (b[0] + b[2])/2, cy = (b[1] + b[3])/2, ch2 = chAt(cx, cy);
       if (m.kind === 'wall' || m.kind === 'col') walls.push(b.slice(0, 4));
       else if (m.kind === 'insp') insp.push({x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2}); else if (m.kind === 'out') outs.push({x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2});
       else if (m.kind === 'unit'){ const c = {x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2, n:0, s:[], mdl:m.mdl || ''}; un.push(c); US.push(c); }
+      else if (m.kind === 'win'){ const hz = b[2] - b[0] >= b[3] - b[1], N = []; // 窓：重なる壁を窓の幅だけ切って、下（腰壁 0〜850）と上（2000〜）を残す
+        for (const w of walls){ const wh = w[2] - w[0] >= w[3] - w[1]; if (w.length > 4 || wh !== hz || !(w[0] < b[2] && w[2] > b[0] && w[1] < b[3] + 100 && w[3] > b[1] - 100)){ N.push(w); continue; }
+          if (hz){ if (w[0] < b[0] - 50) N.push([w[0], w[1], b[0], w[3]]); if (w[2] > b[2] + 50) N.push([b[2], w[1], w[2], w[3]]); N.push([Math.max(b[0], w[0]), w[1], Math.min(b[2], w[2]), w[3], 0, 850], [Math.max(b[0], w[0]), w[1], Math.min(b[2], w[2]), w[3], 2000]); }
+          else { if (w[1] < b[1] - 50) N.push([w[0], w[1], w[2], b[1]]); if (w[3] > b[3] + 50) N.push([w[0], b[3], w[2], w[3]]); N.push([w[0], Math.max(b[1], w[1]), w[2], Math.min(b[3], w[3]), 0, 850], [w[0], Math.max(b[1], w[1]), w[2], Math.min(b[3], w[3]), 2000]); } }
+        walls = N; }
       else if (m.kind === 'door'){ const hz = b[2] - b[0] >= b[3] - b[1], c = hz ? [b[0], cy] : [cx, b[1]], op = hz ? [b[2], cy] : [cx, b[3]], R = hz ? b[2] - b[0] : b[3] - b[1]; doors.push({c, op, leaf:hz ? [b[0], cy + R] : [cx + R, b[1]], R, reg:1}); } }
     if (US.length) for (let i = 0; i < sg.length; i += SS){ const l = G.L[sg[i+4]]; if (!l || !l.on || l.deleted) continue; const x1 = sg[i]*u, y1 = sg[i+1]*u, x2 = sg[i+2]*u, y2 = sg[i+3]*u; for (const c of US) if (Math.min(x1, x2) >= c.x0 - 1 && Math.max(x1, x2) <= c.x1 + 1 && Math.min(y1, y2) >= c.y0 - 1 && Math.max(y1, y2) <= c.y1 + 1) c.s.push([x1, y1, x2, y2]); } } } // 室内機：本体の向きを読むための線
   walls = v3dDoorCut(walls, doors); // 扉：開きの円弧の所は壁にしない
-  return {walls, doors, ubs:ubs.filter(inB), units:un, insp:insp.filter(inB), outs:outs.filter(inB), bld, CH0, wallH:CH0}; // 壁は天井の高さまで（天井の上の機器が見えるように）
+  return {walls, doors, reg:SH, ubs:ubs.filter(inB), units:un, insp:insp.filter(inB), outs:outs.filter(inB), bld, CH0, wallH:CH0}; // 壁は天井の高さまで（天井の上の機器が見えるように）
 }
 /* 扉：建築の線の開き戸の印（1/4の円弧＋扉の線）を探す（2026-10-28 ユーザー：三角の丸っぽい形が扉）。円弧は短い線のつながり（PDF）でも円弧でもよい。
    c＝吊り元（円の中心）・R＝扉の幅・leaf＝開いた扉の先・op＝閉じた時の扉の先（c→op が壁の開口）。窓（近くに AW の文字）は扉にしない */
@@ -3707,7 +3728,7 @@ function v3dDoors0(){ const u = unitMM(), sg = G.segs, ch = new Map(), lines = [
 function v3dDoorCut(walls, doors){ if (!doors.length) return walls; let W = walls; // 扉の高さ・幅だけくり抜く（扉の上は壁が続く＝[x0,y0,x1,y1,下の高さ]の垂れ壁。2026-10-28 ユーザー）
   for (const o of doors){ const x0 = Math.min(o.c[0], o.op[0]), x1 = Math.max(o.c[0], o.op[0]), y0 = Math.min(o.c[1], o.op[1]), y1 = Math.max(o.c[1], o.op[1]), hz = x1 - x0 >= y1 - y0, m = 150, N = [], Hd = o.hd || 2000;
     const va = [o.op[0] - o.c[0], o.op[1] - o.c[1]], vb = [o.leaf[0] - o.c[0], o.leaf[1] - o.c[1]], cr = (p, q) => p[0]*q[1] - p[1]*q[0], inSec = (x, y) => { const v = [x - o.c[0], y - o.c[1]], d = Math.hypot(v[0], v[1]); if (d > o.R*0.9 || d < o.R*0.1) return false; const e = d*o.R*0.15; return cr(va, v)*Math.sign(cr(va, vb)) > e && cr(vb, v)*Math.sign(cr(vb, va)) > e; }; // 開きの範囲の内側（ふちは除く）
-    for (const w of W){ if (w[4]){ N.push(w); continue; } const wx = (w[0] + w[2])/2, wy = (w[1] + w[3])/2, wl = Math.max(w[2] - w[0], w[3] - w[1]); if (wl < o.R*1.3 && inSec(wx, wy)) continue; // 開きの範囲の中の短い壁（扉の枠などの線）は消す
+    for (const w of W){ if (w.length > 4){ N.push(w); continue; } const wx = (w[0] + w[2])/2, wy = (w[1] + w[3])/2, wl = Math.max(w[2] - w[0], w[3] - w[1]); if (wl < o.R*1.3 && inSec(wx, wy)) continue; // 開きの範囲の中の短い壁（扉の枠などの線）は消す
       const ov = hz ? (w[1] <= y1 + m && w[3] >= y0 - m && w[0] < x1 - 20 && w[2] > x0 + 20) : (w[0] <= x1 + m && w[2] >= x0 - m && w[1] < y1 - 20 && w[3] > y0 + 20);
       if (!ov){ N.push(w); continue; } const wh = w[2] - w[0] >= w[3] - w[1];
       if (wh === hz){ if (hz){ if (w[0] < x0 - 100) N.push([w[0], w[1], x0, w[3]]); if (w[2] > x1 + 100) N.push([x1, w[1], w[2], w[3]]); N.push([Math.max(x0, w[0]), w[1], Math.min(x1, w[2]), w[3], Hd]); } else { if (w[1] < y0 - 100) N.push([w[0], w[1], w[2], y0]); if (w[3] > y1 + 100) N.push([w[0], y1, w[2], w[3]]); N.push([w[0], Math.max(y0, w[1]), w[2], Math.min(y1, w[3]), Hd]); } } // 開口の所は扉の上だけの壁
@@ -3836,7 +3857,16 @@ async function open3Dold(){
   const wm = new TH.MeshStandardMaterial({color:0xd9d4cc, transparent:true, opacity:.7}), um = new TH.MeshStandardMaterial({color:0xf5f7fa, transparent:true, opacity:.8, side:TH.DoubleSide}), uf = new TH.MeshStandardMaterial({color:0x9fd3e6}), mm2 = new TH.MeshStandardMaterial({color:0x2f6fe0}), em = new TH.LineBasicMaterial({color:0x1e3a8a});
   const boxAt = (g, x0, y0, x1, y1, z0, z1, m) => { const a = W(x0/u, y0/u), b = W(x1/u, y1/u), me = new TH.Mesh(new TH.BoxGeometry(Math.abs(b[0] - a[0]) || 1, z1 - z0, Math.abs(b[1] - a[1]) || 1), m); me.position.set((a[0] + b[0])/2, (z0 + z1)/2, (a[1] + b[1])/2); g.add(me); return me; };
   const mg = mageOk(), MG = !!(mg && mg.objs.length && (mg.ind || mg.walls.length || (mg.units && mg.units.length))); // 曲げメモと同じ読み方の3Dの形があればそれを使う（壁・機器・冷媒配管・ダクト・衛生）。室内機も壁も読めなかった時（ホテルのPDFなど）は今までの読み方（2026-10-28 ユーザー：前は3Dにできたのに）
-  const wem = new TH.LineBasicMaterial({color:0x8a8378}); if (!MG) for (const w of A.walls){ const me = boxAt(gW, w[0], w[1], w[2], w[3], Math.min(w[4] || 0, A.wallH - 20), A.wallH, wm); /* w[4]：扉の上の垂れ壁の下の高さ */ const e2 = new TH.LineSegments(new TH.EdgesGeometry(me.geometry), wem); e2.position.copy(me.position); gW.add(e2); } // 縁の線（曲げ共有の壁と同じ見え方）
+  const wem = new TH.LineBasicMaterial({color:0x8a8378}); if (!MG) for (const w of A.walls){ const me = boxAt(gW, w[0], w[1], w[2], w[3], Math.min(w[4] || 0, A.wallH - 20), Math.min(w[5] || A.wallH, A.wallH), wm); /* w[4]：扉・窓の上の壁の下の高さ、w[5]：窓の下の腰壁の上の高さ */ const e2 = new TH.LineSegments(new TH.EdgesGeometry(me.geometry), wem); e2.position.copy(me.position); gW.add(e2); } // 縁の線（曲げ共有の壁と同じ見え方）
+  { const RG = {}, R = A.reg || [], mt = c => new TH.MeshStandardMaterial({color:c, roughness:.6}), rb = (g, x0, y0, x1, y1, z0, z1, m) => boxAt(g, x0, y0, x1, y1, z0, z1, m); // 🏷 登録した形：種類ごとにまとめて出す／消す（上のボタン）
+    const glass = new TH.MeshStandardMaterial({color:0x7dd3fc, transparent:true, opacity:.45}), frm = mt(0x94a3b8), bedF = mt(0x8b6b4a), bedM = mt(0xf8fafc), stp = mt(0xd6d3d1), lm = new TH.LineBasicMaterial({color:0xea580c});
+    for (const m of R){ const k = 'reg_' + m.kind, g = RG[k] || (RG[k] = grp(k)), b = m.b, hz = b[2] - b[0] >= b[3] - b[1], L = hz ? b[2] - b[0] : b[3] - b[1], D = hz ? b[3] - b[1] : b[2] - b[0];
+      const a = W(b[0]/u, b[1]/u), c2 = W(b[2]/u, b[3]/u); g.add(new TH.Line(new TH.BufferGeometry().setFromPoints([[a[0], a[1]], [c2[0], a[1]], [c2[0], c2[1]], [a[0], c2[1]], [a[0], a[1]]].map(p => new TH.Vector3(p[0], 6, p[1]))), lm)); // 床にオレンジの枠（登録した形の場所）
+      if (m.kind === 'win'){ const t = Math.min(D, 60), cy = (b[1] + b[3])/2, cx = (b[0] + b[2])/2; if (hz){ rb(g, b[0], cy - t/2, b[2], cy + t/2, 850, 2000, glass); rb(g, b[0], cy - 25, b[2], cy + 25, 830, 850, frm); rb(g, b[0], cy - 25, b[2], cy + 25, 2000, 2020, frm); } else { rb(g, cx - t/2, b[1], cx + t/2, b[3], 850, 2000, glass); rb(g, cx - 25, b[1], cx + 25, b[3], 830, 850, frm); rb(g, cx - 25, b[1], cx + 25, b[3], 2000, 2020, frm); } }
+      else if (m.kind === 'stair'){ const n = Math.max(3, Math.round(L/260)), H = Math.min(A.CH0 || 2400, n*190), st = L/n; for (let j = 0; j < n; j++){ const z1 = H*(j + 1)/n; if (hz) rb(g, b[0] + st*j, b[1], b[0] + st*(j + 1), b[3], 0, z1, stp); else rb(g, b[0], b[1] + st*j, b[2], b[1] + st*(j + 1), 0, z1, stp); } }
+      else if (m.kind === 'bed'){ rb(g, b[0], b[1], b[2], b[3], 0, 300, bedF); rb(g, b[0] + 20, b[1] + 20, b[2] - 20, b[3] - 20, 300, 480, bedM); if (hz) rb(g, b[0], b[1], b[0] + 60, b[3], 0, 950, bedF); else rb(g, b[0], b[3] - 60, b[2], b[3], 0, 950, bedF); } // 頭の板は短い辺の片方（向きは目安）
+      const cc = W((b[0] + b[2])/2/u, (b[1] + b[3])/2/u); g.add(v3dLabel(TH, SHPK[m.kind] || m.kind, new TH.Vector3(cc[0], m.kind === 'bed' ? 700 : m.kind === 'stair' ? 400 : 1200, cc[1]), 160)); }
+    const bx = $('#v3dR'); if (bx) bx.innerHTML = Object.keys(RG).map(k => { const n = R.filter(m => 'reg_' + m.kind === k).length; return `<button class="btn ${V3.on[k] !== false ? 'sel' : ''}" data-t3="${k}" style="height:34px;padding:0 10px;flex:none">${SHPK[k.slice(4)] || k}（登録 ${n}）</button>`; }).join(''); }
   { const dm = new TH.MeshStandardMaterial({color:0xc8a27a, roughness:.7}), fm = new TH.LineBasicMaterial({color:0x7c5a3a}); for (const o of A.doors || []){ const Hd = Math.min(o.hd || 2000, A.wallH - 50), c0 = W(o.c[0]/u, o.c[1]/u), lf = W(o.leaf[0]/u, o.leaf[1]/u), op = W(o.op[0]/u, o.op[1]/u); // 扉：開いた扉の板（図面の開きの向き）と、開口の枠
     const me = new TH.Mesh(new TH.BoxGeometry(o.R, Hd, 40), dm); me.position.set((c0[0] + lf[0])/2, Hd/2, (c0[1] + lf[1])/2); me.rotation.y = -Math.atan2(lf[1] - c0[1], lf[0] - c0[0]); gW.add(me);
     gW.add(new TH.Line(new TH.BufferGeometry().setFromPoints([[c0, 0], [c0, Hd], [op, Hd], [op, 0]].map(([p, y]) => new TH.Vector3(p[0], y, p[1]))), fm)); } }
@@ -3902,7 +3932,7 @@ async function sendPipes(){
     const ui = p.u ? PO.findIndex(o => Math.hypot(o.cx/u - p.u.c[0], o.cy/u - p.u.c[1]) < 1) : -1;
     return {nm:'配管' + (j + 1), P, ui}; }).filter(p => p.P.length > 1);
   if (!pipes.length){ toast('冷媒配管がありません。「ルート」→「＋ 1から引く」で室内機から引いてください'); return; }
-  const rec = {v:1, name:S.name || S.srcName || '図面', t:Date.now(), ch:A.CH0, walls:A.walls.filter(w => !w[4]).map(w => w.map(Math.round)), ubs:A.ubs.map(b => ({x0:Math.round(b.x0), y0:Math.round(b.y0), x1:Math.round(b.x1), y1:Math.round(b.y1), nm:b.nm, ch:b.ch})), units, pipes};
+  const rec = {v:1, name:S.name || S.srcName || '図面', t:Date.now(), ch:A.CH0, walls:A.walls.filter(w => w.length < 5).map(w => w.map(Math.round)), ubs:A.ubs.map(b => ({x0:Math.round(b.x0), y0:Math.round(b.y0), x1:Math.round(b.x1), y1:Math.round(b.y1), nm:b.nm, ch:b.ch})), units, pipes};
   try { await new Promise((ok, ng) => { const o = indexedDB.open('pbmShare', 1); o.onupgradeneeded = () => { if (!o.result.objectStoreNames.contains('f')) o.result.createObjectStore('f'); }; o.onerror = () => ng(o.error);
       o.onsuccess = () => { try { const db = o.result, tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(rec, 'pipes'); tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = tx.onabort = () => ng(tx.error); } catch(e){ ng(e); } }; });
     autosave(false); toast('曲げ共有を開いています…'); setTimeout(() => { location.href = '../index.html?from=cadpipes'; }, 900); // 端末への保存（0.8秒後）が済んでから

@@ -148,7 +148,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
    (P&&P.mmpp?`<div style="background:#ecfdf5;border-radius:10px;padding:8px;margin-bottom:8px">いまの縮尺：<b>${den?"1/"+den:P.dxf?"DXF（実寸）":"2点で合わせ済み"}</b>${P.autoScale?"（通り芯の寸法と一致）":den&&P.denTxt?"（図面の表記から）":""}</div>${wzBtn("wzOkScale",planCanAuto()?"✅ この縮尺でOK → ⚡ 残りは全部自動":"✅ この縮尺でOK（次へ）","#16a34a","#fff","width:100%;margin-bottom:6px")+(planCanAuto()?`<div style="font-size:12.5px;color:#475569;margin:-2px 0 8px">縮尺だけ確かめてください。OKを押すと、原点・壁・室内機・室外機・配管・穴を自動で作ります。</div>`:"")}`:`<div style="background:#fef2f2;border-radius:10px;padding:8px;margin-bottom:8px;color:#b91c1c">縮尺がまだ決まっていません</div>`)+
    (canDen?`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px"><span style="font-size:13px">縮尺を選ぶ：</span>${[30,50,60,100,150,200].map(d=>`<button data-den="${d}" style="height:40px;padding:0 10px;border-radius:10px;font-weight:800;border:1.5px solid #cbd5e1;background:${den===d?"#fbbf24":"#fff"}">1/${d}</button>`).join("")}</div>`:"")+
    wzBtn("wzCal","📏 長さの分かる2点で合わせる（いちばん確実）","#2563eb","#fff","width:100%;margin-top:4px")}
- else if(s==="cal"){title="② 縮尺：2点で合わせる";nx=false;
+ else if(s==="cal"){title="② 縮尺：2点で合わせる";nx=PV.cal.length>=2;nxT="✅ 決定して次へ ▶";
   h=PV.cal.length<2?`<p>長さの分かる2点（<b>通り芯と通り芯</b>、寸法の書いてある壁の端など）を、1点ずつタップ。</p><p style="font-size:14px;font-weight:800;color:#2563eb">置いた点：${PV.cal.length} / 2</p><p style="font-size:12.5px;color:#475569">2本指で拡大すると正確に置けます。間違えたら「◀ 戻る」。</p>`:
    `<p>✅ 2点を置きました。<b>この2点の実際の長さ</b>を入れて「決定」。</p><div style="display:flex;align-items:center;gap:8px;margin:6px 0"><input id="wzCalV" inputmode="numeric" placeholder="例：3200" style="flex:1;min-width:0;width:100%;height:50px;border-radius:12px;border:2px solid #2563eb;padding:0 12px;font-size:20px;font-weight:800"><b>mm</b></div>${wzBtn("wzCalOk","✅ 決定（縮尺を合わせる）","#16a34a","#fff","width:100%")}<p style="font-size:12.5px;color:#475569;margin-top:4px">2点目の位置を直すなら、もう一度タップ。</p>`}
  else if(s==="org"){title="③ 原点（0,0）を決める";nx=!!(P&&P.org);
@@ -237,7 +237,7 @@ function wzRender(){const bl=$("#wzBal");if(!bl||!W.on)return;const P=PLAN,s=W.s
  const on=(id,f)=>{const e=$("#"+id);if(e)e.onclick=f};if(s==="t:kabe")kbBind();if(typeof kzBind==="function")kzBind();if(s==="t:sumi")smBind();
  on("wzFold",()=>{W.fold=!W.fold;if(!W.fold&&typeof KB!=="undefined")KB.foc=null;wzRender();planDraw()});
  on("wzOpen",()=>$("#plFile").click());on("wzResume",()=>plResume());
- on("wzCalOk",()=>{const v=uParse(($("#wzCalV")||{}).value||"");calApply(v)});
+ on("wzCalOk",()=>{const v=uParse(($("#wzCalV")||{}).value||"");calApply(v)});{const i=$("#wzCalV");if(i){i.enterKeyHint="done";i.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();i.blur();calApply(uParse(i.value||""))}}}}   // キーボードの「完了」でも決定
  on("wzOkScale",()=>{P.userScale=1;wzSave();if(planCanAuto()){planAutoAll();return}wzGo(P.org?"menu":"org")});on("wzCal",()=>wzGo("cal"));
  bl.querySelectorAll("[data-den]").forEach(b=>b.onclick=()=>{const d=+b.dataset.den;if(P&&P.ptpx){P.den=d;P.autoScale=0;P.mmpp=25.4/72/P.ptpx*d;try{$("#plDen").value=d}catch(e){}try{planWalls()}catch(e){}wzRender();planDraw();toast("縮尺を1/"+d+"にしました")}});
  on("wzOldOrg",()=>{const m=wzMem()[wzKey()];if(m&&m.org){P.org=m.org.slice();wzRender();planDraw()}});
@@ -453,6 +453,7 @@ function wzBack(){const s=W.step;
   toast("この作業で置いたものはありません（「キャンセル」で選ぶ画面に戻ります）")}}
 function wzNext(){const s=W.step,P=PLAN;
  if(s==="scale"){if(P&&P.mmpp){wzSave();wzGo(P.org?"menu":"org")}}
+ else if(s==="cal"){const i=$("#wzCalV");if(PV.cal.length<2)toast("長さの分かる2点をタップしてください");else if(!i||!uParse(i.value||"")){toast("2点の実際の長さを入れてください");if(i)i.focus()}else calApply(uParse(i.value))}   // 下の「次へ」でも決定する（iPhoneで数字を入れたあと押す人が多い）
  else if(s==="org"){if(P&&P.org){wzSave();wzGo("menu")}else toast("原点をタップしてください")}
  else if(s==="menu")wz3D();
  else if(s.startsWith("t:")){if(BT.tool==="room"&&BT.pts.length>=3)planBldRoom();BT.pts=[];wzGo("menu")}}

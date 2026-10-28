@@ -80,6 +80,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .stage{position:relative;flex:1;min-height:0;background:var(--paper);overflow:hidden}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #ov{touch-action:none}
+.stage #mini{position:absolute;inset:auto;top:8px;right:8px;width:150px;height:112px;border-radius:10px;border:2px solid var(--line);background:var(--paper);box-shadow:0 4px 14px rgba(0,0,0,.22);touch-action:none;z-index:3}
 .pill{position:absolute;left:50%;transform:translateX(-50%);top:52px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12px;display:flex;gap:8px;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,.12);pointer-events:none;white-space:nowrap}
 .pill b{font-family:var(--font-num);font-size:17px;font-variant-numeric:tabular-nums;color:var(--accent)}
 .hint{position:absolute;left:10px;right:10px;top:10px;display:flex;justify-content:center;pointer-events:none}
@@ -183,6 +184,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <canvas id="cv"></canvas>
     <canvas id="ov"></canvas>
     <canvas id="loupe" hidden></canvas>
+    <canvas id="mini" hidden aria-label="全体図（四角をドラッグで動かす）"></canvas>
     <div class="pill" id="pill" hidden></div>
     <div class="hlbar" id="hlBar" hidden></div>
     <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bHint4" hidden>芯出し</button><button id="bHint3" hidden></button><button id="bHint2" hidden></button><button id="bCancelPt" hidden>始点を取消</button></div></div>
@@ -770,6 +772,21 @@ function drawDisplay(){
 }
 let baseTimer = 0;
 function viewChanged(){ drawDisplay(); clearTimeout(baseTimer); baseTimer = setTimeout(renderBase, 140); }
+/* 🗺 全体図（2026-10-28 ユーザー：拡大して選ぶ時、全体を出して動かすのが難しい）：拡大している時だけ右上に全体の小さな絵と、いま見ている所の四角。四角をドラッグ（または全体図の場所をタップ）で大きい画面も一緒に動く */
+const MINI = {c:null, key:'', f:null}, mini = $('#mini');
+function miniFit(){ const b = G.bounds, W = 150, H = 112, bw = b.x1 - b.x0 || 1, bh = b.y1 - b.y0 || 1, k = Math.min(W/bw, H/bh)*0.92; return {k, ox:W/2 - (b.x0 + b.x1)/2*k, oy:H/2 + (b.y0 + b.y1)/2*k}; }
+function drawMini(){ if (!G || !cw){ mini.hidden = true; return; } const b = G.bounds, fs = Math.min(cw/(b.x1 - b.x0 || 1), ch/(b.y1 - b.y0 || 1))*0.94;
+  if (view.s < fs*1.8 || (S.npe && S.mode === 'np' && gest && gest.type === 'np')){ mini.hidden = true; return; } mini.hidden = false;
+  const r = Math.min(window.devicePixelRatio || 1, 2), W = 150*r, H = 112*r; if (mini.width !== W){ mini.width = W; mini.height = H; }
+  const key = G.L.map(l => l.on && !l.deleted ? 1 : 0).join('') + '|' + tok.dark + '|' + (G.segs && G.segs.length);
+  if (!MINI.c || MINI.key !== key || MINI.G !== G){ const oc = document.createElement('canvas'); oc.width = W; oc.height = H; const x = oc.getContext('2d'), F = miniFit(); x.fillStyle = tok.paper; x.fillRect(0, 0, W, H); x.setTransform(F.k*r, 0, 0, -F.k*r, F.ox*r, F.oy*r);
+    for (const l of G.L){ if (!l.on || l.deleted) continue; x.lineWidth = 0.8/(F.k*r); for (const [ck, P] of G.paths[l.idx]){ x.strokeStyle = colorCss(ck); x.stroke(P); } } MINI.c = oc; MINI.key = key; MINI.G = G; }
+  const x = mini.getContext('2d'), F = miniFit(); x.setTransform(1, 0, 0, 1, 0, 0); x.drawImage(MINI.c, 0, 0); x.setTransform(r, 0, 0, r, 0, 0);
+  const a = s2w(0, 0), c2 = s2w(cw, ch), m = q => [q[0]*F.k + F.ox, -q[1]*F.k + F.oy], p0 = m(a), p1 = m(c2), rx = Math.min(p0[0], p1[0]), ry = Math.min(p0[1], p1[1]), rw = Math.max(4, Math.abs(p1[0] - p0[0])), rh = Math.max(4, Math.abs(p1[1] - p0[1]));
+  x.fillStyle = 'rgba(234,88,12,.15)'; x.fillRect(rx, ry, rw, rh); x.strokeStyle = '#ea580c'; x.lineWidth = 2; x.strokeRect(rx, ry, rw, rh); MINI.r = [rx, ry, rw, rh]; }
+{ let md = null; const at = e => { const r = mini.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }, go = (p, d) => { const F = miniFit(), wx = (p[0] - d[0] - F.ox)/F.k, wy = (F.oy - (p[1] - d[1]))/F.k; view.tx = cw/2 - wx*view.s; view.ty = ch/2 + wy*view.s; viewChanged(); };
+  mini.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); mini.setPointerCapture(e.pointerId); const p = at(e), R = MINI.r; md = R && p[0] >= R[0] - 6 && p[0] <= R[0] + R[2] + 6 && p[1] >= R[1] - 6 && p[1] <= R[1] + R[3] + 6 ? [p[0] - (R[0] + R[2]/2), p[1] - (R[1] + R[3]/2)] : [0, 0]; go(p, md); }); // 四角の中をつかんだ時はずれないように
+  mini.addEventListener('pointermove', e => { if (md) go(at(e), md); }); for (const t of ['pointerup', 'pointercancel']) mini.addEventListener(t, () => { md = null; renderBase(); }); }
 
 const fmt = v => Math.abs(v - Math.round(v)) < 0.05 ? String(Math.round(v)) : v.toFixed(1);
 function readableAngle(dx, dy){ let a = Math.atan2(dy, dx); if (a > Math.PI/2 + 1e-6) a -= Math.PI; if (a <= -Math.PI/2 + 1e-6) a += Math.PI; return a; }
@@ -877,7 +894,7 @@ function drawSnapMark(c, x, y, type){
   c.stroke();
 }
 function drawOverlay(){
-  octx.setTransform(dpr,0,0,dpr,0,0); octx.clearRect(0,0,cw,ch);
+  octx.setTransform(dpr,0,0,dpr,0,0); octx.clearRect(0,0,cw,ch); try { drawMini(); } catch(e){}
   drawRoute(octx);
   drawPick(octx); drawMvg(octx); drawNp(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
@@ -942,6 +959,7 @@ ov.addEventListener('pointerdown', e => {
     else if (S.mode === 'route' && RS.step === 'shape' && RS.pattern !== 'free' && nearRoute(p)){ gest = {type:'roff'}; }
     else if (S.mode === 'box'){ gest = {type:'box', start:p, cur:p}; }
     else if (S.mode === 'np' && S.npe && S.npe.tool === 'trace'){ gest = {type:'np', raw:[s2w(p[0], p[1])]}; }
+    else if (S.mode === 'np' && S.npe && S.npe.tool === 'pts' && npHandleAt(p)){ const k = npHandleAt(p), s0 = w2s(...S.npe[k]); gest = {type:'nph', k, d:[s0[0] - p[0], s0[1] - p[1]]}; } // 始点・終点の丸をドラッグで動かす
     else {
       gest = {type:'pan', start:p, v0:{...view}, t:performance.now(), moved:false};
       if (S.mode === 'pan'){ const g0 = gest; g0.lt = setTimeout(() => { if (gest === g0 && !g0.moved && ptrs.size === 1){ g0.long = true; longPress(g0.start); } }, 450); }
@@ -961,6 +979,7 @@ ov.addEventListener('pointermove', e => {
   const p = evPos(e); ptrs.set(e.pointerId, p);
   if (!gest) return;
   if (gest.type === 'box'){ gest.cur = p; drawOverlay(); return; }
+  if (gest.type === 'nph'){ const e = S.npe; e[gest.k] = s2w(p[0] + gest.d[0], p[1] + gest.d[1]); if (e.A && e.B) e.pts = npFromPts(e.A, e.B, e.flip); drawOverlay(); return; }
   if (gest.type === 'np'){ const w = s2w(p[0], p[1]), q = gest.raw[gest.raw.length - 1]; if (Math.hypot(w[0] - q[0], w[1] - q[1])*view.s > 3) gest.raw.push(w); S.npe.raw = gest.raw; S.npe.pts = null; drawOverlay(); return; }
   if (gest.type === 'cursor') moveCursor(p);
   else if (gest.type === 'dtext') dtextMove(p);
@@ -989,6 +1008,8 @@ function endPtr(e, cancel){
     RS.dragging = false; RS.finger = null;
     if (!cancel && RS.cur) routePlace(RS.cur); else { RS.cur = null; updateRouteUi(); }
     gest = null;
+  } else if (gest.type === 'nph' && ptrs.size === 0){
+    const g0 = gest, e = S.npe; gest = null; if (e && e[g0.k]){ e[g0.k] = npSnap(e[g0.k], true); if (e.A && e.B) e.pts = npFromPts(e.A, e.B, e.flip); e.h = null; updateNpPanel(); } drawOverlay();
   } else if (gest.type === 'np' && ptrs.size === 0){
     const g0 = gest; gest = null; if (!cancel) npTraceEnd(g0.raw);
   } else if (gest.type === 'box' && ptrs.size === 0){
@@ -1044,6 +1065,7 @@ function tapSelect(p){
   const hitN = noteAt(p); if (hitN){ openNoteEditor(hitN); return; }
   if (S.mode === 'note'){ const w = s2w(p[0], p[1]); S.pnote = {x:w[0], y:w[1]}; drawOverlay(); updateUi(); return; } // 置く所を先に見せる（印をドラッグで動かして「ここに書く」）
   if (S.mode === 'kiki'){ kikiPut(s2w(p[0], p[1])); return; }
+  { const ho = holeAt(p); if (ho && !(S.mode === 'np' && S.npe && S.npe.tool !== 'hole')){ openHoleSheet(ho); return; } } // 貫通部をタップ → 直す・消す
   if (S.mode === 'np'){ npTap(s2w(p[0], p[1])); return; }
   let best = null, bd = 22;
   for (const d of S.dims) if (d.to && dimLabelHit(d, p, 1)){ best = d; bd = 0; } // 動かした数字をタップしても、その寸法を選ぶ
@@ -1147,11 +1169,18 @@ function drawNotes(c){
   }
   c.restore();
 }
-function drawHoles(c){ // 壁の貫通部（穴）：丸と「貫通 φ100 FL2500」
-  if (!S.holes || !S.holes.length) return; c.save(); c.font = `700 12px ${FONT}`; c.textBaseline = 'middle';
+function drawHoles(c){ // 壁の貫通部（穴）：丸と「貫通 φ100 FL2500」。タップで直す・消す（holeAt）
+  S.holeBox = []; if (!S.holes || !S.holes.length) return; c.save(); c.font = `700 12px ${FONT}`; c.textBaseline = 'middle';
   S.holes.forEach((o, i) => { const [x, y] = w2s(o.x, o.y), r = Math.max(7, (o.d || 100)/2/unitMM()*view.s); c.strokeStyle = '#ea580c'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, r, 0, Math.PI*2); c.stroke(); c.beginPath(); c.moveTo(x - r*0.7, y - r*0.7); c.lineTo(x + r*0.7, y + r*0.7); c.stroke();
-    const t = `🕳${i + 1} 貫通 φ${o.d || 100} FL${o.h}`, w = c.measureText(t).width + 12; c.fillStyle = '#ea580c'; c.fillRect(x + r + 4, y - 11, w, 22); c.fillStyle = '#fff'; c.fillText(t, x + r + 10, y); });
+    const t = `🕳${i + 1} 貫通 φ${o.d || 100} FL${o.h}`, w = c.measureText(t).width + 12; c.fillStyle = '#ea580c'; c.fillRect(x + r + 4, y - 11, w, 22); S.holeBox.push({o, x, y, r, b:[x + r + 4, y - 11, x + r + 4 + w, y + 11]}); c.fillStyle = '#fff'; c.fillText(t, x + r + 10, y); });
   c.restore(); }
+const holeAt = p => { for (const q of (S.holeBox || []).slice().reverse()) if (Math.hypot(p[0] - q.x, p[1] - q.y) < q.r + 12 || (p[0] >= q.b[0] && p[0] <= q.b[2] && p[1] >= q.b[1] - 4 && p[1] <= q.b[3] + 4)) return q.o; return null; };
+function openHoleSheet(o){ const i = S.holes.indexOf(o) + 1; // 貫通部を直す・消す
+  openSheet(`🕳${i} 壁の貫通部`, body => { if (!S.holes.includes(o)){ closeSheet(); return; }
+    const inp = (k, v, l) => `<label style="display:flex;align-items:center;gap:8px;margin:8px 0"><span style="width:120px;font-weight:700;font-size:14px;white-space:nowrap">${l}</span><input data-k="${k}" type="number" inputmode="numeric" value="${v}" style="flex:1;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 10px;font:17px var(--font-ui);color:var(--ink)"><span>mm</span></label>`;
+    body.innerHTML = inp('h', o.h, '高さ（床から）') + inp('d', o.d || 100, '穴の大きさφ') + `<div class="frow"><button class="btn del" data-a="del" style="flex:1;height:46px">🗑 消す</button><button class="btn pri" data-a="ok" style="flex:1;height:46px">閉じる</button></div>`;
+    body.onchange = e => { const k = e.target.dataset.k, v = Math.round(+e.target.value); if (!k || e.target.value === '' || !isFinite(v) || (k === 'd' ? !(v > 0 && v < 2000) : !(v > -5000 && v < 30000))) return; exec(cmdHole(o, {[k]:v})); updateNpPanel(); drawOverlay(); };
+    body.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.a === 'del'){ exec(cmdHole(o, 'del')); toast('貫通部を消しました（↶で戻せます）'); } closeSheet(); updateNpPanel(); drawOverlay(); }; }); }
 function drawPnote(c){ // これから置くメモの印：大きな十字と「ここに置く」。ドラッグで動かせる
   S.pnoteBox = null; if (!S.pnote || S.mode !== 'note') return;
   const [x, y] = w2s(S.pnote.x, S.pnote.y); c.save();
@@ -1234,8 +1263,9 @@ const npTotTxt = (pts, h) => { const v = npVert(h); return fmtM(npLen(pts)) + (v
 function npLayer(){ let i = G.L.findIndex(l => l.name === NP_LAYER); if (i < 0){ i = G.L.length; G.L.push({name:NP_LAYER, ck:'a6', on:true, deleted:false, count:0, idx:i, g:'ac'}); G.textsBy[i] = []; } return i; }
 function npUnitsCalc(){ const u = unitMM(); return v3dPoses(v3dAna(), v3dMdOf).map(p => ({b:[p.m.x0/u, p.m.y0/u, p.m.x1/u, p.m.y1/u], port:[p.port[0]/u, p.port[1]/u], ph:p.ph, ...(p.dport ? {dport:[p.dport[0]/u, p.dport[1]/u], dph:p.dph} : {}), k:p.k || '', c:[p.cx/u, p.cy/u]})); } // 図面の室内機と配管の口（図面の単位）
 const npUnitAt = q => (S.npe && S.npe.units || []).find(x => q && Math.hypot(x.port[0] - q[0], x.port[1] - q[1]) < 1);
-function npSnap(w){ // 空調（冷媒管・ドレン・機器）とダクトの線の端にだけくっつける（天井割りなど、ほかの線の端や途中にはくっつけない）。室内機の上は、その機種の配管の口へ
+function npSnap(w, portOnly){ // 空調（冷媒管・ドレン・機器）とダクトの線の端にだけくっつける（天井割りなど、ほかの線の端や途中にはくっつけない）。室内機の上は、その機種の配管の口へ
   { const un = S.npe && S.npe.units, r = 150/unitMM(); if (un) for (const q of un) if (w[0] >= q.b[0] - r && w[0] <= q.b[2] + r && w[1] >= q.b[1] - r && w[1] <= q.b[3] + r) return q.port.slice(); }
+  if (portOnly) return w; // 始点→終点：室内機の上だけ配管の口へ。ほかは指の所そのまま（2026-10-28 ユーザー：緑の丸がランダム）
   const R = 26/view.s, p = G.pts; let best = null, bd = R;
   for (const id of query(IX.pg, IX.ptMark, w[0], w[1], R)){ const k = id*PS; if (p[k+3] !== 0) continue; const l = G.L[p[k+2]]; if (!l || !l.on || l.deleted || !(l.g === 'ac' || l.g === 'duct')) continue; const d = Math.hypot(p[k] - w[0], p[k+1] - w[1]); if (d < bd){ bd = d; best = [p[k], p[k+1]]; } }
   return best || w;
@@ -1263,7 +1293,8 @@ function npStart(item){ S.mode = 'np'; S.pick = null; S.selDim = null; S.mvg = n
   updatePickBar(); updateUi(); updateNpPanel(); drawOverlay(); loadModels().then(() => askUnitModels()).then(() => { try { if (S.npe) S.npe.units = npUnitsCalc(); } catch(err){} drawOverlay(); }); }
 function npPref(h){ const e = S.npe; try { localStorage.setItem('zumen-np', JSON.stringify({tool:e.tool, k:e.k, rnd:e.rnd, a45:e.a45, h:h != null ? h : npHdef()})); } catch(err){} }
 function npEnd(){ S.npe = null; S.mode = 'pan'; $('#npPanel').hidden = true; updateUi(); drawOverlay(); }
-function npTap(w){ const e = S.npe; if (e.tool === 'hole'){ const o = {id:'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), no:S.holes.length + 1, x:w[0], y:w[1], h:npHdef(), d:100}; exec(cmdHole(o, null)); updateNpPanel(); drawOverlay(); return; } if (e.tool !== 'pts') return; const q = npSnap(w); if (!e.A || e.B){ e.A = q; e.B = null; e.pts = null; } else { e.B = q; e.pts = npFromPts(e.A, e.B, e.flip); } updateNpPanel(); drawOverlay(); updateUi(); }
+function npHandleAt(p){ const e = S.npe; if (!e) return null; for (const k of ['B', 'A']) if (e[k]){ const q = w2s(...e[k]); if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 30) return k; } return null; }
+function npTap(w){ const e = S.npe; if (e.tool === 'hole'){ const o = {id:'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), no:S.holes.length + 1, x:w[0], y:w[1], h:npHdef(), d:100}; exec(cmdHole(o, null)); updateNpPanel(); drawOverlay(); return; } if (e.tool !== 'pts') return; const q = npSnap(w, true); if (!e.A || e.B){ e.A = q; e.B = null; e.pts = null; } else { e.B = q; e.pts = npFromPts(e.A, e.B, e.flip); } updateNpPanel(); drawOverlay(); updateUi(); }
 function npTraceEnd(raw){ const e = S.npe; if (raw.length < 2){ e.raw = null; drawOverlay(); return; } e.raw = raw; e.pts = npStraight(raw, e.a45, e.rnd); updateNpPanel(); drawOverlay(); }
 function updateNpPanel(){
   const p = $('#npPanel'), e = S.npe; if (!e || S.mode !== 'np'){ p.hidden = true; return; } p.hidden = false;
@@ -1275,9 +1306,10 @@ function updateNpPanel(){
     ${e.tool === 'hole' ? `<div class="note">壁の配管を通す所をタップしてください（何か所でも）。高さ（床から）と穴の大きさは下で直せます</div><div style="max-height:26vh;overflow:auto">${S.holes.map((o, i) => `<div class="frow" style="align-items:center;gap:6px"><span style="font-weight:800;width:34px">🕳${i + 1}</span><span style="font-size:12px">FL</span><input data-wh="${o.id}" type="number" inputmode="numeric" value="${o.h}" style="flex:1;min-width:0;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 6px;font:16px var(--font-ui);color:var(--ink)"><span style="font-size:12px">φ</span><input data-wd="${o.id}" type="number" inputmode="numeric" value="${o.d || 100}" style="width:64px;flex:none;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 6px;font:16px var(--font-ui);color:var(--ink)"><button class="btn" data-wx="${o.id}" style="flex:none">消す</button></div>`).join('') || '<div class="note">まだ貫通部がありません</div>'}</div>` : ''}
     ${!e.edit && !e.pts && S.holes.length && e.units && e.units.length ? `<div class="frow"><button class="btn pri" data-a="auto" style="flex:1">🧭 室内機ぜんぶ引く（冷媒＋ドレン・${e.units.length}台）</button></div><div class="note" style="margin-top:-4px">室内機ごとに、いちばん近い貫通部を通して冷媒配管とドレン配管を引きます（もう引いてある室内機はとばします・↶で戻せます）</div>` : ''}
     ${e.tool === 'hole' ? '<div class="frow"><button class="btn" data-a="no" style="flex:1">閉じる</button></div>' : ''}
-    ${e.tool === 'hole' ? '' : !e.pts ? `<div class="note">${e.tool === 'trace' ? '室内機から図面の上を1本指でなぞってください（2本指で動かす・拡大）。離すと縦横のまっすぐな線にそろえ、始まりは室内機の配管の口になります' : e.A ? '終点をタップしてください' : '始点をタップしてください（室内機をタップすると、その機種の配管の口から始まります）'}</div>` :
+    ${e.tool === 'hole' ? '' : !e.pts ? `<div class="note">${e.tool === 'trace' ? '室内機から図面の上を1本指でなぞってください（2本指で動かす・拡大）。離すと縦横のまっすぐな線にそろえ、始まりは室内機の配管の口になります' : e.A ? '終点をタップしてください（緑の丸は指でドラッグして動かせます）' : '始点をタップしてください（室内機をタップすると、その機種の配管の口から始まります）'}</div>` :
     `<div style="max-height:30vh;overflow:auto">${segs.map((s, i) => `<div class="frow" style="align-items:center;gap:6px"><span style="width:26px;text-align:center;font-size:18px">${ar(s.u)}</span><input data-i="${i}" type="number" value="${Math.round(s.L*unitMM())}" style="flex:1;min-width:0;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 8px;font:16px var(--font-ui);color:var(--ink)"><span style="font-size:13px">mm</span><span style="font-size:12px;margin-left:4px">FL</span><input data-h="${i}" type="number" inputmode="numeric" value="${e.h[i]}" aria-label="高さ（床から）" style="width:76px;flex:none;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 6px;font:16px var(--font-ui);color:var(--ink)"></div>`).join('')}</div>
      <div class="frow" style="align-items:center"><div class="grow" style="font-weight:800">合計 ${npTotTxt(e.pts, e.h)}・曲げ ${Math.max(0, segs.length - 1)}か所${e.h.some((v, i) => i && v !== e.h[i-1]) ? `・たて管 ${e.h.filter((v, i) => i && v !== e.h[i-1]).length}か所` : ''}</div>${e.tool === 'pts' ? '<button class="btn" data-a="flip">曲がりを反対に</button>' : ''}</div>`}
+    ${e.tool === 'pts' && e.pts ? '<div class="note">始点（緑）・終点（紫）の丸は指でドラッグして動かせます。室内機の上で離すと配管の口にくっつきます</div>' : ''}
     ${e.tool === 'trace' ? `<div class="frow" style="align-items:center"><span style="font-size:13px">丸め</span>${[10, 50, 100].map(v => `<button class="btn ${e.rnd === v ? 'sel' : ''}" data-r="${v}" style="flex:1">${v}</button>`).join('')}<button class="btn ${e.a45 ? 'sel' : ''}" data-a="a45" style="flex:1.2">${e.a45 ? '✓ ' : ''}45°も</button></div>` : ''}
     ${e.tool === 'hole' ? '' : `<div class="frow"><button class="btn" data-a="no" style="flex:1">やめる</button>${e.pts ? '<button class="btn" data-a="redo" style="flex:1">やり直す</button>' : ''}<button class="btn pri" data-a="ok" style="flex:1.4" ${e.pts ? '' : 'disabled'}>${e.edit ? '直す' : 'できた'}</button></div>`}`;
   p.onchange = ev => { { const d = ev.target.dataset, id = d.wh || d.wd; if (id){ const o = S.holes.find(q => q.id === id), v = Math.round(+ev.target.value); if (o && isFinite(v) && ev.target.value !== '' && (d.wd ? v > 0 && v < 2000 : v > -5000 && v < 30000)) exec(cmdHole(o, d.wd ? {d:v} : {h:v})); updateNpPanel(); drawOverlay(); return; } } const hi = ev.target.dataset.h; if (hi != null && e.pts){ const v = Math.round(+ev.target.value); if (isFinite(v) && v > -5000 && v < 30000 && ev.target.value !== ''){ e.h[+hi] = v; npPref(v); } updateNpPanel(); drawOverlay(); return; } // 高さ（床から mm）
@@ -1294,7 +1326,7 @@ function updateNpPanel(){
     else if (b.dataset.a === 'no'){ npEnd(); return; }
     else if (b.dataset.a === 'ok' && e.pts){ const L = npLen(e.pts);
       if (e.edit){ exec(cmdNpEdit(e.edit, e.pts.map(q => q.slice()), e.h.slice())); toast(`冷媒配管を直しました（合計 ${npTotTxt(e.pts, e.h)}）`); }
-      else { const it = {id:'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), no:1 + Math.floor(Math.random()*9e7), pts:e.pts.map(q => q.slice()), h:e.h.slice(), t:Date.now(), ...(e.k === 'dr' ? {k:'dr'} : {})}; { const su = npUnitAt(e.pts[0]); if (su) it.u = {k:su.k, c:su.c.slice()}; } exec(cmdNpAdd(it)); toast(`${e.k === 'dr' ? 'ドレン' : '冷媒'}配管を引きました（合計 ${npTotTxt(e.pts, e.h)}・↶で戻せます）`); }
+      else { const it = {id:'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), no:1 + Math.floor(Math.random()*9e7), pts:e.pts.map(q => q.slice()), h:e.h.slice(), t:Date.now(), ...(e.k === 'dr' ? {k:'dr'} : {})}; { const su = npUnitAt(e.pts[0]); if (su) it.u = {k:su.k, c:su.c.slice()}; } const hs = npWallHoles([it]); exec(hs.length ? cmdMulti('配管を引く', [cmdNpAdd(it), ...hs.map(o => cmdHole(o, null))]) : cmdNpAdd(it)); toast(`${e.k === 'dr' ? 'ドレン' : '冷媒'}配管を引きました（合計 ${npTotTxt(e.pts, e.h)}${hs.length ? `・壁に当たる所に貫通部を${hs.length}か所置きました` : ''}・↶で戻せます）`); }
       npEnd(); return; }
     updateNpPanel(); drawOverlay(); updateUi(); };
 }
@@ -1317,8 +1349,19 @@ function npAutoAll(){ // 室内機ぜんぶ：配管の口 → いちばん近�
     if (!D){ D = npOffset(P, 150/u); dh = h.map(v => v - 50); }
     its.push(mk(P.map(v => v.slice()), h, null), {...mk(D, dh, 'dr'), sl:100}); } // ドレンは下り勾配 1/100（ドレンの基本のルール）
   if (!its.length){ toast(S.holes.length ? 'もう全部の室内機に配管があります' : '先に貫通部を置いてください'); return; }
-  exec({kind:'obj', label:'配管を引く', log:{label:'配管を引く', detail:`室内機${its.length/2}台・冷媒＋ドレン（貫通部を通す）`, eids:its.map(p => KB2 + p.no), box:boxOf(its.flatMap(p => p.pts))}, do(){ S.np.push(...its); }, undo(){ S.np = S.np.filter(x => !its.includes(x)); }});
+  const ahs = npWallHoles(its); exec(cmdMulti('配管を引く', [{kind:'obj', label:'配管を引く', log:{label:'配管を引く', detail:`室内機${its.length/2}台・冷媒＋ドレン（貫通部を通す）`, eids:its.map(p => KB2 + p.no), box:boxOf(its.flatMap(p => p.pts))}, do(){ S.np.push(...its); }, undo(){ S.np = S.np.filter(x => !its.includes(x)); }}, ...ahs.map(o => cmdHole(o, null))]));
   const L = its.reduce((a, p) => a + npLen(p.pts), 0), lg = its.filter(p => p.k === 'dr' && npLen(p.pts)*u > 20000).length; toast(`室内機${its.length/2}台に冷媒配管とドレン配管を引きました（合計 ${fmtM(L)}・ドレンは下り勾配 1/100・↶で戻せます）${lg ? `。ドレンの横引きが20mを超える所が${lg}本あります（20m以下にする）` : ''}`); npEnd(); }
+/* 配管が壁を通る所（3Dの壁の四角を横切る所）に貫通部を置く（2026-10-28 ユーザー：壁に当たる所を貫通部に）。近く（200mm）に貫通部があれば置かない */
+function npWallHoles(list, have){ const u = unitMM(), out = [], all = (have || S.holes).slice(); let walls = []; try { walls = v3dAna().walls; } catch(e){}
+  for (const p of list){ const h = npH(p, p.pts.length - 1); let cu = 0;
+    for (let i = 1; i < p.pts.length; i++){ const a = [p.pts[i-1][0]*u, p.pts[i-1][1]*u], b = [p.pts[i][0]*u, p.pts[i][1]*u], d = [b[0] - a[0], b[1] - a[1]], L = Math.hypot(d[0], d[1]);
+      for (const w of walls){ let t0 = 0, t1 = 1, ok = true; for (const [pp, q] of [[-d[0], a[0] - w[0]], [d[0], w[2] - a[0]], [-d[1], a[1] - w[1]], [d[1], w[3] - a[1]]]){ if (Math.abs(pp) < 1e-9){ if (q < 0){ ok = false; break; } continue; } const r = q/pp; if (pp < 0){ if (r > t1){ ok = false; break; } if (r > t0) t0 = r; } else { if (r < t0){ ok = false; break; } if (r < t1) t1 = r; } }
+        if (!ok || (t1 - t0)*L < 20 || (t1 - t0)*L > 450) continue; const tm = (t0 + t1)/2, x = a[0] + d[0]*tm, y = a[1] + d[1]*tm; // 壁を横切る所（壁に沿って走る所は除く）
+        if (all.some(o => Math.hypot(o.x*u - x, o.y*u - y) < 200)) continue; const hh = p.sl ? Math.round(h[0] - (cu + L*tm)/p.sl) : h[i-1];
+        const o = {id:'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), no:S.holes.length + out.length + 1, x:x/u, y:y/u, h:hh, d:p.k === 'dr' ? 75 : 100, auto:1}; out.push(o); all.push(o); }
+      cu += L; } }
+  return out; }
+const cmdMulti = (label, cs) => ({kind:'obj', label, log:cs[0].log, do(){ cs.forEach(c => c.do()); }, undo(){ cs.slice().reverse().forEach(c => c.undo()); }});
 function cmdNpAdd(it){ return {kind:'obj', label:'配管を引く', log:{label:'配管を引く', detail:`${it.k === 'dr' ? 'ドレン' : '冷媒'}配管 ${fmtM(npLen(it.pts))}`, eids:[KB2 + it.no], box:boxOf(it.pts)}, do(){ S.np.push(it); }, undo(){ S.np = S.np.filter(x => x !== it); }}; }
 function cmdNpEdit(it, pts, h){ const old = it.pts, oh = it.h; return {kind:'obj', label:'配管を直す', log:{label:'配管を直す', detail:`冷媒配管 ${fmtM(npLen(pts))}`, eids:[KB2 + it.no], box:boxOf(old.concat(pts)), npOld:old, npNew:pts}, do(){ it.pts = pts; if (h) it.h = h; }, undo(){ it.pts = old; if (oh) it.h = oh; else delete it.h; }}; }
 function drawNp(c){ // 引いている途中の配管：なぞった線（うすい）と、そろえた線・長さ
@@ -1330,6 +1373,7 @@ function drawNp(c){ // 引いている途中の配管：なぞった線（うす
     for (let i = 1; i < e.pts.length; i++){ const a = w2s(...e.pts[i-1]), b = w2s(...e.pts[i]), t = String(Math.round(Math.hypot(e.pts[i][0] - e.pts[i-1][0], e.pts[i][1] - e.pts[i-1][1])*unitMM())), w = c.measureText(t).width + 10, mx = (a[0] + b[0])/2, my = (a[1] + b[1])/2; c.fillStyle = '#c026d3'; c.fillRect(mx - w/2, my - 10, w, 20); c.fillStyle = '#fff'; c.fillText(t, mx, my); } }
   for (const q of e.units || []){ const s = w2s(...q.port); c.strokeStyle = '#16a34a'; c.lineWidth = 3; c.beginPath(); c.arc(s[0], s[1], 8, 0, Math.PI*2); c.stroke(); } // 室内機の配管の口
   if (e.A && !e.pts){ const s = w2s(...e.A); c.fillStyle = '#16a34a'; c.beginPath(); c.arc(s[0], s[1], 7, 0, Math.PI*2); c.fill(); }
+  if (e.tool === 'pts') for (const [k, col] of [['A', '#16a34a'], ['B', '#c026d3']]) if (e[k]){ const q = w2s(...e[k]); c.fillStyle = col; c.globalAlpha = .22; c.beginPath(); c.arc(q[0], q[1], 22, 0, Math.PI*2); c.fill(); c.globalAlpha = 1; c.strokeStyle = col; c.lineWidth = 3; c.beginPath(); c.arc(q[0], q[1], 22, 0, Math.PI*2); c.stroke(); } // ドラッグできる丸（始点・終点）
   c.restore();
 }
 const kikiOf = e => S.kiki.find(k => KB + k.no === e);
@@ -3619,7 +3663,9 @@ function v3dBody(m, md){ if (!m.s || !md || !md.L || !md.W) return null; const S
   if (!best) return null; const B = best, cnt = [0, 0];
   for (const q of S2){ const L = Math.hypot(q[2] - q[0], q[3] - q[1]); if (L < 20 || L > 250 || !(B.ax ? Math.abs(q[1] - q[3]) < 3 : Math.abs(q[0] - q[2]) < 3)) continue; const v0 = B.ax ? q[0] : q[1], v1 = B.ax ? q[2] : q[3], w = B.ax ? (q[1] + q[3])/2 : (q[0] + q[2])/2; if (w < B.a + 60 || w > B.b - 60) continue; const lo = Math.min(v0, v1), hi = Math.max(v0, v1);
     if (Math.abs(hi - B.p0) < 8 && lo < B.p0 - 15) cnt[0]++; if (Math.abs(lo - B.p1) < 8 && hi > B.p1 + 15) cnt[1]++; }
-  const pc = (B.p0 + B.p1)/2, wc = (B.a + B.b)/2, sd = cnt[0] > cnt[1] ? -1 : cnt[1] > cnt[0] ? 1 : 0;
+  const ex0 = B.p0 - (B.ax ? m.x0 : m.y0), ex1 = (B.ax ? m.x1 : m.y1) - B.p1, mx = Math.max(...cnt), mn = Math.min(...cnt); // 本体の外に出ている物：吹出し側のチャンバー・ダクト（2026-10-28 ユーザー：吹出しが逆）
+  const sd = mx >= 3 && mx >= 2*mn ? (cnt[0] > cnt[1] ? -1 : 1) : Math.abs(ex0 - ex1) > 120 ? (ex0 > ex1 ? 1 : -1) : cnt[0] > cnt[1] ? -1 : cnt[1] > cnt[0] ? 1 : 0; // 配管の口の短い線がはっきり多い面 → 配管。でなければ、本体の外に大きく物が出ている側が吹出し（配管はその反対）
+  const pc = (B.p0 + B.p1)/2, wc = (B.a + B.b)/2;
   return {e:B.e, c:B.ax ? [pc, wc] : [wc, pc], n:sd ? (B.ax ? [sd, 0] : [0, sd]) : null}; }
 /* 室内機の機種は、図面の機械の大きさ（同じ形）ごとに決める（2026-10-28 ユーザー：部屋は前の機械・廊下の1台だけ GE-MP1080M。品番が書いてない時は聞く・分からない時は「わからない」＝箱）。この端末で図面ごとに覚える */
 const v3dUKey = m => { const a = m.x1 - m.x0, b = m.y1 - m.y0; return Math.round(Math.max(a, b)/50)*50 + '×' + Math.round(Math.min(a, b)/50)*50; };

@@ -3584,6 +3584,8 @@ function v3dAna(){
       if (m){ m[0] = Math.min(m[0], r[0]); m[1] = Math.max(m[1], r[1]); m[2] = Math.min(m[2], r[2]); m[3] = Math.max(m[3], r[3]); } else M.push(r.slice()); }
     return M; };
   let walls = pair(Hs).map(r => [r[0], r[2], r[1], r[3]]).concat(pair(Vs).map(r => [r[2], r[0], r[3], r[1]])); // [x0, y0, x1, y1]
+  const HG = new Map(), HC = 500; for (let i = 0; i < sg.length; i += SS){ const l = G.L[sg[i+4]]; if (!l || !l.on || l.deleted || l.g !== 'arch' || gone(sg[i+7])) continue; const x1 = sg[i]*u, y1 = sg[i+1]*u, x2 = sg[i+2]*u, y2 = sg[i+3]*u; if (Math.hypot(x2 - x1, y2 - y1) > 250) continue; const mx = (x1 + x2)/2, my = (y1 + y2)/2, k = Math.floor(mx/HC) + ',' + Math.floor(my/HC); let a = HG.get(k); if (!a){ a = []; HG.set(k, a); } a.push(mx, my); }
+  const wDen = w => { let n = 0; for (let gx = Math.floor(w[0]/HC); gx <= Math.floor(w[2]/HC); gx++) for (let gy = Math.floor(w[1]/HC); gy <= Math.floor(w[3]/HC); gy++){ const a = HG.get(gx + ',' + gy); if (a) for (let j = 0; j < a.length; j += 2) if (a[j] > w[0] + 3 && a[j] < w[2] - 3 && a[j+1] > w[1] + 3 && a[j+1] < w[3] - 3) n++; } return n/(Math.max(w[2] - w[0], w[3] - w[1])/1000); }; // 壁の中の短い線（斜線・網）の数（1mあたり）＝図面の壁の塗り
   { const B = G.bounds, ex = Math.max(B.x1 - B.x0, B.y1 - B.y0)*u, mg = ex*0.015; // 図面の外枠（とても長い線・図面の端の線）は壁にしない
     walls = walls.filter(w => Math.max(w[2] - w[0], w[3] - w[1]) < ex*0.5 && w[0] > B.x0*u + mg && w[2] < B.x1*u - mg && w[1] > B.y0*u + mg && w[3] < B.y1*u - mg); }
   { // 建物の所だけ：壁どうし（30cm以内）でつながるかたまりのうち、いちばん長い物のまわり（2m）。表・凡例・枠の線は落とす
@@ -3618,8 +3620,9 @@ function v3dAna(){
     bld = bld ? [Math.max(bld[0], m[0]), Math.max(bld[1], m[1]), Math.min(bld[2], m[2]), Math.min(bld[3], m[3])] : m; walls = walls.filter(w => w[0] >= bld[0] && w[2] <= bld[2] && w[1] >= bld[1] && w[3] <= bld[3]); } }
   { const TP = []; G.L.forEach((l, li) => { if (!l.deleted) for (const t of G.textsBy[li] || []) TP.push([t.x*u, t.y*u]); }); TP.sort((a, b) => a[0] - b[0]); // 2本の線の間に文字がある＝表の行・寸法なので壁にしない
     const hasT = w => { let a = 0, b = TP.length; while (a < b){ const m = (a + b) >> 1; if (TP[m][0] < w[0] + 10) a = m + 1; else b = m; } for (let i = a; i < TP.length && TP[i][0] < w[2] - 10; i++) if (TP[i][1] > w[1] + 10 && TP[i][1] < w[3] - 10) return true; return false; };
-    walls = walls.filter(w => !hasT(w)); }
-  walls = walls.filter(w => !ubs.some(b => (w[0] + w[2])/2 > b.x0 - 30 && (w[0] + w[2])/2 < b.x1 + 30 && (w[1] + w[3])/2 > b.y0 - 30 && (w[1] + w[3])/2 < b.y1 + 30)); // ユニットバスの中・まわりの線は壁にしない
+    walls = walls.filter(w => !hasT(w) || wDen(w) >= 60); } // 斜線で塗った壁（図面の壁の描き方）は、中に文字があっても壁
+  walls = walls.filter(w => !ubs.some(b => w[0] > b.x0 - 30 && w[2] < b.x1 + 30 && w[1] > b.y0 - 30 && w[3] < b.y1 + 30)); // ユニットバスの中の線は壁にしない（ユニットバスに沿った長い壁は残す）
+  walls = walls.filter(w => Math.max(w[2] - w[0], w[3] - w[1]) >= 2000 || wDen(w) >= 15); // 塗りの無い短い2本（家具・クローゼット・階段など）は壁にしない（2026-10-28 ユーザー：図面の壁を覚えて・統一して）
   const inB = c => !bld || ((c.x0 + c.x1)/2 >= bld[0] && (c.x0 + c.x1)/2 <= bld[2] && (c.y0 + c.y1)/2 >= bld[1] && (c.y0 + c.y1)/2 <= bld[3]);
   let un = units.filter(inB); const mg = mageOk(); if (mg && mg.units.length){ const f = un.filter(c => mg.units.some(o => o.x >= c.x0 - 300 && o.x <= c.x1 + 300 && o.y >= c.y0 - 300 && o.y <= c.y1 + 300)); if (f.length) un = f; } // 曲げメモで室内機と読めた物だけ（ロスナイなどの機器は除く）
   if (mg && mg.walls.length) walls = mg.walls; // 壁も曲げメモの読み取り（軽量壁など）
@@ -3647,17 +3650,22 @@ function v3dDoors0(){ const u = unitMM(), sg = G.segs, ch = new Map(), lines = [
       for (const ln of lines){ if (Math.abs(ln[4] - R) > R*0.15) continue; const e0 = [ln[0], ln[1]], e1 = [ln[2], ln[3]], o = near(e0, c, 60) ? e1 : near(e1, c, 60) ? e0 : null; if (!o) continue;
         for (const [t, f] of [[A, B], [B, A]]) if (near(o, t, R*0.15)){ leaf = t; op = f; break; } if (leaf) break; }
       if (!leaf) continue; out.push({c, R, leaf, op}); } }
+  { const HT = []; G.L.forEach((l, li) => { if (!l.deleted) for (const t of G.textsBy[li] || []){ if (gone(t.eid)) continue; const z = t.lines.join(' ').normalize('NFKC').trim(), m = z.match(/^(1[6-9]\d\d|2[0-4]\d\d)$/); if (m) HT.push([t.x*u, t.y*u, +m[1]]); } }); // 扉の記号の上の数字（2000 など）＝扉の高さ
+    for (const o of out){ const mx = (o.c[0] + o.op[0])/2, my = (o.c[1] + o.op[1])/2; let b = null, bd = o.R*1.8; for (const t of HT){ const d = Math.hypot(t[0] - mx, t[1] - my); if (d < bd){ bd = d; b = t; } } if (b) o.hd = b[2]; } }
   const TX = []; G.L.forEach((l, li) => { if (!l.deleted) for (const t of G.textsBy[li] || []) if (!gone(t.eid) && /AW|窓/.test(t.lines.join(' ').normalize('NFKC'))) TX.push([t.x*u, t.y*u]); });
   return out.filter(o => !TX.some(t => Math.hypot(t[0] - (o.leaf[0] + o.op[0])/2, t[1] - (o.leaf[1] + o.op[1])/2) < o.R*1.6)); }
 /* 扉の所の壁を消す：開口（吊り元→閉じた扉の先）に重なる壁は、その間だけ切る。開きの範囲（1/4円）の中にある壁は消す */
-function v3dDoorCut(walls, doors){ if (!doors.length) return walls; let W = walls;
-  for (const o of doors){ const x0 = Math.min(o.c[0], o.op[0]), x1 = Math.max(o.c[0], o.op[0]), y0 = Math.min(o.c[1], o.op[1]), y1 = Math.max(o.c[1], o.op[1]), hz = x1 - x0 >= y1 - y0, m = 150, N = [];
-    const va = [o.op[0] - o.c[0], o.op[1] - o.c[1]], vb = [o.leaf[0] - o.c[0], o.leaf[1] - o.c[1]], inSec = (x, y) => { const v = [x - o.c[0], y - o.c[1]], d = Math.hypot(v[0], v[1]); if (d > o.R*0.98) return false; const cr = (p, q) => p[0]*q[1] - p[1]*q[0]; return cr(va, v)*cr(va, vb) >= 0 && cr(vb, v)*cr(vb, va) >= 0; };
-    for (const w of W){ const wx = (w[0] + w[2])/2, wy = (w[1] + w[3])/2; if (inSec(wx, wy)){ continue; } // 開きの範囲の中の壁は消す
+function v3dDoorCut(walls, doors){ if (!doors.length) return walls; let W = walls; // 扉の高さ・幅だけくり抜く（扉の上は壁が続く＝[x0,y0,x1,y1,下の高さ]の垂れ壁。2026-10-28 ユーザー）
+  for (const o of doors){ const x0 = Math.min(o.c[0], o.op[0]), x1 = Math.max(o.c[0], o.op[0]), y0 = Math.min(o.c[1], o.op[1]), y1 = Math.max(o.c[1], o.op[1]), hz = x1 - x0 >= y1 - y0, m = 150, N = [], Hd = o.hd || 2000;
+    const va = [o.op[0] - o.c[0], o.op[1] - o.c[1]], vb = [o.leaf[0] - o.c[0], o.leaf[1] - o.c[1]], cr = (p, q) => p[0]*q[1] - p[1]*q[0], inSec = (x, y) => { const v = [x - o.c[0], y - o.c[1]], d = Math.hypot(v[0], v[1]); if (d > o.R*0.9 || d < o.R*0.1) return false; const e = d*o.R*0.15; return cr(va, v)*Math.sign(cr(va, vb)) > e && cr(vb, v)*Math.sign(cr(vb, va)) > e; }; // 開きの範囲の内側（ふちは除く）
+    for (const w of W){ if (w[4]){ N.push(w); continue; } const wx = (w[0] + w[2])/2, wy = (w[1] + w[3])/2, wl = Math.max(w[2] - w[0], w[3] - w[1]); if (wl < o.R*1.3 && inSec(wx, wy)) continue; // 開きの範囲の中の短い壁（扉の枠などの線）は消す
       const ov = hz ? (w[1] <= y1 + m && w[3] >= y0 - m && w[0] < x1 - 20 && w[2] > x0 + 20) : (w[0] <= x1 + m && w[2] >= x0 - m && w[1] < y1 - 20 && w[3] > y0 + 20);
       if (!ov){ N.push(w); continue; } const wh = w[2] - w[0] >= w[3] - w[1];
-      if (wh === hz){ if (hz){ if (w[0] < x0 - 100) N.push([w[0], w[1], x0, w[3]]); if (w[2] > x1 + 100) N.push([x1, w[1], w[2], w[3]]); } else { if (w[1] < y0 - 100) N.push([w[0], w[1], w[2], y0]); if (w[3] > y1 + 100) N.push([w[0], y1, w[2], w[3]]); } } // 開口の所だけ切る
+      if (wh === hz){ if (hz){ if (w[0] < x0 - 100) N.push([w[0], w[1], x0, w[3]]); if (w[2] > x1 + 100) N.push([x1, w[1], w[2], w[3]]); N.push([Math.max(x0, w[0]), w[1], Math.min(x1, w[2]), w[3], Hd]); } else { if (w[1] < y0 - 100) N.push([w[0], w[1], w[2], y0]); if (w[3] > y1 + 100) N.push([w[0], y1, w[2], w[3]]); N.push([w[0], Math.max(y0, w[1]), w[2], Math.min(y1, w[3]), Hd]); } } // 開口の所は扉の上だけの壁
       else if (hz ? (wx < x0 + 60 || wx > x1 - 60) : (wy < y0 + 60 || wy > y1 - 60)) N.push(w); } // 開口の両わきの壁は残す・開口をふさぐ壁は消す
+    if (!N.some(w => w[4] === Hd && (hz ? w[0] < x1 && w[2] > x0 && w[1] <= y1 + m && w[3] >= y0 - m : w[1] < y1 && w[3] > y0 && w[0] <= x1 + m && w[2] >= x0 - m))){ // 開口に壁の線が無かった扉：となりの壁（同じ向き・端が近い）の厚さで扉の上の壁を足す
+      const nb = N.find(w => !w[4] && ((w[2] - w[0] >= w[3] - w[1]) === hz) && (hz ? (Math.abs(w[2] - x0) < 200 || Math.abs(w[0] - x1) < 200) && w[1] <= y0 + 60 && w[3] >= y0 - 60 : (Math.abs(w[3] - y0) < 200 || Math.abs(w[1] - y1) < 200) && w[0] <= x0 + 60 && w[2] >= x0 - 60));
+      if (nb) N.push(hz ? [x0, nb[1], x1, nb[3], Hd] : [nb[0], y0, nb[2], y1, Hd]); }
     W = N; }
   return W; }
 /* 🧊 3D：図面編集の中だけで出す3D（three.js）。床＝見えているレイヤーの線、1から引いた冷媒配管＝区間ごとの高さで管（高さの変わる所はたて管）、追加機器＝天井の下の箱。
@@ -3779,8 +3787,8 @@ async function open3Dold(){
   const wm = new TH.MeshStandardMaterial({color:0xd9d4cc, transparent:true, opacity:.7}), um = new TH.MeshStandardMaterial({color:0xf5f7fa, transparent:true, opacity:.8, side:TH.DoubleSide}), uf = new TH.MeshStandardMaterial({color:0x9fd3e6}), mm2 = new TH.MeshStandardMaterial({color:0x2f6fe0}), em = new TH.LineBasicMaterial({color:0x1e3a8a});
   const boxAt = (g, x0, y0, x1, y1, z0, z1, m) => { const a = W(x0/u, y0/u), b = W(x1/u, y1/u), me = new TH.Mesh(new TH.BoxGeometry(Math.abs(b[0] - a[0]) || 1, z1 - z0, Math.abs(b[1] - a[1]) || 1), m); me.position.set((a[0] + b[0])/2, (z0 + z1)/2, (a[1] + b[1])/2); g.add(me); return me; };
   const mg = mageOk(), MG = !!(mg && mg.objs.length && (mg.ind || mg.walls.length || (mg.units && mg.units.length))); // 曲げメモと同じ読み方の3Dの形があればそれを使う（壁・機器・冷媒配管・ダクト・衛生）。室内機も壁も読めなかった時（ホテルのPDFなど）は今までの読み方（2026-10-28 ユーザー：前は3Dにできたのに）
-  const wem = new TH.LineBasicMaterial({color:0x8a8378}); if (!MG) for (const w of A.walls){ const me = boxAt(gW, w[0], w[1], w[2], w[3], 0, A.wallH, wm); const e2 = new TH.LineSegments(new TH.EdgesGeometry(me.geometry), wem); e2.position.copy(me.position); gW.add(e2); } // 縁の線（曲げ共有の壁と同じ見え方）
-  { const dm = new TH.MeshStandardMaterial({color:0xc8a27a, roughness:.7}), fm = new TH.LineBasicMaterial({color:0x7c5a3a}); for (const o of A.doors || []){ const Hd = Math.min(2000, A.wallH - 50), c0 = W(o.c[0]/u, o.c[1]/u), lf = W(o.leaf[0]/u, o.leaf[1]/u), op = W(o.op[0]/u, o.op[1]/u); // 扉：開いた扉の板（図面の開きの向き）と、開口の枠
+  const wem = new TH.LineBasicMaterial({color:0x8a8378}); if (!MG) for (const w of A.walls){ const me = boxAt(gW, w[0], w[1], w[2], w[3], Math.min(w[4] || 0, A.wallH - 20), A.wallH, wm); /* w[4]：扉の上の垂れ壁の下の高さ */ const e2 = new TH.LineSegments(new TH.EdgesGeometry(me.geometry), wem); e2.position.copy(me.position); gW.add(e2); } // 縁の線（曲げ共有の壁と同じ見え方）
+  { const dm = new TH.MeshStandardMaterial({color:0xc8a27a, roughness:.7}), fm = new TH.LineBasicMaterial({color:0x7c5a3a}); for (const o of A.doors || []){ const Hd = Math.min(o.hd || 2000, A.wallH - 50), c0 = W(o.c[0]/u, o.c[1]/u), lf = W(o.leaf[0]/u, o.leaf[1]/u), op = W(o.op[0]/u, o.op[1]/u); // 扉：開いた扉の板（図面の開きの向き）と、開口の枠
     const me = new TH.Mesh(new TH.BoxGeometry(o.R, Hd, 40), dm); me.position.set((c0[0] + lf[0])/2, Hd/2, (c0[1] + lf[1])/2); me.rotation.y = -Math.atan2(lf[1] - c0[1], lf[0] - c0[0]); gW.add(me);
     gW.add(new TH.Line(new TH.BufferGeometry().setFromPoints([[c0, 0], [c0, Hd], [op, Hd], [op, 0]].map(([p, y]) => new TH.Vector3(p[0], y, p[1]))), fm)); } }
   for (const b of A.ubs){ const H = Math.min(2100, b.ch); boxAt(gU, b.x0, b.y0, b.x1, b.y1, 0, 60, uf); const T2 = 40; // ユニットバス：床と4方の壁（上はあけて中が見えるように）と浴槽
@@ -3845,7 +3853,7 @@ async function sendPipes(){
     const ui = p.u ? PO.findIndex(o => Math.hypot(o.cx/u - p.u.c[0], o.cy/u - p.u.c[1]) < 1) : -1;
     return {nm:'配管' + (j + 1), P, ui}; }).filter(p => p.P.length > 1);
   if (!pipes.length){ toast('冷媒配管がありません。「ルート」→「＋ 1から引く」で室内機から引いてください'); return; }
-  const rec = {v:1, name:S.name || S.srcName || '図面', t:Date.now(), ch:A.CH0, walls:A.walls.map(w => w.map(Math.round)), ubs:A.ubs.map(b => ({x0:Math.round(b.x0), y0:Math.round(b.y0), x1:Math.round(b.x1), y1:Math.round(b.y1), nm:b.nm, ch:b.ch})), units, pipes};
+  const rec = {v:1, name:S.name || S.srcName || '図面', t:Date.now(), ch:A.CH0, walls:A.walls.filter(w => !w[4]).map(w => w.map(Math.round)), ubs:A.ubs.map(b => ({x0:Math.round(b.x0), y0:Math.round(b.y0), x1:Math.round(b.x1), y1:Math.round(b.y1), nm:b.nm, ch:b.ch})), units, pipes};
   try { await new Promise((ok, ng) => { const o = indexedDB.open('pbmShare', 1); o.onupgradeneeded = () => { if (!o.result.objectStoreNames.contains('f')) o.result.createObjectStore('f'); }; o.onerror = () => ng(o.error);
       o.onsuccess = () => { try { const db = o.result, tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(rec, 'pipes'); tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = tx.onabort = () => ng(tx.error); } catch(e){ ng(e); } }; });
     autosave(false); toast('曲げ共有を開いています…'); setTimeout(() => { location.href = '../index.html?from=cadpipes'; }, 900); // 端末への保存（0.8秒後）が済んでから

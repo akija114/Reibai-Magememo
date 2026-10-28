@@ -80,7 +80,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .stage{position:relative;flex:1;min-height:0;background:var(--paper);overflow:hidden}
 .stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #ov{touch-action:none}
-.stage #mini{position:absolute;inset:auto;top:8px;right:8px;width:150px;height:112px;border-radius:10px;border:2px solid var(--line);background:var(--paper);box-shadow:0 4px 14px rgba(0,0,0,.22);touch-action:none;z-index:3}
+#miniBox{position:absolute;top:66px;right:8px;z-index:3;display:flex;border-radius:12px;border:2px solid var(--line);background:var(--paper);box-shadow:0 4px 14px rgba(0,0,0,.22);overflow:hidden;touch-action:none;transition:transform .2s}
+#miniBox[hidden]{display:none}
+.stage #mini{position:static;inset:auto;width:216px;height:162px;touch-action:none}
+#miniHide{width:24px;border:0;border-right:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:20px;font-weight:800;padding:0}
+#miniTab{position:absolute;top:66px;right:0;z-index:3;width:38px;height:62px;border-radius:12px 0 0 12px;border:2px solid var(--line);border-right:0;background:var(--panel);color:var(--ink);font-size:15px;line-height:1.3;box-shadow:0 4px 12px rgba(0,0,0,.2);padding:0}
 .pill{position:absolute;left:50%;transform:translateX(-50%);top:52px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12px;display:flex;gap:8px;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,.12);pointer-events:none;white-space:nowrap}
 .pill b{font-family:var(--font-num);font-size:17px;font-variant-numeric:tabular-nums;color:var(--accent)}
 .hint{position:absolute;left:10px;right:10px;top:10px;display:flex;justify-content:center;pointer-events:none}
@@ -184,7 +188,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <canvas id="cv"></canvas>
     <canvas id="ov"></canvas>
     <canvas id="loupe" hidden></canvas>
-    <canvas id="mini" hidden aria-label="全体図（四角をドラッグで動かす）"></canvas>
+    <div id="miniBox" hidden><button id="miniHide" aria-label="全体図をしまう">›</button><canvas id="mini" aria-label="全体図（四角をドラッグで動かす）"></canvas></div><button id="miniTab" hidden aria-label="全体図を出す">🗺<br>‹</button>
     <div class="pill" id="pill" hidden></div>
     <div class="hlbar" id="hlBar" hidden></div>
     <div class="hint" id="hint" hidden><div><span id="hintTxt"></span><button id="bHint4" hidden>芯出し</button><button id="bHint3" hidden></button><button id="bHint2" hidden></button><button id="bCancelPt" hidden>始点を取消</button></div></div>
@@ -773,11 +777,12 @@ function drawDisplay(){
 let baseTimer = 0;
 function viewChanged(){ drawDisplay(); clearTimeout(baseTimer); baseTimer = setTimeout(renderBase, 140); }
 /* 🗺 全体図（2026-10-28 ユーザー：拡大して選ぶ時、全体を出して動かすのが難しい）：拡大している時だけ右上に全体の小さな絵と、いま見ている所の四角。四角をドラッグ（または全体図の場所をタップ）で大きい画面も一緒に動く */
-const MINI = {c:null, key:'', f:null}, mini = $('#mini');
-function miniFit(){ const b = G.bounds, W = 150, H = 112, bw = b.x1 - b.x0 || 1, bh = b.y1 - b.y0 || 1, k = Math.min(W/bw, H/bh)*0.92; return {k, ox:W/2 - (b.x0 + b.x1)/2*k, oy:H/2 + (b.y0 + b.y1)/2*k}; }
-function drawMini(){ if (!G || !cw){ mini.hidden = true; return; } const b = G.bounds, fs = Math.min(cw/(b.x1 - b.x0 || 1), ch/(b.y1 - b.y0 || 1))*0.94;
-  if (view.s < fs*1.8 || (S.npe && S.mode === 'np' && gest && gest.type === 'np')){ mini.hidden = true; return; } mini.hidden = false;
-  const r = Math.min(window.devicePixelRatio || 1, 2), W = 150*r, H = 112*r; if (mini.width !== W){ mini.width = W; mini.height = H; }
+const MINI = {c:null, key:'', f:null}, mini = $('#mini'), MW = 216, MH = 162; let miniOff = false; try { miniOff = localStorage.getItem('zumen-mini') === '0'; } catch(e){} // しまった時は右の端に「🗺」のつまみ（押すとまた出る）
+function miniSet(off){ miniOff = off; try { localStorage.setItem('zumen-mini', off ? '0' : '1'); } catch(e){} drawMini(); }
+function miniFit(){ const b = G.bounds, W = MW, H = MH, bw = b.x1 - b.x0 || 1, bh = b.y1 - b.y0 || 1, k = Math.min(W/bw, H/bh)*0.92; return {k, ox:W/2 - (b.x0 + b.x1)/2*k, oy:H/2 + (b.y0 + b.y1)/2*k}; }
+function drawMini(){ if (!G || !cw){ $('#miniBox').hidden = $('#miniTab').hidden = true; return; } const b = G.bounds, fs = Math.min(cw/(b.x1 - b.x0 || 1), ch/(b.y1 - b.y0 || 1))*0.94;
+  const box = $('#miniBox'), tab = $('#miniTab'), want = !(view.s < fs*1.8 || (S.npe && S.mode === 'np' && gest && gest.type === 'np')); box.hidden = !want || miniOff; tab.hidden = !want || !miniOff; if (box.hidden) return;
+  const r = Math.min(window.devicePixelRatio || 1, 2), W = MW*r, H = MH*r; if (mini.width !== W){ mini.width = W; mini.height = H; }
   const key = G.L.map(l => l.on && !l.deleted ? 1 : 0).join('') + '|' + tok.dark + '|' + (G.segs && G.segs.length);
   if (!MINI.c || MINI.key !== key || MINI.G !== G){ const oc = document.createElement('canvas'); oc.width = W; oc.height = H; const x = oc.getContext('2d'), F = miniFit(); x.fillStyle = tok.paper; x.fillRect(0, 0, W, H); x.setTransform(F.k*r, 0, 0, -F.k*r, F.ox*r, F.oy*r);
     for (const l of G.L){ if (!l.on || l.deleted) continue; x.lineWidth = 0.8/(F.k*r); for (const [ck, P] of G.paths[l.idx]){ x.strokeStyle = colorCss(ck); x.stroke(P); } } MINI.c = oc; MINI.key = key; MINI.G = G; }
@@ -785,8 +790,13 @@ function drawMini(){ if (!G || !cw){ mini.hidden = true; return; } const b = G.b
   const a = s2w(0, 0), c2 = s2w(cw, ch), m = q => [q[0]*F.k + F.ox, -q[1]*F.k + F.oy], p0 = m(a), p1 = m(c2), rx = Math.min(p0[0], p1[0]), ry = Math.min(p0[1], p1[1]), rw = Math.max(4, Math.abs(p1[0] - p0[0])), rh = Math.max(4, Math.abs(p1[1] - p0[1]));
   x.fillStyle = 'rgba(234,88,12,.15)'; x.fillRect(rx, ry, rw, rh); x.strokeStyle = '#ea580c'; x.lineWidth = 2; x.strokeRect(rx, ry, rw, rh); MINI.r = [rx, ry, rw, rh]; }
 { let md = null; const at = e => { const r = mini.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }, go = (p, d) => { const F = miniFit(), wx = (p[0] - d[0] - F.ox)/F.k, wy = (F.oy - (p[1] - d[1]))/F.k; view.tx = cw/2 - wx*view.s; view.ty = ch/2 + wy*view.s; viewChanged(); };
-  mini.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); mini.setPointerCapture(e.pointerId); const p = at(e), R = MINI.r; md = R && p[0] >= R[0] - 6 && p[0] <= R[0] + R[2] + 6 && p[1] >= R[1] - 6 && p[1] <= R[1] + R[3] + 6 ? [p[0] - (R[0] + R[2]/2), p[1] - (R[1] + R[3]/2)] : [0, 0]; go(p, md); }); // 四角の中をつかんだ時はずれないように
-  mini.addEventListener('pointermove', e => { if (md) go(at(e), md); }); for (const t of ['pointerup', 'pointercancel']) mini.addEventListener(t, () => { md = null; renderBase(); }); }
+  let sw = null; // 四角の外から右へさっとスワイプ → しまう
+  mini.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); mini.setPointerCapture(e.pointerId); const p = at(e), R = MINI.r, inR = R && p[0] >= R[0] - 8 && p[0] <= R[0] + R[2] + 8 && p[1] >= R[1] - 8 && p[1] <= R[1] + R[3] + 8;
+    if (inR){ md = [p[0] - (R[0] + R[2]/2), p[1] - (R[1] + R[3]/2)]; sw = null; } else { md = null; sw = {p, t:performance.now()}; } }); // 四角の中をつかんだ時はずれないように
+  mini.addEventListener('pointermove', e => { const p = at(e); if (md){ go(p, md); return; } if (sw && p[0] - sw.p[0] > 45 && Math.abs(p[1] - sw.p[1]) < p[0] - sw.p[0]){ sw = null; miniSet(true); } });
+  for (const t of ['pointerup', 'pointercancel']) mini.addEventListener(t, e => { if (sw && t === 'pointerup'){ const p = at(e); if (Math.hypot(p[0] - sw.p[0], p[1] - sw.p[1]) < 10) go(p, [0, 0]); } sw = null; if (md){ md = null; renderBase(); } }); // 四角の外をタップ → そこへ飛ぶ
+  { let hs = null; const hb = $('#miniHide'); hb.addEventListener('pointerdown', e => { e.stopPropagation(); hs = e.clientX; }); hb.addEventListener('pointerup', () => { hs = null; miniSet(true); }); }
+  { let ts = null; const tb = $('#miniTab'); tb.addEventListener('pointerdown', e => { e.stopPropagation(); ts = e.clientX; }); tb.addEventListener('pointerup', () => { ts = null; miniSet(false); }); } } // 右の端のつまみ：押す（左へスワイプ）とまた出る
 
 const fmt = v => Math.abs(v - Math.round(v)) < 0.05 ? String(Math.round(v)) : v.toFixed(1);
 function readableAngle(dx, dy){ let a = Math.atan2(dy, dx); if (a > Math.PI/2 + 1e-6) a -= Math.PI; if (a <= -Math.PI/2 + 1e-6) a += Math.PI; return a; }

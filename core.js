@@ -636,6 +636,9 @@ function makeUnit(type,opt){
    bx(md.pa*.5,4,md.pb*.5,0,py+1,0,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.48,2,5,0,py-2,i*md.pb*.045,MD)}
   else if(md.kind==="1方向"){const q=md.pb/2-80;sl(md.pa*.8,62,0,-q,-0.5);
    bx(md.pa*.82,4,md.pb*.5,0,py+1,md.pb*.12,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.8,2,5,0,py-2,md.pb*.12+i*md.pb*.045,MD)}
+  else if(md.bi&&md.gd){const dk=(w,h,y,z,c)=>{bx(w,h,30,0,y,z*(Wb/2+15),c);bx(w*.94,h*.94,120,0,y,z*(Wb/2+90),0xd6d3d1)};   // GE-M：両端のダクト（フランジ＋キャンバスダクト）
+   dk(md.sa[0],md.sa[1],md.sa[2],sd,DK);dk(md.ra[0],md.ra[1],md.ra[2],-sd,0xe8edf2);
+   [md.hw,md.dup].forEach(q=>{if(q){const c=cyl(10,50,Lb/2+25,q.y,q.z*sd,0x94a3b8,12);c.rotation.z=Math.PI/2}})}   // 加湿器給水口・ドレンアップ用の口
   else if(md.bi){const yb=TOP-HB;
    bx(6,150,604,-Lb/2-3,yb+110,0,DK);                                                       // 正面の吹出し口（ダクト接続）
    bx(6,190*.9,574,Lb/2+3,yb+117,-sd*70,0xe8edf2);for(let i=-6;i<=6;i++)bx(8,4,560,Lb/2+5,yb+117+i*13,-sd*70,MD);   // 背面の吸込み口
@@ -1478,7 +1481,7 @@ const SLOTS=[["s","起点"],...(st.nopipe?[]:brOn()?leaves().map(g=>["L"+g,slotN
   }
   if(st.units[k]==="cas2"){
    const mk2="m"+k,cur=CAS2M[st.units[mk2]]||CAS2M["56"],grp=cas2Grp(cur),inG=x=>cas2Grp(CAS2M[x])===grp;
-   const t3=document.createElement("div");t3.className="ctitle";t3.innerHTML=NI("u_cas2")+(grp==="bi"?"ビルトインの機種":grp==="cas"?"4方向の機種（寸法入り）":grp==="one"?"1方向の機種":"2方向の機種")+"（"+lab+"）";box.appendChild(t3);
+   const t3=document.createElement("div");t3.className="ctitle";t3.innerHTML=NI("u_cas2")+(grp==="bi"?"ビルトイン・ダクト接続の機種":grp==="cas"?"4方向の機種（寸法入り）":grp==="one"?"1方向の機種":"2方向の機種")+"（"+lab+"）";box.appendChild(t3);
    if(grp==="cas"){const bb=document.createElement("button");bb.className="sharebtn";bb.style.cssText="width:100%;margin:0 0 8px";bb.textContent="← メーカー別（大きさは目安）の4方向に戻す";bb.onclick=()=>{st.units[k]="cas";save();renderUnitSheet();unitRefresh()};box.appendChild(bb)}
    const mks=CAS2_MAKERS.filter(([mk])=>CAS2_ORDER.some(x=>inG(x)&&CAS2M[x].mk===mk));
    {const tl=document.createElement("div");tl.style.cssText="font-size:12.5px;color:#64748b;margin:0 0 4px";tl.textContent="① メーカー";box.appendChild(tl)}
@@ -1493,7 +1496,7 @@ const SLOTS=[["s","起点"],...(st.nopipe?[]:brOn()?leaves().map(g=>["L"+g,slotN
     b.onclick=()=>{st.units[mk2]=key;applyModelPipe(k,key);save();renderUnitSheet();unitRefresh()};g3.appendChild(b)});
    box.appendChild(g3);
    const m=cur,n=document.createElement("div");n.className="note";
-   if(m.bi)n.textContent=(CAS2_MAKERS.find(x=>x[0]===m.mk)||["",""])[1]+" "+m.n+"（"+m.kind+"形・"+m.sub+"）　"+m.spec+"。配管ガスφ"+m.g+"・液φ"+m.l+"。外形図（GA-MBZ5022AS）の寸法で作っています。高さの基準（天井高さ）は本体の下面です。左右が逆なら上の「左右反転」で直せます。";
+   if(m.bi)n.textContent=(CAS2_MAKERS.find(x=>x[0]===m.mk)||["",""])[1]+" "+m.n+"（"+m.kind+"形・"+m.sub+"）　"+m.spec+"。配管ガスφ"+m.g+"・液φ"+m.l+"。"+(m.src||"外形図（GA-MBZ5022AS）")+"の寸法で作っています。高さの基準（天井高さ）は本体の下面です。左右が逆なら上の「左右反転」で直せます。";
    else n.textContent=(CAS2_MAKERS.find(x=>x[0]===m.mk)||["",""])[1]+" "+m.n+"（天井カセット形 "+m.kind+(m.sub?"・"+m.sub:"")+"）　図面寸法：本体 "+m.L+"×"+m.W+"（天井面から天面まで"+m.top+"）／パネル "+m.pa+"×"+m.pb+"／天井開口 "+(m.oTxt?m.oTxt+"×"+m.oTxt:m.oa+"×"+m.ob)+"／吊りボルト "+m.ba+"×"+m.bb+"／ネコ（吊り金具）は天井面から"+(m.nkTxt||m.nk)+"上／配管 ガスφ"+m.g+"・液φ"+m.l+"・ドレンVP-25（配管とドレンは同じ端面）。左右が逆なら上の「左右反転」で直せます。";
    box.appendChild(n);
    if(m.doc){const db=document.createElement("button");db.className="sharebtn";db.style.cssText="width:100%;margin:8px 0 0;background:#1e40af;color:#fff";db.textContent="📘 据付工事説明書を開く（メーカーのPDF）";db.onclick=()=>{try{window.open(m.doc,"_blank")}catch(e){location.href=m.doc}};box.appendChild(db)}

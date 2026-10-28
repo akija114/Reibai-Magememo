@@ -392,46 +392,79 @@ async function ar2Start(){
   <div id="ar2aim" style="position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border:2px solid #fbbf24;border-radius:50%;pointer-events:none"></div>
   <div id="ar2b" style="position:absolute;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;flex-direction:column;gap:6px"></div>`;
  document.body.appendChild(ov);const vid=ov.querySelector("#ar2v");vid.srcObject=stream;try{await vid.play()}catch(e){}
- const cv=ov.querySelector("#ar2c"),R=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true});R.setPixelRatio(Math.min(2,devicePixelRatio||1));
+ const cv=ov.querySelector("#ar2c"),R=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true,preserveDrawingBuffer:true});R.setPixelRatio(Math.min(2,devicePixelRatio||1));
  const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(AR2.fov,1,10,60000);sc.add(new THREE.HemisphereLight(0xffffff,0x667788,1.0));
  const size=()=>{R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.fov=AR2.fov;cam.updateProjectionMatrix()};size();addEventListener("resize",size);
- const X={step:1,U:null,F:null,h:AR2.ch+200,pick:0,routes:[],q:null},grp=new THREE.Group();sc.add(grp);
- const md=(typeof CAS2M!=="undefined"&&CAS2M[st.units.ms])||{L:840,W:840,H:250},cu=new THREE.MeshStandardMaterial({color:0xc2703a,metalness:.35,roughness:.4});
+ const X={step:1,U:null,F:null,h:AR2.ch+200,pick:0,routes:[],q:null,m:"",th:0,lock:false,pan:false,chTap:false},grp=new THREE.Group();sc.add(grp);
+ /* 室内機の機種（2026-10-28 ユーザー：機械を選べる・配管は機種の配管の口から・回して決めたら固定・パネルだけ／全体）。模型は曲げ共有と同じ makeUnit の cas2（原点＝配管の口） */
+ const C2=typeof CAS2M!=="undefined"?CAS2M:{};try{X.m=localStorage.getItem("pbm_ar2m")||""}catch(e){}if(!C2[X.m])X.m=C2[st.units.ms]?st.units.ms:(Object.keys(C2)[0]||"");
+ let UG=null,UGm="";const unitG=()=>{if(!X.m||!C2[X.m]||typeof makeUnit!=="function")return null;if(UG&&UGm===X.m)return UG;
+  try{const mk=makeUnit("cas2",{kind:st.info.kind,mm:X.m}),g=mk.g;g.traverse(o=>{if(o.userData&&(o.userData.dimcat||o.userData.lab)||o.isSprite)o.visible=false});UG={g,ceil:mk.c2.ceil};UGm=X.m}catch(e){console.warn(e);UG=null}return UG};
+ const md=C2[X.m]||{L:840,W:840,H:250},cu=new THREE.MeshStandardMaterial({color:0xc2703a,metalness:.35,roughness:.4});
+ /* 室内機を置く：天井の真ん中＝①の床の点の真上・天井の高さ。配管の口（模型の原点）を返す */
+ const placeU=()=>{const u=unitG();if(!u||!X.U)return null;const g=u.g;g.rotation.set(0,X.th*Math.PI/180,0);g.position.set(0,0,0);g.updateMatrixWorld(true);const c=g.localToWorld(new V(...u.ceil));g.position.set(X.U.x-c.x,AR2.ch-c.y,X.U.z-c.z);g.updateMatrixWorld(true);
+  g.traverse(o=>{if(!o.isMesh||(o.userData&&o.userData.dimcat))return;if(!X.pan){o.visible=true;return}const b=new THREE.Box3().setFromObject(o),cy=(b.min.y+b.max.y)/2;o.visible=cy<AR2.ch+5});   // パネルだけ：天井より下の物だけ
+  return g};
+ const portDir=()=>new V(Math.cos(X.th*Math.PI/180),0,-Math.sin(X.th*Math.PI/180));   // 配管の口から出る向き（模型の +x）
  const onOri=ev=>{if(ev.alpha==null&&ev.beta==null)return;X.q=genGyroQ(ev).clone()};addEventListener("deviceorientation",onOri);
  const ray=(cx,cy)=>{cam.position.set(0,AR2.ph,0);if(X.q)cam.quaternion.copy(X.q);cam.updateMatrixWorld();const rc=new THREE.Raycaster();rc.setFromCamera({x:cx/innerWidth*2-1,y:-(cy/innerHeight)*2+1},cam);return rc.ray};
  const hitY=(r,y)=>{if(Math.abs(r.direction.y)<1e-4)return null;const t=(y-r.origin.y)/r.direction.y;return t>0?r.origin.clone().addScaledVector(r.direction,t):null};
  const save2=()=>{try{localStorage.setItem("pbm_ar2",JSON.stringify({ch:AR2.ch,ph:AR2.ph,fov:AR2.fov}))}catch(e){}};
  /* ルートの案：天井の中（天井＋150）を通る。室内機の真上から出て、横に進み、穴の所で穴の高さへ。L字は始めた時の向き（スマホを向けた正面）にそろえる */
- const mkRoutes=()=>{const U=X.U,F=X.F;if(!U||!F)return[];const y0=AR2.ch+150,A=new V(U.x,y0,U.z),H=new V(F.x,X.h,F.z),E=new V(F.x,y0,F.z),out=[];
+ const mkRoutes=()=>{const U=X.U,F=X.F;if(!U||!F)return[];const g=placeU(),P0=g?g.position.clone():null,P1=P0?P0.clone().addScaledVector(portDir(),300):null;   // 機種がある時は配管の口から、口の向きに300出してから
+  const y0=P0?P0.y:AR2.ch+150,A=P1||new V(U.x,y0,U.z),H=new V(F.x,X.h,F.z),E=new V(F.x,y0,F.z),out=[],pre=P0?[P0]:[];
   const add=(nm,P)=>{const Q=[];P.forEach(p=>{const l=Q[Q.length-1];if(!l||l.distanceTo(p)>30)Q.push(p.clone())});for(let i=1;i+1<Q.length;i++){const a=Q[i].clone().sub(Q[i-1]).normalize(),b=Q[i+1].clone().sub(Q[i]).normalize();if(a.dot(b)>0.999){Q.splice(i,1);i--}}
-   let L=0;for(let i=1;i<Q.length;i++)L+=Q[i].distanceTo(Q[i-1]);out.push({nm,P:Q,L,n:Math.max(0,Q.length-2)})};
-  add("L字（先に奥へ）",[A,new V(A.x,y0,E.z),E,H]);add("L字（先に横へ）",[A,new V(E.x,y0,A.z),E,H]);add("まっすぐ（ななめ）",[A,E,H]);
+   let L=0,back=false;for(let i=1;i<Q.length;i++)L+=Q[i].distanceTo(Q[i-1]);for(let i=1;i+1<Q.length;i++){const a=Q[i].clone().sub(Q[i-1]).normalize(),b=Q[i+1].clone().sub(Q[i]).normalize();if(a.dot(b)<-0.99)back=true}out.push({nm,P:Q,L,n:Math.max(0,Q.length-2),back})};   // back：口から出てすぐ真後ろへ折り返す（口の向きが穴と反対）
+  add("L字（先に奥へ）",[...pre,A,new V(A.x,y0,E.z),E,H]);add("L字（先に横へ）",[...pre,A,new V(E.x,y0,A.z),E,H]);add("まっすぐ（ななめ）",[...pre,A,E,H]);
   return out};
- const drawAll=()=>{while(grp.children.length)grp.remove(grp.children[0]);const tube=(a,b,r,m)=>{const l=a.distanceTo(b);if(l<1)return;const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,14),m);c.position.copy(a).add(b).multiplyScalar(.5);c.quaternion.setFromUnitVectors(new V(0,1,0),b.clone().sub(a).normalize());grp.add(c)};
-  if(X.U){const b=new THREE.Mesh(new THREE.BoxGeometry(md.L,md.H,md.W),new THREE.MeshStandardMaterial({color:0xf1f5f9,transparent:true,opacity:.85}));b.position.set(X.U.x,AR2.ch+md.H/2-40,X.U.z);grp.add(b);
-   const p=new THREE.Mesh(new THREE.BoxGeometry(md.L+80,20,md.W+80),new THREE.MeshStandardMaterial({color:0xffffff}));p.position.set(X.U.x,AR2.ch-10,X.U.z);grp.add(p);
+ const drawAll=forQL=>{while(grp.children.length)grp.remove(grp.children[0]);const tube=(a,b,r,m)=>{const l=a.distanceTo(b);if(l<1)return;const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,14),m);c.position.copy(a).add(b).multiplyScalar(.5);c.quaternion.setFromUnitVectors(new V(0,1,0),b.clone().sub(a).normalize());grp.add(c)};
+  if(X.U){const ug=placeU();if(ug)grp.add(ug);else{const b=new THREE.Mesh(new THREE.BoxGeometry(md.L,md.H,md.W),new THREE.MeshStandardMaterial({color:0xf1f5f9,transparent:true,opacity:.85}));b.position.set(X.U.x,AR2.ch+md.H/2-40,X.U.z);if(!X.pan)grp.add(b);
+   const p=new THREE.Mesh(new THREE.BoxGeometry(md.L+80,20,md.W+80),new THREE.MeshStandardMaterial({color:0xffffff}));p.position.set(X.U.x,AR2.ch-10,X.U.z);grp.add(p)}
    const rm2=new THREE.MeshBasicMaterial({color:0xef4444});[[400,24],[24,400]].forEach(([a,b2])=>{const c=new THREE.Mesh(new THREE.BoxGeometry(a,4,b2),rm2);c.position.set(X.U.x,3,X.U.z);grp.add(c)});   // 床の芯：十字
    tube(new V(X.U.x,0,X.U.z),new V(X.U.x,AR2.ch,X.U.z),5,new THREE.MeshBasicMaterial({color:0xfbbf24}))}
   if(X.U&&X.F){const a=new V(X.U.x,2,X.U.z),b2=new V(X.F.x,2,X.F.z),n=Math.max(1,Math.round(a.distanceTo(b2)/250));for(let i=0;i<n;i+=2)tube(a.clone().lerp(b2,i/n),a.clone().lerp(b2,Math.min(1,(i+1)/n)),8,new THREE.MeshBasicMaterial({color:0xf59e0b}))}   // 床の点線：室内機 → 穴
   if(X.F){const rm=new THREE.MeshBasicMaterial({color:0xef4444});const ring=new THREE.Mesh(new THREE.TorusGeometry(70,12,8,28),rm);ring.rotation.x=Math.PI/2;ring.position.set(X.F.x,4,X.F.z);grp.add(ring);
    tube(new V(X.F.x,0,X.F.z),new V(X.F.x,X.h,X.F.z),6,new THREE.MeshBasicMaterial({color:0xfbbf24}));const hole=new THREE.Mesh(new THREE.TorusGeometry(60,14,8,28),rm);hole.position.set(X.F.x,X.h,X.F.z);grp.add(hole)}
-  const r=X.routes[X.pick];if(r)for(let i=1;i<r.P.length;i++){tube(r.P[i-1],r.P[i],20,cu);const s2=new THREE.Mesh(new THREE.SphereGeometry(26,12,8),cu);s2.position.copy(r.P[i]);grp.add(s2)}};
+  const r=X.routes[X.pick];if(r)for(let i=1;i<r.P.length;i++){tube(r.P[i-1],r.P[i],20,cu);const s2=new THREE.Mesh(new THREE.SphereGeometry(26,12,8),cu);s2.position.copy(r.P[i]);grp.add(s2)}
+  /* だいたいの寸法（2026-10-28 ユーザー）：カメラの画面は文字の札、床に固定（ql）は数字の形 */
+  dims().forEach(([t,p])=>grp.add(forQL?numMesh(t,p):lab(t,p)))};
+ const dims=()=>{const D=[],r=X.routes[X.pick],k=v=>Math.round(v/10)*10;if(X.U)D.push(["天井 "+fmt(AR2.ch),new V(X.U.x,AR2.ch*0.55,X.U.z)]);
+  if(X.F&&X.step>=3)D.push(["穴 床から "+fmt(X.h),new V(X.F.x,X.h+220,X.F.z)]);if(X.U&&X.F)D.push(["床で "+fmt(k(Math.hypot(X.F.x-X.U.x,X.F.z-X.U.z))),new V((X.U.x+X.F.x)/2,120,(X.U.z+X.F.z)/2)]);
+  if(r)for(let i=1;i<r.P.length;i++){const a=r.P[i-1],b=r.P[i],l=a.distanceTo(b);if(l<150)continue;D.push([fmt(k(l)),a.clone().add(b).multiplyScalar(.5).add(new V(0,120,0))])}return D};
+ const lab=(t,p)=>{const c=document.createElement("canvas"),x=c.getContext("2d");x.font="800 44px -apple-system,'Hiragino Sans',sans-serif";const w=Math.ceil(x.measureText(t).width)+36;c.width=w;c.height=64;
+  x.font="800 44px -apple-system,'Hiragino Sans',sans-serif";x.fillStyle="rgba(15,23,42,.85)";x.fillRect(0,0,w,64);x.fillStyle="#fde68a";x.textBaseline="middle";x.fillText(t,18,34);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,sizeAttenuation:false}));sp.scale.set(0.05*w/64,0.05,1);sp.position.copy(p);sp.renderOrder=20;return sp};
+ /* 数字の形（7つの棒）：床に固定の画面は文字が出せないので、数字だけを形にする（約・mm は付けない） */
+ const SEG={0:"abcdef",1:"bc",2:"abged",3:"abgcd",4:"fgbc",5:"afgcd",6:"afgedc",7:"abc",8:"abcdefg",9:"abcdfg"};
+ const numMesh=(t,p)=>{const s2=String(t).replace(/[^0-9]/g,""),h=170,w=h*.55,th=h*.13,g=new THREE.Group(),bm=new THREE.MeshBasicMaterial({color:0x111827}),wm=new THREE.MeshBasicMaterial({color:0xffffff});
+  const bar=(sx,sy,x,y)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,12),bm);m.position.set(x,y,6);g.add(m)},n=s2.length,W2=n*(w+th*1.6);
+  [...s2].forEach((d,i)=>{const x0=-W2/2+i*(w+th*1.6)+w/2,S=SEG[d]||"";if(S.includes("a"))bar(w,th,x0,h/2);if(S.includes("g"))bar(w,th,x0,0);if(S.includes("d"))bar(w,th,x0,-h/2);
+   if(S.includes("f"))bar(th,h/2,x0-w/2,h/4);if(S.includes("b"))bar(th,h/2,x0+w/2,h/4);if(S.includes("e"))bar(th,h/2,x0-w/2,-h/4);if(S.includes("c"))bar(th,h/2,x0+w/2,-h/4)});
+  const bg=new THREE.Mesh(new THREE.BoxGeometry(W2+60,h+70,6),wm);g.add(bg);g.position.copy(p);g.rotation.y=Math.atan2(-p.x,-p.z);return g};   // 立っている所（原点）の方を向く
  const B=(id,t,bg,fx)=>`<button id="${id}" style="flex:${fx||1};height:48px;border-radius:12px;border:0;font-weight:800;font-size:14.5px;background:${bg||"#ffffffee"};color:${bg?"#fff":"#0f172a"};padding:0 8px">${t}</button>`;
  const ui=()=>{const T2=ov.querySelector("#ar2t"),Bb=ov.querySelector("#ar2b"),r=X.routes[X.pick];
-  T2.innerHTML=X.step===1?"① <b>室内機の真ん中の真下の床</b>をタップ<br><small style='font-weight:600;opacity:.85'>立ったまま動かないで使います（天井 "+fmt(AR2.ch)+"・スマホ "+fmt(AR2.ph)+"）</small>"
+  T2.innerHTML=X.chTap?"📏 <b>室内機の上の天井</b>をタップ（床の十字の真上）<br><small style='font-weight:600;opacity:.85'>天井の高さが分からない時に。タップした所を天井の高さにします</small>":X.step===1?"① <b>室内機の真ん中の真下の床</b>をタップ<br><small style='font-weight:600;opacity:.85'>立ったまま動かないで使います（天井 "+fmt(AR2.ch)+"・スマホ "+fmt(AR2.ph)+"）</small>"
    :X.step===2?"② <b>穴の真下の床</b>をタップ":X.step===3?"③ <b>穴</b>をタップ（天井の中などで見えない時は ± で高さ）<br><small style='font-weight:600;opacity:.85'>穴の高さ 床から "+fmt(X.h)+"</small>"
-   :`🧭 ルート ${X.pick+1}／${X.routes.length}：${r?r.nm:""}<br><b style="font-size:18px">冷媒配管 約${r?(r.L/1000).toFixed(1):"-"}m</b>（だいたい）・曲げ${r?r.n:0}<small style='font-weight:600;opacity:.85'>　穴 床から ${fmt(X.h)}</small>`;
-  Bb.innerHTML=(X.step===4?`<div style="display:flex">${B("aQL","🧊 床に固定して見る・写真を撮る","#0891b2")}</div>`:"")+(X.step>=3?`<div style="display:flex;gap:6px">${B("aHm","穴 −100")}${B("aHp","穴 ＋100")}${X.step===4?B("aNx","次のルート ›","#2563eb",1.4):B("aOk","この高さで決める","#2563eb",1.6)}</div>`:"")
-   +(X.step===0?"":`<div style="display:flex;gap:6px">${X.step>1?B("aBk","‹ 1つ戻る"):""}${B("aSet","⚙ 高さ")}${X.step===4?B("aUse","✓ 曲げに入れる","#16a34a",1.4):""}${B("aEnd","終了","#ef4444")}</div>`)
+   :`🧭 ルート ${X.pick+1}／${X.routes.length}：${r?r.nm:""}<br><b style="font-size:18px">冷媒配管 約${r?(r.L/1000).toFixed(1):"-"}m</b>（だいたい）・曲げ${r?r.n:0}<small style='font-weight:600;opacity:.85'>　穴 床から ${fmt(X.h)}</small>${r&&r.back?"<br><b style='color:#fca5a5'>⚠️ 配管の口が穴と反対向きです（↻ 回すで向きを変える）</b>":""}<br><small style='font-weight:700;color:#fde68a'>この画面はスマホの向きだけで描くので、歩くとついてきます。離れて見る・写真は下の「🧊 床に固定して見る」</small>`;   // 歩いても動かないのは iPhone の AR（ql）だけ
+  const uRow=X.step>=2?`<div style="display:flex;gap:6px">${B("aMd","🔩 "+(C2[X.m]?C2[X.m].n:"機種"),"",1.5)}${X.lock?B("aLk","🔒 固定中"):B("aRt","↻ 回す")+B("aLk","🔓 決める")}${B("aPn",X.pan?"👁 パネルだけ":"👁 全体")}</div>`:"";
+  Bb.innerHTML=uRow+(X.step===4?`<div style="display:flex">${B("aQL","🧊 床に固定して見る（歩いても動かない）","#0891b2",2)}${B("aPh","📷 写真","#7c3aed")}</div>`:"")+(X.step>=3?`<div style="display:flex;gap:6px">${B("aHm","穴 −100")}${B("aHp","穴 ＋100")}${X.step===4?B("aNx","次のルート ›","#2563eb",1.4):B("aOk","この高さで決める","#2563eb",1.6)}</div>`:"")
+   +(X.step===0?"":`<div style="display:flex;gap:6px">${X.step>1?B("aBk","‹ 1つ戻る"):""}${B("aSet","⚙ 高さ")}${X.step>=2?B("aCh","📏 天井"):""}${X.step===4?B("aUse","✓ 曲げに入れる","#16a34a",1.4):""}${B("aEnd","終了","#ef4444")}</div>`)
    +(X.set?`<div style="display:flex;gap:6px;flex-wrap:wrap;background:#0f172add;border-radius:12px;padding:8px">${[["ch","天井の高さ"],["ph","スマホの高さ"],["fov","画角（ずれる時）"]].map(([k,t])=>`<div style="flex:1 1 30%;color:#fff;font-size:12px;font-weight:800;text-align:center">${t}<br><button data-k="${k}" data-d="-1" style="width:34px;height:34px;border-radius:8px;border:0">−</button> <b style="font-size:14px">${k==="fov"?AR2.fov+"°":fmt(AR2[k])}</b> <button data-k="${k}" data-d="1" style="width:34px;height:34px;border-radius:8px;border:0">＋</button></div>`).join("")}</div>`:"");
   const on=(id,f)=>{const e=ov.querySelector("#"+id);if(e)e.onclick=ev=>{ev.stopPropagation();f()}};
   on("aHm",()=>{X.h=Math.max(100,X.h-100);if(X.step===4)X.routes=mkRoutes();drawAll();ui()});on("aHp",()=>{X.h=Math.min(8000,X.h+100);if(X.step===4)X.routes=mkRoutes();drawAll();ui()});
   on("aOk",()=>{X.step=4;X.routes=mkRoutes();X.pick=0;drawAll();ui()});on("aNx",()=>{X.pick=(X.pick+1)%Math.max(1,X.routes.length);drawAll();ui()});
   on("aBk",()=>{if(X.step===4)X.step=3;else if(X.step===3){X.step=2;X.F=null}else if(X.step===2){X.step=1;X.U=null}X.routes=[];drawAll();ui()});
-  on("aSet",()=>{X.set=!X.set;ui()});on("aEnd",end);on("aUse",use);on("aQL",ql);
+  on("aSet",()=>{X.set=!X.set;ui()});on("aEnd",end);on("aUse",use);on("aQL",ql);on("aPh",photo);
+  const re=()=>{if(X.step===4)X.routes=mkRoutes();drawAll();ui()};
+  on("aRt",()=>{X.th=(X.th+90)%360;re()});on("aLk",()=>{X.lock=!X.lock;toast(X.lock?"室内機の向きを固定しました":"もう一度回せます");ui()});on("aPn",()=>{X.pan=!X.pan;re()});
+  on("aCh",()=>{X.chTap=!X.chTap;ui()});on("aMd",()=>{const ks=Object.keys(C2),sh=document.createElement("div");sh.style.cssText="position:absolute;inset:0;z-index:5;background:#0009;display:flex;align-items:flex-end";
+   sh.innerHTML=`<div style="background:#fff;width:100%;max-height:75%;overflow:auto;border-radius:16px 16px 0 0;padding:12px"><b style="font-size:17px">🔩 室内機の機種</b><div style="font-size:12.5px;color:#475569">配管は、その機種の配管の口から出ます</div>${ks.map(k=>`<button data-m="${k}" style="display:block;width:100%;text-align:left;margin-top:6px;padding:10px;border-radius:10px;border:1.5px solid ${k===X.m?"#2563eb":"#cbd5e1"};background:${k===X.m?"#eff6ff":"#fff"};font-weight:800;font-size:14px">${C2[k].kind||""}　${C2[k].n}<div style="font-weight:600;font-size:12px;color:#64748b">${fmt(C2[k].L)}×${fmt(C2[k].W)}・高さ${fmt(C2[k].H)}</div></button>`).join("")}<button data-x="1" style="display:block;width:100%;margin-top:8px;height:46px;border-radius:12px;border:0;font-weight:800">閉じる</button></div>`;
+   ov.appendChild(sh);sh.onclick=e=>{e.stopPropagation();const b=e.target.closest("button");if(e.target===sh||(b&&b.dataset.x)){sh.remove();return}if(b&&b.dataset.m){X.m=b.dataset.m;try{localStorage.setItem("pbm_ar2m",X.m)}catch(err){}sh.remove();re();toast(C2[X.m].n+" にしました")}}});
   ov.querySelectorAll("[data-k]").forEach(b=>b.onclick=ev=>{ev.stopPropagation();const k=b.dataset.k,d=+b.dataset.d;AR2[k]=k==="fov"?Math.max(40,Math.min(90,AR2.fov+d)):Math.max(k==="ch"?1800:500,Math.min(k==="ch"?6000:2200,AR2[k]+d*50));save2();size();if(X.step===4)X.routes=mkRoutes();drawAll();ui()});
-  ov.querySelector("#ar2aim").style.display=X.step===4?"none":""};
+  ov.querySelector("#ar2aim").style.display=X.step===4&&!X.chTap?"none":""};
  ov.addEventListener("click",e=>{if(e.target.closest("button"))return;const r=ray(e.clientX,e.clientY);
+  if(X.chTap&&X.U){const o=r.origin,d=r.direction,hd=Math.hypot(d.x,d.z),t=hd<1e-3?0:((X.U.x-o.x)*d.x+(X.U.z-o.z)*d.z)/(hd*hd),y=o.y+d.y*t;   // 床の十字の真上の線の、タップした所の高さ
+   if(hd<1e-3||t<=0||y<1800||y>6000){toast("室内機の上の天井をタップしてください（1800〜6000の間）");return}AR2.ch=Math.round(y/10)*10;save2();X.chTap=false;toast("天井の高さ "+fmt(AR2.ch)+" にしました");if(X.step===4)X.routes=mkRoutes();drawAll();ui();return}
   if(X.step===1){const p=hitY(r,0);if(!p){toast("床の方をタップしてください");return}X.U=p;X.step=2}   /* 室内機も床で決める（2026-10-27 ユーザー） */
   else if(X.step===2){const p=hitY(r,0);if(!p){toast("床の方をタップしてください");return}X.F=p;X.step=3}
   else if(X.step===3){const o=r.origin,d=r.direction,hd=Math.hypot(d.x,d.z);if(hd<1e-3)return;const t=((X.F.x-o.x)*d.x+(X.F.z-o.z)*d.z)/(hd*hd);if(t<=0)return;X.h=Math.max(100,Math.round((o.y+d.y*t)/50)*50);X.step=4;X.routes=mkRoutes();X.pick=0}   // 穴の真下の床から上へのばした線の、タップした所の高さ
@@ -440,16 +473,23 @@ async function ar2Start(){
   st.rows=gPolyRows(P);save(true);build3D();try{fitT()}catch(e){}toast(`曲げに入れました：冷媒配管 約${(r.L/1000).toFixed(1)}m（だいたい）`);end()}
  /* 床に固定（iPhoneの実物大の見え方）：室内機の床の十字を真ん中にして、室内機・ルート・穴・床の印を1つの形にする。置いたら歩いても動かない・その画面で写真が撮れる */
  function ql(){const a0=document.createElement("a");if(!(a0.relList&&a0.relList.supports&&a0.relList.supports("ar"))){toast("床に固定して見るのは iPhone・iPad で使えます");return}
-  drawAll();sc.updateMatrixWorld(true);const by={},bb=new THREE.Box3();
-  grp.traverse(o=>{if(!o.isMesh)return;const g=o.geometry,pa=g.attributes.position,na=g.attributes.normal,ix=g.index,m=o.material,key=m.color.getHexString()+(m.transparent?"t":""),P=by[key]||(by[key]={col:[m.color.r,m.color.g,m.color.b],op:m.transparent?Math.max(.6,m.opacity):1,metal:(m.metalness||0)>0.3,pos:[],nrm:[],idx:[]}),base=P.pos.length/3,v=new V(),nm=new THREE.Matrix3().getNormalMatrix(o.matrixWorld);
+  drawAll(true);sc.updateMatrixWorld(true);const by={},bb=new THREE.Box3(),vis=o=>{for(let q=o;q;q=q.parent)if(!q.visible)return false;return true};
+  grp.traverse(o=>{if(!o.isMesh||!vis(o))return;const g=o.geometry,pa=g.attributes.position,na=g.attributes.normal,ix=g.index,m=o.material,key=m.color.getHexString()+(m.transparent?"t":""),P=by[key]||(by[key]={col:[m.color.r,m.color.g,m.color.b],op:m.transparent?Math.max(.6,m.opacity):1,metal:(m.metalness||0)>0.3,pos:[],nrm:[],idx:[]}),base=P.pos.length/3,v=new V(),nm=new THREE.Matrix3().getNormalMatrix(o.matrixWorld);
    for(let k=0;k<pa.count;k++){v.fromBufferAttribute(pa,k).applyMatrix4(o.matrixWorld);P.pos.push(v.x,v.y,v.z);bb.expandByPoint(v);const n=na?new V().fromBufferAttribute(na,k).applyMatrix3(nm).normalize():new V(0,1,0);P.nrm.push(n.x,n.y,n.z)}
    if(ix)for(let k=0;k<ix.count;k++)P.idx.push(base+ix.getX(k));else for(let k=0;k<pa.count;k++)P.idx.push(base+k)});
-  const cx=X.U.x,cz=X.U.z,mx=Math.max(cx-bb.min.x,bb.max.x-cx,600)+300,mz=Math.max(cz-bb.min.z,bb.max.z-cz,600)+300,parts=Object.values(by);   // 床の板は室内機の十字を真ん中に左右同じ（置く時、十字がタップした所に来る）
+  drawAll();const cx=X.U.x,cz=X.U.z,mx=Math.max(cx-bb.min.x,bb.max.x-cx,600)+300,mz=Math.max(cz-bb.min.z,bb.max.z-cz,600)+300,parts=Object.values(by);   // 床の板は室内機の十字を真ん中に左右同じ（置く時、十字がタップした所に来る）
   parts.push({col:[.8,.84,.88],op:.3,metal:false,pos:[cx-mx,0,cz-mz,cx+mx,0,cz-mz,cx+mx,0,cz+mz,cx-mx,0,cz+mz],nrm:[0,1,0,0,1,0,0,1,0,0,1,0],idx:[0,2,1,0,3,2]});
   parts.forEach(p=>{for(let k=0;k<p.pos.length;k+=3){p.pos[k]=(p.pos[k]-cx)/1000;p.pos[k+1]=p.pos[k+1]/1000;p.pos[k+2]=(p.pos[k+2]-cz)/1000}});
   try{const url=URL.createObjectURL(makeUSDZ(parts));a0.rel="ar";a0.href=url+"#allowsContentScaling=0";a0.appendChild(document.createElement("img"));a0.style.display="none";document.body.appendChild(a0);a0.click();setTimeout(()=>a0.remove(),3000);
-   toast("室内機の真下の床をタップして置き、2本指で回して穴の向きに合わせてください。置いたら歩いても動きません（右下のボタンで写真）")}catch(e){console.warn(e);toast("準備に失敗しました")}}
+   toast("室内機の真下の床をタップして置き、2本指で回して穴の向きに合わせてください。置いたら歩いても動きません。写真は下のまん中の白い丸（出ない時はiPhoneの横のボタン＋音量の上でスクリーンショット）")}catch(e){console.warn(e);toast("準備に失敗しました")}}
+ /* 📷 この画面を写真に：カメラの映像＋配管・室内機・寸法の札を1枚に */
+ function photo(){try{R.render(sc,cam);const dpr=Math.min(2,devicePixelRatio||1),W=Math.round(innerWidth*dpr),H=Math.round(innerHeight*dpr),c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+  const vw=vid.videoWidth||W,vh=vid.videoHeight||H,s2=Math.max(W/vw,H/vh);try{x.drawImage(vid,(W-vw*s2)/2,(H-vh*s2)/2,vw*s2,vh*s2)}catch(e){}x.drawImage(cv,0,0,W,H);
+  const r=X.routes[X.pick];x.fillStyle="rgba(15,23,42,.8)";x.fillRect(0,0,W,70*dpr);x.fillStyle="#fff";x.font=`800 ${20*dpr}px -apple-system,'Hiragino Sans',sans-serif`;x.fillText(`${C2[X.m]?C2[X.m].n:"室内機"}　冷媒配管 約${r?(r.L/1000).toFixed(1):"-"}m（だいたい）`,12*dpr,30*dpr);
+  x.font=`700 ${15*dpr}px -apple-system,'Hiragino Sans',sans-serif`;x.fillText(`天井 ${fmt(AR2.ch)}・穴 床から ${fmt(X.h)}・${new Date().toLocaleString("ja-JP")}`,12*dpr,56*dpr);
+  c.toBlob(b=>{if(!b){toast("写真にできませんでした");return}genShowOut(b,"image/jpeg");const o=$("#genOut");if(o)o.style.zIndex=500},"image/jpeg",.9)}catch(e){console.warn(e);toast("写真にできませんでした")}}
  function end(){removeEventListener("deviceorientation",onOri);removeEventListener("resize",size);try{stream.getTracks().forEach(t=>t.stop())}catch(e){}cancelAnimationFrame(X.raf);try{R.dispose()}catch(e){}ov.remove()}
  const loop2=()=>{X.raf=requestAnimationFrame(loop2);cam.position.set(0,AR2.ph,0);if(X.q)cam.quaternion.copy(X.q);R.render(sc,cam)};loop2();
+ window.__AR2={X,grp,drawAll,mkRoutes,placeU};   // 確かめる用
  ui();toast("室内機の真下あたりに立って、天井を映してください");
 }

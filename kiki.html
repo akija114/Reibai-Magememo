@@ -30,6 +30,7 @@ svg{width:100%;height:auto;display:block}
 .tb b{font-size:20px;font-variant-numeric:tabular-nums}
 .dot{display:inline-block;width:12px;height:12px;border-radius:6px;margin-right:4px;vertical-align:-1px}
 .note{font-size:12.5px;color:var(--sub);line-height:1.55;margin-top:8px}
+.vw{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.vw button{flex:1;min-height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:13.5px;font-weight:800}.vw label{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;min-height:40px;border-radius:10px;border:1.5px solid var(--line);font-size:13.5px;font-weight:800}
 .seg{display:flex;gap:6px;margin-top:8px}.seg button{flex:1;height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:13.5px}
 .seg button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
 a.doc{color:var(--acc);font-weight:700}
@@ -44,7 +45,7 @@ a.doc{color:var(--acc);font-weight:700}
 <script src="models.js?v=305"></script>
 <script src="kiso.js?v=17"></script>
 <script>
-/* 🔩 機器：仕込み用の寸法だけを見るページ（3Dなし・軽い）
+/* 🔩 機器：仕込み用の寸法を見るページ（模型は three.js をこのページだけで読む・core.js は読まない）
    配管口・ドレンの位置は「全ねじ（吊りボルト）の芯」から測る。開口寸法は現場で変わるので、全ねじ基準なら誰でも使える */
 const $=s=>document.querySelector(s),f=n=>Math.round(n).toLocaleString("ja-JP");
 const sel=$("#m");
@@ -118,7 +119,7 @@ function draw(){if(VENTM[cur]){drawVent();return}const m=CAS2M[cur],bi=!!m.bi,fi
  if(!bi&&m.pt)s2+=`<rect x="${cx-(m.pb||m.W)/2*S}" y="${Z(0)}" width="${(m.pb||m.W)*S}" height="${Math.max(3,m.pt*SH)}" fill="var(--panel)" stroke="var(--line)"/>`;
  s2+=`<rect x="${cx-m.W/2*S}" y="${Z(top)}" width="${m.W*S}" height="${(top-(bi?0:top-m.H))*SH}" fill="none" stroke="var(--body)" stroke-width="2"/>`;
  [-1,1].forEach(b=>{const x=X(b*m.bb/2);s2+=`<line x1="${x}" y1="${Z(yMax)}" x2="${x}" y2="${Z(m.nk)}" stroke="var(--bolt)" stroke-width="3"/><rect x="${x-9}" y="${Z(m.nk)-4}" width="18" height="8" fill="var(--bolt)"/>`});
- s2+=`<text x="${X(-m.bb/2)+12}" y="${Z(m.nk)+4}" font-size="12" font-weight="800" fill="var(--bolt)">ネコ ${f(m.nk)}</text>`;
+ s2+=`<text x="${X(-m.bb/2)-14}" y="${Z(m.nk)-8}" text-anchor="end" font-size="12" font-weight="800" fill="var(--bolt)">ネコ ${f(m.nk)}</text>`;
  P.forEach(([k,n,,c])=>{const p=m[k];s2+=`<circle cx="${X(p.z)}" cy="${Z(p.y)}" r="6" fill="var(${c})" stroke="#fff" stroke-width="1.5"/><text x="${X(p.z)}" y="${Z(p.y)-9}" text-anchor="middle" font-size="11.5" font-weight="800" fill="var(${c})">${f(p.y)}</text>`});
  s2+=`</svg>`;
  /* ---- 数字の表（仕込みで使う所） ---- */
@@ -133,11 +134,77 @@ function draw(){if(VENTM[cur]){drawVent();return}const m=CAS2M[cur],bi=!!m.bi,fi
  if(!bi)tb+=row("開口",`<b>${m.oTxt||f(m.oa)+" × "+f(m.ob)}</b>${m.oTxt?`（図面 ${f(m.oa)}×${f(m.ob)}）`:""}<br>パネル ${f(m.pa)} × ${f(m.pb)}`);
  tb+=row("本体",`${f(m.L)} × ${f(m.W)} × 高さ ${f(m.H)}`);
  $("#out").innerHTML=`<div class="card"><div class="nm">${m.n}</div><div class="sub">${(CAS2_MAKERS.find(x=>x[0]===m.mk)||["",""])[1]}　${m.kind}${m.sub?"・"+m.sub:""}</div></div>
+<div class="card"><h2>🧊 模型と寸法</h2><div id="m3" style="position:relative;width:100%;height:380px;border-radius:12px;overflow:hidden;background:#f8fafc;touch-action:none"><div id="m3w" class="note" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;margin:0">模型を読み込んでいます…</div></div>
+<div class="vw" id="m3v">${[["iso","斜め"],["top","上から"],["front","配管の面"],["side","横"],["bot","下から"]].map(([k,t])=>`<button data-v="${k}">${t}</button>`).join("")}</div>
+<div class="vw" id="m3t"><label><input type="checkbox" id="m3d" checked> 寸法</label><label><input type="checkbox" id="m3c" checked> 天井</label><label><input type="checkbox" id="m3b" checked> 全ねじ</label></div>
+<div class="note">1本指で回す・2本指で広げて大きく。紫＝全ねじ・ネコ／青＝ガス／赤＝液／緑＝ドレン／灰色の板＝${bi?"本体の下面":"天井の仕上げ面"}。数字は mm。</div></div>
 <div class="card"><h2>📏 仕込み寸法（全ねじの芯から）</h2><table class="tb">${tb}</table>
 <div class="note">「手前」＝配管の出る面の側、「左・右」＝配管の出る面を正面に見た時。「外へ」は全ねじより外側、「内へ」は機械の真ん中側です。${m.dn?"<br>"+m.dn:""}</div></div>
 <div class="card"><h2>上から見た図</h2>${sv}<div class="note">紫＝全ねじ／青＝ガス／赤＝液／緑＝ドレン。点線＝パネル・天井開口。</div></div>
 <div class="card"><h2>横から見た図（配管の出る面を正面に）</h2>${s2}<div class="note">数字は${fin}からの高さ（mm）。</div></div>
-<div class="note" style="margin:10px 4px">寸法はメーカーの据付説明書・外形図からの値です。仕込み前に、念のため最新の図面で確認してください。${m.doc?`<br><a class="doc" href="${m.doc}" target="_blank" rel="noopener">📄 据付説明書を開く</a>`:""}</div>`}
+<div class="note" style="margin:10px 4px">寸法はメーカーの据付説明書・外形図からの値です。仕込み前に、念のため最新の図面で確認してください。${m.doc?`<br><a class="doc" href="${m.doc}" target="_blank" rel="noopener">📄 据付説明書を開く</a>`:""}</div>`;draw3(m)}
+/* ---- 🧊 模型と寸法（three.js をこのページだけで読む。軽くするため core.js は読まない）。x＝配管の方向（+x＝配管の出る面）・z＝左右（+z＝正面に見て左）・y＝高さ（${fin}＝0） ---- */
+let T3=null;
+function load3(){return window.THREE?Promise.resolve():new Promise((ok,ng)=>{const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";sc.onload=ok;sc.onerror=ng;document.head.appendChild(sc)})}
+async function draw3(m){const box=$("#m3");if(!box)return;try{await load3()}catch(e){$("#m3w").textContent="模型の部品を読み込めませんでした（電波を確認してください）";return}if(!$("#m3")||CAS2M[cur]!==m)return;
+ const TH=THREE,V=TH.Vector3,bi=!!m.bi,top=m.top||m.H,yb=top-m.H,xP=m.L/2-(m.pin||0),dark=matchMedia("(prefers-color-scheme: dark)").matches&&document.documentElement.dataset.theme!=="light";
+ if(!T3){const R=new TH.WebGLRenderer({antialias:true,alpha:true});R.setPixelRatio(Math.min(2,devicePixelRatio||1));const cam=new TH.PerspectiveCamera(35,1,10,100000),sc=new TH.Scene();sc.add(new TH.HemisphereLight(0xffffff,0x8090a0,1.05));const dl=new TH.DirectionalLight(0xffffff,.5);dl.position.set(1,2,1.5);sc.add(dl);
+  T3={R,cam,sc,grp:null,th:0.6,ph:0.5,dist:4000,tgt:new V()};}
+ const t=T3;box.querySelector("canvas")||box.appendChild(t.R.domElement);t.R.domElement.style.cssText="width:100%;height:100%;display:block";$("#m3w").style.display="none";
+ if(t.grp)t.sc.remove(t.grp);const g=new TH.Group(),G={body:new TH.Group(),dim:new TH.Group(),ceil:new TH.Group(),bolt:new TH.Group()};Object.values(G).forEach(x=>g.add(x));t.grp=g;t.sc.add(g);
+ const M=c=>new TH.MeshStandardMaterial({color:c,roughness:.55,metalness:.1}),bx=(sx,sy,sz,x,y,z,c,to,op)=>{const k=new TH.Mesh(new TH.BoxGeometry(sx,sy,sz),M(c));if(op){k.material.transparent=true;k.material.opacity=op}k.position.set(x,y,z);(to||G.body).add(k);
+   if(Math.min(sx,sy,sz)>12&&!op){const e=new TH.LineSegments(new TH.EdgesGeometry(k.geometry),new TH.LineBasicMaterial({color:0x334155}));e.position.copy(k.position);(to||G.body).add(e)}return k};
+ const cyl=(r,l,a,b,c,to)=>{const d=b.clone().sub(a),k=new TH.Mesh(new TH.CylinderGeometry(r,r,d.length(),16),M(c));k.position.copy(a).add(b).multiplyScalar(.5);k.quaternion.setFromUnitVectors(new V(0,1,0),d.normalize());(to||G.body).add(k);return k};
+ const C={gas:0x2563eb,liq:0xdc2626,dr:0x16a34a,bolt:0x7c3aed,dim:dark?0xe2e8f0:0x0f172a,body:0xcbd5e1,panel:0xf1f5f9};
+ /* 本体・パネル・天井 */
+ {const k=bx(m.L,m.H,m.W,0,yb+m.H/2,0,C.body);k.material.transparent=true;k.material.opacity=.5;k.material.depthWrite=false;const e=new TH.LineSegments(new TH.EdgesGeometry(k.geometry),new TH.LineBasicMaterial({color:0x334155}));e.position.copy(k.position);G.body.add(e)}   // 本体は透かして中の配管の口が見えるように
+ if(!bi&&m.pa){bx(m.pa,Math.max(8,m.pt||20),m.pb,0,-(m.pt||20)/2,0,C.panel)}
+ if(m.eb)bx(m.eb[0],m.eb[1],m.eb[2],m.eb[3],m.eb[4],m.eb[5],0x6b7280);
+ if(m.gd){[[m.sa,1,"吹出し",0x475569],[m.ra,-1,"吸込み",0xe2e8f0]].forEach(([d,k,n,c])=>{if(!d)return;bx(d[0],d[1],30,0,d[2],k*(m.W/2+15),c);bx(d[0]*.94,d[1]*.94,160,0,d[2],k*(m.W/2+110),0xd6d3d1)})}
+ const span=Math.max(m.L,m.W,m.ba||0,m.bb||0,m.pa||0,m.pb||0)+700;
+ {const c=new TH.Mesh(new TH.BoxGeometry(span,4,span),new TH.MeshStandardMaterial({color:0x94a3b8,transparent:true,opacity:.28,depthWrite:false}));c.position.y=-((bi?0:(m.pt||20)))-2;G.ceil.add(c);
+  if(!bi&&m.oa){const o=new TH.LineSegments(new TH.EdgesGeometry(new TH.BoxGeometry(m.oa,1,m.ob)),new TH.LineDashedMaterial({color:0xf97316,dashSize:30,gapSize:20}));o.computeLineDistances();o.position.y=1;G.ceil.add(o)}}
+ /* 全ねじ（紫の棒）とネコ */
+ const YT=top+350;if(m.ba&&m.bb)[-1,1].forEach(a=>[-1,1].forEach(b=>{const x=a*m.ba/2,z=b*m.bb/2;cyl(6,0,new V(x,m.nk-60,z),new V(x,YT,z),C.bolt,G.bolt);bx(70,10,70,x,m.nk,z,C.bolt,G.bolt)}));
+ /* 配管の口・ドレン */
+ const P=[["gas","ガス"+(m.g?" φ"+m.g:""),C.gas],["liq","液"+(m.l?" φ"+m.l:""),C.liq],["dr","ドレン",C.dr]].filter(a=>m[a[0]]);
+ P.forEach(([k,,c])=>{const p=m[k],x0=k==="dr"?(m.drx||m.L/2):xP;cyl(k==="dr"?16:12,0,new V(x0,p.y,p.z),new V(x0+120,p.y,p.z),c)});
+ [m.hw,m.dup].forEach(q=>{if(q)cyl(10,0,new V(m.L/2,q.y,q.z),new V(m.L/2+60,q.y,q.z),0x94a3b8)});
+ /* 寸法：線＋端の短い線＋数字の札 */
+ const lab=(txt,p,col)=>{const cv=document.createElement("canvas"),x=cv.getContext("2d"),fs=44;x.font=`800 ${fs}px -apple-system,'Hiragino Sans',sans-serif`;const w=Math.ceil(x.measureText(txt).width)+24;cv.width=w;cv.height=fs+20;
+   x.font=`800 ${fs}px -apple-system,'Hiragino Sans',sans-serif`;x.fillStyle=dark?"rgba(15,23,42,.85)":"rgba(255,255,255,.9)";x.fillRect(0,0,w,fs+20);x.fillStyle="#"+col.toString(16).padStart(6,"0");x.textBaseline="middle";x.fillText(txt,12,(fs+20)/2+2);
+   const sp=new TH.Sprite(new TH.SpriteMaterial({map:new TH.CanvasTexture(cv),depthTest:false}));const h=span*0.045;sp.scale.set(h*w/(fs+20),h,1);sp.position.copy(p);sp.renderOrder=9;G.dim.add(sp)};
+ const ln=(a,b,col)=>{const l=new TH.Line(new TH.BufferGeometry().setFromPoints([a,b]),new TH.LineBasicMaterial({color:col,depthTest:false}));l.renderOrder=8;G.dim.add(l)};
+ const dim=(a,b,off,txt,col)=>{col=col||C.dim;const A=a.clone().add(off),B=b.clone().add(off);ln(A,B,col);ln(a,A,col);ln(b,B,col);const n=off.clone().normalize().multiplyScalar(span*0.03);lab(txt,A.clone().add(B).multiplyScalar(.5).add(n),col)};
+ const o=span*0.07;
+ dim(new V(-m.L/2,top,m.W/2),new V(m.L/2,top,m.W/2),new V(0,0,o),"本体 "+f(m.L));
+ dim(new V(-m.L/2,top,-m.W/2),new V(-m.L/2,top,m.W/2),new V(-o,0,0),"本体 "+f(m.W));
+ dim(new V(m.L/2,yb,-m.W/2),new V(m.L/2,top,-m.W/2),new V(0,0,-o),"高さ "+f(m.H));
+ if(!bi&&yb>5)dim(new V(m.L/2,0,-m.W/2),new V(m.L/2,top,-m.W/2),new V(o*1.6,0,-o),"天井内 "+f(top));
+ if(m.ba&&m.bb){dim(new V(-m.ba/2,YT,-m.bb/2),new V(m.ba/2,YT,-m.bb/2),new V(0,0,-o),"吊り "+f(m.ba),C.bolt);dim(new V(m.ba/2,YT,-m.bb/2),new V(m.ba/2,YT,m.bb/2),new V(o,0,0),"吊り "+f(m.bb),C.bolt);
+  dim(new V(-m.ba/2,0,m.bb/2),new V(-m.ba/2,m.nk,m.bb/2),new V(-o,0,o*.5),"ネコ "+f(m.nk),C.bolt)}
+ if(!bi&&m.pa)dim(new V(-m.pa/2,-(m.pt||20),-m.pb/2),new V(m.pa/2,-(m.pt||20),-m.pb/2),new V(0,-o*.6,-o*.6),"パネル "+f(m.pa)+"×"+f(m.pb),0x0284c7);
+ if(!bi&&m.oa)lab("開口 "+(m.oTxt||f(m.oa)+"×"+f(m.ob)),new V(-m.oa/2,10,m.ob/2+o*.4),0xf97316);
+ /* 配管の口：口の先から引出線で、配管の面の前に高さの順に並べる（重ならないように） */
+ P.map(([k,n,c])=>[k,n,c,m[k]]).sort((a,b)=>b[3].y-a[3].y).forEach(([k,n,c,p],i)=>{const x0=(k==="dr"?(m.drx||m.L/2):xP)+120,q=new V(m.L/2+o*1.3,top+span*.05-i*span*.075,p.z);ln(new V(x0,p.y,p.z),q,c);lab(n+"　下から "+f(p.y),q.clone().add(new V(o*.3,0,0)),c)});
+ if(m.gd)[[m.sa,1,"吹出し"],[m.ra,-1,"吸込み"]].forEach(([d,k,n])=>{if(d)lab(n+" "+f(d[0])+"×"+f(d[1]),new V(0,d[2]+d[1]/2+span*.04,k*(m.W/2+200)),0x475569)});
+ lab("▶ 配管の出る面",new V(m.L/2+260,top+80,0),0x0369a1);
+ /* 見る向き・回す */
+ const fit=()=>{t.tgt.set(m.L*.15,(top+350)/2,0);t.dist=span*1.75;},put=()=>{const c=t.cam,w=box.clientWidth||340,h=box.clientHeight||380;t.R.setSize(w,h,false);c.aspect=w/h;c.updateProjectionMatrix();
+   c.position.set(t.tgt.x+t.dist*Math.cos(t.ph)*Math.cos(t.th),t.tgt.y+t.dist*Math.sin(t.ph),t.tgt.z+t.dist*Math.cos(t.ph)*Math.sin(t.th));c.up.set(0,1,0);c.lookAt(t.tgt);
+   G.dim.visible=$("#m3d").checked;G.ceil.visible=$("#m3c").checked;G.bolt.visible=$("#m3b").checked;t.R.render(t.sc,c)};
+ const VW={iso:[0.6,0.5],top:[Math.PI/2,1.5],front:[0,0.05],side:[Math.PI/2,0.05],bot:[0.6,-0.6]};
+ fit();T3.put=put;put();
+ $("#m3v").onclick=e=>{const b=e.target.closest("[data-v]");if(!b)return;[t.th,t.ph]=VW[b.dataset.v];fit();put()};
+ ["m3d","m3c","m3b"].forEach(id=>$("#"+id).onchange=put);
+ if(!t.ev){t.ev=1;const P2=new Map();let last=null;const cv=t.R.domElement;
+  cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);P2.set(e.pointerId,[e.clientX,e.clientY]);last=null});
+  cv.addEventListener("pointermove",e=>{if(!P2.has(e.pointerId))return;const p0=P2.get(e.pointerId);P2.set(e.pointerId,[e.clientX,e.clientY]);
+   if(P2.size===1){t.th+=(e.clientX-p0[0])*0.01;t.ph=Math.max(-1.55,Math.min(1.55,t.ph+(e.clientY-p0[1])*0.01))}
+   else if(P2.size===2){const [a,b]=[...P2.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(last)t.dist=Math.max(300,Math.min(60000,t.dist*last/d));last=d}T3.put()});
+  const up=e=>{P2.delete(e.pointerId);last=null};cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
+  cv.addEventListener("wheel",e=>{e.preventDefault();t.dist=Math.max(300,Math.min(60000,t.dist*(e.deltaY>0?1.1:0.9)));T3.put()},{passive:false});
+  addEventListener("resize",()=>T3.put&&T3.put())}}
 draw();
 </script>
 </body>

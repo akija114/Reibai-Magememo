@@ -2530,7 +2530,7 @@ function grid4PickLine(cur){ // 選び直し：タップした縦（左右）・
   g.i[k] = i; g.use[k] = true; g.pickDir = null; updateUi(); grid4Zoom(g); drawOverlay(); toast(`${G4N[k]}の基準を選び直しました`);
 }
 function grid4Commit(){
-  const A = S.autoDim, g = A.g4; if (S.pdfInfo && S.pdfInfo.guess){ toast('縮尺がまだ仮です。先に縮尺を合わせてください'); return; }
+  const A = S.autoDim, g = A.g4; if (!pdfOk()){ toast('PDFの縮尺をまだ合わせていません。先に寸法を1本測って縮尺を合わせてください'); pdfAsk(); return; }
   const recs = grid4Recs(g); if (!recs.length){ toast('作る寸法がありません（チェックを入れてください）'); return; }
   const gid = curDG().id, c = nextDimC(), ds = recs.map((r, i) => ({id:'a' + Date.now().toString(36) + Math.random().toString(36).slice(2,6) + i, x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2, n:1, g:gid, c}));
   const msg = recs.map(r => `${G4N[r.k]} ${r.c.name || '通り芯'}から ${fmt(Math.hypot(r.x2-r.x1, r.y2-r.y1))}`).join('・');
@@ -2554,7 +2554,7 @@ function updateGridPanel(){
   const p = $('#gridPanel'), A = S.autoDim, g = S.mode === 'dim' && A && A.to === 'grid4' ? A.g4 : null;
   if (!g || g.pickDir || S.lpick){ p.hidden = true; return; }
   p.hidden = false; $('#layerBar').hidden = true; $('#dimPanel').hidden = true;
-  const guess = S.pdfInfo && S.pdfInfo.guess, n = grid4Recs(g).length;
+  const guess = !pdfOk(), n = grid4Recs(g).length;
   const bs = 'style="height:36px;min-height:36px;padding:0 10px"';
   const row = k => { const c = g.C[k][g.i[k]], hz = k === 'u' || k === 'd', v = c ? Math.abs((hz ? g.P[1] : g.P[0]) - c.c) : 0;
     return `<div class="frow" style="gap:6px"><label style="display:flex;align-items:center;gap:6px;min-width:52px;font-weight:700"><input type="checkbox" data-use="${k}" ${c && g.use[k] ? 'checked' : ''} ${c ? '' : 'disabled'} style="width:22px;height:22px">${G4N[k]}</label>
@@ -2564,7 +2564,7 @@ function updateGridPanel(){
   p.innerHTML = `<div class="lsub"><b style="color:var(--ink)">${esc(g.what)} の芯 → 通り芯</b>（${S.units}${g.by === 'pref' ? '・選んだレイヤーの線' : ''}）。使う向きにチェックして確定</div>
     ${G4K.map(row).join('')}
     ${onTxt ? `<div class="lsub">${onTxt}（その向きは作りません）</div>` : ''}
-    ${guess ? `<div class="lsub" style="color:var(--danger)">PDFの縮尺がまだ仮（1/${fmt(S.pdfInfo.scale)}）です。寸法を1本測って「この寸法で縮尺を合わせる」をしてから確定してください</div>` : ''}
+    ${guess ? `<div class="lsub" style="color:var(--danger)">PDFの縮尺をまだ合わせていません（今 1/${fmt(S.pdfInfo.scale)}）。寸法を1本測って「この寸法で縮尺を合わせる」をしてから確定してください</div>` : ''}
     <div class="frow"><button class="btn" data-a="layers">基準のレイヤー</button><button class="btn" data-a="cancel" style="flex:1">やめる</button><button class="btn pri" data-a="ok" style="flex:1.4" ${n && !guess ? '' : 'disabled'}>${n}本 確定</button></div>`;
   p.onchange = e => { const k = e.target.dataset.use; if (k){ g.use[k] = e.target.checked; drawOverlay(); updateGridPanel(); } };
   p.onclick = e => {
@@ -2948,7 +2948,7 @@ function updateDimPanel(){
     <div class="divs"><button class="btn ${n === 1 ? 'sel' : ''}" data-n="1">分割なし</button><button class="btn ${n === 2 ? 'sel' : ''}" data-n="2">中心（2等分）</button>${pick.slice(1).map(k => `<button class="btn ${n === k ? 'sel' : ''}" data-n="${k}">${k}等分</button>`).join('')}
     <button class="btn" data-a="minus" aria-label="分割を減らす">−</button><button class="btn" data-a="plus" aria-label="分割を増やす">＋</button></div>
     <div class="frow"><select class="gsel" id="dimGrp" style="height:40px;max-width:120px" aria-label="寸法のグループ">${S.dimGroups.map(g => `<option value="${g.id}" ${g.id === d.g ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select><button class="btn" data-a="zoom" style="flex:1">ここを拡大</button><button class="btn del" data-a="del" style="flex:1">この寸法を削除</button></div>
-    ${S.pdfInfo ? `<div class="frow" id="calRow"><button class="btn" data-a="cal" style="flex:1">この寸法で縮尺を合わせる（今 1/${fmt(S.pdfInfo.scale)}）</button></div>` : ''}`;
+    ${S.pdfInfo ? `<div class="frow" id="calRow"><button class="btn${pdfOk() ? '' : ' pri'}" data-a="cal" style="flex:1">${pdfOk() ? '' : '📏 '}この寸法で縮尺を合わせる（今 1/${fmt(S.pdfInfo.scale)}${pdfOk() ? '' : '・まだ合わせていません'}）</button></div>` : ''}`;
   p.onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.n){ const k = +b.dataset.n; if (k !== (d.n||1)) exec(cmdDiv(d, k)); return; }
@@ -3313,6 +3313,7 @@ async function openText(text, srcName, opts = {}){
     S.name = opts.name || (doc.meta?.name) || srcName.replace(/\.dxf$/i, '');
     S.projectId = opts.projectId || null;
     S.pdfInfo = doc.pdf || null;
+    if (S.pdfInfo && !pdfOk()) setTimeout(pdfAsk, 500);   // PDFは必ず寸法で縮尺を合わせる（2026-10-29 ユーザー）
     buildIndex(); view = {s:1, tx:0, ty:0}; fit(); renderTabs(); updateUi();
     if (opts.fileId !== 'sample' && !opts.noStore) dbOp('files', 'readwrite', s => s.put({id:S.fileId, text, srcName}));
     autosave(false); S.dirty = !!opts.keepDirty;
@@ -4468,6 +4469,17 @@ function scaleState(st, r){
   if (st.mov) st.mov.list = (st.mov.list || []).map(([e, ...d]) => { const T = tOf(d); return [e, T[0], T[1], T[2]*r, T[3]*r]; }); st.log = (st.log || []).map(x => x.tr ? {...x, tr:[x.tr[0], x.tr[1], x.tr[2]*r, x.tr[3]*r]} : x); st.kiki = (st.kiki || []).map(k => ({...k, x:k.x*r, y:k.y*r}));
   st.log = (st.log || []).map(e => ({...e, box:sp(e.box), dims:e.dims && e.dims.map(d => ({...d, x1:d.x1*r, y1:d.y1*r, x2:d.x2*r, y2:d.y2*r, ...(d.to ? {to:d.to.map(v => v*r)} : {})})), routes:e.routes && e.routes.map(W => W.map(q => [q[0]*r, q[1]*r])), ghosts:e.ghosts && e.ghosts.map(sg), prev:e.prev && e.prev.map(([k, v, c]) => [k, sv(v), c]), restore:e.restore && [e.restore[0], sv(e.restore[1]), e.restore[2]]}));
   return st;
+}
+/* PDFの縮尺：図面の「1/50」は目安。PDFは必ず長さの分かる寸法を1本測って合わせる（2026-10-29 ユーザー：PDFは全部縮尺を合わせたい） */
+function pdfOk(){ return !S.pdfInfo || S.pdfInfo.from === '寸法から合わせた'; }
+function pdfAsk(){
+  if (pdfOk() || !G) return;
+  openSheet('📏 PDFの縮尺を合わせてください', body => {
+    body.innerHTML = `<div class="note">図面からは <b>1/${fmt(S.pdfInfo.scale)}</b>（${esc(S.pdfInfo.from || '')}）と読みましたが、PDFは少しずれることがあります。<br>長さの分かる寸法（<b>通り芯と通り芯</b>、寸法の書いてある壁の端など）を1本測って、<b>本当の長さ</b>を入れてください。</div>
+     <div class="note">① 下の「📏 寸法を測る」→ 2点をタップ ② 出てきた寸法の「この寸法で縮尺を合わせる」→ 本当の長さを入れる</div>
+     <div class="frow" style="margin-top:8px"><button class="btn" data-a="later">あとで</button><button class="btn pri" data-a="go" style="flex:1">📏 寸法を測る</button></div>`;
+    body.onclick = e => { const b = e.target.closest('[data-a]'); if (!b) return; closeSheet(); if (b.dataset.a === 'go'){ $('#mDim').click(); toast('長さの分かる2点をタップ → 「この寸法で縮尺を合わせる」'); } else toast('縮尺を合わせるまで、芯出しは使えません'); };
+  });
 }
 async function calibratePdf(r){
   if (!S.pdfInfo || !(r > 0) || Math.abs(r - 1) < 1e-6){ return; }

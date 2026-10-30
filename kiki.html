@@ -164,8 +164,8 @@ async function draw3(m){const box=$("#m3");if(!box)return;try{await load3()}catc
  if(m.eb)bx(m.eb[0],m.eb[1],m.eb[2],m.eb[3],m.eb[4],m.eb[5],0x6b7280);
  if(m.gd){[[m.sa,1,"吹出し",0x475569],[m.ra,-1,"吸込み",0xe2e8f0]].forEach(([d,k,n,c])=>{if(!d)return;bx(d[0],d[1],30,0,d[2],k*(m.W/2+15),c);bx(d[0]*.94,d[1]*.94,160,0,d[2],k*(m.W/2+110),0xd6d3d1)})}
  const span=Math.max(m.L,m.W,m.ba||0,m.bb||0,m.pa||0,m.pb||0)+700;
- {const c=new TH.Mesh(new TH.BoxGeometry(span,4,span),new TH.MeshStandardMaterial({color:0x94a3b8,transparent:true,opacity:.28,depthWrite:false}));c.position.y=-((bi?0:(m.pt||20)))-2;G.ceil.add(c);
-  if(!bi&&m.oa){const o=new TH.LineSegments(new TH.EdgesGeometry(new TH.BoxGeometry(m.oa,1,m.ob)),new TH.LineDashedMaterial({color:0xf97316,dashSize:30,gapSize:20}));o.computeLineDistances();o.position.y=1;G.ceil.add(o)}}
+ {const c=new TH.Mesh(new TH.BoxGeometry(span,4,span),new TH.MeshStandardMaterial({color:0x94a3b8,transparent:true,opacity:.28,depthWrite:false}));c.position.y=bi?-2:2;G.ceil.add(c);   // 天井の板＝仕上げ面（パネルの上・y=0）。ビルトインは本体の下面
+  if(!bi&&m.oa){const o=new TH.LineSegments(new TH.EdgesGeometry(new TH.BoxGeometry(m.oa,1,m.ob)),new TH.LineDashedMaterial({color:0xf97316,dashSize:30,gapSize:20}));o.computeLineDistances();o.position.y=6;G.ceil.add(o)}}
  /* 全ねじ（紫の棒）とネコ */
  const YT=top+350;if(m.ba&&m.bb)[-1,1].forEach(a=>[-1,1].forEach(b=>{const x=a*m.ba/2,z=b*m.bb/2;cyl(6,0,new V(x,m.nk-60,z),new V(x,YT,z),C.bolt,G.bolt);bx(70,10,70,x,m.nk,z,C.bolt,G.bolt)}));
  /* 配管の口・ドレン */

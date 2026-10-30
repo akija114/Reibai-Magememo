@@ -93,7 +93,7 @@ function drawVent(){const V=VENTM[cur],W=360,span=Math.max(V.A+2*V.J+260,V.E+200
  let tb=row("本体",`<b>${f(V.A)}</b> × <b>${f(V.B)}</b> × 高さ <b>${f(V.C)}</b>（${V.kg}kg）`)+row(`<span class="dot" style="background:var(--bolt)"></span>吊りピッチ`,`<b>${f(V.D)}</b> × <b>${f(V.E)}</b>（金具の出 ${f(V.F)}）`)+
   row("ダクト",`呼び径 <b>φ${V.d}</b>（フランジ外径 ${V.G}・${V.H}、出 ${V.J}）`)+row("ダクトの位置",`ダクトピッチ <b>${f(V.K)}</b><br>奥の端から最初のダクト芯 <b>${f(V.L)}</b><br>下面からダクト芯 <b>${f(V.P)}</b>`)+
   row("点検口",`□450 または □600（メンテナンス側の下）<br>本体から 150〜250、天井から600以上のスペース`);
- $("#out").innerHTML=`<div class="card"><div class="nm">${V.n}</div><div class="sub">三菱電機　ロスナイ（天井埋込形）</div></div><div class="card"><h2>📏 寸法</h2><table class="tb">${tb}</table></div><div class="card"><h2>上から見た図</h2>${sv}<div class="note">紫＝天吊金具（全ねじ）。数値はメーカーの外形寸法表より。</div></div>`}
+ $("#out").innerHTML=`<div class="card"><div class="nm">${V.n}</div><div class="sub">三菱電機　ロスナイ（天井埋込形）</div></div>${m3Card("本体の下面",1)}<div class="card"><h2>📏 寸法</h2><table class="tb">${tb}</table></div><div class="card"><h2>上から見た図</h2>${sv}<div class="note">紫＝天吊金具（全ねじ）。数値はメーカーの外形寸法表より。</div></div>`;draw3(null,V)}
 function draw(){if(VENTM[cur]){drawVent();return}const m=CAS2M[cur],bi=!!m.bi,fin=bi?"本体の下面":"天井の仕上げ面";
  const P=[["gas","ガス",m.g?"φ"+m.g:"","--gas"],["liq","液",m.l?"φ"+m.l:"","--liq"],["dr","ドレン",m.dn?"":"","--dr"]].filter(a=>m[a[0]]);
  /* ---- 上から見た図（配管の出る面が手前＝下）。svgの横＝左右（左が−z… 正面に見て左＝図の左）、縦＝配管の方向（下が手前） ---- */
@@ -134,10 +134,7 @@ function draw(){if(VENTM[cur]){drawVent();return}const m=CAS2M[cur],bi=!!m.bi,fi
  if(!bi)tb+=row("開口",`<b>${m.oTxt||f(m.oa)+" × "+f(m.ob)}</b>${m.oTxt?`（図面 ${f(m.oa)}×${f(m.ob)}）`:""}<br>パネル ${f(m.pa)} × ${f(m.pb)}`);
  tb+=row("本体",`${f(m.L)} × ${f(m.W)} × 高さ ${f(m.H)}`);
  $("#out").innerHTML=`<div class="card"><div class="nm">${m.n}</div><div class="sub">${(CAS2_MAKERS.find(x=>x[0]===m.mk)||["",""])[1]}　${m.kind}${m.sub?"・"+m.sub:""}</div></div>
-<div class="card"><h2>🧊 模型と寸法</h2><div id="m3" style="position:relative;width:100%;height:380px;border-radius:12px;overflow:hidden;background:#f8fafc;touch-action:none"><div id="m3w" class="note" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;margin:0">模型を読み込んでいます…</div></div>
-<div class="vw" id="m3v">${[["iso","斜め"],["top","上から"],["front","配管の面"],["side","横"],["bot","下から"]].map(([k,t])=>`<button data-v="${k}">${t}</button>`).join("")}</div>
-<div class="vw" id="m3t">${[["m3db","本体の寸法"],["m3dt","吊り・ネコ"],["m3dp","配管の口"],["m3dn","パネル・開口"],["m3u","本体"],["m3n","パネル"],["m3b","全ねじ"],["m3c","天井"]].map(([k,t])=>`<label><input type="checkbox" id="${k}" ${m3Vis(k)?"checked":""}> ${t}</label>`).join("")}</div><div class="vw"><button id="m3all">寸法を全部出す</button><button id="m3none">寸法を全部消す</button></div>
-<div class="note">1本指で回す・2本指で広げて大きく。紫＝全ねじ・ネコ／青＝ガス／赤＝液／緑＝ドレン／灰色の板＝${bi?"本体の下面":"天井の仕上げ面"}。数字は mm。</div></div>
+${m3Card(bi?"本体の下面":"天井の仕上げ面",0)}
 <div class="card"><h2>📏 仕込み寸法（全ねじの芯から）</h2><table class="tb">${tb}</table>
 <div class="note">「手前」＝配管の出る面の側、「左・右」＝配管の出る面を正面に見た時。「外へ」は全ねじより外側、「内へ」は機械の真ん中側です。${m.dn?"<br>"+m.dn:""}</div></div>
 <div class="card"><h2>上から見た図</h2>${sv}<div class="note">紫＝全ねじ／青＝ガス／赤＝液／緑＝ドレン。点線＝パネル・天井開口。</div></div>
@@ -145,25 +142,95 @@ function draw(){if(VENTM[cur]){drawVent();return}const m=CAS2M[cur],bi=!!m.bi,fi
 <div class="note" style="margin:10px 4px">寸法はメーカーの据付説明書・外形図からの値です。仕込み前に、念のため最新の図面で確認してください。${m.doc?`<br><a class="doc" href="${m.doc}" target="_blank" rel="noopener">📄 据付説明書を開く</a>`:""}</div>`;draw3(m)}
 /* ---- 🧊 模型と寸法（three.js をこのページだけで読む。軽くするため core.js は読まない）。x＝配管の方向（+x＝配管の出る面）・z＝左右（+z＝正面に見て左）・y＝高さ（${fin}＝0） ---- */
 let T3=null;
+/* 天井カセットの形：曲げ共有の3D（core.js の makeUnit の cas2）と同じ作り。ここでは天井の真ん中が原点・+x＝配管の出る面。全ねじ・寸法はこのページの物を使う */
+function rbox(TH,sx,sy,sz,r){const sh=new TH.Shape(),x=sx/2,y=sz/2;sh.moveTo(-x+r,-y);sh.lineTo(x-r,-y);sh.quadraticCurveTo(x,-y,x,-y+r);sh.lineTo(x,y-r);sh.quadraticCurveTo(x,y,x-r,y);
+ sh.lineTo(-x+r,y);sh.quadraticCurveTo(-x,y,-x,y-r);sh.lineTo(-x,-y+r);sh.quadraticCurveTo(-x,-y,-x+r,-y);const g=new TH.ExtrudeGeometry(sh,{depth:sy,bevelEnabled:false,curveSegments:6});g.rotateX(-Math.PI/2);g.center();return g}
+function realUnit(TH,md,G,h){const M=c=>new TH.MeshStandardMaterial({color:c,roughness:.5,metalness:.1}),tg=G.body;
+ const put=(geo,x,y,z,c)=>{const k=new TH.Mesh(geo,M(c));k.position.set(x,y,z);tg.add(k);return k},edge=(k,geo)=>{try{k.add(new TH.LineSegments(new TH.EdgesGeometry(geo,25),new TH.LineBasicMaterial({color:0x1f2937})))}catch(e){}};
+ const bx=(sx,sy,sz,x,y,z,c)=>{const geo=new TH.BoxGeometry(sx,sy,sz),k=put(geo,x,y,z,c);if(Math.min(sx,sy,sz)>12)edge(k,geo);return k},rb=(sx,sy,sz,r,x,y,z,c)=>{const geo=rbox(TH,sx,sy,sz,r),k=put(geo,x,y,z,c);edge(k,geo);return k};
+ const cyl=(r,hh,x,y,z,c,sg)=>put(new TH.CylinderGeometry(r,r,hh,sg||24),x,y,z,c);
+ const WH=0xf1f5f9,DK=0x334155,MD=0x94a3b8,CU=0xc2703a,BRS=0xb8860b,sd=1,Lb=md.L,Wb=md.W,HB=md.H,TOP=md.top||md.H;
+ const G0={z:md.gas.z,y:md.gas.y},L0={z:md.liq.z,y:md.liq.y},D0r=md.dr?{z:md.dr.z,y:md.dr.y}:null,PX=Lb/2-(md.pin||0);
+ let body;if(md.pv){const sh=new TH.Shape();md.pv.forEach(([px,py],i)=>{const u=py-Lb/2,v=sd*(Wb/2-px);i?sh.lineTo(u,v):sh.moveTo(u,v)});
+  const geo=new TH.ExtrudeGeometry(sh,{depth:HB,bevelEnabled:false});geo.rotateX(Math.PI/2);body=put(geo,0,TOP,0,0x9ca3af);edge(body,geo)}
+ else body=bx(Lb,HB,Wb,0,TOP-HB/2,0,0x9ca3af);
+ body.material.transparent=true;body.material.opacity=.45;body.material.depthWrite=false;   // 本体は透かして中の配管の口を見せる
+ if(!md.bi&&md.pa)rb(md.pa,md.pt||20,md.pb,20,0,-(md.pt||20)/2,0,WH);   // パネル
+ const py=-(md.pt||20)-2,sl=(lx,lz,x,z,rx,rz)=>{bx(lx,5,lz,x,py,z,DK);const f2=bx(lx*.97,6,lz*.97+8,x,py-5,z,0xf8fafc);if(rx)f2.rotation.x=rx;if(rz)f2.rotation.z=rz};
+ if(md.kind==="4方向"){const q=md.pa/2-80,l=md.pa*.6;sl(l,60,0,q,0.5);sl(l,60,0,-q,-0.5);sl(60,l,q,0,0,-0.5);sl(60,l,-q,0,0,0.5);   // 4辺の吹出口
+  bx(md.pa*.5,4,md.pb*.5,0,py+1,0,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.48,2,5,0,py-2,i*md.pb*.045,MD)}
+ else if(md.kind==="1方向"){const q=md.pb/2-80;sl(md.pa*.8,62,0,-q,-0.5);bx(md.pa*.82,4,md.pb*.5,0,py+1,md.pb*.12,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.8,2,5,0,py-2,md.pb*.12+i*md.pb*.045,MD)}
+ else if(md.bi&&!md.gd){const yb2=TOP-HB;bx(6,150,604,-Lb/2-3,yb2+110,0,DK);bx(6,190*.9,574,Lb/2+3,yb2+117,-sd*70,0xe8edf2);for(let i=-6;i<=6;i++)bx(8,4,560,Lb/2+5,yb2+117+i*13,-sd*70,MD);
+  [[-260,45],[0,115],[260,45]].forEach(([z,w])=>bx(170,6,w*1.6,-40,TOP+3,sd*z,MD))}
+ else if(md.bi&&md.gd){const dk=(w,hh,y,z,c)=>{bx(w,hh,30,0,y,z*(Wb/2+15),c);bx(w*.94,hh*.94,120,0,y,z*(Wb/2+90),0xd6d3d1)};dk(md.sa[0],md.sa[1],md.sa[2],sd,DK);dk(md.ra[0],md.ra[1],md.ra[2],-sd,0xe8edf2);
+  [md.hw,md.dup].forEach(q=>{if(q){const c=cyl(10,50,Lb/2+25,q.y,q.z*sd,0x94a3b8,12);c.rotation.z=Math.PI/2}})}
+ else if(!md.bi&&md.pa){const q=md.pb/2-93;[-1,1].forEach(k=>sl(md.pa*.82,62,0,k*q,k*0.5));bx(md.pa*.62,4,md.pb*.46,0,py+1,0,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.6,2,5,0,py-2,i*md.pb*.042,MD)}
+ if(md.mi)bx(10,140,185,Lb/2+4,TOP-116,-sd*(Wb/2-189),MD);   // 配管の接続口とドレン
+ else if(md.pin){bx(md.pin+4,Math.abs(G0.y-L0.y)+110,Math.abs(G0.z-L0.z)+130,Lb/2-md.pin/2+2,(G0.y+L0.y)/2,(G0.z+L0.z)/2,DK);bx(10,Math.abs(G0.y-L0.y)+90,Math.abs(G0.z-L0.z)+90,PX+4,(G0.y+L0.y)/2,(G0.z+L0.z)/2,MD)}
+ else bx(10,Math.abs(G0.y-L0.y)+90,Math.abs(G0.z-L0.z)+90,Lb/2+4,(G0.y+L0.y)/2,(G0.z+L0.z)/2,MD);
+ [[G0,13],[L0,9]].forEach(([q,r])=>{const n=cyl(r*1.5,16,PX+12,q.y,q.z,BRS,6);n.rotation.z=Math.PI/2});
+ if(md.eb)bx(md.eb[0],md.eb[1],md.eb[2],md.eb[3],md.eb[4],md.eb[5]*sd,0x6b7280);
+ if(D0r&&!md.nodr){const DXr=md.drx||Lb/2;bx(10,70,70,DXr+4,D0r.y,D0r.z,MD)}
+ /* 天井より下の部品（パネル・吹出口）は「パネル」に */
+ tg.updateMatrixWorld(true);[...tg.children].forEach(k=>{if(!k.isMesh||k===body)return;const b=new TH.Box3().setFromObject(k);if((b.min.y+b.max.y)/2<0){tg.remove(k);G.panel.add(k)}})}
+/* ロスナイの形：曲げ共有の3D（core.js の換気の機器）と同じ作り。床から下面＝0・真ん中が原点。寸法の線も足す。返す値は見る広さ */
+function ventModel(TH,V,G,h){const {lab,ln,dim,C}=h,W3=TH.Vector3,g=G.body,MT=(c,o2)=>new TH.MeshStandardMaterial(Object.assign({color:c,roughness:.55,metalness:.15},o2||{}));
+ const bx=(w,hh,d,x,y,z,m,ed,to)=>{const k=new TH.Mesh(new TH.BoxGeometry(w,hh,d),m);k.position.set(x,y,z);(to||g).add(k);if(ed){try{const e=new TH.LineSegments(new TH.EdgesGeometry(k.geometry),new TH.LineBasicMaterial({color:ed}));e.position.copy(k.position);(to||g).add(e)}catch(err){}}return k};
+ const A=V.A,B=V.B,Cc=V.C,a=A-14,b=B-14,dy=Cc*(94/289),jl=V.J+7,steel=MT(0xd1d5db,{metalness:.55,roughness:.35}),span=Math.max(A+2*V.J,B,V.D,V.E)+700;
+ bx(a,Cc,b,0,Cc/2,0,MT(0xeef0f2),0x475569);bx(a-8,3,b-8,0,Cc+1.5,0,MT(0xe2e5e9));bx(a-8,3,b-8,0,-1.5,0,MT(0xe2e5e9));
+ [-1,1].forEach(sx=>{bx(4,Cc-16,b-20,sx*(a/2+2),Cc/2,0,MT(0xe5e7eb))});
+ const cw=Math.min(310,a*0.4);bx(cw,Cc-4,15,0,Cc/2,b/2+7.5,MT(0xcbd5e1),0x64748b);[-1,1].forEach(sx=>bx(26,30,10,sx*(cw/2-30),Cc/2,b/2+20,MT(0x475569)));   // メンテナンスカバー
+ const cbL=Math.min(175,a*0.23),cbx=a/2-28-cbL/2;bx(cbL,Math.min(259,Cc-30),113,cbx,Cc/2+4,b/2+56.5,MT(0xdfe3e8),0x64748b);   // 制御箱
+ [-1,1].forEach(sx=>[-1,1].forEach(sz=>{const xx=sx*(V.D/2+6),zz=sz*(b/2);bx(36,110,4,xx-sx*4,Cc-75,zz+sz*2,steel);bx(36,5,V.F+12,xx,Cc-65,zz+sz*(V.F+12)/2,steel);   // 天吊金具
+   const bt=new TH.Mesh(new TH.CylinderGeometry(6,6,Cc+420,8),MT(0x7c3aed));bt.position.set(xx,Cc-65+(Cc+420)/2-20,sz*V.E/2);G.bolt.add(bt);
+   [-1,1].forEach(q=>{const nt=new TH.Mesh(new TH.CylinderGeometry(10,10,8,6),MT(0x6b7280,{metalness:.6}));nt.position.set(xx,Cc-65+q*9,sz*V.E/2);G.bolt.add(nt)})}));
+ const sp=MT(0xcbd5e1,{roughness:.3,metalness:.65});
+ [["EA 排気",-1,-1,0xdc2626],["OA 外気",-1,1,0x16a34a],["RA 還気",1,-1,0xea580c],["SA 給気",1,1,0x2563eb]].forEach(([nm,sx,sz,col],i)=>{const zc=-B/2+V.L+(sz>0?V.K:0),R2=V.H/2;   // ダクトの差し込み口
+  bx(5,R2*2+26,R2*2+26,sx*(a/2+2.5),dy,zc,MT(0xd4d8dd),0x64748b);
+  const fl=new TH.Mesh(new TH.CylinderGeometry(R2+12.5,R2+12.5,6,28),sp);fl.rotation.z=Math.PI/2;fl.position.set(sx*(a/2+8),dy,zc);g.add(fl);
+  const tb=new TH.Mesh(new TH.CylinderGeometry(R2,R2*1.04,jl,28,1,true),sp);tb.rotation.z=Math.PI/2;tb.position.set(sx*(a/2+jl/2),dy,zc);g.add(tb);
+  const rg=new TH.Mesh(new TH.TorusGeometry(R2+3,4,6,24),new TH.MeshBasicMaterial({color:col}));rg.rotation.y=Math.PI/2;rg.position.set(sx*(a/2+jl),dy,zc);g.add(rg);
+  h.cg(G.dp);lab(nm+" φ"+V.d,new W3(sx*(a/2+jl+span*.12),dy+R2+span*.03,zc),col)});
+ {const c=new TH.Mesh(new TH.BoxGeometry(span,4,span),new TH.MeshStandardMaterial({color:0x94a3b8,transparent:true,opacity:.28,depthWrite:false}));c.position.y=-4;G.ceil.add(c)}   // 天井（本体の下面）
+ /* 寸法 */
+ const o=span*0.07;h.cg(G.db);
+ dim(new W3(-A/2,Cc,B/2),new W3(A/2,Cc,B/2),new W3(0,0,o),"本体 "+f(A));dim(new W3(-A/2,Cc,-B/2),new W3(-A/2,Cc,B/2),new W3(-o,0,0),"本体 "+f(B));dim(new W3(A/2,0,-B/2),new W3(A/2,Cc,-B/2),new W3(0,0,-o),"高さ "+f(Cc));
+ lab("▼ メンテナンス側（点検口）",new W3(0,-span*.05,B/2+o),0x0369a1);
+ h.cg(G.dt);const YT=Cc+350;dim(new W3(-V.D/2-6,YT,-V.E/2),new W3(V.D/2+6,YT,-V.E/2),new W3(0,0,-o),"吊り "+f(V.D),C.bolt);dim(new W3(V.D/2+6,YT,-V.E/2),new W3(V.D/2+6,YT,V.E/2),new W3(o,0,0),"吊り "+f(V.E),C.bolt);
+ h.cg(G.dp);dim(new W3(-a/2-jl,dy,-B/2+V.L),new W3(-a/2-jl,dy,-B/2+V.L+V.K),new W3(-o,0,0),"ダクトピッチ "+f(V.K),0x475569);dim(new W3(-a/2-jl,0,-B/2+V.L),new W3(-a/2-jl,dy,-B/2+V.L),new W3(-o*.6,0,-o*.6),"下面から "+f(V.P),0x475569);
+ dim(new W3(-a/2-jl,dy,-B/2),new W3(-a/2-jl,dy,-B/2+V.L),new W3(-o*1.4,0,0),"奥の端から "+f(V.L),0x475569);
+ return span}
+/* 🧊 模型と寸法のカード（vent＝ロスナイ：配管の口の代わりにダクト） */
+function m3Card(fin,vent){const VIS=vent?[["m3db","本体の寸法"],["m3dt","吊り"],["m3dp","ダクト"],["m3u","本体"],["m3b","全ねじ"],["m3c","天井"]]
+  :[["m3db","本体の寸法"],["m3dt","吊り・ネコ"],["m3dp","配管の口の高さ"],["m3dk","全ねじから口まで"],["m3dn","パネル・開口"],["m3u","本体"],["m3n","パネル"],["m3b","全ねじ"],["m3c","天井"]];
+ return `<div class="card"><h2>🧊 模型と寸法</h2><div id="m3" style="position:relative;width:100%;height:380px;border-radius:12px;overflow:hidden;background:#f8fafc;touch-action:none"><div id="m3w" class="note" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;margin:0">模型を読み込んでいます…</div></div>
+<div class="vw" id="m3v">${[["iso","斜め"],["top","上から"],["front",vent?"正面":"配管の面"],["side","横"],["bot","下から"]].map(([k,t])=>`<button data-v="${k}">${t}</button>`).join("")}</div>
+<div class="vw" id="m3t">${VIS.map(([k,t])=>`<label><input type="checkbox" id="${k}" ${m3Vis(k)?"checked":""}> ${t}</label>`).join("")}</div><div class="vw"><button id="m3all">寸法を全部出す</button><button id="m3none">寸法を全部消す</button></div>
+<div class="note">1本指で回す・2本指で広げて大きく。${vent?"紫＝全ねじ／赤＝EA 排気・緑＝OA 外気・橙＝RA 還気・青＝SA 給気":"紫＝全ねじ・ネコ／青＝ガス／赤＝液／緑＝ドレン"}／灰色の板＝${fin}。数字は mm。</div></div>`}
 /* 出す／消すは覚えておく（この端末・機種が変わっても同じ） */
 function m3Vis(k,v){let o={};try{o=JSON.parse(localStorage.getItem("pbm_kiki_vis")||"{}")}catch(e){}if(v===undefined)return o[k]!==false;o[k]=!!v;try{localStorage.setItem("pbm_kiki_vis",JSON.stringify(o))}catch(e){}return v}
 function load3(){return window.THREE?Promise.resolve():new Promise((ok,ng)=>{const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";sc.onload=ok;sc.onerror=ng;document.head.appendChild(sc)})}
-async function draw3(m){const box=$("#m3");if(!box)return;try{await load3()}catch(e){$("#m3w").textContent="模型の部品を読み込めませんでした（電波を確認してください）";return}if(!$("#m3")||CAS2M[cur]!==m)return;
- const TH=THREE,V=TH.Vector3,bi=!!m.bi,top=m.top||m.H,yb=top-m.H,xP=m.L/2-(m.pin||0),dark=matchMedia("(prefers-color-scheme: dark)").matches&&document.documentElement.dataset.theme!=="light";
+async function draw3(m,VV){const box=$("#m3");if(!box)return;try{await load3()}catch(e){$("#m3w").textContent="模型の部品を読み込めませんでした（電波を確認してください）";return}if(!$("#m3")||(VV?VENTM[cur]!==VV:CAS2M[cur]!==m))return;
+ const TH=THREE,V=TH.Vector3,mm=m||{},bi=!!mm.bi,top=VV?VV.C:(mm.top||mm.H),yb=VV?0:top-mm.H,xP=(mm.L||0)/2-(mm.pin||0),dark=matchMedia("(prefers-color-scheme: dark)").matches&&document.documentElement.dataset.theme!=="light";
  if(!T3){const R=new TH.WebGLRenderer({antialias:true,alpha:true});R.setPixelRatio(Math.min(2,devicePixelRatio||1));const cam=new TH.PerspectiveCamera(35,1,10,100000),sc=new TH.Scene();sc.add(new TH.HemisphereLight(0xffffff,0x8090a0,1.05));const dl=new TH.DirectionalLight(0xffffff,.5);dl.position.set(1,2,1.5);sc.add(dl);
   T3={R,cam,sc,grp:null,th:0.6,ph:0.5,dist:4000,tgt:new V()};}
  const t=T3;box.querySelector("canvas")||box.appendChild(t.R.domElement);t.R.domElement.style.cssText="width:100%;height:100%;display:block";$("#m3w").style.display="none";
- if(t.grp)t.sc.remove(t.grp);const g=new TH.Group(),G={body:new TH.Group(),port:new TH.Group(),panel:new TH.Group(),dim:new TH.Group(),db:new TH.Group(),dt:new TH.Group(),dp:new TH.Group(),dn:new TH.Group(),ceil:new TH.Group(),bolt:new TH.Group()};Object.values(G).forEach(x=>g.add(x));t.grp=g;t.sc.add(g);
+ if(t.grp)t.sc.remove(t.grp);const g=new TH.Group(),G={body:new TH.Group(),port:new TH.Group(),panel:new TH.Group(),dim:new TH.Group(),db:new TH.Group(),dt:new TH.Group(),dp:new TH.Group(),dn:new TH.Group(),ceil:new TH.Group(),bolt:new TH.Group(),dk:new TH.Group()};Object.values(G).forEach(x=>g.add(x));t.grp=g;t.sc.add(g);
  const M=c=>new TH.MeshStandardMaterial({color:c,roughness:.55,metalness:.1}),bx=(sx,sy,sz,x,y,z,c,to,op)=>{const k=new TH.Mesh(new TH.BoxGeometry(sx,sy,sz),M(c));if(op){k.material.transparent=true;k.material.opacity=op}k.position.set(x,y,z);(to||G.body).add(k);
    if(Math.min(sx,sy,sz)>12&&!op){const e=new TH.LineSegments(new TH.EdgesGeometry(k.geometry),new TH.LineBasicMaterial({color:0x334155}));e.position.copy(k.position);(to||G.body).add(e)}return k};
  const cyl=(r,l,a,b,c,to)=>{const d=b.clone().sub(a),k=new TH.Mesh(new TH.CylinderGeometry(r,r,d.length(),16),M(c));k.position.copy(a).add(b).multiplyScalar(.5);k.quaternion.setFromUnitVectors(new V(0,1,0),d.normalize());(to||G.body).add(k);return k};
  const C={gas:0x2563eb,liq:0xdc2626,dr:0x16a34a,bolt:0x7c3aed,dim:dark?0xe2e8f0:0x0f172a,body:0xcbd5e1,panel:0xf1f5f9};
+ let span=4000,cg=null;
+ /* 寸法：線＋端の短い線＋数字の札 */
+ const lab=(txt,p,col)=>{const cv=document.createElement("canvas"),x=cv.getContext("2d"),fs=44;x.font=`800 ${fs}px -apple-system,'Hiragino Sans',sans-serif`;const w=Math.ceil(x.measureText(txt).width)+24;cv.width=w;cv.height=fs+20;
+   x.font=`800 ${fs}px -apple-system,'Hiragino Sans',sans-serif`;x.fillStyle=dark?"rgba(15,23,42,.85)":"rgba(255,255,255,.9)";x.fillRect(0,0,w,fs+20);x.fillStyle="#"+col.toString(16).padStart(6,"0");x.textBaseline="middle";x.fillText(txt,12,(fs+20)/2+2);
+   const sp=new TH.Sprite(new TH.SpriteMaterial({map:new TH.CanvasTexture(cv),depthTest:false}));const h=span*0.038;sp.scale.set(h*w/(fs+20),h,1);sp.position.copy(p);sp.renderOrder=9;(cg||G.dim).add(sp)};
+ const ln=(a,b,col)=>{const l=new TH.Line(new TH.BufferGeometry().setFromPoints([a,b]),new TH.LineBasicMaterial({color:col,depthTest:false}));l.renderOrder=8;(cg||G.dim).add(l)};
+ const dim=(a,b,off,txt,col)=>{col=col||C.dim;const A=a.clone().add(off),B=b.clone().add(off);ln(A,B,col);ln(a,A,col);ln(b,B,col);const n=off.clone().normalize().multiplyScalar(span*0.03);lab(txt,A.clone().add(B).multiplyScalar(.5).add(n),col)};
+ if(VV){span=Math.max(VV.A+2*VV.J,VV.B,VV.D,VV.E)+700;ventModel(TH,VV,G,{lab,ln,dim,C,cg:x=>{cg=x}});}else{
  /* 本体・パネル・天井 */
- {const k=bx(m.L,m.H,m.W,0,yb+m.H/2,0,C.body);k.material.transparent=true;k.material.opacity=.5;k.material.depthWrite=false;const e=new TH.LineSegments(new TH.EdgesGeometry(k.geometry),new TH.LineBasicMaterial({color:0x334155}));e.position.copy(k.position);G.body.add(e)}   // 本体は透かして中の配管の口が見えるように
- if(!bi&&m.pa){bx(m.pa,Math.max(8,m.pt||20),m.pb,0,-(m.pt||20)/2,0,C.panel,G.panel)}
- if(m.eb)bx(m.eb[0],m.eb[1],m.eb[2],m.eb[3],m.eb[4],m.eb[5],0x6b7280);
- if(m.gd){[[m.sa,1,"吹出し",0x475569],[m.ra,-1,"吸込み",0xe2e8f0]].forEach(([d,k,n,c])=>{if(!d)return;bx(d[0],d[1],30,0,d[2],k*(m.W/2+15),c);bx(d[0]*.94,d[1]*.94,160,0,d[2],k*(m.W/2+110),0xd6d3d1)})}
- const span=Math.max(m.L,m.W,m.ba||0,m.bb||0,m.pa||0,m.pb||0)+700;
+ realUnit(TH,m,G,{bx,M,C});
+ span=Math.max(m.L,m.W,m.ba||0,m.bb||0,m.pa||0,m.pb||0)+700;
  {const c=new TH.Mesh(new TH.BoxGeometry(span,4,span),new TH.MeshStandardMaterial({color:0x94a3b8,transparent:true,opacity:.28,depthWrite:false}));c.position.y=bi?-2:2;G.ceil.add(c);   // 天井の板＝仕上げ面（パネルの上・y=0）。ビルトインは本体の下面
   if(!bi&&m.oa){const o=new TH.LineSegments(new TH.EdgesGeometry(new TH.BoxGeometry(m.oa,1,m.ob)),new TH.LineDashedMaterial({color:0xf97316,dashSize:30,gapSize:20}));o.computeLineDistances();o.position.y=6;G.ceil.add(o)}}
  /* 全ねじ（紫の棒）とネコ */
@@ -172,13 +239,7 @@ async function draw3(m){const box=$("#m3");if(!box)return;try{await load3()}catc
  const P=[["gas","ガス"+(m.g?" φ"+m.g:""),C.gas],["liq","液"+(m.l?" φ"+m.l:""),C.liq],["dr","ドレン",C.dr]].filter(a=>m[a[0]]);
  P.forEach(([k,,c])=>{const p=m[k],x0=k==="dr"?(m.drx||m.L/2):xP;cyl(k==="dr"?16:12,0,new V(x0,p.y,p.z),new V(x0+120,p.y,p.z),c,G.port)});   // 配管の口は本体を消しても出す
  [m.hw,m.dup].forEach(q=>{if(q)cyl(10,0,new V(m.L/2,q.y,q.z),new V(m.L/2+60,q.y,q.z),0x94a3b8)});
- /* 寸法：線＋端の短い線＋数字の札 */
- const lab=(txt,p,col)=>{const cv=document.createElement("canvas"),x=cv.getContext("2d"),fs=44;x.font=`800 ${fs}px -apple-system,'Hiragino Sans',sans-serif`;const w=Math.ceil(x.measureText(txt).width)+24;cv.width=w;cv.height=fs+20;
-   x.font=`800 ${fs}px -apple-system,'Hiragino Sans',sans-serif`;x.fillStyle=dark?"rgba(15,23,42,.85)":"rgba(255,255,255,.9)";x.fillRect(0,0,w,fs+20);x.fillStyle="#"+col.toString(16).padStart(6,"0");x.textBaseline="middle";x.fillText(txt,12,(fs+20)/2+2);
-   const sp=new TH.Sprite(new TH.SpriteMaterial({map:new TH.CanvasTexture(cv),depthTest:false}));const h=span*0.038;sp.scale.set(h*w/(fs+20),h,1);sp.position.copy(p);sp.renderOrder=9;(cg||G.dim).add(sp)};
- const ln=(a,b,col)=>{const l=new TH.Line(new TH.BufferGeometry().setFromPoints([a,b]),new TH.LineBasicMaterial({color:col,depthTest:false}));l.renderOrder=8;(cg||G.dim).add(l)};
- const dim=(a,b,off,txt,col)=>{col=col||C.dim;const A=a.clone().add(off),B=b.clone().add(off);ln(A,B,col);ln(a,A,col);ln(b,B,col);const n=off.clone().normalize().multiplyScalar(span*0.03);lab(txt,A.clone().add(B).multiplyScalar(.5).add(n),col)};
- const o=span*0.07;let cg=G.db;   // 寸法は種類ごとのグループに（出す／消す）
+ const o=span*0.07;cg=G.db;   // 寸法は種類ごとのグループに（出す／消す）
  dim(new V(-m.L/2,top,m.W/2),new V(m.L/2,top,m.W/2),new V(0,0,o),"本体 "+f(m.L));
  dim(new V(-m.L/2,top,-m.W/2),new V(-m.L/2,top,m.W/2),new V(-o,0,0),"本体 "+f(m.W));
  dim(new V(m.L/2,yb,-m.W/2),new V(m.L/2,top,-m.W/2),new V(0,0,-o),"高さ "+f(m.H));
@@ -189,17 +250,22 @@ async function draw3(m){const box=$("#m3");if(!box)return;try{await load3()}catc
  if(!bi&&m.oa)lab("開口 "+(m.oTxt||f(m.oa)+"×"+f(m.ob)),new V(-m.oa/2,10,m.ob/2+o*.4),0xf97316);
  /* 配管の口：口の先から引出線で、配管の面の前に高さの順に並べる（重ならないように） */
  cg=G.dp;P.map(([k,n,c])=>[k,n,c,m[k]]).sort((a,b)=>b[3].y-a[3].y).forEach(([k,n,c,p],i)=>{const x0=(k==="dr"?(m.drx||m.L/2):xP)+120,q=new V(m.L/2+o*1.3,top+span*.05-i*span*.075,p.z);ln(new V(x0,p.y,p.z),q,c);lab(n+"　下から "+f(p.y),q.clone().add(new V(o*.3,0,0)),c)});
+ /* 全ねじの芯から配管の口まで（手前＝配管の方向・左右）。表と同じ数字 */
+ cg=G.dk;if(m.ba&&m.bb)P.filter(([k])=>k!=="dr"||!m.drx).forEach(([k,n,c],i)=>{const p=m[k],r=fromBolt(m,p),zb=p.z>=0?m.bb/2:-m.bb/2,y=p.y,nm=n.split(" ")[0];
+  const sz=p.z>=0?1:-1;   // 上から見ても重ならないように、左右の寸法は配管の面の前へ、手前の寸法は横へずらす
+  dim(new V(m.ba/2,y,zb),new V(m.ba/2,y,p.z),new V(span*(.1+i*.13),0,0),nm+" "+r.side+"から"+io(r.dz,"外へ","内へ"),c);
+  dim(new V(m.ba/2,y,p.z),new V(xP,y,p.z),new V(0,0,sz*span*(.08+i*.11)),nm+" 手前から"+io(r.dx,"外へ","内へ"),c)});
  cg=G.db;if(m.gd)[[m.sa,1,"吹出し"],[m.ra,-1,"吸込み"]].forEach(([d,k,n])=>{if(d)lab(n+" "+f(d[0])+"×"+f(d[1]),new V(0,d[2]+d[1]/2+span*.04,k*(m.W/2+200)),0x475569)});
- lab("▶ 配管の出る面",new V(m.L/2+260,top+80,0),0x0369a1);
+ lab("▶ 配管の出る面",new V(m.L/2+260,top+80,0),0x0369a1);}
  /* 見る向き・回す */
- const fit=()=>{t.tgt.set(m.L*.15,(top+350)/2,0);t.dist=span*1.75;},put=()=>{const c=t.cam,w=box.clientWidth||340,h=box.clientHeight||380;t.R.setSize(w,h,false);c.aspect=w/h;c.updateProjectionMatrix();
+ const fit=()=>{t.tgt.set(VV?0:m.L*.15,(top+350)/2,0);t.dist=span*1.75;},put=()=>{const c=t.cam,w=box.clientWidth||340,h=box.clientHeight||380;t.R.setSize(w,h,false);c.aspect=w/h;c.updateProjectionMatrix();
    c.position.set(t.tgt.x+t.dist*Math.cos(t.ph)*Math.cos(t.th),t.tgt.y+t.dist*Math.sin(t.ph),t.tgt.z+t.dist*Math.cos(t.ph)*Math.sin(t.th));c.up.set(0,1,0);c.lookAt(t.tgt);
-   const on=k=>{const e=$("#"+k);return e?e.checked:true};G.db.visible=on("m3db");G.dim.visible=on("m3db");G.dt.visible=on("m3dt");G.dp.visible=on("m3dp");G.dn.visible=on("m3dn");G.body.visible=on("m3u");G.panel.visible=on("m3n");G.ceil.visible=on("m3c");G.bolt.visible=on("m3b");t.R.render(t.sc,c)};
+   const on=k=>{const e=$("#"+k);return e?e.checked:true};G.db.visible=on("m3db");G.dim.visible=on("m3db");G.dt.visible=on("m3dt");G.dp.visible=on("m3dp");G.dn.visible=on("m3dn");G.body.visible=on("m3u");G.panel.visible=on("m3n");G.ceil.visible=on("m3c");G.bolt.visible=on("m3b");G.dk.visible=on("m3dk");t.R.render(t.sc,c)};
  const VW={iso:[0.6,0.5],top:[Math.PI/2,1.5],front:[0,0.05],side:[Math.PI/2,0.05],bot:[0.6,-0.6]};
  fit();T3.put=put;put();
  $("#m3v").onclick=e=>{const b=e.target.closest("[data-v]");if(!b)return;[t.th,t.ph]=VW[b.dataset.v];fit();put()};
  $("#m3t").onchange=e=>{const k=e.target.id;if(k)m3Vis(k,e.target.checked);put()};
- [["m3all",true],["m3none",false]].forEach(([id,v])=>$("#"+id).onclick=()=>{["m3db","m3dt","m3dp","m3dn"].forEach(k=>{$("#"+k).checked=v;m3Vis(k,v)});put()});
+ [["m3all",true],["m3none",false]].forEach(([id,v])=>$("#"+id).onclick=()=>{["m3db","m3dt","m3dp","m3dk","m3dn"].forEach(k=>{const e=$("#"+k);if(!e)return;e.checked=v;m3Vis(k,v)});put()});
  if(!t.ev){t.ev=1;const P2=new Map();let last=null;const cv=t.R.domElement;
   cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);P2.set(e.pointerId,[e.clientX,e.clientY]);last=null});
   cv.addEventListener("pointermove",e=>{if(!P2.has(e.pointerId))return;const p0=P2.get(e.pointerId);P2.set(e.pointerId,[e.clientX,e.clientY]);

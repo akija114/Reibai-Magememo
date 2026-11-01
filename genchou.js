@@ -29,7 +29,7 @@ function startXR(){
   const rad=Math.max(D/2000,0.006);
   const seg=(a,b,m,r)=>{const l=a.distanceTo(b);if(l<1e-4)return null;const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,12),m);c.position.copy(a).add(b).multiplyScalar(.5);c.quaternion.setFromUnitVectors(UP,b.clone().sub(a).normalize());return c};
   // 機器の模型
-  if(slot){const k=slot,mk=makeUnit(st.units[k],{kind:st.info.kind,wx:st.units["w"+k],om:st.units["o"+k],ox:st.units["x"+k],ck:st.units["c"+k],mm:st.units["m"+k]});
+  if(slot){const k=slot,mk=makeUnit(st.units[k],{kind:st.info.kind,wx:st.units["w"+k],om:st.units["o"+k],ox:st.units["x"+k],ck:st.units["c"+k],mm:st.units["m"+k],wm:st.units["k"+k]});
    X.unit=mk.g;X.name=mk.name;X.c2=mk.c2;
    if(mk.c2){X.L0=new V(...mk.c2.ceil);X.ref="ceil"}
    else{const bb=new THREE.Box3().setFromObject(mk.g),c=bb.getCenter(new V()),t=st.units[k];

@@ -1115,7 +1115,7 @@ function uBox(g){g.updateMatrixWorld(true);const b=new THREE.Box3();
 function rpGeom(){
  const V=THREE.Vector3,up=new V(0,1,0),R=RP;
  const D0=(R.it==="wall"&&(WALLX[R.ws]||WALLX.rb).k==="d")?new V(0,-1,0):new V(1,0,0),F0=frameFor(D0);
- const mi=makeUnit(R.it,{kind:st.info.kind,wx:R.ws,ck:st.units.cs,mm:R.im});
+ const mi=makeUnit(R.it,{kind:st.info.kind,wx:R.ws,ck:st.units.cs,mm:R.im,wm:st.units.ks});
  mi.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(F0.ex,F0.ey,F0.ez));mi.g.position.set(0,0,0);
  const bi=uBox(mi.g),ci=bi.getCenter(new V());
  let GY;if(mi.c2){mi.g.updateMatrixWorld(true);GY=mi.g.localToWorld(new V(...mi.c2.ceil)).y-R.ch}else GY=bi.max.y-R.top;

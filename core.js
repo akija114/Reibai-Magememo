@@ -76,10 +76,11 @@ function wrot(k,x,y,z){
  if(k==="l")return[-x,y,-z];
  return[x,y,z];
 }
-function wallPose(key){
- const w=WALLX[key]||WALLX.rb,k=w.k,pr=wrot(k,w.p[0],w.p[1],w.p[2]),pos=[-pr[0],-pr[1],-pr[2]];
+function wallPose(key,wm){
+ const w=WALLX[key]||WALLX.rb,k=w.k,M=typeof WALLM!=="undefined"&&WALLM[wm],wp=M&&M.ex[WALLX[key]?key:"rb"]||w.p,pr=wrot(k,wp[0],wp[1],wp[2]),pos=[-pr[0],-pr[1],-pr[2]];
+ const hw=M?M.W/2:400,hh=M?M.H/2:145,dd0=M?M.D:215;   // 機種を選んだ時は外形図の大きさ（選ばない時は今までの目安 800×290×215）
  let sx=0,n=0,mx=-1e9,my=-1e9;
- [-400,400].forEach(x=>[-145,145].forEach(y=>[0,215].forEach(z=>{
+ [-hw,hw].forEach(x=>[-hh,hh].forEach(y=>[0,dd0].forEach(z=>{
   const q=wrot(k,x,y,z),X=q[0]+pos[0],Y=q[1]+pos[1];sx+=X;n++;mx=Math.max(mx,X);my=Math.max(my,Y)})));
  const dd=DIRN[k];
  return{k,pos,cx:sx/n,top:my,maxX:mx,dir:wrot(k,dd[0],dd[1],dd[2]),name:w.n};
@@ -88,7 +89,8 @@ const MAKERS=[["daikin","ダイキン",-1,1],["mitsu","三菱電機",1,1],["pana
 const BR_ICO="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJjdSIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2ZmZTFiNSIvPjxzdG9wIG9mZnNldD0iLjQ1IiBzdG9wLWNvbG9yPSIjZTg5MDNmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjOWE0YTEyIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48ZyBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiPgoKPHBhdGggZD0iTTUwIDUwIEM2MCA1MCA2NCAzMiA3NiAzMCBMODQgMjkiIHN0cm9rZT0iIzVhMjgwOCIgc3Ryb2tlLXdpZHRoPSIxMCIvPjxwYXRoIGQ9Ik01MCA1MCBDNjAgNTAgNjQgNjggNzYgNzAgTDg0IDcxIiBzdHJva2U9IiM1YTI4MDgiIHN0cm9rZS13aWR0aD0iMTAiLz4KPHBhdGggZD0iTTUwIDUwIEM2MCA1MCA2NCAzMiA3NiAzMCBMODQgMjkiIHN0cm9rZT0idXJsKCNjdSkiIHN0cm9rZS13aWR0aD0iNyIvPjxwYXRoIGQ9Ik01MCA1MCBDNjAgNTAgNjQgNjggNzYgNzAgTDg0IDcxIiBzdHJva2U9InVybCgjY3UpIiBzdHJva2Utd2lkdGg9IjciLz4KCjxwYXRoIGQ9Ik01MCA0Ny41IEM1OSA0Ny41IDYzIDMwIDc2IDI3LjUgTDg0IDI2LjUiIHN0cm9rZT0iI2ZmZjRlMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIG9wYWNpdHk9Ii43NSIvPgo8cGF0aCBkPSJNNTIgNDggQzYwIDQ5IDY0IDY2IDc2IDY3LjUgTDg0IDY4LjUiIHN0cm9rZT0iI2ZmZjRlMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIG9wYWNpdHk9Ii42Ii8+CjwvZz4KPHJlY3QgeD0iOSIgeT0iNDMuNSIgd2lkdGg9IjM2IiBoZWlnaHQ9IjEzIiByeD0iNi41IiBmaWxsPSIjNWEyODA4Ii8+PHJlY3QgeD0iMTAuNSIgeT0iNDUiIHdpZHRoPSIzMyIgaGVpZ2h0PSIxMCIgcng9IjUiIGZpbGw9InVybCgjY3UpIi8+PHJlY3QgeD0iMTIiIHk9IjQ2IiB3aWR0aD0iMzAiIGhlaWdodD0iMiIgcng9IjEiIGZpbGw9IiNmZmY0ZTAiIG9wYWNpdHk9Ii44Ii8+CjxyZWN0IHg9IjM2IiB5PSI0MSIgd2lkdGg9IjIwIiBoZWlnaHQ9IjE4IiByeD0iNiIgZmlsbD0iIzVhMjgwOCIvPjxyZWN0IHg9IjM3LjUiIHk9IjQyLjUiIHdpZHRoPSIxNyIgaGVpZ2h0PSIxNSIgcng9IjUiIGZpbGw9InVybCgjY3UpIi8+PHJlY3QgeD0iMzkiIHk9IjQ0IiB3aWR0aD0iMTQiIGhlaWdodD0iMyIgcng9IjEuNSIgZmlsbD0iI2ZmZjRlMCIgb3BhY2l0eT0iLjc1Ii8+Cjwvc3ZnPg==";
 const BRI=(h)=>`<img alt="" src="${BR_ICO}" style="width:${h||"1.35em"};height:${h||"1.35em"};vertical-align:-0.35em;margin-right:4px">`;
 const LEGIDS="abcdefghijklmnopqrstuvwx".split("");
-function normUnits(u){u=u||{};const o={he:Array.isArray(u.he)&&u.he.length===2&&u.he.every(isFinite)?u.he.map(Number):null,on:u.on!==false,s:UNIT_KEYS.includes(u.s)?u.s:"",e:UNIT_KEYS.includes(u.e)?u.e:"",ws:WALLX[u.ws]?u.ws:"rb",we:WALLX[u.we]?u.we:"rb",mk:MAKERS.some(m=>m[0]===u.mk)?u.mk:"daikin",flip:!!u.flip,os:OUTM[u.os]?u.os:"room",oe:OUTM[u.oe]?u.oe:"room",xs:OUT_X[u.xs]?u.xs:"s",xe:OUT_X[u.xe]?u.xe:"s",cs:u.cs==="r"?"r":"f",ce:u.ce==="r"?"r":"f",ms:CAS2M[u.ms]?u.ms:"56",me:CAS2M[u.me]?u.me:"56"};
+const wcmKey=k=>(typeof WALLM!=="undefined"&&WALLM[k])||(typeof CEILM!=="undefined"&&CEILM[k])?k:"";   // 壁掛け・天吊の機種（無い時は ""＝目安の大きさ）
+function normUnits(u){u=u||{};const o={he:Array.isArray(u.he)&&u.he.length===2&&u.he.every(isFinite)?u.he.map(Number):null,on:u.on!==false,s:UNIT_KEYS.includes(u.s)?u.s:"",e:UNIT_KEYS.includes(u.e)?u.e:"",ws:WALLX[u.ws]?u.ws:"rb",we:WALLX[u.we]?u.we:"rb",mk:MAKERS.some(m=>m[0]===u.mk)?u.mk:"daikin",flip:!!u.flip,os:OUTM[u.os]?u.os:"room",oe:OUTM[u.oe]?u.oe:"room",xs:OUT_X[u.xs]?u.xs:"s",xe:OUT_X[u.xe]?u.xe:"s",cs:u.cs==="r"?"r":"f",ce:u.ce==="r"?"r":"f",ms:CAS2M[u.ms]?u.ms:"56",me:CAS2M[u.me]?u.me:"56",ks:wcmKey(u.ks),ke:wcmKey(u.ke)};
  LEGIDS.forEach(id=>{const k="L"+id;if(u[k]===undefined)return;
   o[k]=UNIT_KEYS.includes(u[k])?u[k]:"";o["wL"+id]=WALLX[u["wL"+id]]?u["wL"+id]:"rb";o["oL"+id]=OUTM[u["oL"+id]]?u["oL"+id]:"room";o["xL"+id]=OUT_X[u["xL"+id]]?u["xL"+id]:"s";o["cL"+id]=u["cL"+id]==="r"?"r":"f";o["mL"+id]=CAS2M[u["mL"+id]]?u["mL"+id]:"56"});
  return o}
@@ -695,7 +697,7 @@ function makeUnit(type,opt){
   tg=g;
  }else if(type==="ceil"){
   /* 天吊：箱は中心が原点。正面=+z、吹出口は正面の下向き。配管は正面から見て右端の後ろ・下から出る */
-  const W=1240,H=210,D=690,ck=opt.ck==="r"?"r":"f",Pn=ck==="r"?[W/2,-H/2+55,-D/2+90]:[W/2-80,-H/2+55,-D/2];
+  const CM=typeof CEILM!=="undefined"&&CEILM[opt.wm],W=CM?CM.W:1240,H=CM?CM.H:210,D=CM?CM.D:690,ck=opt.ck==="r"?"r":"f",Pn=CM?(ck==="r"?CM.pr:CM.pf):ck==="r"?[W/2,-H/2+55,-D/2+90]:[W/2-80,-H/2+55,-D/2];   // 機種を選んだ時は外形図の大きさ
   const RB=ck==="r"?OUT_R.s:OUT_R.b;
   const R=v=>[0,1,2].map(j=>v[0]*RB[0][j]+v[1]*RB[1][j]+v[2]*RB[2][j]);
   const body=new THREE.Group();g.add(body);tg=body;
@@ -709,16 +711,19 @@ function makeUnit(type,opt){
   bx(W*.9,54,8,0,22,D/2+1,DK);                                                  // 正面の吹出口（暗い開口）
   const fl=bx(W*.9,8,86,0,-12,D/2+30,0xf8fafc);fl.rotation.x=0.75;               // 風向フラップ（前・下向き）
   bx(W*.9,10,8,0,52,D/2+2,MD);
-  [-W/2+100,W/2-100].forEach(x=>[-D/2+100,D/2-100].forEach(z=>cyl(8,300,x,H/2+150,z,0x64748b,10)));
+  (CM?[-CM.bp[0]/2,CM.bp[0]/2]:[-W/2+100,W/2-100]).forEach(x=>(CM?[CM.bp[2]-CM.bp[1]/2,CM.bp[2]+CM.bp[1]/2]:[-D/2+100,D/2-100]).forEach(z=>cyl(8,300,x,H/2+150,z,0x64748b,10)));
+  if(CM)[-1,1].forEach(sg=>bx(44,40,CM.bp[1]+60,sg*(CM.bp[0]/2-10),H/2-20,CM.bp[2],MD));   // 吊り金具（本体の両端）
   if(ck==="r")bx(8,100,170,Pn[0]+3,Pn[1],Pn[2],MD);else bx(170,100,8,Pn[0],Pn[1],Pn[2]-3,MD);   // 配管カバー
   tg=g;
  }else{
-  const P=wallPose(opt.wx),ig=new THREE.Group(),keep=tg;tg=ig;
-  bx(800,290,215,0,0,107.5,WH);bx(740,16,110,0,-137,165,DK);bx(700,6,60,0,142,60,MD);bx(70,24,4,260,40,216,0x38bdf8);
+  const P=wallPose(opt.wx,opt.wm),ig=new THREE.Group(),keep=tg;tg=ig;
+  const WM=typeof WALLM!=="undefined"&&WALLM[opt.wm];
+  if(WM){const W=WM.W,H=WM.H,D=WM.D;bx(W,H,D,0,0,D/2,WH);bx(W-60,16,Math.min(110,D*.5),0,-H/2+8,D-Math.min(55,D*.25),DK);bx(W-100,6,Math.min(60,D*.3),0,H/2-3,D*.28,MD);bx(70,24,4,W/2-140,40,D+1,0x38bdf8)}   // 外形図の大きさ
+  else{bx(800,290,215,0,0,107.5,WH);bx(740,16,110,0,-137,165,DK);bx(700,6,60,0,142,60,MD);bx(70,24,4,260,40,216,0x38bdf8)}
   tg=keep;
   if(P.k==="d")ig.rotation.z=Math.PI/2;else ig.rotation.y=P.k==="b"?-Math.PI/2:P.k==="l"?Math.PI:0;
   ig.position.set(P.pos[0],P.pos[1],P.pos[2]);g.add(ig);
-  name="壁掛け（"+P.name+"）";cx=P.cx;top=P.top;
+  name="壁掛け（"+(WM?WM.n.split(" / ")[0]+"・":"")+P.name+"）";cx=P.cx;top=P.top;
  }
  return{g,name,top,cx,cz:opt.cz||0,labs:opt.labs,c2:opt.c2,dr:opt.dr};
 }
@@ -844,7 +849,7 @@ const LG=[];
   ul.forEach(([t,org,ex,L])=>{
    const type=st.units[t];if(!type)return;
    try{
-    const mk=makeUnit(type,{kind:st.info.kind,wx:st.units["w"+t],om:st.units["o"+t],ox:st.units["x"+t],ck:st.units["c"+t],mm:st.units["m"+t]}),f=frameFor(ex,t==="e"?st.units.he:null);
+    const mk=makeUnit(type,{kind:st.info.kind,wx:st.units["w"+t],om:st.units["o"+t],ox:st.units["x"+t],ck:st.units["c"+t],mm:st.units["m"+t],wm:st.units["k"+t]}),f=frameFor(ex,t==="e"?st.units.he:null);
     mk.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(f.ex,f.ey,f.ez));
     mk.g.position.copy(org);mk.g.updateMatrixWorld(true);
     bb.union(new THREE.Box3().setFromObject(mk.g));
@@ -1451,6 +1456,17 @@ function applyModelPipe(slot,key){
 }
 const cas2Grp=m=>!m?"cas2":m.bi?"bi":m.kind==="4方向"?"cas":m.kind==="1方向"?"one":"cas2";
 function unitGrp(k){const u=st.units[k];return u==="cas2"?cas2Grp(CAS2M[st.units["m"+k]]):u}
+/* 壁掛け・天吊の機種（外形図の大きさ）：st.units.ks／ke（"" は今までの目安の大きさ） */
+function wcmPick(box,k,ty,lab){
+ const L=ty==="wall"?WALL_MORDER.map(x=>[x,WALLM[x]]):CEIL_MORDER.map(x=>[x,CEILM[x]]),kk="k"+k,cur=(ty==="wall"?WALLM:CEILM)[st.units[kk]]?st.units[kk]:"";
+ const t=document.createElement("div");t.className="ctitle";t.textContent=(ty==="wall"?"🧱 壁掛けの機種":"🔧 天吊の機種")+"（"+lab+"）";box.appendChild(t);
+ const g=document.createElement("div");g.className="ugrid mdl";
+ [["",null]].concat(L).forEach(([key,m])=>{const b=document.createElement("button");b.className="ubtn"+(cur===key?" on":"");
+  b.innerHTML=m?m.n.split(" / ").map(x=>"<b"+(x.length>14?' style="font-size:12.5px"':"")+">"+x+"</b>").join("")+"<small>"+m.W+"×"+m.H+"×"+m.D+"<br>ガスφ"+m.g+"・液φ"+m.l+"</small>":"<b>目安の大きさ</b><small>"+(ty==="wall"?"800×290×215":"1240×210×690")+"</small>";
+  b.onclick=()=>{st.units[kk]=key;save();renderUnitSheet();unitRefresh()};g.appendChild(b)});
+ box.appendChild(g);
+ const m=cur&&(ty==="wall"?WALLM:CEILM)[cur];if(m){const n=document.createElement("div");n.className="note";n.textContent="三菱電機 "+m.n+(m.kind?"（"+m.kind+"）":"")+"　"+m.spec+"。"+m.src+"の寸法で作っています。";box.appendChild(n)}
+}
 function renderUnitSheet(){
  const nop=!!st.nopipe;$("#uTtl").textContent=nop?"❄️ 室内機を選ぶ":"🏠 機器の模型";$("#uDone").style.display=nop?"":"none";$("#uOn").style.display=nop?"none":"";
  [...$("#uOn").children].forEach(b=>b.classList.toggle("on",(b.dataset.v==="1")===st.units.on));
@@ -1482,7 +1498,7 @@ const SLOTS=[["s","起点"],...(st.nopipe?[]:brOn()?leaves().map(g=>["L"+g,slotN
    const g3=document.createElement("div");g3.className="ugrid";
    [["f","裏面（右下）"],["r","右端・裏（サブ）"]].forEach(([key,nm])=>{const b=document.createElement("button");b.className="ubtn"+(st.units[ck]===key?" on":"");b.textContent=nm;
     b.onclick=()=>{st.units[ck]=key;save();renderUnitSheet();unitRefresh()};g3.appendChild(b)});
-   box.appendChild(g3);return;
+   box.appendChild(g3);wcmPick(box,k,"ceil",lab);return;
   }
   if(st.units[k]==="cas2"){
    const mk2="m"+k,cur=CAS2M[st.units[mk2]]||CAS2M["56"],grp=cas2Grp(cur),inG=x=>cas2Grp(CAS2M[x])===grp;
@@ -1540,7 +1556,7 @@ const SLOTS=[["s","起点"],...(st.nopipe?[]:brOn()?leaves().map(g=>["L"+g,slotN
    const b=document.createElement("button");b.className="ubtn"+(st.units[wk]===key?" on":"");b.textContent=WALLX[key].n;
    b.onclick=()=>{st.units[wk]=key;save();renderUnitSheet();unitRefresh()};gr.appendChild(b);
   });
-  box.appendChild(gr);
+  box.appendChild(gr);wcmPick(box,k,"wall",lab);
  });
  SLOTS.map(([k])=>[k,"#u"+k]).forEach(([k,q])=>{
   const box=$(q);box.innerHTML="";

@@ -85,6 +85,8 @@ input[type=range]{accent-color:var(--acc)}
 .inf .neg b{color:var(--warn)}
 #legbar{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:0 2px 6px;align-items:stretch}
 #legbar:empty{display:none}
+#lfBar{flex:none;display:flex;gap:6px;padding:0 2px}#lfBar .sharebtn{flex:1;height:38px;margin-bottom:6px;font-size:13px}
+.lfrow{display:flex;align-items:center;gap:8px;margin-bottom:6px}.lfrow b{flex:none;width:3.6em;font-size:14px;white-space:nowrap}.lfrow input{flex:1;height:42px;font-size:18px;border-radius:10px;padding:0 10px}.lfrow button{width:40px;height:40px;border-radius:20px;background:var(--bg)}
 .legadd{flex:1;height:40px;border:2px dashed #94a3b8;border-radius:12px;background:#fff;color:#334155;font-size:14px;font-weight:800}
 .legtabs{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .legtabs::-webkit-scrollbar{display:none}
@@ -257,7 +259,7 @@ input[type=range]{accent-color:var(--acc)}
 .apps a{flex:1;text-align:center;padding:7px 0;border-radius:9px;font-size:13.5px;font-weight:800;color:var(--sub);text-decoration:none;white-space:nowrap}
 .apps a.on{background:var(--acc);color:#fff}
 html[data-app="bend"] #planBtn,html[data-app="bend"] #arBtn,html[data-app="bend"] #genBtn,html[data-app="bend"] #newModel,html[data-app="bend"] #newMachine{display:none!important}
-html[data-app="zumen"] #arBtn,html[data-app="zumen"] #genBtn,html[data-app="zumen"] #legbar,html[data-app="zumen"] #rows,html[data-app="zumen"] .dock{display:none!important}
+html[data-app="zumen"] #arBtn,html[data-app="zumen"] #genBtn,html[data-app="zumen"] #legbar,html[data-app="zumen"] #lfBar,html[data-app="zumen"] #rows,html[data-app="zumen"] .dock{display:none!important}
 html[data-app="zumen"] .stage{flex:1 1 auto}
 #zdock{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 0 calc(env(safe-area-inset-bottom,0px) + 8px)}
 #zdock button{min-height:54px;border-radius:14px;background:var(--card);border:1.5px solid var(--line);font-weight:800;font-size:14.5px;line-height:1.25;padding:6px 8px}
@@ -367,7 +369,7 @@ html.inch #dirOv[data-ez] .dirlens label:after{content:"in"}
 #dirOv[data-ez] .ezbtns button{height:54px;background:var(--bg);color:var(--ink)}
 #dirOv[data-ez] .ezbtns button.ok{background:#2563eb;color:#fff}
 html[data-mode="easy"] .tnever{display:block;margin:-4px auto 8px;font-size:13.5px;color:#64748b;font-weight:700;padding:8px 10px;min-height:44px}
-html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="genchou"] #legbar,html[data-app="genchou"] #rows,html[data-app="genchou"] .dock{visibility:hidden}
+html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="genchou"] #legbar,html[data-app="genchou"] #lfBar,html[data-app="genchou"] #rows,html[data-app="genchou"] .dock{visibility:hidden}
 </style>
 </head>
 <body>
@@ -457,6 +459,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 </div>
 
 <div id="legbar"></div>
+<div id="lfBar"><button class="sharebtn" id="lfOpen">🔢 長さだけ先にメモ</button><button class="sharebtn" id="lfAng" hidden>📐 角度を決める</button></div>
 <div id="rows"></div>
 
 <div class="dock">
@@ -479,6 +482,16 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
     <div class="note" id="supCnt"></div>
     <button class="sharebtn" id="supReset" style="width:100%;background:var(--bg);color:var(--warn)">↩️ 初期値に戻す</button>
     </div>
+  </div>
+</div>
+<div class="ov" id="lfOv">
+  <div class="sheet" style="overflow-y:auto">
+    <div class="shead"><h3>🔢 長さだけ先にメモ</h3><button id="lfClose">✕</button></div>
+    <div class="note" style="font-size:13px;margin-bottom:8px">測った長さを順番に入れてください（起点から曲げまで、曲げから次の曲げまで…最後は先端まで）。角度と向きは、あとで1か所ずつ決めます。</div>
+    <div class="seg" id="lfMode" style="margin-bottom:8px"><button data-v="add">今の曲げに続けて足す</button><button data-v="new">新しく作り直す</button></div>
+    <div id="lfList"></div>
+    <button class="sharebtn" id="lfPlus" style="width:100%">＋ 長さを足す</button>
+    <div style="display:flex;gap:8px"><button class="sharebtn" id="lfSave" style="flex:1">💾 メモだけ（角度はあとで）</button><button class="primary" id="lfGo" style="flex:1.3;height:44px;border-radius:12px;font-weight:800">📐 角度を決める ▶</button></div>
   </div>
 </div>
 <div class="ov" id="tblOv">
@@ -661,7 +674,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="bend";</script>
 <script src="models.js?v=305"></script>
-<script src="core.js?v=333"></script>
+<script src="core.js?v=334"></script>
 <script src="drain.js?v=268"></script>
 <script src="tanka.js?v=228"></script>
 <script src="mitsumori.js?v=294"></script>

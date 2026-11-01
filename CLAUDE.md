@@ -14,7 +14,7 @@
 | ファイル | 中身 |
 |---|---|
 | `index.html` | 曲げ共有の画面とCSS。`html[data-app="bend"]`、初心者モードは `html[data-mode="easy"]` |
-| `core.js` | 曲げ共有・図面・現調で**共用**（`APP` 変数で分ける）。計算・3D・保存・初心者モード |
+| `core.js` | 曲げ共有・図面・現調で**共用**（`APP` 変数で分ける）。計算・3D・保存・初心者モード。🔢 長さだけ先にメモ（`#lfOv`：長さを順に入れて直管 a:0 の行に）→ 📐 角度を決める（`lfStart`・`LFQ` の順に `openDirView`、閉じたら `lfNext`。かんたん表示は STEP 2 から） |
 | `models.js` | 機器の模型データ（触るのは機種を足す時だけ） |
 | `drain.js` | ドレン配管 |
 | `team.js` | LINEでログイン・チームに送る・既読（開いた／✅確認しました／いま見ています）。曲げ共有（index.html）と現場（genba.html）の両方で読む（チームは共通、現場は「自分用メモ」・写真を送らない）。Firebase は図面編集と同じ（ルールは `cad/firestore.rules` の teams）。LIFF ID は先頭の `LIFF_IDS`（公開用 pub を使う。始められない時だけ開発用 dev） |

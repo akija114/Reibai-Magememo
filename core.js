@@ -389,7 +389,7 @@ function render(){
   el.querySelector(".del").onclick=()=>{const nn=nm(i);if(LR().length>1)LR().splice(i,1);else LR()[0]={l:0,a:0,t:0};save();render();if(T)fitT();toastUndo(nn+" を削除しました")};
   box.appendChild(el);
  });
- upd();
+ upd();lfUpd();
 }
 
 function gaugeHTML(t){
@@ -1579,7 +1579,7 @@ function openDirView(i,opt){
    if(!DV)return;
    const rr=LR()[DV.i];if(!rr.a){rr.a=90;rr.t=DV.t;rr.o=false}
    if(DV.add&&!DV.pushed){LR().push({l:500,a:0,t:0,o:false});DV.pushed=true}
-   if(EZ){$("#dirOv").classList.add("on");setupDirLens();ezStep(1);return}   // かんたん表示：配管の後ろへは寄らず、斜めから全体
+   if(EZ){$("#dirOv").classList.add("on");setupDirLens();ezStep(LFQ?2:1);return}   // かんたん表示：配管の後ろへは寄らず、斜めから全体
    build3D();placeDirCam();$("#dirOv").classList.add("on");setupDirLens();drawDial()};
   if(EZ)go();else flyCam(from,to,1100,go);
  },80);
@@ -1629,7 +1629,7 @@ function drawDial(){
  h+=`<line x1="${ax}" y1="${ay}" x2="${hx}" y2="${hy}" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="8" fill="#fff" stroke="#ef4444" stroke-width="3"/><circle cx="${hx}" cy="${hy}" r="15" fill="#ef4444" stroke="#fff" stroke-width="3"/>`;
  svg.innerHTML=EZ&&DV.ez&&DV.ez!==3?"":h;   // かんたん表示は STEP 3 だけダイヤル
  const r=LR()[DV.i];
- $("#dirTop").innerHTML=EZ?ezTop():`🔍 進む方向を向いて見た図（${legName(DV.g)} ${nm(DV.i)} の曲げ）<br><small>赤い丸を指で回して向きを決めます。色付きの目印（天井・床・起点側・前の配管）を手がかりにしてください</small>`;
+ $("#dirTop").innerHTML=EZ?ezTop():`🔍 進む方向を向いて見た図（${legName(DV.g)} ${nm(DV.i)} の曲げ）<br><small>赤い丸を指で回して向きを決めます。色付きの目印（天井・床・起点側・前の配管）を手がかりにしてください</small>`+(LFQ?`<br><b>📐 角度決め ${LFQ.k+1} / ${LFQ.n} か所目</b>`:"");
  $("#dirVal").innerHTML=`向き <b>${dirName(t)}</b>　／　曲げ角度 <b>${r.a}°${r.a>=180?"（返し）":""}</b>`;
  const ab=$("#dirAngs");ab.innerHTML="";
  [15,30,45,90,180].forEach(a=>{const b=document.createElement("button");b.textContent=a+"°";if(r.a===a){b.classList.add("on");b.style.background=ANGC[a]}
@@ -1670,6 +1670,7 @@ function closeDirView(ok){
  const fin=()=>{T.custom=null;T.th=c.th;T.ph=c.ph;T.dist=c.dist;T.tg.copy(c.tg);$("#stage").classList.remove("dirmode");if(!wf)setFull(false);T.dirty=true};
  if(from)flyCam(from,back,800,fin);else fin();
  if(ok)toast("向きを決めました");
+ if(LFQ)lfNext(ok);
 }
 (function(){
  const svg=$("#dirSvg");let drag=false;
@@ -2325,6 +2326,53 @@ function renderTable(){
  sum("💧 液管サイズ別の長さ（追加充填量の計算に）",byL);
  sum("💨 ガス管サイズ別の長さ",byG);
  box.insertAdjacentHTML("beforeend",'<div class="note">長さは各行の長さ（曲げの角から角まで）の合計です。曲げている配管のサイズは上のプルダウンと同じで、もう片方のサイズはここで選べます。</div>');
+}
+/* 長さだけ先にメモ → あとで角度を1か所ずつ決める（曲げ共有だけ。行は今までと同じ {l,a,t,o}、角度を決めるまでは直管 a:0） */
+let LFQ=null;   // 角度決めの順番 {q:[行の番号],n,k}
+function lfUpd(){if(APP!=="bend")return;const b=$("#lfAng");if(!b)return;const n=LR().slice(0,-1).filter(r=>!r.a).length;b.hidden=!n||!T;b.textContent="📐 角度を決める（まっすぐの所 "+n+"）"}
+function lfStart(from){
+ const rows=LR(),q=[];for(let i=Math.max(0,from);i<rows.length-1;i++)if(!rows[i].a)q.push(i);
+ if(!q.length){toast("角度を決める所がありません（長さを2つ以上入れてください）");return}
+ if(!T){toast("3Dが使えません");return}
+ LFQ={q,n:q.length,k:0};sel=q[0];render();toast(nm(q[0])+" と "+nm(q[0]+1)+" の間の曲げ（1 / "+q.length+"）");setTimeout(()=>openDirView(q[0]),60);
+}
+function lfNext(ok){
+ const Q=LFQ;if(!Q)return;
+ if(!ok){LFQ=null;lfUpd();setTimeout(()=>toast("角度決めを止めました。のこりは「📐 角度を決める」からいつでも"),50);return}
+ Q.q.shift();Q.k++;
+ if(!Q.q.length){LFQ=null;lfUpd();setTimeout(()=>toast("✅ 全部の角度を決めました"),50);return}
+ const i=Q.q[0];setTimeout(()=>{if(LFQ!==Q||DV)return;toast(nm(i)+" と "+nm(i+1)+" の間の曲げ（"+(Q.k+1)+" / "+Q.n+"）");openDirView(i)},900);
+}
+if(APP==="bend"){
+ let lfM="add";
+ const ov=$("#lfOv"),list=$("#lfList");
+ const rowsEl=()=>[...list.querySelectorAll("input")];
+ const lab=()=>rowsEl().forEach((e,k)=>{e.parentElement.querySelector("b").textContent=(k+1)+"本目"});
+ const addIn=v=>{const d=document.createElement("div");d.className="lfrow";d.innerHTML=`<b></b><input inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" aria-label="長さ" placeholder="${UNIT==="in"?"inch":"mm"}"><button aria-label="消す">✕</button>`;
+  const inp=d.querySelector("input");if(v)inp.value=v;
+  inp.addEventListener("keydown",e=>{if(e.key!=="Enter")return;e.preventDefault();const a=rowsEl(),k=a.indexOf(inp);if(k<a.length-1)a[k+1].focus();else if(inp.value.trim())addIn("").focus()});
+  d.querySelector("button").onclick=()=>{if(rowsEl().length>1)d.remove();else inp.value="";lab()};
+  list.appendChild(d);lab();return inp};
+ const setM=m=>{lfM=m;[...$("#lfMode").children].forEach(b=>b.classList.toggle("on",b.dataset.v===m))};
+ [...$("#lfMode").children].forEach(b=>b.onclick=()=>setM(b.dataset.v));
+ const empty=()=>LR().every(r=>!(r.l>0));
+ $("#lfOpen").onclick=()=>{list.innerHTML="";const e=empty();$("#lfMode").style.display=e?"none":"";setM(LR().length<2&&!LR()[0].a?"new":"add");/* 曲げがまだ無い時は作り直すが先 */ov.classList.add("on");setTimeout(()=>addIn("").focus(),50)};
+ const close=()=>ov.classList.remove("on");
+ $("#lfClose").onclick=close;ov.addEventListener("click",e=>{if(e.target===ov)close()});
+ $("#lfPlus").onclick=()=>addIn("").focus();
+ const apply=()=>{
+  const L=rowsEl().map(e=>uParse(e.value)||0).filter(v=>v>0);
+  if(!L.length){toast("長さを入れてください");rowsEl()[0].focus();return null}
+  const rows=LR(),nw=L.map(l=>({l:Math.round(l),a:0,t:0,o:false}));
+  let from;
+  if(empty()||lfM==="new"){rows.splice(0,rows.length,...nw);from=0}
+  else{from=rows.length-1;rows.push(...nw)}   // 今の最後の配管の先に曲げを入れて続ける
+  sel=rows.length-1;save();close();render();if(T){T.dirty=true;fitT(true)}
+  return {from,n:L.length};
+ };
+ $("#lfSave").onclick=()=>{const r=apply();if(r)toast(r.n+"本の長さをメモしました。角度は「📐 角度を決める」から")};
+ $("#lfGo").onclick=()=>{const r=apply();if(r)setTimeout(()=>lfStart(r.from),400)};
+ $("#lfAng").onclick=()=>lfStart(0);
 }
 function openTable(){renderTable();$("#tblOv").classList.add("on")}
 $("#chip").addEventListener("click",()=>openTable());

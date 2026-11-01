@@ -4295,6 +4295,16 @@ async function pdfToDxf(bytes, pageNo){
     }
     return subs;
   }
+  /* 細切れの線をまとめる（2026-11-01：1ページに38万本・ほとんどが1mmに満たない点線のかけら・刻んだ曲線の図面で iPhone が落ちた）。
+     紙の上で 0.05pt（約0.02mm）より小さいずれは1本の線にし、全部の長さが 0.15pt（約0.05mm）より短い物（点）は入れない。見た目は変わらない */
+  const TOLm = 0.05*k, MINm = 0.15*k;
+  function thin(sp){ if (sp.length < 2) return sp; let tot = 0; for (let q = 1; q < sp.length; q++) tot += Math.hypot(sp[q][0]-sp[q-1][0], sp[q][1]-sp[q-1][1]); if (tot < MINm) return null; if (sp.length < 3) return sp;
+    const keep = new Uint8Array(sp.length); keep[0] = keep[sp.length-1] = 1; const st2 = [[0, sp.length-1]];
+    while (st2.length){ const [a0, b0] = st2.pop(), A = sp[a0], B = sp[b0], dx = B[0]-A[0], dy = B[1]-A[1], L = Math.hypot(dx, dy); let bd = -1, bi = -1;
+      for (let q = a0+1; q < b0; q++){ const d = L > 1e-9 ? Math.abs(dx*(sp[q][1]-A[1]) - dy*(sp[q][0]-A[0]))/L : Math.hypot(sp[q][0]-A[0], sp[q][1]-A[1]); if (d > bd){ bd = d; bi = q; } }
+      if (bd > TOLm){ keep[bi] = 1; st2.push([a0, bi], [bi, b0]); } }
+    const out = []; let last = 0; for (let q = 0; q < sp.length; q++){ if (!keep[q]) continue; if (sp.cv && q > 0){ for (let r = last+1; r <= q; r++) if (sp.cv.has(r)){ (out.cv || (out.cv = new Set())).add(out.length); break; } } out.push(sp[q]); last = q; }
+    out.closed = sp.closed; return out; }
   const fa = opl.fnArray, aa = opl.argsArray; const opTexts = [];
   const tx = {tm:[1,0,0,1,0,0], tlm:[1,0,0,1,0,0], size:1, hs:1, cs:0, ws:0, lead:0};
   for (let i = 0; i < fa.length; i++){
@@ -4334,10 +4344,10 @@ async function pdfToDxf(bytes, pageNo){
       const op = a[0], d = a[1] && a[1][0]; if (!d || typeof d.length !== 'number') continue;
       const subs = subpaths(d);
       const isWhite = h => /^#f[a-f0-9]f[a-f0-9]f[a-f0-9]$/i.test(h) || h === '#ffffff';
-      if (STROKE.has(op) && !isWhite(gs.stroke)){ const k2 = key(gs.stroke, gs.dash); for (const sp of subs){ for (let q = 1; q < sp.length; q++) addLine(k2, sp[q-1], sp[q], sp.cv && sp.cv.has(q)); if ((sp.closed || op === OPS.closeStroke || op === OPS.closeFillStroke) && sp.length > 2) addLine(k2, sp[sp.length-1], sp[0]); } }
+      if (STROKE.has(op) && !isWhite(gs.stroke)){ const k2 = key(gs.stroke, gs.dash); for (const sp0 of subs){ const sp = thin(sp0); if (!sp) continue; for (let q = 1; q < sp.length; q++) addLine(k2, sp[q-1], sp[q], sp.cv && sp.cv.has(q)); if ((sp.closed || op === OPS.closeStroke || op === OPS.closeFillStroke) && sp.length > 2) addLine(k2, sp[sp.length-1], sp[0]); } }
       else if (FILL.has(op) && !isWhite(gs.fill)){
         const k2 = key(gs.fill, false);
-        for (const sp of subs){
+        for (const sp0 of subs){ const sp = sp0.length > 4 ? thin(sp0) : sp0; if (!sp) continue;
           let pts = sp.slice(); if (pts.length > 1 && Math.hypot(pts[0][0]-pts[pts.length-1][0], pts[0][1]-pts[pts.length-1][1]) < 1e-6) pts.pop();
           if (pts.length >= 3 && pts.length <= 4){ solids.push([pts, k2]); layerInfo.set(k2, (layerInfo.get(k2) || 0) + 1); }
           else if (pts.length > 4){ for (let q = 0; q < pts.length; q++) addLine(k2, pts[q], pts[(q+1) % pts.length]); }
@@ -4345,6 +4355,7 @@ async function pdfToDxf(bytes, pageNo){
       }
     }
   }
+  const nPages = doc.numPages; try { page.cleanup(); doc.destroy(); } catch(e){}   // 読み終わったPDFは捨てる（iPhone のメモリ）
   // layers named by colour (+ what that colour usually is on 設備 drawings)
   const names = new Map(), used = new Map();
   for (const k2 of [...layerInfo.keys()].sort((p, q) => layerInfo.get(q) - layerInfo.get(p))){
@@ -4408,7 +4419,7 @@ async function pdfToDxf(bytes, pageNo){
   const out = []; let h = 0x100; const H = () => (h++).toString(16).toUpperCase(); const P = (c, v) => out.push(String(c).padStart(3, ' '), String(v));
   const f3 = v => (Math.round(v*1000)/1000).toString();
   const aciOf = hex => { const v = parseInt(hex.slice(1), 16), r = (v>>16)&255, g = (v>>8)&255, b = v&255; let best = 7, bd = 1e9; for (let n = 1; n < 256; n++){ const c = aciRGB(n); if (!c) continue; const dd = (c[0]-r)**2 + (c[1]-g)**2 + (c[2]-b)**2; if (dd < bd){ bd = dd; best = n; } } return best; };
-  const info = {scale:sc.scale, from:sc.from, guess:!!sc.guess, page:pageNo || 1, pages:doc.numPages, paper:sc.paper};
+  const info = {scale:sc.scale, from:sc.from, guess:!!sc.guess, page:pageNo || 1, pages:nPages, paper:sc.paper};
   P(999, PDFSRC + JSON.stringify(info));
   P(0,'SECTION'); P(2,'HEADER'); P(9,'$ACADVER'); P(1,'AC1021'); P(9,'$INSUNITS'); P(70,4); P(9,'$HANDSEED'); P(5,'FFFFF'); P(0,'ENDSEC');
   P(0,'SECTION'); P(2,'TABLES'); P(0,'TABLE'); P(2,'LAYER'); P(70, names.size + 6);
@@ -4435,14 +4446,15 @@ async function pdfToDxf(bytes, pageNo){
   for (const [x, y, hh, ang, str, tw] of texts){ P(0,'TEXT'); P(5, H()); P(8, TXC(str)); P(10, f3(x)); P(20, f3(y)); P(30, 0); P(40, f3(hh)); P(1, str); if (Math.abs(ang) > 0.01) P(50, f3(ang)); if (tw > 0) P(41, f3(Math.max(0.3, Math.min(2, tw/(hh*estW(str)))))); } // 41：PDFの文字の長さに合わせる横の倍率
   P(0,'ENDSEC'); P(0,'EOF');
   const hs = out.indexOf('$HANDSEED'); if (hs >= 0) out[hs + 2] = h.toString(16).toUpperCase();
-  return {text: out.join('\n') + '\n', info, nLines:lines.size, nText:texts.length, pages:doc.numPages, nParts:groups.length + singles.length, nOC:[...names.keys()].filter(k2 => k2.startsWith('oc|')).length};
+  return {text: out.join('\n') + '\n', info, nLines:lines.size, nText:texts.length, pages:nPages, nParts:groups.length + singles.length, nOC:[...names.keys()].filter(k2 => k2.startsWith('oc|')).length};
 }
 async function openPdf(bytes, name, pageNo){
   $('#loading').hidden = false; $('#loading').textContent = 'PDFを読み込み中…（はじめは少し時間がかかります）';
   try {
     if (!pageNo){
       const lib = await loadPdfJs(); const d = await lib.getDocument({data:bytes.slice(0), isEvalSupported:false}).promise;
-      if (d.numPages > 1){ $('#loading').hidden = !!G; choosePdfPage(bytes, name, d.numPages); return; }
+      const np = d.numPages; try { d.destroy(); } catch(e){}
+      if (np > 1){ $('#loading').hidden = !!G; choosePdfPage(bytes, name, np); return; }
       pageNo = 1;
     }
     const r = await pdfToDxf(bytes, pageNo);

@@ -1263,9 +1263,9 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
     [0,2.1,4.2].forEach(k=>legTo(-Tn,my2-R*2.1,R*0.3,-Tn+Math.cos(k)*R*3.2,R*0.3+Math.sin(k)*R*3.2,R*0.07,lg0));         // 三脚
    }else if(BMOD==="ta515"){
    /* TASCO ギアベンダー TA515：青い本体の上に、大きい丸いシュー（真ん中に四角い軸・ゼロ点の印）、
-      配管をはさむ真ちゅう色のガイド（ガイド先端はシューのゼロ点より15〜20mm内側）、ガイドを押す送りねじ（青い軸・黒いハンドル）。
+      配管をはさむ真ちゅう色のガイド（ガイド先端はシューの0に合わせる）、ガイドを押す送りねじ（青い軸・黒いハンドル）。
       シューは動かさず、ガイド側に置いた配管（端の側）がシューに巻き付く（ガイドも一緒に回る）。下に三脚 */
-    const cl=GUIDE.cl!=null?GUIDE.cl:0,tw=GUIDE.tw||0,aNow=row.a*Math.min(1,GUIDE.prog||0),GI=17;   // cl：ガイドの開き（0＝締めた）、tw：ハンドルの回り
+    const cl=GUIDE.cl!=null?GUIDE.cl:0,tw=GUIDE.tw||0,aNow=row.a*Math.min(1,GUIDE.prog||0),GI=0;   // GI：ガイドの先端とシューの0の間（いつも0に合わせる）   // cl：ガイドの開き（0＝締めた）、tw：ハンドルの回り
     const sgp=new THREE.Group();sgp.position.set(-Tn,0,-R*sg);if(rev)sgp.rotation.y=aNow*Math.PI/180*sg;bg.add(sgp);   // シュー（動かない。逆向きは今までどおり回る）
     const ggp=new THREE.Group();ggp.position.set(-Tn,0,-R*sg);if(!rev)ggp.rotation.y=-aNow*Math.PI/180*sg;bg.add(ggp);   // ガイド（配管と一緒にシューのまわりを回る）
     const gad=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x+Tn,y,(z+R)*sg);ggp.add(o);return o};
@@ -1290,7 +1290,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
     const kb=new THREE.Mesh(new THREE.CylinderGeometry(R*0.28,R*0.28,R*0.18,20),blk);kb.rotation.x=Math.PI/2;kn.add(kb);       // 送りねじのハンドル（黒）
     const tb=new THREE.Mesh(new THREE.BoxGeometry(R*1.1,R*0.1,R*0.1),blk);tb.position.z=R*0.12*sg;kn.add(tb);
     /* 15〜20mm の目安（ゼロ点とガイド先端の間）：黄色の線 */
-    if(!(GUIDE.prog>0.02)){const yl=new THREE.MeshBasicMaterial({color:0xfacc15});
+    if(GI&&!(GUIDE.prog>0.02)){const yl=new THREE.MeshBasicMaterial({color:0xfacc15});
      add(new THREE.BoxGeometry(GI,Dl*0.15,Dl*0.3),yl,-Tn-GI/2,Dl*1.0,Dl*0.5);[0,-GI].forEach(dx=>add(new THREE.BoxGeometry(Math.max(Dl*0.12,1.5),Dl*0.6,Dl*0.3),yl,-Tn+dx,Dl*1.0,Dl*0.5))}
     const top=-Dl*0.9,BH=R*0.95,BX0=-Tn-R*2.1,BX1=-Tn+R*1.5,BZ0=-R*2.3,BZ1=R*2.6;
     add(new THREE.BoxGeometry(BX1-BX0,BH,BZ1-BZ0),new THREE.MeshStandardMaterial({color:0x22a7e0,roughness:.45}),(BX0+BX1)/2,top-BH/2,(BZ0+BZ1)/2);   // 本体（青）
@@ -1731,7 +1731,7 @@ function showGuideStep(){
  else $("#gdTxt").innerHTML=`曲げ寸法 <b>${fmt(rows[i].l)}</b>mm<br><small>（${i>0?"前の曲げの角から":"端から"}、この曲げの角まで）</small><br>`+
   `印を赤いライン（シューの0）に合わせて<br>`+(rv2?`<b class="fw">前に出す ${fmt(fwd)}mm</b><small>（逆向き：${bRtxt(Dg)}÷2${aa!==90?"×"+aa+"/90":""}）</small>`:`<b class="bk">バック ${fmt(back)}mm</b><small>（${bRtxt(Dg)}${aa!==90?"×"+aa+"/90":""}）</small>`)+
   `<br>曲げ角度 <b>${aa}°${aa>=180?"（返し）":""}</b> <small>（戻り分 1〜2°多めに）</small><span class="big">${how}</span><small style="color:#94a3b8">シュー位置で印をつける時：前の印から ${fmt(c.shoe)}（端から ${fmt(c.cum)}）</small>`;
- /* TA515 の重要ポイントの欄は出さない（2026-11-01 ユーザー：いつも0に合わせているのでいらない） */
+ if(!LEV&&BK==="ta515")$("#gdTxt").innerHTML+=`<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#f1f5f9;font-size:13px;line-height:1.55;color:#0f172a"><b>曲げ方（TA515）</b><br>① セット：ガイドの先端をシューの<b>0（赤いライン）に合わせる</b><br>② 締付け：ゆっくり、ハンドルが回らなくなるまで<br>③ 曲げ：${rows[i].a}°まで（戻り分 1〜2°多めに）<br>④ 外す：シューとガイドから外す</div>`;   /* 2026-11-01 ユーザー：いつも0に合わせる。上の吹き出しは出さない */
  $("#gdBen").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:20px;height:20px;vertical-align:-5px;margin-right:4px">ベンダー：${benOn(Dg)?BD.n+"（"+bRtxt(Dg)+"）":"⚠️ "+szName(Dg)+"に使えるベンダーが登録されていません"+" 非対応（標準 外径×4で表示）"} ▸`;
  $("#gdDie").textContent="ダイスの位置：後ろから見て "+(DIE_R?"右 ▶（タップで左）":"◀ 左（タップで右）");
  $("#gdDie").style.display=(LEV&&!BD.rat)||BK==="ta515"?"none":"";   // レバー式にはダイスが無いので出さない。RB-147W は「正曲げ／逆曲げ」の切りかえに使う
@@ -1794,9 +1794,9 @@ let gdBusy=false;
 /* TA515：曲げる前後の手順（セット→締付け→曲げ→外す）を、重要ポイントの吹き出し付きで動かす */
 function gdTip(t){let e=$("#gdTip");if(!e){e=document.createElement("div");e.id="gdTip";e.style.cssText="position:absolute;left:50%;transform:translateX(-50%);top:64px;z-index:7;width:min(92%,420px);background:#0f172aee;color:#fff;border-radius:14px;padding:10px 12px;font-weight:800;font-size:14.5px;line-height:1.45;box-shadow:0 6px 18px #0004";$("#stage").appendChild(e)}
  if(!t){e.style.display="none";return}e.style.display="";e.innerHTML=t}
-const TA_TIPS=["① <b style='color:#facc15'>セット</b>：ガイドの先端を、シューの<b style='color:#f87171'>ゼロ点</b>より <b style='color:#facc15'>15〜20mm 内側</b>に当てる",
+const TA_TIPS=["① <b style='color:#facc15'>セット</b>：ガイドの先端を、シューの<b style='color:#f87171'>0</b>に合わせる",
  "② <b style='color:#facc15'>締付け</b>：ゆっくり体重をかけて、<b>ハンドルが回らなくなるまで</b>しっかり<br><small style='font-weight:600'>弱いと外側が平らに・内側にしわ。急に締めるとピンが折れる</small>",
- "③ <b style='color:#facc15'>曲げ</b>：ゼロ点より内側にセットした分、<b>90°の手前で止める</b>",
+ "③ <b style='color:#facc15'>曲げ</b>：決めた角度まで（戻り分 1〜2°多めに）",
  "④ <b style='color:#facc15'>外す</b>：シューとガイドから外す（少し手前に戻る）"];
 function animGuideNext(){
  if(!GUIDE||gdBusy)return;gdBusy=true;
@@ -1809,9 +1809,9 @@ function animGuideNext(){
  const bend=()=>run(TA?1800:1400,k=>{GUIDE.prog=Math.max(0.001,k)},after);
  function after(){if(!GUIDE){gdBusy=false;return}
   const fin=()=>{gdTip("");GUIDE.cl=0;GUIDE.tw=0;afterBend()};
-  if(TA){gdTip(TA_TIPS[3]);run(1000,k=>{GUIDE.cl=k;GUIDE.prog=1-0.03*k},()=>setTimeout(fin,500))}else fin()}
- if(TA){GUIDE.cl=1;GUIDE.tw=0;gdTip(TA_TIPS[0]);
-  run(1100,k=>{GUIDE.cl=1-k},()=>{gdTip(TA_TIPS[1]);run(1100,k=>{GUIDE.tw=k},()=>{gdTip(TA_TIPS[2]);bend()})})}
+  if(TA){run(1000,k=>{GUIDE.cl=k;GUIDE.prog=1-0.03*k},()=>setTimeout(fin,500))}else fin()}
+ if(TA){GUIDE.cl=1;GUIDE.tw=0;   /* 上の吹き出しは出さない（説明の「曲げ方」に書く） */
+  run(1100,k=>{GUIDE.cl=1-k},()=>{run(1100,k=>{GUIDE.tw=k},()=>{bend()})})}
  else bend();
  function afterBend(){
   if(last){setTimeout(()=>{gdBusy=false;GUIDE.prog=0;closeGuide()},700);return}

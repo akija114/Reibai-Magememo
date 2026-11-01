@@ -47,7 +47,7 @@ function openDraw(){
   const bt=(id,t,st2)=>`<button id="${id}" style="height:40px;padding:0 10px;border-radius:12px;font-weight:800;font-size:13px;background:#ffffffee;color:#0f172a;flex:none;${st2||""}">${t}</button>`;
   ov.innerHTML=`<div style="display:flex;gap:6px;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 8px) 8px 6px;overflow-x:auto">
    <label style="height:40px;padding:0 12px;border-radius:12px;font-weight:800;font-size:13px;background:#2563eb;display:flex;align-items:center;flex:none">📄 図面を開く<input id="plFile" type="file" accept="application/pdf,image/*,.dxf,application/dxf,image/vnd.dxf,application/octet-stream" style="display:none"></label>
-   ${bt("plPrev","◀")}<span id="plPg" style="font-size:13px;flex:none"></span>${bt("plNext","▶")}<span style="flex:1"></span>${bt("plHelp","❓ 使い方","background:#fbbf24")}${bt("plClose","✕ 閉じる")}</div>
+   ${bt("plPrev","◀")}<span id="plPg" style="font-size:13px;flex:none"></span>${bt("plNext","▶")}${bt("plJoin","🧩 つなぐ","display:none")}<span style="flex:1"></span>${bt("plHelp","❓ 使い方","background:#fbbf24")}${bt("plClose","✕ 閉じる")}</div>
    <div id="plSteps" style="display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 8px 6px;flex:none"></div>
    <div id="plInfo" style="padding:0 10px 4px;font-size:12px;line-height:1.4;color:#cbd5e1;max-height:2.9em;overflow:hidden;flex:none"></div>
    <div id="plPanel" style="display:none;max-height:30vh;overflow-y:auto;flex:none;background:#f8fafc;color:#0f172a;padding:10px;font-size:13.5px"></div>
@@ -75,6 +75,7 @@ function openDraw(){
   $("#plInfo").onclick=()=>{const e=$("#plInfo");e.style.maxHeight=e.style.maxHeight==="none"?"2.9em":"none";setTimeout(planDraw,30)};
   $("#plFile").onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)planLoad(f);e.target.value=""};
   $("#plPrev").onclick=()=>{if(PLAN&&PLAN.pdf&&PLAN.page>1)planPage(PLAN.page-1)};$("#plNext").onclick=()=>{if(PLAN&&PLAN.pdf&&PLAN.page<PLAN.pdf.numPages)planPage(PLAN.page+1)};
+  $("#plJoin").onclick=()=>planJoinAsk();
   const md=m=>{PV.mode=m;PV.cal=[];BT.pts=[];["plMove","plCal","plTrace","plCol"].forEach(id=>$("#"+id).style.background=({plMove:"move",plCal:"cal",plTrace:"trace",plCol:"col"}[id]===m?"#fbbf24":"#ffffffee"));$("#plBld").style.background=m==="bld"?"#fbbf24":"#f97316";$("#plBld").style.color=m==="bld"?"#0f172a":"#fff";
    if(m==="bld")planBldPanel();else if(PV.bldPanelOn){$("#plPanel").style.display="none";PV.bldPanelOn=false}planInfo();planDraw()};
   $("#plBld").onclick=()=>md("bld");
@@ -105,7 +106,7 @@ function askNum(title,def,ok,cancel){const ov=document.createElement("div");ov.s
  document.body.appendChild(ov);const i=ov.querySelector("#askV");setTimeout(()=>{try{i.focus();i.select()}catch(e){}},50);
  ov.querySelector("#askOk").onclick=()=>{const v=uParse(i.value);ov.remove();ok(v)};ov.querySelector("#askNo").onclick=()=>{ov.remove();cancel&&cancel()}}
 function wzMem(){try{return JSON.parse(localStorage.getItem("pbmPlanMem")||"{}")||{}}catch(e){return{}}}
-function wzKey(){const P=PLAN;return P&&P.fkey?P.fkey+"|"+(P.page||1):""}
+function wzKey(){const P=PLAN;return P&&P.fkey?P.fkey+"|"+(P.join?"j"+P.join.pages.join("-"):(P.page||1)):""}
 function wzSave(){const P=PLAN,k=wzKey();if(!k||!P||!P.mmpp)return;const m=wzMem();m[k]={mmpp:P.mmpp,den:P.den||0,org:P.org||null,CH:P.CH||0,cal:P.calOk?1:0,t:Date.now()};
  const ks=Object.keys(m).sort((a,b)=>(m[b].t||0)-(m[a].t||0));ks.slice(30).forEach(x=>delete m[x]);try{localStorage.setItem("pbmPlanMem",JSON.stringify(m))}catch(e){}}
 function wzMode(m,tool){PV.mode=m;PV.cal=[];BT.pts=[];if(tool)BT.tool=tool}
@@ -715,9 +716,9 @@ function plDB(mode,fn){return new Promise((ok,ng)=>{try{const q=indexedDB.open("
 let PL_LAST=null;   // {name,size,type,page,t}（ファイル本体は読む時だけ出す）
 async function plLastInfo(){try{const r=await plDB("readonly",o=>o.get("last"));PL_LAST=r?{name:r.name,size:r.size,type:r.type,page:r.page||1,t:r.t}:null}catch(e){PL_LAST=null}return PL_LAST}
 function plSaveLast(f){try{plDB("readwrite",o=>o.put({blob:f,name:f.name,size:f.size,type:f.type,page:1,t:Date.now()},"last")).then(()=>plLastInfo()).catch(()=>{})}catch(e){}}
-function plSavePage(n){try{plDB("readwrite",o=>{const g=o.get("last");g.onsuccess=()=>{const r=g.result;if(r){r.page=n;o.put(r,"last")}}}).catch(()=>{})}catch(e){}}
+function plSavePage(n,join){try{plDB("readwrite",o=>{const g=o.get("last");g.onsuccess=()=>{const r=g.result;if(r){r.page=n;r.join=join||null;o.put(r,"last")}}}).catch(()=>{})}catch(e){}}
 async function plResume(){let r=null;try{r=await plDB("readonly",o=>o.get("last"))}catch(e){}if(!r||!r.blob){toast("前の図面が見つかりませんでした。もう一度ファイルから開いてください");return}
- const f=new File([r.blob],r.name,{type:r.type||"application/pdf"});W.resume=true;W.resumePage=r.page||1;await planLoad(f,true)}
+ const f=new File([r.blob],r.name,{type:r.type||"application/pdf"});W.resume=true;W.resumePage=r.page||1;W.resumeJoin=Array.isArray(r.join)&&r.join.length>1?r.join:null;await planLoad(f,true)}
 plLastInfo();
 /* ===== ほかのアプリ（図面修正アプリなど）から図面を受け取る =====
    ・zumen.html?from=fix … 同じサイト（akija114.github.io）の IndexedDB「pbmShare」の「f」→ キー「dxf」に入れた {blob, name, hide} を開く
@@ -777,7 +778,7 @@ function cadxDraw(){const P=PLAN;if(!T||!T.grp||!CADX||!P||!P.dxf||!P.org||CADX.
  (CADX.ubs||[]).forEach(b=>{const H=Math.min(2100,b.ch||2400),t=40;box(b.x0,b.y0,b.x1,b.y1,0,60,uf);box(b.x0,b.y0,b.x1,b.y0+t,0,H,um);box(b.x0,b.y1-t,b.x1,b.y1,0,H,um);box(b.x0,b.y0,b.x0+t,b.y1,0,H,um);box(b.x1-t,b.y0,b.x1,b.y1,0,H,um)});   // ユニットバス：床と4方の壁
  T.dirty=true}
 async function planLoad(f,resume){
- try{
+ try{try{$("#plJoin").style.display="none"}catch(e){}
   if(!resume){W.resume=false;plSaveLast(f)}
   if(/\.dxf$/i.test(f.name)){
    toast("DXFを読み込んでいます…");const G=await dxfRead(f),Q=dxfToPlan(G,f);
@@ -791,7 +792,7 @@ async function planLoad(f,resume){
   }else if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){
    toast("図面を読み込んでいます…");const lib=await loadPdfJs(),buf=await f.arrayBuffer();
    const pdf=await lib.getDocument({data:buf,cMapUrl:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/",cMapPacked:true}).promise;
-   PLAN={pdf,page:1,route:[],walls:[],segs:[],texts:[],H:(PLAN&&PLAN.H)||2400,CH:(PLAN&&PLAN.CH)||0,show:true,fkey:f.name+"|"+f.size};await planPage(resume&&W.resumePage&&W.resumePage>1?Math.min(W.resumePage,pdf.numPages):1);
+   PLAN={pdf,page:1,route:[],walls:[],segs:[],texts:[],H:(PLAN&&PLAN.H)||2400,CH:(PLAN&&PLAN.CH)||0,show:true,fkey:f.name+"|"+f.size};const rj=resume&&W.resumeJoin;W.resumeJoin=null;if(rj){await planJoin(rj);return}await planPage(resume&&W.resumePage&&W.resumePage>1?Math.min(W.resumePage,pdf.numPages):1);
   }else{
    const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(f)});
    const sc=Math.min(1,3000/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*sc);c.height=Math.round(im.height*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
@@ -800,11 +801,11 @@ async function planLoad(f,resume){
   }
  }catch(e){console.warn(e);toast("図面を読み込めませんでした（ネットにつながっているか確認してください）")}
 }
-async function planPage(n){
+async function planPage(n,q){   // q：つなげる時の読み取りだけ（絵は描かない・画面は変えない）
  const P=PLAN,page=await P.pdf.getPage(n),v0=page.getViewport({scale:1}),sc=Math.min(4,3200/Math.max(v0.width,v0.height),Math.sqrt(6e6/(v0.width*v0.height))),vp=page.getViewport({scale:sc});
  const c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);
- await page.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
- P.page=n;if(n!==1||!W.resume)plSavePage(n);P.img=c;P.W=c.width;P.H0=c.height;P.ptpx=sc;P.segs=[];P.arcs=[];P.texts=[];P.walls=[];P.route=[];
+ if(q)c.width=c.height=1;else await page.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
+ P.page=n;if(!q){P.join=null;if(n!==1||!W.resume)plSavePage(n)}P.img=c;P.W=c.width;P.H0=c.height;P.ptpx=sc;P.segs=[];P.arcs=[];P.texts=[];P.walls=[];P.route=[];
  /* 線（CADのPDFならデータで入っている） */
  try{const ol=await page.getOperatorList(),O=pdfjsLib.OPS,mul=(m,n2)=>[m[0]*n2[0]+m[2]*n2[1],m[1]*n2[0]+m[3]*n2[1],m[0]*n2[2]+m[2]*n2[3],m[1]*n2[2]+m[3]*n2[3],m[0]*n2[4]+m[2]*n2[5]+m[4],m[1]*n2[4]+m[3]*n2[5]+m[5]];
   let ctm=vp.transform.slice(),col="#000000";const stk=[],cst=[],hx=a2=>"#"+[0,1,2].map(k=>("0"+(Math.round(+a2[k])|0).toString(16)).slice(-2)).join(""),tp=(x,y)=>[ctm[0]*x+ctm[2]*y+ctm[4],ctm[1]*x+ctm[3]*y+ctm[5]];
@@ -812,13 +813,15 @@ async function planPage(n){
    if(fn===O.save){stk.push(ctm.slice());cst.push(col)}else if(fn===O.restore){if(stk.length)ctm=stk.pop();if(cst.length)col=cst.pop()}
    else if(fn===O.setStrokeRGBColor){try{col=hx(a)}catch(e){}}else if(fn===O.transform)ctm=mul(ctm,a);
    else if(fn===O.constructPath){const ops=a[0],ar=a[1];let k=0,cur=null,st0=null;
+    /* 短すぎる線（網・斜線のかけら）は入れない：上限（15万本）を使い切って、図面の後ろの方の線が読めなくなるため */
+   const ps=(A,B2)=>{if(Math.abs(B2[0]-A[0])+Math.abs(B2[1]-A[1])>1.5)P.segs.push([A[0],A[1],B2[0],B2[1],col])};
     for(const op of ops){if(op===O.moveTo){cur=tp(ar[k],ar[k+1]);st0=cur;k+=2}
-     else if(op===O.lineTo){const p2=tp(ar[k],ar[k+1]);if(cur)P.segs.push([cur[0],cur[1],p2[0],p2[1],col]);cur=p2;k+=2}
-     else if(op===O.rectangle){const x=ar[k],y=ar[k+1],w=ar[k+2],h=ar[k+3],q=[tp(x,y),tp(x+w,y),tp(x+w,y+h),tp(x,y+h)];for(let j=0;j<4;j++){const A=q[j],B2=q[(j+1)%4];P.segs.push([A[0],A[1],B2[0],B2[1],col])}cur=q[0];st0=q[0];k+=4}
+     else if(op===O.lineTo){const p2=tp(ar[k],ar[k+1]);if(cur)ps(cur,p2);cur=p2;k+=2}
+     else if(op===O.rectangle){const x=ar[k],y=ar[k+1],w=ar[k+2],h=ar[k+3],q4=[tp(x,y),tp(x+w,y),tp(x+w,y+h),tp(x,y+h)];for(let j=0;j<4;j++)ps(q4[j],q4[(j+1)%4]);cur=q4[0];st0=q4[0];k+=4}
      else if(op===O.curveTo||op===O.curveTo2||op===O.curveTo3){   /* 曲線（扉の弧など）：始点・真ん中・終点を覚えておく */
       let c1,c2,e;if(op===O.curveTo){c1=tp(ar[k],ar[k+1]);c2=tp(ar[k+2],ar[k+3]);e=tp(ar[k+4],ar[k+5]);k+=6}else{const q=tp(ar[k],ar[k+1]);e=tp(ar[k+2],ar[k+3]);if(op===O.curveTo2){c1=cur||q;c2=q}else{c1=q;c2=e}k+=4}
       if(cur&&P.arcs.length<20000)P.arcs.push({a:cur,m:[(cur[0]+3*c1[0]+3*c2[0]+e[0])/8,(cur[1]+3*c1[1]+3*c2[1]+e[1])/8],b:e,col});cur=e}
-     else if(op===O.closePath){if(cur&&st0)P.segs.push([cur[0],cur[1],st0[0],st0[1],col]);cur=st0}}}}
+     else if(op===O.closePath){if(cur&&st0)ps(cur,st0);cur=st0}}}}
   P.segs=P.segs.filter(s2=>Math.hypot(s2[2]-s2[0],s2[3]-s2[1])>1.5);
  }catch(e){console.warn("ops",e)}
  /* 文字：天井高（CH=2500 など）と縮尺（1/50 など） */
@@ -832,9 +835,83 @@ async function planPage(n){
    if(pl.length){const L=Math.max(v0.width,v0.height),paper=[3370,2384,1684,1191,842],k=paper.reduce((bi,v,i)=>Math.abs(v-L)<Math.abs(paper[bi]-L)?i:bi,0),hit=pl.find(m2=>+m2[1]===k);dm=hit?[0,hit[2]]:null}}
   if(!dm)dm=all.match(/(?:S\s*=?\s*)?1\s*[\/／:]\s*(30|50|60|100|150|200)\b/);if(dm){P.den=+dm[1];P.mmpp=25.4/72/sc*P.den;P.denTxt=1}
  }catch(e){console.warn("text",e)}
- $("#plPg").textContent=n+"/"+P.pdf.numPages+"ページ";$("#plDen").value=P.den?String(P.den):"";
+ if(q)return;
+ $("#plPg").textContent=n+"/"+P.pdf.numPages+"ページ";$("#plDen").value=P.den?String(P.den):"";try{$("#plJoin").style.display=P.pdf.numPages>1?"":"none"}catch(e){}
  try{planAnalyze()}catch(e){console.warn("analyze",e)}planWalls();planFit();PV.md(P.mmpp?"trace":"cal");planDraw();
  toast(P.segs.length>50?"CADの図面です。線に吸い付きます"+(P.den?"（縮尺 1/"+P.den+"）":"。縮尺を選ぶか2点で合わせてください"):"線のデータがない図面です（スキャン）。縮尺を2点で合わせてなぞってください");
+}
+/* 🧩 ページをつなげる（2026-11-01 ユーザー：1枚の図面を3ページに分けて保存したPDF）。
+   つなぎ目は線で探す：たて・横の同じ長さの線を、ずらして重なる所（いちばん多く重なるずれ・pjVote）。全部のページの同じ場所にある線＝枠と表題欄（fr＝枠・tb＝表題欄の四角）。
+   重なる所は前のページの線・絵を使い、表題欄の所は次のページで埋める（pjOwn）。PLAN.join={pages,off（ページごとのずれ pt）,fr,tb,ux0,uy0}。縮尺・原点はページ1枚の時と別に覚える（wzKey） */
+function pjAx(segs){const H=new Map();for(const q of segs){const dx=q[2]-q[0],dy=q[3]-q[1];let k,p;
+  if(Math.abs(dy)<0.05&&Math.abs(dx)>=40){k="h"+Math.round(Math.abs(dx)*2);p=[Math.min(q[0],q[2]),q[1]]}
+  else if(Math.abs(dx)<0.05&&Math.abs(dy)>=40){k="v"+Math.round(Math.abs(dy)*2);p=[q[0],Math.min(q[1],q[3])]}else continue;
+  let a=H.get(k);if(!a)H.set(k,a=[]);a.push(p)}return H}
+function pjVote(A,B){const v=new Map();
+ for(const [k,la] of A){const lb=B.get(k);if(!lb||la.length*lb.length>400)continue;
+  for(const p of la)for(const q of lb){const x=p[0]-q[0],y=p[1]-q[1];if(Math.abs(x)<3&&Math.abs(y)<3)continue;const kk=Math.round(x)+","+Math.round(y),o=v.get(kk)||[0,0,0];o[0]++;o[1]+=x;o[2]+=y;v.set(kk,o)}}
+ let off=null,n=0;for(const [k,o0] of v){if(o0[0]<3)continue;const [x,y]=k.split(",").map(Number);let s2=0,sx=0,sy=0;
+  for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const o=v.get((x+i)+","+(y+j));if(o){s2+=o[0];sx+=o[1];sy+=o[2]}}if(s2>n){n=s2;off=[sx/s2,sy/s2]}}
+ return{off,n}}
+const pjIn=(J,i,X,Y)=>{const x=X-J.off[i][0],y=Y-J.off[i][1],f=J.fr,t=J.tb;return x>=f[0]&&x<=f[2]&&y>=f[1]&&y<=f[3]&&!(t&&x>=t[0]&&x<=t[2]&&y>=t[1]&&y<=t[3])};
+const pjOwn=(J,i,X,Y)=>{if(!pjIn(J,i,X,Y))return false;for(let j=0;j<i;j++)if(pjIn(J,j,X,Y))return false;return true};
+/* 絵：ページごとに受け持ちの所だけ切り抜いて描く。f＝つないだ図面の pt → 描く先の px、sc＝pt あたりの px */
+async function pjRender(P,cx,f,sc){const J=P.join;
+ for(let i=0;i<J.pages.length;i++){const page=await P.pdf.getPage(J.pages[i]),o=f(J.off[i][0],J.off[i][1]),vp=page.getViewport({scale:sc,offsetX:o[0],offsetY:o[1]});
+  const rr=(r,d)=>{const a=f(r[0]+d[0],r[1]+d[1]),b=f(r[2]+d[0],r[3]+d[1]);cx.rect(a[0],a[1],b[0]-a[0],b[1]-a[1])};
+  cx.save();cx.beginPath();rr(J.fr,J.off[i]);if(J.tb)rr(J.tb,J.off[i]);cx.clip("evenodd");   // 枠の中・表題欄の外
+  for(let j=0;j<i;j++){cx.beginPath();cx.rect(-1e6,-1e6,2e6,2e6);rr(J.fr,J.off[j]);if(J.tb)rr(J.tb,J.off[j]);cx.clip("evenodd")}   // 前のページの受け持ちの外
+  await page.render({canvasContext:cx,viewport:vp}).promise;cx.restore()}}
+function planJoinAsk(){const P=PLAN;if(!P||!P.pdf||P.pdf.numPages<2){toast("ページが2つ以上あるPDFの時に使えます");return}const N=P.pdf.numPages,all=Array.from({length:N},(_,i)=>i+1);
+ sheetMsg(`<b style="font-size:17px">🧩 ページを1枚の図面につなげる</b><p>1枚の図面を何ページかに分けて保存したPDFの時に使います。線が重なる所を自動で探してつなげます（枠・表題欄は1つにします）。</p>${P.join?`<p>いまは <b>${P.join.pages.join("・")}ページ</b> をつないでいます。</p>`:""}<p style="font-size:13px;color:#64748b">つないだ図面は、縮尺をもう一度「長さの分かる2点」で合わせます（ページ1枚の時の縮尺・原点はそのまま残ります）。</p>`,
+  [["全部のページ（1〜"+N+"）をつなげる",()=>planJoin(all),"#2563eb","#fff"]].concat(N>2?[["1・2ページだけつなげる",()=>planJoin([1,2])]]:[]).concat(P.join?[["つなげるのをやめる（1ページずつ見る）",()=>planPage(P.join.pages[0])]]:[]).concat([["やめる",null]]))}
+async function planJoin(pages){const P=PLAN;if(!P||!P.pdf)return;pages=[...new Set(pages||[])].filter(n=>n>=1&&n<=P.pdf.numPages);if(pages.length<2)return;
+ toast("ページをつなげています…（少し時間がかかります）");
+ const R=[];
+ for(const n of pages){await planPage(n,true);const s=P.ptpx,v=(await P.pdf.getPage(n)).getViewport({scale:1});
+  R.push({n,w:v.width,h:v.height,segs:P.segs.map(q=>[q[0]/s,q[1]/s,q[2]/s,q[3]/s,q[4]]),arcs:(P.arcs||[]).map(a=>({a:[a.a[0]/s,a.a[1]/s],m:[a.m[0]/s,a.m[1]/s],b:[a.b[0]/s,a.b[1]/s],col:a.col})),texts:P.texts.map(t=>({...t,x:t.x/s,y:t.y/s,w:(t.w||0)/s,h:(t.h||0)/s}))})}
+ /* 枠・表題欄：全部のページの同じ場所にある線 */
+ const K=a=>Math.round(a*5)/5,key=q=>{let a=[K(q[0]),K(q[1])],b=[K(q[2]),K(q[3])];if(a[0]>b[0]||(a[0]===b[0]&&a[1]>b[1]))[a,b]=[b,a];return a+"|"+b};
+ const ks=R.map(r=>new Set(r.segs.map(key))),cs=R[0].segs.filter(q=>ks.every(S=>S.has(key(q)))),mn=Math.min(R[0].w,R[0].h);
+ const bb=a=>a.length?a.reduce((b,q)=>[Math.min(b[0],q[0],q[2]),Math.min(b[1],q[1],q[3]),Math.max(b[2],q[0],q[2]),Math.max(b[3],q[1],q[3])],[1e9,1e9,-1e9,-1e9]):null,ar=r=>(r[2]-r[0])*(r[3]-r[1]);
+ let fr=bb(cs.filter(q=>Math.hypot(q[2]-q[0],q[3]-q[1])>mn*0.4));if(!fr||ar(fr)<R[0].w*R[0].h*0.3)fr=[0,0,R[0].w,R[0].h];
+ const onF=q=>[[0,2],[1,3]].some(([i,j])=>[fr[i],fr[j]].some(e=>Math.abs(q[i]-e)<4&&Math.abs(q[i+2]-e)<4));   // 枠の線そのもの（二重の枠も）
+ /* 表題欄＝同じ場所の線がいちばん固まっている所（20pt の升で4本以上がつながった所）。ページを上下にずらしただけの時、たての通り芯の点線も同じ場所になるので、ただの四角では取らない */
+ let tb=null;{const rest=cs.filter(q=>!onF(q)),G=new Map(),cl=20,ck=(x,y)=>Math.floor(x/cl)+","+Math.floor(y/cl),mid=q=>ck((q[0]+q[2])/2,(q[1]+q[3])/2);
+  rest.forEach(q=>{const k=mid(q);G.set(k,(G.get(k)||0)+1)});let top=null,tn=0;for(const [k,n] of G)if(n>tn){tn=n;top=k}
+  if(top&&tn>=4){const seen=new Set([top]),stk=[top];while(stk.length){const [x,y]=stk.pop().split(",").map(Number);for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++){const k=(x+i)+","+(y+j);if(!seen.has(k)&&(G.get(k)||0)>=4){seen.add(k);stk.push(k)}}}
+   tb=bb(rest.filter(q=>seen.has(mid(q))));const t0=tb;tb=bb(rest.filter(q=>seen.has(mid(q))||(Math.min(q[1],q[3])>=t0[1]-2&&Math.max(q[1],q[3])<=t0[3]+2)))}}   // 表題欄と同じ高さの横の欄（改訂の欄など）も
+ if(tb&&ar(tb)>ar(fr)*0.35)tb=null;
+ if(fr[2]-fr[0]<R[0].w-1||fr[3]-fr[1]<R[0].h-1)fr=[fr[0]+3,fr[1]+3,fr[2]-3,fr[3]-3];   // 枠の線（二重の線）はつなぎ目に出さない
+ if(tb){const nx=(fr[2]-fr[0])*0.06,ny=(fr[3]-fr[1])*0.06;tb=[tb[0]-fr[0]<nx?fr[0]-1:tb[0],tb[1]-fr[1]<ny?fr[1]-1:tb[1],fr[2]-tb[2]<nx?fr[2]+1:tb[2],fr[3]-tb[3]<ny?fr[3]+1:tb[3]]}   // 表題欄が枠に近い時は枠まで
+ /* ずれ：1ページ目から順に、置いたページのどれかと重なる所を探す */
+ const J={pages:[],off:[],fr,tb},inR=(x,y)=>x>=fr[0]&&x<=fr[2]&&y>=fr[1]&&y<=fr[3]&&!(tb&&x>=tb[0]&&x<=tb[2]&&y>=tb[1]&&y<=tb[3]);
+ const AX=R.map(r=>pjAx(r.segs.filter(q=>inR((q[0]+q[2])/2,(q[1]+q[3])/2))));
+ const done=[0],off={0:[0,0]},rest=R.map((_,i)=>i).slice(1);
+ while(rest.length){let best=null;for(const i of rest)for(const j of done){const v=pjVote(AX[j],AX[i]);if(v.off&&(!best||v.n>best.n))best={i,j,n:v.n,off:[off[j][0]+v.off[0],off[j][1]+v.off[1]]}}
+  if(!best||best.n<20)break;off[best.i]=best.off;done.push(best.i);rest.splice(rest.indexOf(best.i),1)}
+ if(done.length<2){toast("つなぎ目が見つかりませんでした（同じ図面を分けたページではないかもしれません）");await planPage(pages[0]);return}
+ done.sort((a,b)=>a-b).forEach(i=>{J.pages.push(R[i].n);J.off.push(off[i])});
+ const Rs=done.map(i=>R[i]);
+ J.ux0=Math.min(...J.off.map(o=>o[0]+fr[0]));J.uy0=Math.min(...J.off.map(o=>o[1]+fr[1]));
+ const Wu=Math.max(...J.off.map(o=>o[0]+fr[2]))-J.ux0,Hu=Math.max(...J.off.map(o=>o[1]+fr[3]))-J.uy0,sc=Math.min(4,3200/Math.max(Wu,Hu),Math.sqrt(6e6/(Wu*Hu)));
+ const px=(i,x,y)=>[(x+J.off[i][0]-J.ux0)*sc,(y+J.off[i][1]-J.uy0)*sc],own=(i,x,y)=>pjOwn(J,i,x+J.off[i][0],y+J.off[i][1]);
+ const segs=[],arcs=[],texts=[];
+ Rs.forEach((r,i)=>{r.segs.forEach(q=>{if(!own(i,(q[0]+q[2])/2,(q[1]+q[3])/2))return;const a=px(i,q[0],q[1]),b=px(i,q[2],q[3]);segs.push([a[0],a[1],b[0],b[1],q[4]])});
+  r.arcs.forEach(o=>{if(arcs.length<20000&&own(i,o.m[0],o.m[1]))arcs.push({a:px(i,...o.a),m:px(i,...o.m),b:px(i,...o.b),col:o.col})});
+  r.texts.forEach(t=>{if(!own(i,t.x+t.w/2,t.y-t.h/2))return;const a=px(i,t.x,t.y);texts.push({...t,x:a[0],y:a[1],w:t.w*sc,h:t.h*sc})})});
+ const c=document.createElement("canvas");c.width=Math.round(Wu*sc);c.height=Math.round(Hu*sc);{const cx=c.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,c.width,c.height);P.join=J;P.ptpx=sc;await pjRender(P,cx,(X,Y)=>[(X-J.ux0)*sc,(Y-J.uy0)*sc],sc)}
+ if(P.hi){P.hi.c.width=0;P.hi=null}
+ P.page=J.pages[0];P.img=c;P.W=c.width;P.H0=c.height;P.segs=segs;P.arcs=arcs;P.texts=texts;P.walls=[];P.route=[];P.org=null;P.calOk=false;P.autoScale=0;P.userScale=0;
+ P.mmpp=P.den?25.4/72/sc*P.den:0;
+ {const all=texts.map(t=>t.s).join(" ").replace(/[０-９]/g,c2=>String.fromCharCode(c2.charCodeAt(0)-65248)).replace(/[＝：]/g,"="),ch={};
+  (all.match(/C\.?\s?H\s*=?\s*([1-6][0-9]{3})/gi)||[]).concat(all.match(/天井高\D{0,4}([1-6][0-9]{3})/g)||[]).forEach(x=>{const v=+(x.match(/([1-6][0-9]{3})/)||[])[1];if(v)ch[v]=(ch[v]||0)+1});
+  const best=Object.keys(ch).sort((a,b)=>ch[b]-ch[a]||b-a)[0];if(best)P.CH=+best;P.chList=Object.keys(ch)}
+ plSavePage(J.pages[0],J.pages);
+ $("#plPg").textContent=J.pages.join("・")+"ページ（つないだ）";$("#plDen").value=P.den?String(P.den):"";try{$("#plJoin").style.display=""}catch(e){}
+ try{planAnalyze()}catch(e){console.warn("analyze",e)}planWalls();planFit();PV.md(P.mmpp?"trace":"cal");planDraw();
+ const miss=pages.filter(n=>!J.pages.includes(n));
+ toast("🧩 "+J.pages.join("・")+"ページを1枚につなげました"+(miss.length?"（"+miss.join("・")+"ページはつなぎ目が見つからないので外しました）":"")+"。縮尺を2点で合わせてください");
 }
 /* 壁：グレー・黒の平行な2本線（間隔90〜300mm・長さ1500mm以上）を壁とみなす */
 function planWalls(){
@@ -878,9 +955,11 @@ async function planHi(W,H,dpr){const P=PLAN;if(!P||!P.pdf||!P.img||!P.ptpx)retur
  const h0=P.hi;if(h0&&h0.img===P.img&&h0.k>=need*0.9&&h0.x0<=x0&&h0.y0<=y0&&h0.x0+h0.w>=x1&&h0.y0+h0.h>=y1)return;   // 今の絵で足りる
  const mx=(x1-x0)*0.25,my=(y1-y0)*0.25;x0=Math.max(0,x0-mx);y0=Math.max(0,y0-my);x1=Math.min(P.W,x1+mx);y1=Math.min(P.H0,y1+my);
  const rw=x1-x0,rh=y1-y0,k=Math.min(need,4096/rw,4096/rh,Math.sqrt(12e6/(rw*rh)));if(k<=1.05)return;
- const img=P.img,pg=P.page,tk=(planHi.t=(planHi.t||0)+1),page=await P.pdf.getPage(pg),vp=page.getViewport({scale:P.ptpx*k,offsetX:-x0*k,offsetY:-y0*k});
+ const img=P.img,pg=P.page,tk=(planHi.t=(planHi.t||0)+1);
  const c=document.createElement("canvas");c.width=Math.round(rw*k);c.height=Math.round(rh*k);
- const cx=c.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,c.width,c.height);await page.render({canvasContext:cx,viewport:vp}).promise;
+ const cx=c.getContext("2d");cx.fillStyle="#fff";cx.fillRect(0,0,c.width,c.height);
+ if(P.join)await pjRender(P,cx,(X,Y)=>[((X-P.join.ux0)*P.ptpx-x0)*k,((Y-P.join.uy0)*P.ptpx-y0)*k],P.ptpx*k);   // つないだ図面：ページごとに、そのページの受け持ちの所だけ
+ else{const page=await P.pdf.getPage(pg),vp=page.getViewport({scale:P.ptpx*k,offsetX:-x0*k,offsetY:-y0*k});await page.render({canvasContext:cx,viewport:vp}).promise}
  if(tk!==planHi.t||PLAN!==P||P.img!==img||P.page!==pg){c.width=0;return}   // 途中で動かした・ページを変えた
  if(P.hi)P.hi.c.width=0;P.hi={c,img,x0,y0,w:rw,h:rh,k};planDraw()}
 function planDraw(){

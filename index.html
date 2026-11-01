@@ -146,7 +146,7 @@ input[type=range]{accent-color:var(--acc)}
 .gdov.on{display:block}
 .gdtop{position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);background:#0c1a33d9;color:#fff;border-radius:14px;padding:8px 12px;font-size:14px;font-weight:800;text-align:center;line-height:1.45;pointer-events:auto}
 .gdtop{padding-right:46px;padding-left:46px}.gdx{position:absolute;right:14px;top:calc(env(safe-area-inset-top,0px) + 12px);width:34px;height:34px;border-radius:17px;background:#ffffff26;color:#fff;font-size:17px;font-weight:900;pointer-events:auto;z-index:2}
-.gdbx{display:none;position:absolute;right:8px;top:8px;width:38px;height:38px;border-radius:19px;background:#e2e8f0;color:#0f172a;font-size:18px;font-weight:900;z-index:3}.gdbot:not(.mini) .gdbx{display:block}.gdbot:not(.mini){padding-top:34px}
+.gdbx{display:none;position:absolute;right:14px;top:calc(env(safe-area-inset-top,0px) + 12px);width:40px;height:40px;border-radius:20px;background:#0f172a;color:#fff;font-size:19px;font-weight:900;z-index:20;pointer-events:auto;box-shadow:0 2px 8px #0005}.gdov.gdexp .gdbx{display:block}
 .gdtop small{font-weight:600;font-size:12px;opacity:.9}
 .gdbot{position:absolute;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);background:#fffffff5;border-radius:18px;padding:10px;box-shadow:0 6px 20px #0004;pointer-events:auto}
 .gdgrab{display:flex;justify-content:center;align-items:center;height:20px;margin:-6px 0 2px;touch-action:none;cursor:pointer}.gdgrab i{width:44px;height:5px;border-radius:3px;background:#cbd5e1}
@@ -409,9 +409,9 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
   </div>
   <div class="pmenu" id="pmenu"></div>
   <div class="gdov" id="gdOv">
-    <div class="gdtop" id="gdTop"></div><button class="gdx" id="gdX" aria-label="曲げ手順をやめる">✕</button>
+    <div class="gdtop" id="gdTop"></div><button class="gdx" id="gdX" aria-label="曲げ手順をやめる">✕</button><button class="gdbx" id="gdBX" aria-label="くわしい説明を閉じる">✕</button>
     <div class="gdbot mini" id="gdBot">
-      <div class="gdgrab" id="gdGrab"><i></i></div><button class="gdbx" id="gdBX" aria-label="くわしい説明を閉じる">✕</button>
+      <div class="gdgrab" id="gdGrab"><i></i></div>
       <div class="gdmini" id="gdMini"></div>
       <div class="gdrow"><svg id="gdFront" width="150" height="150" viewBox="0 0 150 150"></svg><div class="gdtxt" id="gdTxt"></div></div>
       <div class="dirbtns"><button id="gdPrev">◀ 前の曲げ</button><button id="gdNext" class="ok">次の曲げ ▶</button></div>
@@ -676,7 +676,7 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>const APP="bend";</script>
 <script src="models.js?v=305"></script>
-<script src="core.js?v=336"></script>
+<script src="core.js?v=337"></script>
 <script src="drain.js?v=268"></script>
 <script src="tanka.js?v=228"></script>
 <script src="mitsumori.js?v=294"></script>

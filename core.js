@@ -1823,7 +1823,7 @@ function animGuideNext(){
  }
 }
 $("#gdNext").onclick=animGuideNext;
-$("#gdEnd").onclick=closeGuide;
+$("#gdEnd").onclick=closeGuide;{const x=$("#gdX");if(x)x.onclick=closeGuide;const bx=$("#gdBX");if(bx){bx.addEventListener("touchend",e=>e.stopPropagation());bx.onclick=e=>{e.stopPropagation();setGdMini(true)}}}   // 右上の✕：手順をやめる／くわしい説明を閉じる
 $("#gdRev").onclick=()=>{if(!GUIDE||gdBusy)return;GUIDE.rev[GUIDE.i]=!GUIDE.rev[GUIDE.i];showGuideStep()};
 $("#gdH").onfocus=e=>e.target.select();
 $("#gdH").onchange=()=>{const v=uParse($("#gdH").value);if(v>0){GUIDE_H=Math.min(3000,v);try{localStorage.setItem("pbm_bh",String(GUIDE_H))}catch(e){}if(GUIDE)showGuideStep()}};

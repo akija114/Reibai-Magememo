@@ -3792,7 +3792,7 @@ function v3dPoses(A, mdf){ return A.units.map(m => { const md = typeof mdf === '
   const th = Math.atan2(f[1], -f[0]); let port = [ccx, ccy], ph = m.ch, dport = null, dph = null;
   if (md){ const px = md.L/2 + 60, at = pz => { const dx = px*Math.cos(th) + pz*Math.sin(th), dz = -px*Math.sin(th) + pz*Math.cos(th); return [ccx + dx, ccy - dz]; }; port = at(md.gas.z); ph = m.ch + md.gas.y; if (md.dr){ dport = at(md.dr.z); dph = Math.round(m.ch + md.dr.y); } } // 3Dの z は図面の y と逆向き。ドレン口も
   return {m, k, cx:ccx, cy:ccy, f, th, port, ph:Math.round(ph), dport, dph}; }); }
-function loadModels(){ if (!mdlP) mdlP = new Promise(ok => { if (typeof CAS2M !== 'undefined') return ok(true); const sc = document.createElement('script'); sc.src = '../models.js?v=305'; sc.onload = () => ok(typeof CAS2M !== 'undefined'); sc.onerror = () => { mdlP = null; ok(false); }; document.head.appendChild(sc); }); return mdlP; } // 曲げ共有の機器の模型データ（同じサイトの models.js）
+function loadModels(){ if (!mdlP) mdlP = new Promise(ok => { if (typeof CAS2M !== 'undefined') return ok(true); const sc = document.createElement('script'); sc.src = '../models.js?v=306'; sc.onload = () => ok(typeof CAS2M !== 'undefined'); sc.onerror = () => { mdlP = null; ok(false); }; document.head.appendChild(sc); }); return mdlP; } // 曲げ共有の機器の模型データ（同じサイトの models.js）
 /* 室内機の機種：この図面で選び直した物 → 曲げメモの「全部自動」で決まった物 → 図面の品番の文字（曲げメモと同じ探し方） → 三菱 MBZ-2822AS-IN */
 const v3dMdl = () => { try { const k = localStorage.getItem('zumen-3dunit'), f = localStorage.getItem('zumen-3dunitF'); if (k != null && (f == null || f === (S.srcName || ''))) return k; } catch(e){}
   const mg = mageOk(); if (mg && mg.units.length) return mg.units[0].k; return v3dMdlTx() || 'mbz2822'; }; // 形ごとに決めていない機械の機種（形ごとの機種は v3dMdlKey）

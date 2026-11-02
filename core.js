@@ -1112,7 +1112,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    const poseOf=(aCur,rv)=>{
     const th=aCur*Math.PI/180,c=Math.cos(th),s2=Math.sin(th),e=fr.c.clone().addScaledVector(fr.d,-TnOf(aCur));
     let X,Yv,Z,anc;
-    if(TAF&&!rv){X=fr.d.clone().multiplyScalar(c).addScaledVector(b,s2);Yv=n.clone();anc=e.clone().addScaledVector(fr.d,R*s2).addScaledVector(b,R*(1-c));Z=X.clone().cross(Yv)}   // 逆向きは今までどおり
+    if(TAF){if(!rv){X=fr.d.clone().multiplyScalar(c).addScaledVector(b,s2);Yv=n.clone();anc=e.clone().addScaledVector(fr.d,R*s2).addScaledVector(b,R*(1-c))}else{X=fr.d.clone().negate();Yv=n.clone().negate();anc=e}Z=X.clone().cross(Yv)}
     else if(!rv){X=fr.d.clone();Yv=n.clone();Z=e3.clone();anc=e}
     else{const d2=fr.d.clone().multiplyScalar(c).addScaledVector(b,s2),b2=b.clone().multiplyScalar(c).addScaledVector(fr.d,-s2);
      anc=e.clone().addScaledVector(b,R).addScaledVector(b2,-R);X=d2.negate();Yv=n.clone().negate();Z=X.clone().cross(Yv)}
@@ -1133,7 +1133,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    try{if(!(GUIDE.prog>0)){
     const tg=traceR(rowsAt(row.a)),PF=rbV(rbS(poseOf(row.a,rev),1),row.a);
     const gm=new THREE.MeshBasicMaterial({color:0xf97316,transparent:true,opacity:.35,depthWrite:false});
-    tg.P.forEach(p=>{const mv=(TAF||rev)?(p.row>=0&&p.row<=i)||(p.arc>=0&&p.arc<=i):(p.row>i||p.arc===i);if(!mv)return;
+    tg.P.forEach(p=>{const mv=(TAF?!rev:rev)?(p.row>=0&&p.row<=i)||(p.arc>=0&&p.arc<=i):(p.row>i||p.arc===i);if(!mv)return;
      const A=toW(p.a,PF),B=toW(p.b,PF),len=A.distanceTo(B);if(len<1e-6)return;
      const m=new THREE.Mesh(new THREE.CylinderGeometry(L.rad,L.rad,len,14,1),gm);m.position.copy(A).add(B).multiplyScalar(0.5);m.quaternion.setFromUnitVectors(Y,B.clone().sub(A).normalize());(T.bgrp||T.grp).add(m)});
    }}catch(err){}
@@ -1269,22 +1269,23 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
    }else if(BMOD==="ta515"){
    /* TASCO ギアベンダー TA515：青い本体の上に、大きい丸いシュー（真ん中に四角い軸・ゼロ点の印）、
       配管をはさむ真ちゅう色のガイド（ガイド先端はシューの0に合わせる）、ガイドを押す送りねじ（青い軸・黒いハンドル）。
-      シューは動かさず、ガイド側に置いた配管（端の側）がシューに巻き付く（ガイドも一緒に回る）。下に三脚 */
+      シューの半円とガイドは赤いラインの先の側。シューがギアで回り、ゼロ点にかけた測った側（端の側）が回って、ガイド側から引き込んだ配管がシューに巻き付く
+      （曲げの角は赤いラインから測った側へ R 戻った所＝バック。2026-11-02 ユーザー：シューが回る動き・測った側が曲がる）。下に三脚 */
     const cl=GUIDE.cl!=null?GUIDE.cl:0,tw=GUIDE.tw||0,aNow=row.a*Math.min(1,GUIDE.prog||0),GI=0;   // GI：ガイドの先端とシューの0の間（いつも0に合わせる）   // cl：ガイドの開き（0＝締めた）、tw：ハンドルの回り
-    const sgp=new THREE.Group();sgp.position.set(-Tn,0,-R*sg);if(rev)sgp.rotation.y=aNow*Math.PI/180*sg;bg.add(sgp);   // シュー（動かない。逆向きは今までどおり回る）
-    const ggp=new THREE.Group();ggp.position.set(-Tn,0,-R*sg);if(!rev)ggp.rotation.y=-aNow*Math.PI/180*sg;bg.add(ggp);   // ガイド（配管と一緒にシューのまわりを回る）
+    const sgp=new THREE.Group();sgp.position.set(-Tn,0,-R*sg);sgp.rotation.y=-aNow*Math.PI/180*sg;bg.add(sgp);   // シュー（曲げに合わせて回る）
+    const ggp=new THREE.Group();ggp.position.set(-Tn,0,-R*sg);bg.add(ggp);   // ガイド（動かない）
     const gad=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x+Tn,y,(z+R)*sg);ggp.add(o);return o};
     const sm=new THREE.MeshStandardMaterial({color:0xaeb6be,metalness:.45,roughness:.35}),sm2=new THREE.MeshStandardMaterial({color:0x8c959e,metalness:.4,roughness:.4});
     const ad=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z*sg);sgp.add(o);return o};
     /* シューは半円：ゼロ点（配管が当たり始める所）から、曲げで巻き取る側の半分。回すと丸い所に配管が巻き付く */
-    const hs=(r,h,y,m)=>{const o=ad(new THREE.CylinderGeometry(r,r,h,40,1,false,Math.PI,Math.PI),m,0,y,0);if(sg<0)o.scale.z=-1;return o};
+    const hs=(r,h,y,m)=>{const o=ad(new THREE.CylinderGeometry(r,r,h,40,1,false,0,Math.PI),m,0,y,0);if(sg<0)o.scale.z=-1;return o};
     hs(R+Dl*0.55,Dl*1.5,0,sm);                                                                                        // シュー（半円・配管の溝の外）
     hs(R*0.98,Dl*0.12,Dl*0.8,sm2);                                                                                    // 上の面
-    ad(new THREE.BoxGeometry(Dl*0.6,Dl*1.5,(R+Dl*0.55)*2),sm2,-Dl*0.3,0,0);                                           // まっすぐな辺
+    ad(new THREE.BoxGeometry(Dl*0.6,Dl*1.5,(R+Dl*0.55)*2),sm2,Dl*0.3,0,0);                                            // まっすぐな辺
     ad(new THREE.BoxGeometry(R*0.42,Dl*0.4,R*0.42),dark,0,Dl*0.95,0);                                                // 四角い軸
-    for(let k=1;k<6;k++){const t=Math.PI+k*Math.PI/6,o=ad(new THREE.BoxGeometry(R*0.08,Dl*0.2,R*0.7),sm2,Math.sin(t)*R*0.55,Dl*0.9,Math.cos(t)*R*0.55);o.rotation.y=t*sg}  // スポーク
-    ad(new THREE.BoxGeometry(Math.max(Dl*0.22,2.5),Dl*0.25,R*0.55+Dl*0.5),red,-Dl*0.15,Dl*0.95,R*0.72+Dl*0.25);              // ゼロ点の印（赤・半円の端）
-    const gw=Dl*1.5,GL=R*1.7,gz=Dl*0.5+gw/2+cl*Dl*3,gx=-Tn-GI-GL/2;
+    for(let k=1;k<6;k++){const t=k*Math.PI/6,o=ad(new THREE.BoxGeometry(R*0.08,Dl*0.2,R*0.7),sm2,Math.sin(t)*R*0.55,Dl*0.9,Math.cos(t)*R*0.55);o.rotation.y=t*sg}  // スポーク
+    ad(new THREE.BoxGeometry(Math.max(Dl*0.22,2.5),Dl*0.25,R*0.55+Dl*0.5),red,Dl*0.15,Dl*0.95,R*0.72+Dl*0.25);              // ゼロ点の印（赤・半円の端）
+    const gw=Dl*1.5,GL=R*1.7,gz=Dl*0.5+gw/2+cl*Dl*3,gx=-Tn+GI+GL/2;
     const brs=new THREE.MeshStandardMaterial({color:0xc58b3c,metalness:.55,roughness:.35});
     gad(new THREE.BoxGeometry(GL,Dl*1.4,gw),brs,gx,0,gz);                                                             // ガイド（真ちゅう）
     gad(new THREE.BoxGeometry(GL*0.7,Dl*1.6,Dl*1.2),blk,gx,Dl*0.1,gz+gw/2+Dl*0.6);                                    // ガイドの押さえ（黒）
@@ -1297,11 +1298,11 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
     /* 15〜20mm の目安（ゼロ点とガイド先端の間）：黄色の線 */
     if(GI&&!(GUIDE.prog>0.02)){const yl=new THREE.MeshBasicMaterial({color:0xfacc15});
      add(new THREE.BoxGeometry(GI,Dl*0.15,Dl*0.3),yl,-Tn-GI/2,Dl*1.0,Dl*0.5);[0,-GI].forEach(dx=>add(new THREE.BoxGeometry(Math.max(Dl*0.12,1.5),Dl*0.6,Dl*0.3),yl,-Tn+dx,Dl*1.0,Dl*0.5))}
-    const top=-Dl*0.9,BH=R*0.95,BX0=-Tn-R*2.1,BX1=-Tn+R*1.5,BZ0=-R*2.3,BZ1=R*2.6;
+    const top=-Dl*0.9,BH=R*0.95,BX0=-Tn-R*1.5,BX1=-Tn+R*2.1,BZ0=-R*2.3,BZ1=R*2.6;
     add(new THREE.BoxGeometry(BX1-BX0,BH,BZ1-BZ0),new THREE.MeshStandardMaterial({color:0x22a7e0,roughness:.45}),(BX0+BX1)/2,top-BH/2,(BZ0+BZ1)/2);   // 本体（青）
-    add(new THREE.BoxGeometry(R*0.9,Dl*0.25,R*0.5),metal,BX1-R*0.6,top+Dl*0.12,BZ1-R*0.4);                             // 銘板
-    rod(BX1,top-BH*0.5,-R*0.6,BX1+R*0.5,top-BH*0.5,-R*0.6,R*0.08,dark);rod(BX1+R*0.5,top-BH*0.5,-R*0.6,BX1+R*0.5,top-BH*1.6,-R*0.6,R*0.08,blu); // クランク
-    rod(BX1+R*0.5,top-BH*1.6,-R*0.6,BX1+R*1.0,top-BH*1.6,-R*0.6,R*0.1,blk);
+    add(new THREE.BoxGeometry(R*0.9,Dl*0.25,R*0.5),metal,BX0+R*0.6,top+Dl*0.12,BZ1-R*0.4);                             // 銘板
+    rod(BX0,top-BH*0.5,-R*0.6,BX0-R*0.5,top-BH*0.5,-R*0.6,R*0.08,dark);rod(BX0-R*0.5,top-BH*0.5,-R*0.6,BX0-R*0.5,top-BH*1.6,-R*0.6,R*0.08,blu); // クランク
+    rod(BX0-R*0.5,top-BH*1.6,-R*0.6,BX0-R*1.0,top-BH*1.6,-R*0.6,R*0.1,blk);
     [0,2.1,4.2].forEach(k=>legTo((BX0+BX1)/2,top-BH,(BZ0+BZ1)/2,(BX0+BX1)/2+Math.cos(k)*R*3.4,(BZ0+BZ1)/2+Math.sin(k)*R*3.4,R*0.07,lg0));   // 三脚
    }else{
    const top=-Dl*0.75,BH=R*1.15,BX0=-Tn-R*1.7,BX1=-Tn+R*1.2,BZ0=-R*1.35,BZ1=R*4.2;

@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja" data-app="matome">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>現調まとめ - 冷媒配管の曲げ共有</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="曲げ共有 v1.00">
+<!-- 🗂 現調まとめ（2026-11-02 ユーザー：自分で作った現調の資料が見本。「現調した人がいなくても分かる・電話がかかってこない・職人が予習できる」）。
+     表紙（工事のまとめ）・全体図（📍 どこから撮ったかの矢印）・写真（色のペン・寸法・文字・その場所の材料）・電話を減らすチェック・材料と道具の一覧（合計と場所ごと）。
+     LINEには写真で送る（表紙・全体図・写真・材料の順に1枚ずつ）。データはこのiPhoneの中（IndexedDB「matome」の reps）。現場（IndexedDB「genba」の sites）は読むだけ。
+     材料の一覧はこの端末で足せる・📌 よく使う物を上に（localStorage「pbm_mt_cat」）。
+     items：{k:"d",a,b,v}寸法・{k:"t",p,v}文字・{k:"l",c,pts}ペン（c＝new 新規・rm 撤去・sp 支持・mk メクラ・dr ドレン）・{k:"m",a,b,v}全体図の矢印（a＝立つ所・b＝見る向き）。座標は写真のピクセル -->
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--panel:#e2e8f0;--danger:#dc2626;--line2:#06c755;--warn:#b45309}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171;--warn:#fbbf24}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171;--warn:#fbbf24}
+*,*:before,*:after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 96px)}
+.apps{display:flex;gap:4px;margin:0 0 10px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:3px}
+.apps a{flex:1;text-align:center;padding:7px 0;border-radius:9px;font-size:13px;font-weight:800;color:var(--sub);text-decoration:none;white-space:nowrap}
+h1{font-size:19px;margin:4px 2px 10px}
+h2{font-size:15px;margin:20px 2px 6px;display:flex;align-items:center;gap:6px}
+h2 small{font-weight:600;color:var(--sub);font-size:12px}
+.btn{height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:15px;padding:0 12px;white-space:nowrap}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}.btn.line{background:var(--line2);border-color:var(--line2);color:#fff}.btn.del{color:var(--danger)}.btn.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.big{display:flex;align-items:center;gap:12px;width:100%;border-radius:16px;padding:14px 16px;font:inherit;border:0;text-align:left;color:#fff;background:var(--acc);min-height:66px;margin-top:8px}
+.big b{font-size:18px;display:block}.big small{font-size:12.5px;opacity:.9;display:block;margin-top:2px;font-weight:600}.big .ic{font-size:28px}
+.big.sub{background:var(--card);color:var(--acc);border:2px solid var(--acc)}.big.sub small{color:var(--sub)}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;margin-top:6px}
+.memo{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:8px;margin-top:8px;color:var(--ink);font:inherit}
+.memo img,.memo .noimg{width:76px;height:76px;object-fit:cover;border-radius:10px;flex:none;background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:28px}
+.memo b{font-size:16px;display:block}.memo .sub{color:var(--sub);font-size:12.5px;margin-top:3px;line-height:1.5}
+.empty{color:var(--sub);text-align:center;padding:16px 8px;font-size:14px;line-height:1.7;background:var(--card);border:1.5px dashed var(--line);border-radius:14px;margin-top:8px}
+.f{display:flex;align-items:center;gap:8px;margin:6px 0}.f span{flex:none;width:6.2em;font-size:13.5px;font-weight:800;color:var(--sub)}
+.f input,.f select,.f textarea{flex:1;min-width:0;height:42px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px;padding:0 10px}
+.f textarea{height:64px;padding:8px 10px;resize:vertical}
+.ck{display:flex;align-items:center;gap:6px;padding:7px 0;border-top:1px solid var(--line)}.ck:first-child{border-top:0}
+.ck b{flex:1;font-size:14.5px}.ck button{width:42px;height:38px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:900;font-size:16px}
+.ck button.on{background:var(--acc);border-color:var(--acc);color:#fff}.ck button.on.x{background:var(--danger);border-color:var(--danger)}
+.ck input{width:100%;height:38px;border-radius:9px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:15px;padding:0 8px;margin-top:4px}
+.mt{font-size:14.5px;line-height:1.7}.mt .cat{font-weight:900;color:var(--acc);margin-top:6px}.mt .row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line)}.mt .row b{white-space:nowrap}
+.warnbox{background:#fff7ed;color:#7c2d12;border:1.5px solid #fdba74;border-radius:12px;padding:8px 10px;margin-top:8px;font-size:14px;line-height:1.6}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .warnbox{background:#2a1a0c;color:#fed7aa;border-color:#9a3412}}
+.dock{position:fixed;left:0;right:0;bottom:0;padding:8px 12px calc(env(safe-area-inset-bottom,0px) + 10px);background:var(--card);border-top:1.5px solid var(--line);display:flex;gap:8px;z-index:4}
+.dock .btn{flex:1;height:52px;font-size:16px}
+/* 書きこむ画面 */
+body.ed{padding:0;overflow:hidden;position:fixed;inset:0}
+.top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;display:flex;gap:6px;align-items:center;background:var(--card);border-bottom:1.5px solid var(--line);z-index:3}
+.top input{flex:1;min-width:0;height:40px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px;padding:0 10px}
+.top .btn{height:40px;font-size:14px;padding:0 10px}
+#cv{position:absolute;left:0;right:0;touch-action:none;background:#111}
+.bot{position:absolute;left:0;right:0;bottom:0;padding:6px 8px calc(env(safe-area-inset-bottom,0px) + 8px);background:var(--card);border-top:1.5px solid var(--line);z-index:3}
+.bot .row{display:flex;gap:6px}.bot .btn{flex:1;height:48px;font-size:14.5px;padding:0 4px}
+.pens{display:flex;gap:6px;margin-bottom:6px;overflow-x:auto}.pens button{flex:none;height:34px;border-radius:999px;border:2px solid transparent;font:inherit;font-weight:800;font-size:13px;padding:0 10px;color:#fff}
+.pens button.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
+.hint{font-size:12.5px;color:var(--sub);text-align:center;margin-bottom:6px}
+.sheet{position:fixed;inset:0;background:#0007;z-index:9;display:flex;align-items:flex-end}
+.sbox{background:var(--card);width:100%;max-height:88vh;max-height:88dvh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 14px)}
+.sbox .vin{width:100%;height:56px;border-radius:12px;border:2px solid var(--acc);background:var(--bg);color:var(--ink);font:inherit;font-size:24px;font-weight:800;padding:0 12px;text-align:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.chip{border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 12px;font:inherit;font-size:14px;font-weight:700}
+.sbox .row{display:flex;gap:8px;margin-top:10px}.sbox .row .btn{flex:1;height:50px}
+.mrow{display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid var(--line)}
+.mrow .pin{width:34px;height:34px;border-radius:9px;border:0;background:transparent;font-size:18px;opacity:.35}.mrow .pin.on{opacity:1}
+.mrow b{flex:1;font-size:15px;min-width:0}.mrow b small{color:var(--sub);font-weight:600;font-size:12px;margin-left:4px}
+.mrow .q{width:46px;height:38px;border-radius:9px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:17px;font-weight:900;text-align:center}
+.mrow .pm{width:40px;height:38px;border-radius:9px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:20px;font-weight:900}
+.mcat{font-weight:900;color:var(--acc);margin:12px 0 2px;font-size:14px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 120px);transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:88vw;text-align:center;z-index:20;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<input type="file" id="fCam" accept="image/*" capture="environment" hidden><input type="file" id="fPick" accept="image/*" hidden>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const rid=p=>(p||"r")+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+let toastT=0;function toast(m){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t)}t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,Math.min(6000,1800+m.length*40))}
+const ls=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||"null");localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
+/* ===== 保存（IndexedDB「matome」） ===== */
+let dbP=null;
+function db(){if(!dbP)dbP=new Promise((ok,ng)=>{const o=indexedDB.open("matome",1);o.onupgradeneeded=()=>{const d=o.result;if(!d.objectStoreNames.contains("reps"))d.createObjectStore("reps",{keyPath:"id"})};o.onsuccess=()=>ok(o.result);o.onerror=()=>ng(o.error)});return dbP}
+async function dbDo(mode,fn){const d=await db();return new Promise((ok,ng)=>{const tx=d.transaction("reps",mode),s=tx.objectStore("reps");let r;try{r=fn(s)}catch(e){ng(e);return}tx.oncomplete=()=>ok(r&&"result"in r?r.result:undefined);tx.onerror=()=>ng(tx.error)})}
+const allReps=()=>dbDo("readonly",s=>s.getAll()),getRep=id=>dbDo("readonly",s=>s.get(id)),putRep=m=>dbDo("readwrite",s=>s.put(m)),delRep=id=>dbDo("readwrite",s=>s.delete(id));
+function genbaSites(){return new Promise(ok=>{try{const o=indexedDB.open("genba",1);o.onupgradeneeded=()=>{const d=o.result;if(!d.objectStoreNames.contains("sites"))d.createObjectStore("sites",{keyPath:"id"});if(!d.objectStoreNames.contains("photos"))d.createObjectStore("photos",{keyPath:"id"})};
+ o.onsuccess=()=>{try{const r=o.result.transaction("sites","readonly").objectStore("sites").getAll();r.onsuccess=()=>ok(r.result||[]);r.onerror=()=>ok([])}catch(e){ok([])}};o.onerror=()=>ok([])}catch(e){ok([])}})}
+function shrink(file){return new Promise((ok,ng)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,2000/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement("canvas");c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok({b,w:c.width,h:c.height}):ng(new Error("写真を読めませんでした")),"image/jpeg",.85)};im.onerror=()=>{URL.revokeObjectURL(u);ng(new Error("写真を読めませんでした"))};im.src=u})}
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
+const dTxt=s=>s?s.slice(5).replace("-","/"):"";
+const urls=[];const freeUrls=()=>{while(urls.length)URL.revokeObjectURL(urls.pop())};
+
+/* ===== 材料の一覧（この端末で足せる・📌 よく使う。会社ごとに使う材料がちがうので自由に） ===== */
+const CATS=["冷媒配管","ドレン","支持・金物","電線","スリムダクト・カバー","雑材（忘れがち）","道具"];
+const MT0=[["冷媒配管","冷媒管 2分","巻"],["冷媒配管","冷媒管 3分","巻"],["冷媒配管","冷媒管 4分","巻",1],["冷媒配管","冷媒管 5分","巻"],["冷媒配管","冷媒管 6分","巻"],["冷媒配管","冷媒管 7分（保温付）","本"],["冷媒配管","冷媒管 25（10mm保温）","本",1],["冷媒配管","冷媒管 28（保温付）","本"],["冷媒配管","分岐管","個"],
+ ["ドレン","AC25","本",1],["ドレン","AC25 L","個",1],["ドレン","VP25×30 レジューサー","個"],["ドレン","バルブソケット 25","個"],["ドレン","VP25（白）直管","本",1],["ドレン","VP25（白）L","個",1],["ドレン","VP25（白）S","個"],["ドレン","SUS片サドル（VP25用）","個",1],["ドレン","VP30 直管","本"],["ドレン","VP40 直管","本"],["ドレン","ドレンホース","m"],
+ ["支持・金物","T足","個",1],["支持・金物","HB1","個",1],["支持・金物","たてバンド（80）","個",1],["支持・金物","面ガード","個"],["支持・金物","吊バンド（65）","個"],["支持・金物","吊バンド（80）","個"],["支持・金物","吊バンド（AC25用）","個"],["支持・金物","全ネジ","本"],["支持・金物","ALCビス（SUS）","箱"],["支持・金物","タイガーベース 400","個"],["支持・金物","防振ゴム 10mm","枚"],["支持・金物","転倒防止セット","個"],["支持・金物","架台","台"],
+ ["電線","VA 2mm 3芯","巻",1],["電線","VA 1.6mm 3芯","巻"],["電線","リモコン線 0.75","巻"],["電線","伝送線 1.25","巻"],["電線","2口用メタルボックス","個"],
+ ["スリムダクト・カバー","スリムダクト 直管 D（白100）","本",1],["スリムダクト・カバー","スリムダクト 頭 SW（白100）","個"],["スリムダクト・カバー","スリムダクト 継手 SJ（白100）","個"],["スリムダクト・カバー","スリムダクト 曲がり SK（白100）","個"],
+ ["雑材（忘れがち）","変成シリコン（白）","本",1,1],["雑材（忘れがち）","パテ","個",1,1],["雑材（忘れがち）","カパステープ","個",1,1],["雑材（忘れがち）","バイツ","個",0,1],["雑材（忘れがち）","ビニールテープ","個",0,1],["雑材（忘れがち）","結束バンド","袋",0,1],["雑材（忘れがち）","保温材のテープ","個",0,1],
+ ["道具","ホルソー 40φ（ALC用）","本"],["道具","ホルソー 80φ（ALC用）","本"],["道具","ホルソー 100φ（ALC用）","本"],["道具","ギアベンダー 25","台"],["道具","脚立","台"],["道具","高所作業車","台"]];
+function cat(){let c=ls("pbm_mt_cat");if(!c||!Array.isArray(c.list)){c={v:1,list:MT0.map((m,i)=>({id:"m"+i,c:m[0],n:m[1],u:m[2],pin:!!m[3],f:!!m[4]}))};ls("pbm_mt_cat",c)}return c}
+const matOf=id=>cat().list.find(m=>m.id===id)||{id,n:"（消した材料）",u:"",c:"雑材（忘れがち）"};
+/* 電話を減らすチェック（ユーザーの資料から：電話がかかってくる所を先に決めておく） */
+const CHK=[["hk","搬入の道・運び方（クレーン・台車）"],["ht","高い所の作業（脚立・足場・高所作業車）"],["tm","作業してよい時間・立ち会いの人"],["pw","電源の取り方（だれがやる）"],["ot","ほかの業者の受け持ち（電気屋さん・建築など）"],["pk","駐車の場所"],["yj","養生する所"],["hl","穴あけ（大きさ・場所・壁の材料）"]];
+const SUMF=[["iu","室内機"],["ou","室外機"],["n","台数"],["pp","配管サイズ"],["el","電線"],["dr","ドレン"],["nt","メモ"]];
+const PENS=[["new","新規配管","#16a34a"],["rm","撤去","#ec4899"],["sp","支持","#dc2626"],["mk","メクラの板","#0ea5e9"],["dr","ドレン","#2563eb"]];
+const penC=k=>(PENS.find(p=>p[0]===k)||PENS[0])[2],penN=k=>(PENS.find(p=>p[0]===k)||PENS[0])[1];
+
+/* ===== 一覧 ===== */
+async function renderList(){
+ document.body.className="";freeUrls();const rs=(await allReps()).sort((a,b)=>b.u-a.u);
+ $("#app").innerHTML=`<nav class="apps"><a href="home.html" style="flex:0 0 38px" aria-label="入口">🏠</a><a href="genchou.html">📹 現調</a><a href="sunpou.html">📏 写真に寸法</a><a href="genba.html">📋 現場</a></nav>
+ <h1>🗂 現調まとめ</h1>
+ <div style="font-size:13.5px;color:var(--sub);line-height:1.6;margin:0 2px 6px">現調した人がいなくても、みんなが分かる資料を作ります。写真に線と材料を書いていくと、材料の一覧ができて、LINEに写真で送れます。</div>
+ <button class="big" id="bNew"><span class="ic">＋</span><span><b>新しい現調まとめ</b><small>現場・工事のまとめ → 全体図 → 写真を足していく</small></span></button>
+ <h2>作った現調まとめ（${rs.length}）</h2>
+ ${rs.length?rs.map(r=>{const p=r.pages&&r.pages[0],im=r.map||p;let th='<span class="noimg">🗂</span>';if(im&&im.img){const u=URL.createObjectURL(im.img);urls.push(u);th=`<img src="${u}" alt="">`}
+  return `<button class="memo" data-id="${r.id}">${th}<span><b>${esc(r.title||"（現場名なし）")}</b><span class="sub">${esc(dTxt(r.date))}${r.by?" ・ "+esc(r.by):""}<br>写真 ${r.pages.length}枚・材料 ${Object.keys(totals(r)).length}種類</span></span></button>`}).join(""):`<div class="empty">まだありません。<br>「新しい現調まとめ」から始めてください。</div>`}`;
+ $("#bNew").onclick=async()=>{const r={id:rid("r"),t:Date.now(),u:Date.now(),title:"",site:"",siteName:"",by:ls("pbm_mt_by")||"",date:today(),sum:{},chk:{},map:null,pages:[],extra:{}};await putRep(r);location.hash="r="+r.id};
+ $("#app").querySelectorAll(".memo").forEach(b=>b.onclick=()=>{location.hash="r="+b.dataset.id});
+}
+
+/* ===== 材料の合計 ===== */
+function totals(r){const t={};const add=o=>{for(const k in o||{}){const v=+o[k]||0;if(v)t[k]=(t[k]||0)+v}};(r.pages||[]).forEach(p=>add(p.mats));add(r.extra);return t}
+const qty=v=>String(Math.round(v*100)/100);
+function matsByCat(t){const g={};for(const id in t){const m=matOf(id);(g[m.c]=g[m.c]||[]).push([m,t[id]])}return CATS.concat(Object.keys(g).filter(c=>!CATS.includes(c))).filter(c=>g[c]).map(c=>[c,g[c].sort((a,b)=>a[0].n.localeCompare(b[0].n,"ja"))])}
+const forgot=t=>cat().list.filter(m=>m.f&&!t[m.id]);
+
+/* ===== 1つの現調まとめ ===== */
+let R=null,saveT=0;
+function save(){if(!R)return;R.u=Date.now();clearTimeout(saveT);saveT=setTimeout(()=>putRep(R).catch(()=>toast("保存できませんでした")),250)}
+async function renderRep(id){
+ const r=await getRep(id);if(!r){location.hash="";return}R=r;document.body.className="";freeUrls();
+ const thumb=o=>{if(!o||!o.img)return'<span class="noimg">🖼</span>';const u=URL.createObjectURL(o.img);urls.push(u);return `<img src="${u}" alt="">`};
+ const t=totals(r),fg=forgot(t),ck=r.chk||{};
+ $("#app").innerHTML=`<nav class="apps"><a href="#" id="aBack" style="flex:0 0 76px">‹ 一覧</a><a href="genba.html">📋 現場</a></nav>
+ <h1>🗂 ${esc(r.title||"現調まとめ")}</h1>
+ <h2>① 表紙 <small>工事のまとめ（1枚目に出ます）</small></h2>
+ <div class="card">
+  <label class="f"><span>📋 現場</span><select id="sSite"><option value="">（えらぶ）</option></select></label>
+  <label class="f"><span>現場の名前</span><input id="iTitle" value="${esc(r.title)}" placeholder="例：〇〇工場 2F"></label>
+  <label class="f"><span>現調の日</span><input id="iDate" type="date" value="${esc(r.date)}"></label>
+  <label class="f"><span>作った人</span><input id="iBy" value="${esc(r.by)}" placeholder="名前"></label>
+  ${SUMF.map(([k,n])=>k==="nt"?`<label class="f"><span>${n}</span><textarea data-s="${k}" placeholder="気をつける事など">${esc((r.sum||{})[k])}</textarea></label>`:`<label class="f"><span>${n}</span><input data-s="${k}" value="${esc((r.sum||{})[k])}" placeholder="${{iu:"例：PFAV-P280DMJ3 床置き",ou:"例：PUHV-P280DMJ3",n:"例：1台",pp:"例：液 9.52／ガス 22.2（3分・7分）",el:"例：電源 14sq・連絡線 VA 2mm 3芯",dr:"例：VP25（白）外へ"}[k]||""}"></label>`).join("")}
+ </div>
+ <h2>② 全体図 <small>図面か建物の写真。どこから撮ったかの矢印を置く</small></h2>
+ ${r.map?`<button class="memo" id="bMap">${thumb(r.map)}<span><b>全体図</b><span class="sub">矢印 ${r.map.items.filter(i=>i.k==="m").length}本・タップで直す</span></span></button>`:`<div class="row" style="display:flex;gap:8px;margin-top:6px"><button class="btn" style="flex:1" id="bMapCam">📷 撮る</button><button class="btn" style="flex:1" id="bMapPick">🖼 図面・写真を選ぶ</button></div>`}
+ <h2>③ 写真 <small>1枚ずつ。名前（①室内機位置など）・線・寸法・その場所の材料</small></h2>
+ ${r.pages.map((p,i)=>{const n=Object.keys(p.mats||{}).filter(k=>p.mats[k]).length;return `<button class="memo" data-p="${p.id}">${thumb(p)}<span><b>${esc(p.name||"写真 "+(i+1))}</b><span class="sub">${p.items.length?"書きこみ "+p.items.length+"・":""}材料 ${n}種類${n?"<br>"+esc(Object.keys(p.mats).filter(k=>p.mats[k]).slice(0,3).map(k=>matOf(k).n+" "+qty(p.mats[k])+matOf(k).u).join("・")):""}</span></span></button>`}).join("")}
+ <div style="display:flex;gap:8px;margin-top:8px"><button class="btn pri" style="flex:1" id="bCam">📷 写真を撮る</button><button class="btn" style="flex:1" id="bPick">🖼 写真を選ぶ</button></div>
+ <h2>④ 電話を減らすチェック <small>あとで聞かれる所を先に決めておく</small></h2>
+ <div class="card">${CHK.map(([k,n])=>{const c=ck[k]||{};return `<div class="ck" data-k="${k}"><div style="flex:1"><div style="display:flex;align-items:center;gap:6px"><b>${n}</b><button data-v="o" class="${c.v==="o"?"on":""}">○</button><button data-v="x" class="x ${c.v==="x"?"on x":""}">×</button></div><input data-m="${k}" value="${esc(c.m)}" placeholder="メモ（例：高所作業車は道路側・電気屋さん）"></div></div>`}).join("")}</div>
+ <h2>⑤ 材料と道具 <small>写真ごとに入れた材料の合計</small></h2>
+ <div class="card mt" id="mtBox">${matHtml(r)}</div>
+ ${fg.length?`<div class="warnbox">🧻 <b>忘れがちな物、いりませんか？</b><br>${fg.map(m=>esc(m.n)).join("・")}</div>`:""}
+ <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1" id="bExtra">＋ 全体で足す</button><button class="btn" style="flex:1" id="bCopy">📋 文字でコピー</button></div>
+ <div style="display:flex;gap:8px;margin-top:18px"><button class="btn del" style="flex:1" id="bDel">この現調まとめを消す</button></div>
+ <div class="dock"><button class="btn line" id="bSend">📤 LINEで送る（${2+r.pages.length+(r.map?1:0)}枚）</button></div>`;
+ $("#aBack").onclick=e=>{e.preventDefault();clearTimeout(saveT);putRep(R).finally(()=>{location.hash=""})};
+ genbaSites().then(ss=>{const sel=$("#sSite");if(!sel)return;ss.sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,40).forEach(s=>{const o=document.createElement("option");o.value=s.id;o.textContent=(s.name||"（名前なし）")+(s.date?" "+dTxt(s.date):"");if(s.id===r.site)o.selected=true;sel.appendChild(o)});
+  sel.onchange=()=>{const s=ss.find(x=>x.id===sel.value);R.site=s?s.id:"";R.siteName=s?(s.name||""):"";if(s&&!R.title){R.title=s.name||"";$("#iTitle").value=R.title}save()}});
+ $("#iTitle").oninput=e=>{R.title=e.target.value;save()};$("#iDate").oninput=e=>{R.date=e.target.value;save()};$("#iBy").oninput=e=>{R.by=e.target.value;ls("pbm_mt_by",R.by);save()};
+ $("#app").querySelectorAll("[data-s]").forEach(el=>el.oninput=()=>{R.sum=R.sum||{};R.sum[el.dataset.s]=el.value;save()});
+ $("#app").querySelectorAll(".ck button").forEach(b=>b.onclick=()=>{const k=b.closest(".ck").dataset.k;R.chk=R.chk||{};const c=R.chk[k]=R.chk[k]||{};c.v=c.v===b.dataset.v?"":b.dataset.v;save();b.parentNode.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.v===c.v))});
+ $("#app").querySelectorAll("[data-m]").forEach(el=>el.oninput=()=>{R.chk=R.chk||{};const c=R.chk[el.dataset.m]=R.chk[el.dataset.m]||{};c.m=el.value;save()});
+ $("#app").querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{location.hash="e="+R.id+":"+b.dataset.p});
+ if($("#bMap"))$("#bMap").onclick=()=>{location.hash="e="+R.id+":map"};
+ const pick=(cam,tgt)=>{PICK=tgt;$(cam?"#fCam":"#fPick").click()};
+ if($("#bMapCam")){$("#bMapCam").onclick=()=>pick(1,"map");$("#bMapPick").onclick=()=>pick(0,"map")}
+ $("#bCam").onclick=()=>pick(1,"page");$("#bPick").onclick=()=>pick(0,"page");
+ $("#bExtra").onclick=()=>matSheet(R.extra=R.extra||{},"全体で足す材料",()=>{$("#mtBox").innerHTML=matHtml(R)});
+ $("#bCopy").onclick=async()=>{try{await navigator.clipboard.writeText(matText(R));toast("材料と道具をコピーしました")}catch(e){toast("コピーできませんでした")}};
+ $("#bSend").onclick=sendAll;
+ $("#bDel").onclick=async e=>{const b=e.target;if(!b.dataset.ok){b.dataset.ok="1";b.textContent="本当に消す（写真も全部）";return}clearTimeout(saveT);await delRep(R.id);R=null;location.hash=""};
+}
+let PICK="page";
+["#fCam","#fPick"].forEach(id=>$(id).onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f||!R)return;
+ try{const {b,w,h}=await shrink(f);if(PICK==="map"){R.map={img:b,w,h,items:[]};await putRep(R);location.hash="e="+R.id+":map"}
+  else{const p={id:rid("p"),name:"",img:b,w,h,items:[],mats:{}};R.pages.push(p);await putRep(R);location.hash="e="+R.id+":"+p.id}}catch(err){toast(err.message||"写真を読めませんでした")}});
+/* 材料の表（合計 → 場所ごと） */
+function matHtml(r){const t=totals(r),g=matsByCat(t);if(!g.length)return `<div style="color:var(--sub);font-size:14px">まだありません。写真を開いて「🧰 材料」から入れてください。</div>`;
+ let h=`<div style="font-weight:900">合計</div>`+g.map(([c,a])=>`<div class="cat">${esc(c)}</div>`+a.map(([m,v])=>`<div class="row"><span>${esc(m.n)}</span><b>${qty(v)} ${esc(m.u)}</b></div>`).join("")).join("");
+ const per=(r.pages||[]).map((p,i)=>[p.name||"写真 "+(i+1),p.mats]).concat([["全体で足す",r.extra]]).filter(([,o])=>o&&Object.keys(o).some(k=>o[k]));
+ if(per.length)h+=`<div style="font-weight:900;margin-top:12px">場所ごと（当日の材料分けに）</div>`+per.map(([n,o])=>`<div class="cat">${esc(n)}</div>`+Object.keys(o).filter(k=>o[k]).map(k=>`<div class="row"><span>${esc(matOf(k).n)}</span><b>${qty(o[k])} ${esc(matOf(k).u)}</b></div>`).join("")).join("");
+ return h}
+function matText(r){const t=totals(r),s=r.sum||{},L=[`【材料と道具】${r.title||""}${r.date?"（現調 "+dTxt(r.date)+"）":""}`];
+ SUMF.filter(([k])=>k!=="nt"&&s[k]).forEach(([k,n])=>L.push(`${n}：${s[k]}`));
+ matsByCat(t).forEach(([c,a])=>{L.push("",`〇${c}`);a.forEach(([m,v])=>L.push(`${m.n}　${qty(v)}${m.u}`))});
+ const per=(r.pages||[]).map((p,i)=>[p.name||"写真 "+(i+1),p.mats]).filter(([,o])=>o&&Object.keys(o).some(k=>o[k]));
+ if(per.length){L.push("","―― 場所ごと ――");per.forEach(([n,o])=>{L.push(`☆${n}`);Object.keys(o).filter(k=>o[k]).forEach(k=>L.push(`　${matOf(k).n}　${qty(o[k])}${matOf(k).u}`))})}
+ const fg=forgot(t);if(fg.length)L.push("","忘れがち：　"+fg.map(m=>m.n).join("・")+"　いりませんか？");return L.join("\n")}
+
+/* 材料を入れる画面（📌 よく使う物が上・種類ごと・＋ 材料を足す） */
+function matSheet(obj,title,done){
+ const ov=document.createElement("div");ov.className="sheet";let q="",showAll=false;document.body.appendChild(ov);
+ const rowH=m=>`<div class="mrow" data-id="${m.id}"><button class="pin ${m.pin?"on":""}" data-a="pin" aria-label="よく使う">📌</button><b>${esc(m.n)}<small>${esc(m.u)}</small></b><button class="pm" data-a="-">−</button><input class="q" inputmode="decimal" value="${obj[m.id]?qty(obj[m.id]):""}" placeholder="0"><button class="pm" data-a="+">＋</button></div>`;
+ const body=()=>{const L=cat().list.filter(m=>!q||m.n.includes(q)||m.c.includes(q)),pins=L.filter(m=>m.pin),inUse=L.filter(m=>!m.pin&&obj[m.id]);
+  let h="";if(pins.length)h+=`<div class="mcat">📌 よく使う</div>`+pins.map(rowH).join("");if(inUse.length)h+=`<div class="mcat">入れた物</div>`+inUse.map(rowH).join("");
+  if(showAll||q)CATS.forEach(c=>{const a=L.filter(m=>m.c===c&&!m.pin&&!obj[m.id]);if(a.length)h+=`<div class="mcat">${esc(c)}</div>`+a.map(rowH).join("")});
+  else h+=`<button class="btn" data-a="all" style="width:100%;margin-top:10px">▼ ほかの材料も出す（種類ごと）</button>`;
+  return h||`<div style="color:var(--sub);padding:10px 0">見つかりません</div>`};
+ const draw=()=>{const y=ov.querySelector(".sbox")?ov.querySelector(".sbox").scrollTop:0;ov.innerHTML=`<div class="sbox"><div style="display:flex;align-items:center;gap:8px"><div style="font-weight:900;font-size:16px;flex:1">🧰 ${esc(title)}</div><button class="btn pri" data-a="ok">決める</button></div>
+  <input id="mq" value="${esc(q)}" placeholder="🔍 さがす（例：VP25・バンド）" style="width:100%;height:42px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px;padding:0 10px;margin:10px 0 4px">
+  <div style="font-size:12px;color:var(--sub)">📌 を押すと「よく使う」に入って、いつも上に出ます</div>
+  <div id="ml">${body()}</div>
+  <button class="btn" data-a="add" style="width:100%;margin-top:12px">＋ 材料を足す（この端末で覚える）</button></div>`;
+  ov.querySelector(".sbox").scrollTop=y;const mq=ov.querySelector("#mq");mq.oninput=()=>{q=mq.value.trim();ov.querySelector("#ml").innerHTML=body()}};
+ const setQ=(id,v)=>{v=Math.max(0,Math.round(v*100)/100);if(v)obj[id]=v;else delete obj[id];save()};
+ ov.addEventListener("input",e=>{const r=e.target.closest(".mrow");if(r&&e.target.classList.contains("q")){const v=parseFloat(String(e.target.value).replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)));setQ(r.dataset.id,isNaN(v)?0:v)}});
+ ov.onclick=e=>{if(e.target===ov){close();return}const b=e.target.closest("button");if(!b)return;const a=b.dataset.a,r=b.closest(".mrow");
+  if(a==="ok"){close();return}
+  if(a==="all"){showAll=true;ov.querySelector("#ml").innerHTML=body();return}
+  if(a==="pin"&&r){const c=cat(),m=c.list.find(x=>x.id===r.dataset.id);if(m){m.pin=!m.pin;ls("pbm_mt_cat",c);ov.querySelector("#ml").innerHTML=body();toast(m.pin?"📌 よく使うに入れました":"よく使うから外しました")}return}
+  if((a==="+"||a==="-")&&r){const id=r.dataset.id;setQ(id,(obj[id]||0)+(a==="+"?1:-1));r.querySelector(".q").value=obj[id]?qty(obj[id]):"";return}
+  if(a==="add"){addMat(m=>{obj[m.id]=1;save();draw()})}};
+ const close=()=>{ov.remove();if(done)done()};draw();
+}
+function addMat(cb){const ov=document.createElement("div");ov.className="sheet";ov.style.zIndex=11;
+ ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px;margin-bottom:6px">＋ 材料を足す</div>
+  <label class="f"><span>名前</span><input id="aN" placeholder="例：VP25（白）チーズ"></label>
+  <label class="f"><span>種類</span><select id="aC">${CATS.map(c=>`<option>${esc(c)}</option>`).join("")}</select></label>
+  <label class="f"><span>数え方</span><input id="aU" value="個" placeholder="個・本・巻・m"></label>
+  <div class="chips">${["個","本","巻","m","箱","枚","台","袋"].map(u=>`<button class="chip" data-u="${u}">${u}</button>`).join("")}</div>
+  <label class="f" style="gap:6px"><input type="checkbox" id="aP" checked style="flex:none;width:22px;height:22px"> 📌 よく使うに入れる</label>
+  <label class="f" style="gap:6px"><input type="checkbox" id="aF" style="flex:none;width:22px;height:22px"> 🧻 忘れがちな物（まとめで「いりませんか？」と出す）</label>
+  <div class="row"><button class="btn" data-a="no">やめる</button><button class="btn pri" data-a="ok" style="flex:2">足す</button></div></div>`;
+ document.body.appendChild(ov);setTimeout(()=>{try{ov.querySelector("#aN").focus()}catch(e){}},50);
+ /* 名前から種類を当てる（あとで選び直せる） */
+ ov.querySelector("#aN").oninput=e=>{const n=e.target.value,G=[["道具",/ホルソー|ベンダー|脚立|作業車|ドリル|工具/],["雑材（忘れがち）",/テープ|パテ|シリコン|バイツ|結束|ボンド|接着/],["スリムダクト・カバー",/ダクト|カバー/],["電線",/VA|VVF|CV|線|ボックス/],["ドレン",/VP|AC|ドレン|サドル|ソケ|レジュ|塩ビ/],["支持・金物",/バンド|T足|HB|ネジ|ビス|アンカー|ベース|ゴム|架台|転倒|金物|面ガード/],["冷媒配管",/冷媒|分|保温|分岐|銅管/]].find(([,r])=>r.test(n));if(G)ov.querySelector("#aC").value=G[0]};
+ ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov){ov.remove();return}if(!b)return;if(b.dataset.u){ov.querySelector("#aU").value=b.dataset.u;return}
+  if(b.dataset.a==="no"){ov.remove();return}
+  if(b.dataset.a==="ok"){const n=ov.querySelector("#aN").value.trim();if(!n){toast("名前を入れてください");return}const c=cat(),m={id:rid("u"),n,c:ov.querySelector("#aC").value,u:ov.querySelector("#aU").value.trim()||"個",pin:ov.querySelector("#aP").checked,f:ov.querySelector("#aF").checked};c.list.push(m);ls("pbm_mt_cat",c);ov.remove();toast("「"+n+"」を足しました");cb(m)}}}
+
+/* ===== 書きこむ（写真・全体図） ===== */
+let E=null,EK="",IMG=null,cv=null,cx=null,V={s:1,tx:0,ty:0},mode="l",pen="new",G=null,loupe=null;
+const ptrs=new Map();
+async function renderEdit(rId,key){
+ const r=await getRep(rId);if(!r){location.hash="";return}R=r;const isMap=key==="map",o=isMap?r.map:r.pages.find(p=>p.id===key);if(!o){location.hash="r="+rId;return}
+ E=o;EK=key;document.body.className="ed";freeUrls();mode=isMap?"m":"l";
+ $("#app").innerHTML=`<div class="top"><button class="btn" id="bBack">‹ もどる</button>${isMap?'<div style="flex:1;font-weight:900">全体図</div>':`<input id="fName" placeholder="名前（例：①室内機位置）" value="${esc(o.name)}">`}<button class="btn" id="bMore">…</button></div>
+ <canvas id="cv"></canvas>
+ <div class="bot"><div class="pens" id="pens" ${isMap?"hidden":""}>${PENS.map(([k,n,c])=>`<button data-c="${k}" style="background:${c}">${n}</button>`).join("")}</div><div class="hint" id="hint"></div>
+ <div class="row">${isMap?'<button class="btn" id="mM">📍 撮った所</button>':'<button class="btn" id="mL">✏️ 線</button>'}<button class="btn" id="mD">📏 寸法</button><button class="btn" id="mT">💬 文字</button>${isMap?"":'<button class="btn" id="bMat">🧰 材料</button>'}<button class="btn" id="bUndo">↶</button></div></div>`;
+ cv=$("#cv");cx=cv.getContext("2d");
+ const u=URL.createObjectURL(o.img);urls.push(u);IMG=new Image();IMG.onload=()=>{layout();fit();draw()};IMG.src=u;
+ $("#bBack").onclick=()=>{clearTimeout(saveT);putRep(R).finally(()=>{location.hash="r="+R.id})};
+ if($("#fName"))$("#fName").onfocus=()=>nameSheet();
+ const sm=m=>()=>{mode=m;ui()};if($("#mL"))$("#mL").onclick=sm("l");if($("#mM"))$("#mM").onclick=sm("m");$("#mD").onclick=sm("d");$("#mT").onclick=sm("t");
+ $("#pens").querySelectorAll("button").forEach(b=>b.onclick=()=>{pen=b.dataset.c;mode="l";ui()});
+ $("#bUndo").onclick=()=>{if(!E.items.length){toast("戻す物がありません");return}E.items.pop();save();draw()};
+ if($("#bMat"))$("#bMat").onclick=()=>matSheet(E.mats=E.mats||{},(E.name||"この写真")+" の材料");
+ $("#bMore").onclick=moreSheet;
+ cv.onpointerdown=pDown;cv.onpointermove=pMove;cv.onpointerup=e=>pUp(e,false);cv.onpointercancel=e=>pUp(e,true);
+ ui();if(!isMap&&!o.name&&!o.items.length)setTimeout(nameSheet,300);
+}
+/* 写真の名前：番号（①②…）と よく使う名前をタップで */
+function nameSheet(){const inp=$("#fName");if(inp)inp.blur();const ov=document.createElement("div");ov.className="sheet";
+ const NOS=["①","②","③","④","⑤","⑥"],NMS=["室内機位置","室外機位置","配管ルート","ドレンルート","電源・分電盤","搬入の道","穴あけ位置","撤去する物","既設の機器"];
+ ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px;margin-bottom:8px">この写真の名前</div><input class="vin" id="nIn" value="${esc(E.name)}" placeholder="例：①室内機位置" style="font-size:20px">
+  <div class="chips">${NOS.map(n=>`<button class="chip" data-n="${n}">${n}</button>`).join("")}</div><div class="chips">${NMS.map(n=>`<button class="chip" data-w="${n}">${n}</button>`).join("")}</div>
+  <div class="row"><button class="btn pri" data-a="ok">決める</button></div></div>`;
+ document.body.appendChild(ov);const ni=ov.querySelector("#nIn");
+ const done=()=>{E.name=ni.value.trim();if($("#fName"))$("#fName").value=E.name;ov.remove();save()};
+ ni.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();done()}};
+ ov.onclick=e=>{if(e.target===ov){done();return}const b=e.target.closest("button");if(!b)return;if(b.dataset.n){ni.value=b.dataset.n+ni.value.replace(/^[①-⑳]/,"");return}if(b.dataset.w){const m=ni.value.match(/^[①-⑳]/);ni.value=(m?m[0]:"")+b.dataset.w;return}if(b.dataset.a==="ok")done()}}
+function ui(){["mL","mM","mD","mT"].forEach(id=>{const b=$("#"+id);if(b)b.classList.toggle("on",(id==="mL"&&mode==="l")||(id==="mM"&&mode==="m")||(id==="mD"&&mode==="d")||(id==="mT"&&mode==="t"))});
+ $("#pens").querySelectorAll("button").forEach(b=>b.classList.toggle("on",mode==="l"&&b.dataset.c===pen));
+ $("#hint").textContent={l:`「${penN(pen)}」の線：指でなぞる（2本指で拡大・移動）`,m:"立って撮った所から、見ている向きへ指でなぞる → 写真の名前",d:"測った所を指でなぞる → 数字を入れる",t:"文字を置く所をタップ"}[mode]}
+function layout(){const t=$(".top").getBoundingClientRect().bottom,b=$(".bot").getBoundingClientRect().top,d=devicePixelRatio||1;cv.style.top=t+"px";cv.style.height=(b-t)+"px";cv.width=innerWidth*d;cv.height=(b-t)*d;cv.style.width=innerWidth+"px"}
+function fit(){const W=cv.width/(devicePixelRatio||1),H=cv.height/(devicePixelRatio||1);V.s=Math.min(W/E.w,H/E.h);V.tx=(W-E.w*V.s)/2;V.ty=(H-E.h*V.s)/2}
+addEventListener("resize",()=>{if(E&&cv&&document.body.className==="ed"){layout();fit();draw()}});
+const s2i=(x,y)=>[(x-V.tx)/V.s,(y-V.ty)/V.s],i2s=(x,y)=>[x*V.s+V.tx,y*V.s+V.ty];
+function evP(e){const r=cv.getBoundingClientRect();return[e.clientX-r.left,e.clientY-r.top]}
+/* 線・文字を描く（画面と送る画像で同じ）。k＝太さの倍率 */
+function paint(c,items,P,k,sel){
+ c.lineCap="round";c.lineJoin="round";
+ for(const it of items){
+  if(it.k==="l"&&it.pts.length>1){const ps=it.pts.map(P);for(const [col,w] of [["#ffffff",9*k],[it===sel?"#f59e0b":penC(it.c),5*k]]){c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(ps[0][0],ps[0][1]);ps.slice(1).forEach(p=>c.lineTo(p[0],p[1]));c.stroke()}}
+  else if(it.k==="d"){const a=P(it.a),b=P(it.b),dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,nx=-uy,ny=ux,t=9*k,ah=12*k;
+   c.strokeStyle="#ffffff";c.lineWidth=6*k;c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke();
+   c.strokeStyle=it===sel?"#f59e0b":"#e11d48";c.lineWidth=3*k;c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);
+   for(const [p,s] of [[a,1],[b,-1]]){c.moveTo(p[0]+nx*t,p[1]+ny*t);c.lineTo(p[0]-nx*t,p[1]-ny*t);c.moveTo(p[0],p[1]);c.lineTo(p[0]+(ux*s)*ah+nx*ah*.45,p[1]+(uy*s)*ah+ny*ah*.45);c.moveTo(p[0],p[1]);c.lineTo(p[0]+(ux*s)*ah-nx*ah*.45,p[1]+(uy*s)*ah-ny*ah*.45)}
+   c.stroke();if(it.v)label(c,(a[0]+b[0])/2,(a[1]+b[1])/2,it.v,k,"#ffffff","#e11d48",it===sel)}
+  else if(it.k==="t"){const p=P(it.p),y=p[1]-31*k<0?p[1]+18*k:p[1]-18*k;c.fillStyle="#e11d48";c.beginPath();c.arc(p[0],p[1],4*k,0,Math.PI*2);c.fill();label(c,p[0],y,it.v,k,"#fef08a","#0f172a",it===sel)}
+  else if(it.k==="m"){/* 全体図の矢印：撮った所 → 見ている向き（オレンジの太い矢印・名前の札） */const a=P(it.a),b=P(it.b),dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,nx=-uy,ny=ux,W=14*k,H=26*k,e=[b[0]-ux*H,b[1]-uy*H];
+   c.fillStyle=it===sel?"#f59e0b":"#f97316";c.strokeStyle="#7c2d12";c.lineWidth=2*k;c.beginPath();c.moveTo(a[0]+nx*W/2,a[1]+ny*W/2);c.lineTo(e[0]+nx*W/2,e[1]+ny*W/2);c.lineTo(e[0]+nx*W*1.3,e[1]+ny*W*1.3);c.lineTo(b[0],b[1]);c.lineTo(e[0]-nx*W*1.3,e[1]-ny*W*1.3);c.lineTo(e[0]-nx*W/2,e[1]-ny*W/2);c.lineTo(a[0]-nx*W/2,a[1]-ny*W/2);c.closePath();c.fill();c.stroke();
+   if(it.v)label(c,a[0]-ux*20*k,a[1]-uy*20*k,it.v,k,"#fde047","#7c2d12",it===sel)}}
+}
+function label(c,x,y,s,k,bg,fg,sel){c.font=`800 ${Math.round(17*k)}px -apple-system,"Hiragino Sans",sans-serif`;const w=c.measureText(s).width+14*k,h=26*k;
+ c.fillStyle=bg;c.strokeStyle=sel?"#f59e0b":fg;c.lineWidth=2*k;c.beginPath();c.roundRect?c.roundRect(x-w/2,y-h/2,w,h,7*k):c.rect(x-w/2,y-h/2,w,h);c.fill();c.stroke();
+ c.fillStyle=fg;c.textAlign="center";c.textBaseline="middle";c.fillText(s,x,y+1*k)}
+function draw(){if(!cx||!IMG)return;const d=devicePixelRatio||1;cx.setTransform(d,0,0,d,0,0);const W=cv.width/d,H=cv.height/d;cx.fillStyle="#111";cx.fillRect(0,0,W,H);
+ cx.drawImage(IMG,V.tx,V.ty,E.w*V.s,E.h*V.s);paint(cx,E.items,p=>i2s(p[0],p[1]),1,G&&G.sel);
+ if(G&&G.type==="d"&&G.moved){if(mode==="l"&&G.pts&&G.pts.length>1)paint(cx,[{k:"l",c:pen,pts:G.pts}],p=>i2s(p[0],p[1]),1);
+  else if(G.b&&(mode==="d"||mode==="m")){const a=i2s(...G.a),b=i2s(...G.b);if(mode==="m")paint(cx,[{k:"m",a:G.a,b:G.b,v:""}],p=>i2s(p[0],p[1]),1);else{cx.strokeStyle="#f59e0b";cx.lineWidth=3;cx.setLineDash([8,6]);cx.beginPath();cx.moveTo(a[0],a[1]);cx.lineTo(b[0],b[1]);cx.stroke();cx.setLineDash([])}}
+  const q=G.last;if(q)drawLoupe(q,W)}}
+function drawLoupe(p,W){const R0=58,Z=2.5,lx=p[0]<W/2?W-R0-10:R0+10,ly=R0+10;
+ cx.save();cx.beginPath();cx.arc(lx,ly,R0,0,Math.PI*2);cx.clip();cx.fillStyle="#111";cx.fillRect(lx-R0,ly-R0,R0*2,R0*2);
+ const ip=s2i(p[0],p[1]),is=R0/(V.s*Z);cx.drawImage(IMG,ip[0]-is,ip[1]-is,is*2,is*2,lx-R0,ly-R0,R0*2,R0*2);
+ cx.strokeStyle="#f59e0b";cx.lineWidth=1.5;cx.beginPath();cx.moveTo(lx-12,ly);cx.lineTo(lx+12,ly);cx.moveTo(lx,ly-12);cx.lineTo(lx,ly+12);cx.stroke();cx.restore();
+ cx.strokeStyle="#fff";cx.lineWidth=3;cx.beginPath();cx.arc(lx,ly,R0,0,Math.PI*2);cx.stroke()}
+function segD(p,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],L=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L));return Math.hypot(p[0]-a[0]-dx*t,p[1]-a[1]-dy*t)}
+function hitItem(p){let best=null,bd=24;for(const it of E.items){let d=1e9;
+  if(it.k==="d"){const a=i2s(...it.a),b=i2s(...it.b);d=Math.min(Math.hypot(p[0]-(a[0]+b[0])/2,p[1]-(a[1]+b[1])/2),segD(p,a,b)+6)}
+  else if(it.k==="t"){const q=i2s(...it.p);d=Math.min(Math.hypot(p[0]-q[0],p[1]-q[1]),Math.hypot(p[0]-q[0],p[1]-(q[1]-18)))}
+  else if(it.k==="m"){const a=i2s(...it.a),b=i2s(...it.b);d=segD(p,a,b)}
+  else if(it.k==="l"){const ps=it.pts.map(q=>i2s(...q));for(let i=1;i<ps.length;i++)d=Math.min(d,segD(p,ps[i-1],ps[i]))}
+  if(d<bd){bd=d;best=it}}return best}
+function pDown(e){cv.setPointerCapture(e.pointerId);const p=evP(e);ptrs.set(e.pointerId,p);
+ if(ptrs.size===1)G={type:"d",start:p,a:s2i(...p),b:null,moved:false,pts:[s2i(...p)],last:null};
+ else if(ptrs.size===2){const [a,b]=[...ptrs.values()];G={type:"pinch",d0:Math.hypot(a[0]-b[0],a[1]-b[1])||1,c0:[(a[0]+b[0])/2,(a[1]+b[1])/2],v0:{...V}};draw()}}
+function pMove(e){if(!ptrs.has(e.pointerId)||!G)return;const p=evP(e);ptrs.set(e.pointerId,p);
+ if(G.type==="d"){if(!G.moved&&Math.hypot(p[0]-G.start[0],p[1]-G.start[1])>10)G.moved=true;if(!G.moved)return;G.last=p;
+  if(mode==="l"){const q=s2i(...p),l=G.pts[G.pts.length-1];if(Math.hypot(q[0]-l[0],q[1]-l[1])*V.s>4)G.pts.push(q)}else G.b=s2i(...p);draw()}
+ else if(G.type==="pinch"&&ptrs.size>=2){const [a,b]=[...ptrs.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),c=[(a[0]+b[0])/2,(a[1]+b[1])/2],v0=G.v0,ix=(G.c0[0]-v0.tx)/v0.s,iy=(G.c0[1]-v0.ty)/v0.s;
+  V.s=Math.max(0.02,Math.min(20,v0.s*d/G.d0));V.tx=c[0]-ix*V.s;V.ty=c[1]-iy*V.s;draw()}}
+function pUp(e,cancel){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);const g=G;if(!g)return;
+ if(g.type==="pinch"){if(!ptrs.size)G=null;else G={type:"none"};return}
+ if(g.type!=="d"||ptrs.size)return;G=null;if(cancel){draw();return}
+ if(!g.moved){const it=hitItem(g.start);if(it){editItem(it);return}if(mode==="t")askVal({k:"t",p:g.a,v:""},true);else toast(mode==="t"?"":"指でなぞってください");draw();return}
+ if(mode==="l"){if(g.pts.length>1){E.items.push({k:"l",c:pen,pts:g.pts.map(q=>[Math.round(q[0]),Math.round(q[1])])});save()}draw();return}
+ if((mode!=="d"&&mode!=="m")||!g.b){draw();return}const a=i2s(...g.a),b=i2s(...g.b);if(Math.hypot(b[0]-a[0],b[1]-a[1])<16){draw();return}
+ askVal({k:mode==="m"?"m":"d",a:g.a,b:g.b,v:""},true)}
+const WORDS_D=["天井高","梁下","壁から","芯から","幅","奥行","高さ","床から","フリースペース"],WORDS_T=["穴あけ位置","室内機","室外機","架台","転倒防止","既設","撤去","電気屋さん","高所作業車","メクラの板","点検口","障害物"];
+function askVal(it,isNew){
+ const ov=document.createElement("div");ov.className="sheet";const words=it.k==="d"?WORDS_D:it.k==="m"?(R.pages||[]).map((p,i)=>p.name||"写真 "+(i+1)):WORDS_T;
+ ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px;margin-bottom:8px">${it.k==="d"?"📏 寸法（mm）":it.k==="m"?"📍 この矢印はどの写真？":"💬 文字"}</div>
+  <input class="vin" id="vIn" ${it.k==="d"?'inputmode="decimal"':""} value="${esc(it.v)}" placeholder="${it.k==="d"?"例：1690":it.k==="m"?"例：①室内機位置":"例：穴あけ位置"}" autocomplete="off">
+  <div class="chips">${words.map(w=>`<button class="chip" data-w="${esc(w)}">${esc(w)}</button>`).join("")}</div>
+  <div class="row">${isNew?'<button class="btn" data-a="no">やめる</button>':'<button class="btn del" data-a="del">消す</button>'}<button class="btn pri" data-a="ok" style="flex:2">決める</button></div></div>`;
+ document.body.appendChild(ov);const inp=ov.querySelector("#vIn"),t0=performance.now();setTimeout(()=>{try{inp.focus()}catch(e){}},30);
+ const done=ok=>{const v=inp.value.trim();ov.remove();if(ok){if(!v&&it.k==="t"){draw();return}it.v=v;if(isNew)E.items.push(it);save()}draw()};
+ inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();done(true)}};
+ ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov){if(performance.now()-t0>450)done(!isNew||it.k!=="t");return}if(!b)return;
+  if(b.dataset.w){const w=b.dataset.w;inp.value=it.k==="d"?w+" "+inp.value.replace(/^[^\d]*/,"").trim():it.k==="m"?w:(inp.value?inp.value+" ":"")+w;inp.focus();return}
+  const a=b.dataset.a;if(a==="ok")done(true);else if(a==="no"){ov.remove();draw()}else if(a==="del"){E.items=E.items.filter(x=>x!==it);ov.remove();save();draw()}};
+}
+function editItem(it){G={sel:it};draw();G=null;if(it.k!=="l"){askVal(it,false);return}
+ const ov=document.createElement("div");ov.className="sheet";ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px;margin-bottom:8px">✏️ この線</div><div class="pens" style="flex-wrap:wrap">${PENS.map(([k,n,c])=>`<button data-c="${k}" class="${it.c===k?"on":""}" style="background:${c}">${n}</button>`).join("")}</div>
+  <div class="row"><button class="btn del" data-a="del">消す</button><button class="btn pri" data-a="ok" style="flex:2">閉じる</button></div></div>`;
+ document.body.appendChild(ov);ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.a==="ok")){ov.remove();draw();return}if(!b)return;
+  if(b.dataset.c){it.c=b.dataset.c;save();ov.remove();draw();return}if(b.dataset.a==="del"){E.items=E.items.filter(x=>x!==it);save();ov.remove();draw()}}}
+function moreSheet(){const ov=document.createElement("div");ov.className="sheet";const isMap=EK==="map";
+ ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px">${isMap?"全体図":"この写真"}</div>
+  <div class="row"><button class="btn" data-a="fit">全体を見る</button>${isMap?"":'<button class="btn" data-a="name">名前を変える</button>'}</div>
+  <div class="row">${isMap?"":'<button class="btn" data-a="up">↑ 前へ</button><button class="btn" data-a="dn">↓ 後ろへ</button>'}</div>
+  <div class="row"><button class="btn del" data-a="del">${isMap?"全体図を消す":"この写真を消す"}</button><button class="btn pri" data-a="ok">閉じる</button></div></div>`;
+ document.body.appendChild(ov);
+ ov.onclick=async e=>{const b=e.target.closest("button");if(e.target===ov){ov.remove();return}if(!b)return;const a=b.dataset.a;
+  if(a==="ok")ov.remove();else if(a==="fit"){fit();draw();ov.remove()}else if(a==="name"){ov.remove();nameSheet()}
+  else if(a==="up"||a==="dn"){const i=R.pages.indexOf(E),j=i+(a==="up"?-1:1);if(j<0||j>=R.pages.length){toast("これ以上動かせません");return}R.pages.splice(i,1);R.pages.splice(j,0,E);save();toast(`${j+1}枚目にしました`)}
+  else if(a==="del"){if(!b.dataset.ok){b.dataset.ok="1";b.textContent="本当に消す";return}if(isMap)R.map=null;else R.pages=R.pages.filter(p=>p!==E);clearTimeout(saveT);await putRep(R);ov.remove();location.hash="r="+R.id}}}
+
+/* ===== LINEで送る：表紙・全体図・写真・材料の順に、1枚ずつの画像 ===== */
+const FONT='-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif';
+function loadImg(b){return new Promise(ok=>{const u=URL.createObjectURL(b),im=new Image();im.onload=()=>{ok(im);setTimeout(()=>URL.revokeObjectURL(u),2000)};im.onerror=()=>ok(null);im.src=u})}
+function wrap(g,s,w){const out=[];String(s).split("\n").forEach(line=>{let cur="";for(const ch of line){if(g.measureText(cur+ch).width>w&&cur){out.push(cur);cur=ch}else cur+=ch}out.push(cur)});return out}
+/* 文字のページ（表紙・材料）：幅1080、行の高さは自動 */
+function textPage(title,blocks){const W=1080,P=56,g0=document.createElement("canvas").getContext("2d");let lines=[];
+ blocks.forEach(b=>{g0.font=`${b.b?800:600} ${b.s||34}px ${FONT}`;wrap(g0,b.t,W-P*2-(b.ind||0)).forEach((t,i)=>lines.push({...b,t,first:i===0}))});
+ const H=Math.max(1350,P*2+120+lines.reduce((s,l)=>s+(l.s||34)*1.55+(l.gap&&l.first?l.gap:0),0)),c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");
+ g.fillStyle="#ffffff";g.fillRect(0,0,W,H);g.fillStyle="#0369a1";g.fillRect(0,0,W,110);g.fillStyle="#fff";g.font=`800 46px ${FONT}`;g.textBaseline="middle";g.fillText(title,P,56);
+ let y=110+P;g.textBaseline="top";lines.forEach(l=>{if(l.gap&&l.first)y+=l.gap;g.font=`${l.b?800:600} ${l.s||34}px ${FONT}`;if(l.bg){g.fillStyle=l.bg;g.fillRect(P-12,y-6,W-P*2+24,(l.s||34)*1.45)}g.fillStyle=l.c||"#0f172a";g.fillText(l.t,P+(l.ind||0),y);y+=(l.s||34)*1.55});
+ return c}
+function coverPage(r){const s=r.sum||{},B=[];B.push({t:r.title||"（現場名）",s:52,b:1});B.push({t:`現調 ${r.date||""}${r.by?"　作った人 "+r.by:""}`,s:30,c:"#5b6b7e"});
+ B.push({t:"■ 工事のまとめ",s:36,b:1,c:"#0369a1",gap:26});SUMF.forEach(([k,n])=>{if(s[k])B.push({t:`${n}：${s[k]}`,s:34,ind:10})});
+ const ck=CHK.filter(([k])=>(r.chk||{})[k]&&((r.chk[k].v)||(r.chk[k].m)));if(ck.length){B.push({t:"■ 先に決めた事（電話を減らす）",s:36,b:1,c:"#0369a1",gap:26});ck.forEach(([k,n])=>{const c=r.chk[k];B.push({t:`${c.v==="o"?"○":c.v==="x"?"×":"・"} ${n}${c.m?"："+c.m:""}`,s:32,ind:10,c:c.v==="x"?"#b91c1c":"#0f172a"})})}
+ B.push({t:"■ この資料",s:36,b:1,c:"#0369a1",gap:26});B.push({t:`${r.map?"全体図 → ":""}写真 ${r.pages.length}枚（${r.pages.map((p,i)=>p.name||"写真 "+(i+1)).join("・")}）→ 材料と道具`,s:30,ind:10});
+ return textPage("🗂 現調まとめ",B)}
+function matPage(r){const t=totals(r),B=[];matsByCat(t).forEach(([c,a],i)=>{B.push({t:"〇"+c,s:36,b:1,c:"#0369a1",gap:i?18:0});a.forEach(([m,v])=>B.push({t:`${m.n}　${qty(v)} ${m.u}`,s:34,ind:16}))});
+ const per=(r.pages||[]).map((p,i)=>[p.name||"写真 "+(i+1),p.mats]).filter(([,o])=>o&&Object.keys(o).some(k=>o[k]));
+ if(per.length){B.push({t:"―― 場所ごと（当日の材料分けに） ――",s:34,b:1,gap:30,c:"#b45309"});per.forEach(([n,o])=>{B.push({t:"☆"+n,s:34,b:1,gap:8});Object.keys(o).filter(k=>o[k]).forEach(k=>B.push({t:`${matOf(k).n}　${qty(o[k])} ${matOf(k).u}`,s:32,ind:16}))})}
+ const fg=forgot(t);if(fg.length)B.push({t:"🧻 忘れがち：　"+fg.map(m=>m.n).join("・")+"　いりませんか？",s:32,b:1,gap:30,c:"#7c2d12",bg:"#ffedd5"});
+ if(!B.length)B.push({t:"（材料はまだ入っていません）",s:34,c:"#5b6b7e"});return textPage("🧰 材料と道具",B)}
+async function photoPage(o,title,legendOn){const im=await loadImg(o.img);if(!im)return null;const c=document.createElement("canvas");c.width=o.w;c.height=o.h;const g=c.getContext("2d"),k=Math.max(1.2,Math.max(o.w,o.h)/700);
+ g.drawImage(im,0,0,o.w,o.h);paint(g,o.items,p=>p,k);
+ const bar=(txt,x,y,bg,fg,fs)=>{g.font=`800 ${Math.round(fs*k)}px ${FONT}`;const w=g.measureText(txt).width+22*k;g.fillStyle=bg;g.fillRect(x,y,w,fs*k*1.7);g.fillStyle=fg;g.textBaseline="middle";g.textAlign="left";g.fillText(txt,x+11*k,y+fs*k*.85);return w};
+ if(title)bar(title,12*k,12*k,"#ffffffee","#b91c1c",22);
+ const used=PENS.filter(([kk])=>o.items.some(i=>i.k==="l"&&i.c===kk));if(legendOn&&used.length){let x=12*k;const y=o.h-40*k;used.forEach(([kk,n,col])=>{x+=bar(n,x,y,col,"#fff",15)+6*k})}
+ const ms=Object.keys(o.mats||{}).filter(kk=>o.mats[kk]);if(ms.length){const L=["材料",...ms.map(kk=>`${matOf(kk).n}：${qty(o.mats[kk])}${matOf(kk).u}`)];g.font=`800 ${Math.round(16*k)}px ${FONT}`;const w=Math.max(...L.map(s=>g.measureText(s).width))+24*k,h=L.length*24*k+14*k,x=o.w-w-12*k,y=title?12*k:12*k;
+  g.fillStyle="#ffffffee";g.fillRect(x,y,w,h);g.strokeStyle="#0369a1";g.lineWidth=2*k;g.strokeRect(x,y,w,h);g.textBaseline="top";L.forEach((s,i)=>{g.fillStyle=i?"#0f172a":"#0369a1";g.font=`${i?700:900} ${Math.round(16*k)}px ${FONT}`;g.fillText(s,x+12*k,y+8*k+i*24*k)})}
+ return c}
+const toBlob=c=>new Promise(ok=>c.toBlob(ok,"image/jpeg",.88));
+async function sendAll(){if(!R)return;toast("画像を作っています…");clearTimeout(saveT);await putRep(R).catch(()=>{});
+ const cs=[coverPage(R)];if(R.map){const c=await photoPage(R.map,"全体図",false);if(c)cs.push(c)}for(const [i,p] of R.pages.entries()){const c=await photoPage(p,p.name||"写真 "+(i+1),true);if(c)cs.push(c)}cs.push(matPage(R));
+ const base=(R.title||"現調まとめ").replace(/[\\/:*?"<>|\s]/g,"");const files=[];for(const [i,c] of cs.entries())files.push(new File([await toBlob(c)],`${base}_${String(i+1).padStart(2,"0")}.jpg`,{type:"image/jpeg"}));
+ try{if(navigator.canShare&&navigator.canShare({files})){await navigator.share({files,title:R.title||"現調まとめ",text:matText(R)});return}}catch(e){if(e&&e.name==="AbortError")return}
+ for(const f of files){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();await new Promise(r=>setTimeout(r,300));setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000)}toast(`画像を${files.length}枚保存しました`)}
+
+/* ===== 画面の切りかえ ===== */
+async function route(){const h=location.hash.slice(1);E=null;if(R){clearTimeout(saveT);await putRep(R).catch(()=>{})}
+ if(h.startsWith("e=")){const [a,b]=h.slice(2).split(":");renderEdit(a,b);return}
+ if(h.startsWith("r=")){renderRep(h.slice(2));return}R=null;renderList()}
+addEventListener("hashchange",route);
+addEventListener("pagehide",()=>{if(R){clearTimeout(saveT);putRep(R)}});
+route();
+if("serviceWorker"in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>

@@ -24,7 +24,7 @@ function build(){
    <canvas id="egLp" style="position:absolute;left:8px;top:8px;width:120px;height:120px;border-radius:60px;display:none;box-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none"></canvas><div id="egPad" style="position:absolute;left:8px;bottom:56px;width:150px;height:150px;display:none"></div>
    <div style="position:absolute;right:8px;bottom:8px;display:flex;gap:6px"><button class="sharebtn" id="egCmp" style="height:40px;padding:0 10px;font-size:13px">🧭 ボタン</button><button class="sharebtn" id="egRot" style="height:40px;padding:0 10px;font-size:13px">↻ 向き</button><button class="sharebtn" id="egUndo" style="height:40px;padding:0 10px;font-size:13px">↩ 戻す</button><button class="sharebtn" id="egClr" style="height:40px;padding:0 10px;font-size:13px">🗑 消す</button></div></div>
   <div style="flex:none;margin-top:8px">
-   <div style="display:flex;gap:6px;align-items:center"><input id="egSay" type="text" enterkeyhint="done" autocomplete="off" placeholder="🎙 まとめて：450の250の600のクランク" style="flex:1;min-width:0;height:46px;border-radius:12px;border:1.5px solid #cbd5e1;padding:0 10px;font-size:16px"><button class="sharebtn" id="egSayGo" style="height:46px;padding:0 12px;margin:0">入れる</button><button class="sharebtn" id="egPen" style="height:46px;padding:0 12px;margin:0">✍️ 書く</button></div>
+   <div style="display:flex;gap:6px;align-items:center"><div style="flex:1;min-width:0;position:relative"><button type="button" id="egMic" aria-label="話して入れる" style="position:absolute;left:3px;top:3px;bottom:3px;width:44px;border:0;border-radius:10px;background:#dbeafe;font-size:22px;padding:0;z-index:1">🎙</button><input id="egSay" type="text" enterkeyhint="done" autocomplete="off" placeholder="まとめて：450の250の600のクランク" style="width:100%;padding-left:52px!important;box-sizing:border-box;height:46px;border-radius:12px;border:1.5px solid #cbd5e1;padding:0 10px;font-size:16px"></div><button class="sharebtn" id="egSayGo" style="height:46px;padding:0 12px;margin:0">入れる</button><button class="sharebtn" id="egPen" style="height:46px;padding:0 12px;margin:0">✍️ 書く</button></div>
    <div style="font-size:12px;color:#64748b;margin:3px 2px 6px">キーボードのマイク🎙を押して話すと入ります（イヤホンのマイクでもOK）。形の言葉：クランク・L・U・コの字・45のクランク・登録した名前</div>
    <div id="egList" style="display:flex;flex-wrap:wrap;gap:6px;max-height:32vh;overflow-y:auto;padding-bottom:4px"></div>
    <div style="display:flex;gap:8px;margin-top:6px"><button class="sharebtn" id="egReg" style="flex:1;height:46px;margin:0">🏷 形を登録</button><button class="primary" id="egGo" style="flex:1.6;height:46px;border-radius:12px;font-weight:800">✅ この形で曲げを作る</button></div>
@@ -43,6 +43,7 @@ function build(){
  ov.querySelector("#egReg").onclick=reg;
  ov.querySelector("#egPen").onclick=()=>{if(!EG.segs.length){toast("先に形を描くか、「クランク」などを入れてください");return}const i=EG.segs.findIndex(s=>!(s.l>0));penOpen(i>=0?i:EG.last||0)};
  const say=ov.querySelector("#egSay");ov.querySelector("#egSayGo").onclick=()=>sayGo(say.value);
+ ov.querySelector("#egMic").onclick=()=>mic(say);
  say.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();sayGo(say.value);say.blur()}});
  /* 指でなぞる */
  const pos=e=>{const r=cv.getBoundingClientRect(),t=e.touches?e.touches[0]||e.changedTouches[0]:e;return[t.clientX-r.left,t.clientY-r.top]};
@@ -151,10 +152,27 @@ function apply(){if(!EG.segs.length){toast("先に形を描いてください（
  const nw=EG.segs.length===1?[{l:EG.segs[0].l,a:0,t:0,o:false}]:toRows(P);
  const rows=LR();rows.splice(0,rows.length,...nw);sel=0;save();close();render();if(T){T.dirty=true;try{build3D()}catch(e){}fitT(true)}
  toast("✅ 描いた形で曲げを作りました（"+nw.length+"本・曲げ "+(nw.length-1)+"か所）。違う時は ↩️ で戻せます")}
+/* 🎙 を押すと話して入れる（2026-11-03 ユーザー：押してもできない）。ブラウザの音声認識（ja-JP）が使える時はそれで聞いて、終わったら sayGo。
+   使えない時は欄にカーソルを入れて、キーボードのマイクの場所を案内する */
+let REC=null;
+function mic(say){const SR=window.SpeechRecognition||window.webkitSpeechRecognition,b=ov.querySelector("#egMic");
+ if(REC){try{REC.stop()}catch(e){}return}
+ if(!SR){say.focus();toast("キーボードの右下のマイク🎙を押して話してください（話し終わったら「入れる」）");return}
+ let r;try{r=new SR()}catch(e){say.focus();toast("キーボードの右下のマイク🎙を押して話してください");return}
+ REC=r;r.lang="ja-JP";r.interimResults=true;r.continuous=false;let fin="";
+ b.style.background="#ef4444";b.textContent="⏹";say.value="";say.placeholder="🎙 聞いています… 話してください";
+ r.onresult=e=>{let t="";fin="";for(const x of e.results){t+=x[0].transcript;if(x.isFinal)fin+=x[0].transcript}say.value=t};
+ r.onerror=e=>{toast(e.error==="not-allowed"||e.error==="service-not-allowed"?"マイクが使えません（設定でマイクを許可するか、キーボードのマイク🎙で話してください）":e.error==="no-speech"?"声が聞こえませんでした。もう一度🎙を押してください":"うまく聞き取れませんでした。もう一度🎙を押してください")};
+ r.onend=()=>{REC=null;b.style.background="#dbeafe";b.textContent="🎙";say.placeholder="まとめて：450の250の600のクランク";const v=(say.value||"").trim();if(v)sayGo(v)};
+ try{r.start()}catch(e){REC=null;b.style.background="#dbeafe";b.textContent="🎙";say.focus();toast("キーボードの右下のマイク🎙を押して話してください")}}
+/* 話した言葉の数字：「2500引く500」「350たす200」「300かける2」は計算して1つの数に（2026-11-03 ユーザー） */
+function sayNums(txt){let t=String(txt).normalize("NFKC").replace(/(\d),(?=\d{3})/g,"$1")
+  .replace(/\s*(引く|ひく|引いて|ひいて|マイナス|−|ー(?=\s*\d))\s*/g,"-").replace(/\s*(足す|たす|足して|たして|プラス)\s*/g,"+").replace(/\s*(かける|掛ける|×)\s*/g,"*").replace(/\s*(割る|わる|÷)\s*/g,"/").replace(/(\d)\s*([-+*/])\s*(?=\d)/g,"$1$2");
+ return(t.match(/\d+(?:\.\d+)?(?:[-+*/]\d+(?:\.\d+)?)*/g)||[]).map(ex=>{const tk=ex.match(/\d+(?:\.\d+)?|[-+*/]/g);const st=[+tk[0]];for(let i=1;i<tk.length;i+=2){const o=tk[i],v=+tk[i+1];if(o==="*")st.push(st.pop()*v);else if(o==="/")st.push(v?st.pop()/v:st.pop());else st.push(o==="-"?-v:v)}return Math.round(st.reduce((a,b)=>a+b,0)*10)/10})}
 /* 🎙 まとめて入れる：数字を順番に。最後に形の言葉があれば、その形を作る */
 const SHAPES={クランク:[0,2,0],エル:[0,2],L:[0,2],直角:[0,2],U:[0,2,1],ユー:[0,2,1],コの字:[0,2,1]};
 function sayGo(txt){txt=String(txt||"").normalize("NFKC").trim();if(!txt){toast("例：450の250の600のクランク");return}
- const nums=(txt.match(/\d+(\.\d+)?/g)||[]).map(Number);let shape=null,s45=false;
+ const nums=sayNums(txt);let shape=null,s45=false;
  const my=regs();for(const nm of Object.keys(my).sort((a,b)=>b.length-a.length))if(txt.includes(nm)){shape=my[nm].map(d=>({d,n:2,l:0}));break}
  if(!shape)for(const k of Object.keys(SHAPES))if(txt.toUpperCase().includes(k)){shape=SHAPES[k].map(d=>({d,n:2,l:0}));break}
  if(shape&&/クランク/.test(txt)&&/(^|\D)45(\D|$)/.test(txt)){s45=true;const i=nums.indexOf(45);if(i>=0&&nums.length>shape.length)nums.splice(i,1)}   // 「45のクランク」

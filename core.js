@@ -411,9 +411,9 @@ function upd(){
  [...$("#rows").children].forEach((el,i)=>{
   const o=c.out[i],r=LR()[i];
   el.classList.toggle("over",o.over);el.classList.toggle("sel",i===sel);
-  el.querySelector(".inf").innerHTML=EZ?ezInf(o,r):(
+  el.querySelector(".inf").innerHTML=EZ?ezInf(o,r,i):(
    `<span class="${o.shoe<0?"neg":""}">${RI("shoe")}シュー<b>${fmt(o.shoe)}</b></span><span>${RI("cum")}累計<b>${fmt(o.cum)}</b></span>`+
-   (r.a?`<span>${RI("pull")}引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>${RI("ofs")}差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+(st.sup.on&&supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length?`<span><img alt="" src="${$("#supBtn img").src}" style="width:1.3em;height:1.3em;vertical-align:-0.32em;margin-right:2px">${DS[i]&&isVert(DS[i])?"縦":"横"}<b>${supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length}</b></span><span style="flex-basis:100%">↔間隔 <b>${supGaps(r.l,!!(DS[i]&&isVert(DS[i]))).map(fmt).join(" ・ ")}</b></span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:""));
+   (r.a?`<span>${RI("pull")}引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>${RI("ofs")}差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+ofsInf(i)+(o.shoe<0?cvBtn(i,o):"")+(st.sup.on&&supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length?`<span><img alt="" src="${$("#supBtn img").src}" style="width:1.3em;height:1.3em;vertical-align:-0.32em;margin-right:2px">${DS[i]&&isVert(DS[i])?"縦":"横"}<b>${supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length}</b></span><span style="flex-basis:100%">↔間隔 <b>${supGaps(r.l,!!(DS[i]&&isVert(DS[i]))).map(fmt).join(" ・ ")}</b></span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:""));
  });
  const over=c.tot>c.lim;
  $("#tot").className="tot"+(over?" over":"");
@@ -1668,6 +1668,7 @@ function drawDial(){
  const r=LR()[DV.i];
  $("#dirTop").innerHTML=EZ?ezTop():`🔍 進む方向を向いて見た図（${legName(DV.g)} ${nm(DV.i)} の曲げ）<br><small>赤い丸を指で回して向きを決めます。色付きの目印（天井・床・起点側・前の配管）を手がかりにしてください</small>`+(LFQ?`<br><b>📐 角度決め ${LFQ.k+1} / ${LFQ.n} か所目</b>`:"");
  $("#dirVal").innerHTML=`向き <b>${dirName(t)}</b>　／　曲げ角度 <b>${r.a}°${r.a>=180?"（返し）":""}</b>`;
+ {const n=LR()[DV.i+1];if(n)$("#dirL2t").textContent=nm(DV.i+1)+" 曲げた後の長さ mm"+(r.a>0&&r.a<90?`（差 ${fmt(n.l*Math.sin(r.a*Math.PI/180))}・進み ${fmt(n.l*Math.cos(r.a*Math.PI/180))}）`:"")}
  const ab=$("#dirAngs");ab.innerHTML="";
  [15,30,45,90,180].forEach(a=>{const b=document.createElement("button");b.textContent=a+"°";if(r.a===a){b.classList.add("on");b.style.background=ANGC[a]}
   if(EZ&&a===90){b.classList.add("big");b.textContent="90°（よく使う）"}
@@ -2114,11 +2115,32 @@ const TUT_EZ=[
 /* upd() から最初の画面を出す時にも呼ばれるので、ここは function で書く（const だと定義前に呼べない） */
 function ezU(){return IN()?"":" mm"}
 function ezSzName(i){return szShort(i)+"（"+SIZES[i][1]+"mm）"}
-function ezInf(o,r){
- return `<span class="${o.shoe<0?"neg":""}">${RI("shoe")}印の位置（シュー）<b>${fmt(o.shoe)}</b></span>`+
+function ezInf(o,r,i){
+ return `<span class="${o.shoe<0?"neg":""}">${RI("shoe")}印の位置（シュー）<b>${fmt(o.shoe)}</b></span>`+(i>=0?ofsInf(i):"")+
   (r.a?`<span>${RI("pull")}曲げで縮む長さ（引き）<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+
-  (o.shoe<0?`<span class="w">⚠️ 短すぎて曲げられません</span>`:"")+(o.over?`<span class="w">⚠️ 定尺超え（つなぎが必要）</span>`:"");
+  (o.shoe<0?`<span class="w">⚠️ 短すぎて曲げられません</span>`+(i>=0?cvBtn(i,o):""):"")+(o.over?`<span class="w">⚠️ 定尺超え（つなぎが必要）</span>`:"");
 }
+/* ↗ 90°で曲げられない短いクランクを 45°（だめなら30°・15°）に変える（2026-11-03 ユーザー：差15・25は90°で曲げられない）
+   i＝短い真ん中の行。前の行の90°と、i の行の反対向きの90°の組だけ。終わりの位置はそのまま（前と後のまっすぐを 進み÷2 ずつ短くする） */
+function cvCrank(i,g){g=g||leg;const R=legRows(g),p=R[i-1],r=R[i];return i>0&&p&&r&&R[i+1]&&p.a===90&&r.a===90&&normT(effT(i,R))===normT(effT(i-1,R)+180)}
+function cvPlan(i,deg,g){
+ g=g||leg;const R=legRows(g),H=R[i].l,th=deg*Math.PI/180,run=H/Math.tan(th),L=H/Math.sin(th),bk=bR(cur(g).D)*deg/90;
+ let a=R[i-1].l-run/2,b=R[i+1].l-run/2;if(a<0){b+=a;a=0}if(b<0){a+=b;b=0}
+ return{deg,L:Math.round(L),a:Math.round(a),b:Math.round(b),ok:a>=0&&b>=0&&L-bk>=0&&a-(R[i-1].a?bk:0)>=-0.01};
+}
+function cvBest(i,g){for(const d of[45,30,15]){const q=cvPlan(i,d,g);if(q.ok)return q}return null}
+function cvBtn(i,o){if(!(o.shoe<0)||!cvCrank(i))return"";const q=cvBest(i);return q?`<button class="cv45" data-cv="${i}">↗ ${q.deg}°に変える</button>`:""}
+function cvAsk(i){
+ const R=LR(),q=cvBest(i);if(!q||!cvCrank(i))return;const U=ezU();
+ askConfirm(`${nm(i)} の差 ${fmt(R[i].l)}${U} は、90°では短すぎて曲げられません。\n${q.deg}°に変えますか？（ここからここまで）\n\n${nm(i-1)}　${fmt(R[i-1].l)} → ${fmt(q.a)}${U}（曲げ ${q.deg}°）\n${nm(i)}　${fmt(R[i].l)} → 斜め ${fmt(q.L)}${U}（曲げ ${q.deg}°）\n${nm(i+1)}　${fmt(R[i+1].l)} → ${fmt(q.b)}${U}\n\n終わりの位置は同じです`,`↗ ${q.deg}°に変える`,()=>{
+  R[i-1].l=q.a;R[i-1].a=q.deg;R[i].l=q.L;R[i].a=q.deg;R[i+1].l=q.b;
+  sel=i;save();render();if(T){build3D();T.dirty=true}
+  toast(`${nm(i-1)}〜${nm(i+1)} を ${q.deg}° に変えました（↩️で元に戻せます）`);
+ });
+}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".cv45");if(!b)return;e.stopPropagation();e.preventDefault();cvAsk(+b.dataset.cv)},true);
+/* 45°・30°・15°の曲げの後の行：上がる高さ（差）と前へ進む長さ（2026-11-03 ユーザー：45°の時の高さを出したい） */
+function ofsInf(i){const R=LR(),p=R[i-1],r=R[i];if(!p||!(p.a>0&&p.a<90)||(r.o&&r.a))return"";const th=p.a*Math.PI/180;return`<span>${RI("ofs")}差（高さ）<b>${fmt(r.l*Math.sin(th))}</b></span><span>進み<b>${fmt(r.l*Math.cos(th))}</b></span>`}
 function ezUpd(){
  if(APP!=="bend")return;
  const rows=LR(),nb=rows.filter(r=>r.a).length,si=legSize(leg);
@@ -2132,7 +2154,7 @@ function ezUpd(){
  /* 3Dの上には、まとめは出さず、警告がある時だけ出す（曲げの位置・角度・長さは3Dのラベルと下の一覧で見る） */
  const c=calc(),L=[];
  const ng=c.out.findIndex(o=>o.shoe<0);
- if(ng>=0)L.push(`<span class="w">⚠️ ${nm(ng)} が短すぎて曲げられません</span>`);
+ if(ng>=0)L.push(`<span class="w">⚠️ ${nm(ng)} が短すぎて曲げられません</span>`+cvBtn(ng,c.out[ng]));
  if(c.tot>c.lim)L.push(`<span class="w">⚠️ 定尺（${fmt(c.lim)}${ezU()}）を超えています。つなぎが必要です</span>`);
  $("#ezSum").innerHTML=L.join("<br>");
 }
@@ -2291,7 +2313,7 @@ function ezStep(n){
  $("#ezNext").textContent=n<4?"次へ ▶":(DV.add?"✅ これで作る":"✅ これで決定");
  if(n===4){
   const o=calc(DV.g).out[i];
-  $("#ezConf").innerHTML=`<div class="ln"><span>${nm(i)} 曲げる前</span><b>${fmt(r.l)}${U}</b></div>`+(nx?`<div class="ln"><span>${nm(i+1)} 曲げた後</span><b>${fmt(nx.l)}${U}</b></div>`:"")+`<div class="ln"><span>曲げる角度</span><b>${r.a}°</b></div><div class="ln"><span>曲げる向き</span><b>${dirName(DV.t)}</b></div>`+
+  $("#ezConf").innerHTML=`<div class="ln"><span>${nm(i)} 曲げる前</span><b>${fmt(r.l)}${U}</b></div>`+(nx?`<div class="ln"><span>${nm(i+1)} 曲げた後</span><b>${fmt(nx.l)}${U}</b></div>`:"")+`<div class="ln"><span>曲げる角度</span><b>${r.a}°</b></div>`+(nx&&r.a>0&&r.a<90?`<div class="ln"><span>${r.a}°で上がる高さ（差）</span><b>${fmt(nx.l*Math.sin(r.a*Math.PI/180))}${U}</b></div><div class="ln"><span>前へ進む長さ</span><b>${fmt(nx.l*Math.cos(r.a*Math.PI/180))}${U}</b></div>`:"")+`<div class="ln"><span>曲げる向き</span><b>${dirName(DV.t)}</b></div>`+
    `<div class="ln"><span>印の位置（シュー）</span><b>${fmt(o.shoe)}${U}</b></div><div class="ln"><span>曲げで縮む長さ（引き）</span><b>${fmt(o.back)}${U}</b></div>`+
    (o.shoe<0?`<div class="w">⚠️ 長さが短すぎて、この角度では曲げられません。「戻る」で長さを長くしてください</div>`:"")+
    `<div class="nt">シュー＝曲げ始めの印をつける位置。数字は目安です。</div>`;
@@ -3417,7 +3439,11 @@ $("#shPaste").onclick=()=>{closeShare();$("#impTxt").value="";$("#impOv").classL
 $("#shMore").onclick=()=>{closeShare();$("#cloudBtn").click()};
 /* 寸法計算 */
 const OFS=[45,30,15];
-let ofsMode="add";
+let ofsMode="add",ofsMs="";
+/* 📏 測った寸法に合わせる（2026-11-03 ユーザー：45°・30°は計算が大変）
+   🔴 r＝上げて・まっすぐ・下ろす形の、1つ目の曲げから最後の曲げまでの幅（真ん中＝幅−進み×2）
+   🟠 o＝基準（始まり）から、上がりきった所（2つ目の曲げ）までの距離（最初のまっすぐ＝距離−進み） */
+function ofsMV(){return Math.max(0,uParse($("#ofsM").value)||0)}
 function ofsVal(){
  const sx=+($("#ofsH .on")||{dataset:{v:1}}).dataset.v,sy=+($("#ofsV .on")||{dataset:{v:1}}).dataset.v;
  const x=Math.max(0,uParse($("#ofsX").value)||0)*sx,y=Math.max(0,uParse($("#ofsY").value)||0)*sy;
@@ -3431,10 +3457,12 @@ function renderCalc(){
  [...$("#ofsMode").children].forEach(b=>b.classList.toggle("on",b.dataset.v===ofsMode));
  OFS.forEach(deg=>{
   const th=deg*Math.PI/180,b=document.createElement("button");b.className="card2";
-  b.innerHTML=`<i>${deg}°</i><span>斜め<b>${d?fmt(d/Math.sin(th)):"-"}</b></span><span>進み<b>${d?fmt(d/Math.tan(th)):"-"}</b></span>`;
+  const run=d/Math.tan(th),mv=ofsMV(),mx=ofsMs==="r"?mv-2*run:ofsMs==="o"?mv-run:0;
+  b.innerHTML=`<i>${deg}°</i><span>斜め<b>${d?fmt(d/Math.sin(th)):"-"}</b></span><span>進み<b>${d?fmt(run):"-"}</b></span>`+
+   (ofsMs&&d&&mv?(mx<0?`<span class="w" style="color:var(--warn);font-weight:800">⚠️ 幅が足りない</span>`:`<span>${ofsMs==="r"?"真ん中":"最初"}<b>${fmt(mx)}</b></span>`):"");
   b.onclick=()=>applyOffset(deg);box.appendChild(b);
  });
- $("#ofsNote").innerHTML=TI("tap")+(ofsMode==="add"?"角度をタップすると、最後に「曲げ→斜め→曲げ戻し→直管」を追加します":(k<1?"2行目以降の行を選んでから使います":`タップで ${nm(k-1)} の曲げと ${nm(k)} の斜めに入れます（${nm(k)}は反対向きで戻す）`));
+ $("#ofsNote").innerHTML=TI("tap")+(ofsMode==="add"?"角度をタップすると、最後に「曲げ→斜め→曲げ戻し→直管」を追加します":(ofsMs?"📏 測った寸法に合わせる時は、最後に追加します（「➕ 最後に追加する」）":k<1?"2行目以降の行を選んでから使います":`タップで ${nm(k-1)} の曲げと ${nm(k)} の斜めに入れます（${nm(k)}は反対向きで戻す）`));
  const g=st.goal||0,c=calc(),rest=c.tot-LR()[k].l,need=g-rest,gr=$("#goalRes"),ga=$("#goalApply");
  if(!g){gr.textContent="目標の合計を入れると、選んだ行の長さを自動で出します";ga.style.display="none";return}
  ga.style.display="block";
@@ -3446,26 +3474,32 @@ function applyOffset(deg){
  if(d<=0){toast("ずらしたい寸法を入れてください");return}
  const L=Math.round(d/Math.sin(deg*Math.PI/180)),rows=LR();
  if(ofsMode==="add"){
-  const last=rows[rows.length-1];
-  if(last&&!last.a){last.a=deg;last.t=t;last.o=false}else rows.push({l:300,a:deg,t:t,o:false});
-  rows.push({l:L,a:deg,t:0,o:true},{l:500,a:0,t:0,o:false});
+  const last=rows[rows.length-1],run=d/Math.tan(deg*Math.PI/180),mv=ofsMV(),mx=Math.round(ofsMs==="r"?mv-2*run:mv-run);
+  if(ofsMs&&mv&&mx<0){toast(`⚠️ ${fmt(mv)}mm では足りません（${deg}°で進むだけで ${fmt(ofsMs==="r"?2*run:run)}mm）`);return}
+  if(last&&!last.a){last.a=deg;last.t=t;last.o=false;if(ofsMs==="o"&&mv)last.l=mx}else rows.push({l:ofsMs==="o"&&mv?mx:300,a:deg,t:t,o:false});
+  if(ofsMs==="r"&&mv)rows.push({l:L,a:deg,t:0,o:true},{l:mx,a:deg,t:normT(t+180),o:false},{l:L,a:deg,t:0,o:true},{l:500,a:0,t:0,o:false});
+  else rows.push({l:L,a:deg,t:0,o:true},{l:500,a:0,t:0,o:false});
   sel=rows.length-2;
   save();render();if(T)fitT(true);$("#calcOv").classList.remove("on");
-  toast(`最後に ${deg}°・${dirName(t)} のずらし（斜め${fmt(L)}mm）を追加しました`);
+  toast(ofsMs==="r"&&mv?`最後に ${deg}° で上げて下ろす形（斜め${fmt(L)}・真ん中${fmt(mx)}mm）を追加しました`:`最後に ${deg}°・${dirName(t)} のずらし（斜め${fmt(L)}mm）を追加しました`+(ofsMs==="o"&&mv?`・最初のまっすぐ ${fmt(mx)}mm`:""));
   return;
  }
+ if(ofsMs){ofsMode="add";renderCalc();toast("📏 測った寸法に合わせる時は「➕ 最後に追加する」で入れます");return}
  const k=sel;if(k<1){toast("2行目以降の行を選んでください");return}
  const pv=rows[k-1],cu=rows[k];
  pv.a=deg;pv.t=t;pv.o=false;cu.a=deg;cu.l=L;cu.o=true;
  save();render();if(T)fitT(true);$("#calcOv").classList.remove("on");
  toast(`${nm(k)} を ${fmt(L)}mm・${deg}° に（${nm(k-1)}も${deg}°・${dirName(t)}）`);
 }
-["#ofsH","#ofsV","#ofsMode"].forEach(q=>$(q).onclick=e=>{const b=e.target.closest("button");if(!b)return;
- if(q==="#ofsMode")ofsMode=b.dataset.v;else[...$(q).children].forEach(x=>x.classList.toggle("on",x===b));renderCalc()});
+["#ofsH","#ofsV","#ofsMode","#ofsMs"].forEach(q=>$(q).onclick=e=>{const b=e.target.closest("button");if(!b)return;
+ if(q==="#ofsMode")ofsMode=b.dataset.v;else if(q==="#ofsMs"){ofsMs=b.dataset.v;[...$(q).children].forEach(x=>x.classList.toggle("on",x===b));
+  $("#ofsMr").hidden=$("#ofsMn").hidden=!ofsMs;$("#ofsMt").textContent=ofsMs==="r"?"🔴 曲げ〜曲げの幅":"🟠 基準からの距離";
+  $("#ofsMn").textContent=ofsMs==="r"?"上げて・まっすぐ・下ろす形。1つ目の曲げの所から、最後の曲げの所までの幅（赤の矢印）。真ん中のまっすぐを計算します":"始まり（基準の線）から、上がりきった所までの距離（オレンジの矢印）。最初のまっすぐを計算します";
+  if(ofsMs)setTimeout(()=>$("#ofsM").focus(),50)}else[...$(q).children].forEach(x=>x.classList.toggle("on",x===b));renderCalc()});
 $("#calcBtn").onclick=()=>{$("#goalIn").value=st.goal?uVal(st.goal):"";if(IN()&&!$("#ofsX").dataset.u){$("#ofsX").value=uVal(300);$("#ofsX").dataset.u=1}renderCalc();$("#calcOv").classList.add("on")};
 $("#closeCalc").onclick=()=>$("#calcOv").classList.remove("on");
 $("#calcOv").addEventListener("click",e=>{if(e.target.id==="calcOv")$("#calcOv").classList.remove("on")});
-$("#ofsX").oninput=renderCalc;$("#ofsY").oninput=renderCalc;$("#ofsX").onfocus=e=>e.target.select();$("#ofsY").onfocus=e=>e.target.select();
+$("#ofsX").oninput=renderCalc;$("#ofsY").oninput=renderCalc;$("#ofsM").oninput=renderCalc;$("#ofsM").onfocus=e=>e.target.select();$("#ofsX").onfocus=e=>e.target.select();$("#ofsY").onfocus=e=>e.target.select();
 $("#goalIn").oninput=e=>{st.goal=normGoal(uParse(e.target.value)||0);save();upd();renderCalc()};
 $("#goalApply").onclick=()=>{
  const k=sel,need=(st.goal||0)-(calc().tot-LR()[k].l);

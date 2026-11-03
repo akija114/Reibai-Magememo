@@ -104,6 +104,7 @@ input[type=range]{accent-color:var(--acc)}
 .ctitle{font-size:15px;font-weight:800;margin:8px 0}
 .ofsrow{display:flex;gap:8px;align-items:center;margin-bottom:8px}.ofsrow .seg{flex:none;width:150px;margin:0}.ofsrow input{flex:1;min-width:0;height:46px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);padding:0 12px;font-size:17px}.ofsrow span{font-size:13px;color:var(--sub)}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+.cv45{pointer-events:auto;margin:3px 0 0 6px;background:#f97316;color:#fff;border-radius:10px;padding:4px 10px;font-size:13px;font-weight:800}
 .card2{border:1.5px solid var(--acc);border-radius:14px;background:var(--sel);padding:10px 4px;display:flex;flex-direction:column;gap:3px;align-items:center;font-size:12.5px;color:var(--sub)}
 .card2 i{font-style:normal;font-size:20px;font-weight:800;color:var(--acc)}
 .card2 b{display:block;font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums}
@@ -479,6 +480,10 @@ html[data-app="genchou"] .top,html[data-app="genchou"] .bar,html[data-app="gench
     <div class="ofsrow"><div class="seg ofsseg" id="ofsV"><button data-v="1" class="on">⬆️ 上</button><button data-v="-1">⬇️ 下</button></div><input id="ofsY" inputmode="numeric" value="0" aria-label="縦のずらしmm"><span>mm</span></div>
     <div class="goalres" id="ofsRes"></div>
     <div class="seg" id="ofsMode" style="margin:6px 0 8px"><button data-v="add" class="on">➕ 最後に追加する</button><button data-v="sel">✏️ 選んだ行に入れる</button></div>
+    <div class="note" style="margin:2px 0 4px;font-weight:800;color:var(--ink)">📏 測った寸法に合わせる（あれば）</div>
+    <div class="seg" id="ofsMs" style="margin:0 0 8px"><button data-v="" class="on">なし</button><button data-v="r">🔴 曲げ〜曲げの幅</button><button data-v="o">🟠 基準から</button></div>
+    <div class="ofsrow" id="ofsMr" hidden><span id="ofsMt" style="flex:none;width:150px;font-weight:700"></span><input id="ofsM" inputmode="numeric" aria-label="測った寸法mm"><span>mm</span></div>
+    <div class="note" id="ofsMn" hidden style="margin-top:0"></div>
     <div class="cards" id="ofsCards"></div>
     <div class="note" id="ofsNote"></div>
     <div class="note">斜め＝曲げと曲げの間の長さ（行の長さに入れる値）／進み＝ずらす間に前へ進む距離</div>
@@ -531,7 +536,7 @@ if(/[?&]from=cad3d/.test(location.search)){(function(){const m=new Map();try{for
  try{const op=indexedDB.open.bind(indexedDB);indexedDB.open=(n,v)=>op(n==="pbmShare"?n:"cad3d_"+n,v)}catch(e){}window.CAD3D_MODE=true;document.documentElement.classList.add("cad3d")})()}</script>
 <script>const APP="zumen";</script>
 <script src="models.js?v=307"></script>
-<script src="core.js?v=343"></script>
+<script src="core.js?v=344"></script>
 <script src="drain.js?v=268"></script>
 <script src="dxf.js?v=328"></script><script src="zumen.js?v=337"></script><script src="shita.js?v=251"></script><script src="yomi.js?v=250"></script>
 <script src="kabe.js?v=228"></script>

@@ -72,7 +72,7 @@ function open(){if(!ov)build();ov.classList.add("on");const fr=fromRows();
  else{if(fr===null)setTimeout(()=>toast("今の曲げに45°などの曲げがあるので、絵にできません（描き直すと置きかえます）"),300);try{const s=JSON.parse(localStorage.getItem("pbm_egaku_cur")||"null");if(s&&Array.isArray(s.segs)&&!EG.segs.length){EG.segs=s.segs;EG.O=null}}catch(e){}}
  list();setTimeout(draw,30)}
 /* 今の曲げの行 → 方眼の線（90°・180°・まっすぐだけ。toRows の逆：最初は右手前・上は上）。45°などがある時は null */
-function fromRows(){const R=LR(),rows=R.filter((r,i)=>i<R.length-1||r.l>0);if(!rows.length||!(rows.length>1||rows[0].l>0))return[];if(rows.some((r,i)=>i<rows.length-1&&r.a&&r.a!==90&&r.a!==180))return null;
+function fromRows(){const R=LR(),rows=R.filter((r,i)=>i<R.length-1||r.l>0);if(rows.length<2)return[]; /* まっすぐ1本だけ（新しく始めた時）は絵にしない */if(rows.some((r,i)=>i<rows.length-1&&r.a&&r.a!==90&&r.a!==180))return null;
  const cr=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],rn=v=>v.map(z=>Math.round(z)),rotA=(v,k,t)=>{const c=Math.cos(t),sn=Math.sin(t),kv=cr(k,v),kd=dot(k,v);return v.map((_,j)=>v[j]*c+kv[j]*sn+k[j]*kd*(1-c))};
  let d=[1,0,0],u=[0,1,0],r=cr(d,u);const out=[],mx=Math.max(...rows.map(q=>q.l))||1;
  rows.forEach((q,i)=>{const k=D3.findIndex(z=>z[0]===Math.round(d[0])&&z[1]===Math.round(d[1])&&z[2]===Math.round(d[2]));out.push({d:k<0?0:k,n:Math.max(1,Math.min(8,Math.round(q.l/mx*6))),l:Math.round(q.l)||0});

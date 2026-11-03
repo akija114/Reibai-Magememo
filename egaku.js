@@ -11,7 +11,9 @@ const C30=Math.cos(Math.PI/6),S30=Math.sin(Math.PI/6);
 const sv=k=>{const d=D3[k];return[(d[0]-d[2])*C30,(d[0]+d[2])*S30-d[1]]};   // 向きの画面の上の向き（1ますの長さ1）
 const scr=p=>[EG.O[0]+(p[0]-p[2])*C30*EG.cell,EG.O[1]+((p[0]+p[2])*S30-p[1])*EG.cell];
 const add3=(a,d,n)=>[a[0]+d[0]*n,a[1]+d[1]*n,a[2]+d[2]*n];
-const ends=()=>{let p=[0,0,0];const P=[p];for(const s of EG.segs){p=add3(p,D3[s.d],s.n);P.push(p)}return P};
+/* 45°・30°の線（s.k）：前の線の向きへ 進み＝差÷tan も進む（差＝s.n ます・s.l mm）。2026-11-03 ユーザー：描いて曲げで45° */
+const stp=(p,segs,i,v)=>{const s=segs[i],q=add3(p,D3[s.d],v);return s.k&&i>0?add3(q,D3[segs[i-1].d],v/Math.tan(s.k*Math.PI/180)):q};
+const ends=()=>{let p=[0,0,0];const P=[p];EG.segs.forEach((s,i)=>{p=stp(p,EG.segs,i,s.n);P.push(p)});return P};
 /* 画面 */
 function build(){
  ov=document.createElement("div");ov.className="ov";ov.id="egOv";ov.style.alignItems="stretch";
@@ -69,15 +71,19 @@ function build(){
 }
 function open(){if(!ov)build();ov.classList.add("on");const fr=fromRows();
  if(fr&&fr.length){if(EG.segs.length&&JSON.stringify(EG.segs.map(q=>[q.d,q.l]))!==JSON.stringify(fr.map(q=>[q.d,q.l])))EG.undo.push(JSON.stringify(EG.segs));EG.segs=fr;EG.O=null}   // 今の曲げ（図面から来た物・手で入れた物）を絵にして出す
- else{if(fr===null)setTimeout(()=>toast("今の曲げに45°などの曲げがあるので、絵にできません（描き直すと置きかえます）"),300);try{const s=JSON.parse(localStorage.getItem("pbm_egaku_cur")||"null");if(s&&Array.isArray(s.segs)&&!EG.segs.length){EG.segs=s.segs;EG.O=null}}catch(e){}}
+ else{if(fr===null)setTimeout(()=>toast("今の曲げは絵にできない形です（描き直すと置きかえます）"),300);try{const s=JSON.parse(localStorage.getItem("pbm_egaku_cur")||"null");if(s&&Array.isArray(s.segs)&&!EG.segs.length){EG.segs=s.segs;EG.O=null}}catch(e){}}
  list();setTimeout(draw,30)}
-/* 今の曲げの行 → 方眼の線（90°・180°・まっすぐだけ。toRows の逆：最初は右手前・上は上）。45°などがある時は null */
-function fromRows(){const R=LR(),rows=R.filter((r,i)=>i<R.length-1||r.l>0);if(rows.length<2)return[]; /* まっすぐ1本だけ（新しく始めた時）は絵にしない */if(rows.some((r,i)=>i<rows.length-1&&r.a&&r.a!==90&&r.a!==180))return null;
- const cr=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],rn=v=>v.map(z=>Math.round(z)),rotA=(v,k,t)=>{const c=Math.cos(t),sn=Math.sin(t),kv=cr(k,v),kd=dot(k,v);return v.map((_,j)=>v[j]*c+kv[j]*sn+k[j]*kd*(1-c))};
- let d=[1,0,0],u=[0,1,0],r=cr(d,u);const out=[],mx=Math.max(...rows.map(q=>q.l))||1;
- rows.forEach((q,i)=>{const k=D3.findIndex(z=>z[0]===Math.round(d[0])&&z[1]===Math.round(d[1])&&z[2]===Math.round(d[2]));out.push({d:k<0?0:k,n:Math.max(1,Math.min(8,Math.round(q.l/mx*6))),l:Math.round(q.l)||0});
-  if(i<rows.length-1&&q.a){const t=(typeof effT==="function"?effT(i,rows):q.t)*Math.PI/180,b=u.map((z,j)=>z*Math.cos(t)+r[j]*Math.sin(t)),a=q.a*Math.PI/180,d2=d.map((z,j)=>z*Math.cos(a)+b[j]*Math.sin(a));const ax=cr(d,d2),al=Math.hypot(...ax);
-   if(al>1e-6){const k2=ax.map(z=>z/al);u=rotA(u,k2,a);r=rotA(r,k2,a)}else{u=u.map(z=>-z);r=r.map(z=>-z)}d=rn(d2);u=rn(u);r=rn(r)}});
+/* 今の曲げの行 → 方眼の線（90°・180°・まっすぐと、45°・30°の斜め（前の線から上がる線＝s.k・長さは差）。toRows の逆：最初は右手前・上は上）。絵にできない時は null */
+function fromRows(){const R=LR(),rows=R.filter((r,i)=>i<R.length-1||r.l>0);if(rows.length<2)return[]; /* まっすぐ1本だけ（新しく始めた時）は絵にしない */if(rows.some((r,i)=>i<rows.length-1&&r.a&&![30,45,90,180].includes(r.a)))return null;
+ const cr=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],sn=v=>v.map(z=>Math.abs(z-Math.round(z))<1e-6?Math.round(z):z),rotA=(v,k,t)=>{const c=Math.cos(t),s2=Math.sin(t),kv=cr(k,v),kd=dot(k,v);return v.map((_,j)=>v[j]*c+kv[j]*s2+k[j]*kd*(1-c))};
+ const ax=v=>D3.findIndex(z=>Math.abs(z[0]-v[0])<1e-6&&Math.abs(z[1]-v[1])<1e-6&&Math.abs(z[2]-v[2])<1e-6);
+ let d=[1,0,0],u=[0,1,0],r=cr(d,u);const out=[],mx=Math.max(...rows.map(q=>q.l))||1,nn=l=>Math.max(1,Math.min(8,Math.round(l/mx*6)));
+ for(let i=0;i<rows.length;i++){const q=rows[i];let k=ax(d);
+  if(k>=0)out.push({d:k,n:nn(q.l),l:Math.round(q.l)||0});
+  else{const pv=out[out.length-1];if(!pv||pv.k)return null;const pd=D3[pv.d],c=dot(d,pd),pe=d.map((z,j)=>z-pd[j]*c),pl=Math.hypot(...pe),pk=pl>1e-6?ax(pe.map(z=>z/pl)):-1,th=Math.round(Math.acos(Math.max(-1,Math.min(1,c)))*180/Math.PI);
+   if(pk<0||(th!==45&&th!==30))return null;const H=Math.round(q.l*Math.sin(th*Math.PI/180));out.push({d:pk,k:th,n:Math.max(1,Math.round(nn(q.l)*Math.sin(th*Math.PI/180))),l:H})}
+  if(i<rows.length-1&&q.a){const t=(typeof effT==="function"?effT(i,rows):q.t)*Math.PI/180,b=u.map((z,j)=>z*Math.cos(t)+r[j]*Math.sin(t)),a=q.a*Math.PI/180,d2=d.map((z,j)=>z*Math.cos(a)+b[j]*Math.sin(a));const ax2=cr(d,d2),al=Math.hypot(...ax2);
+   if(al>1e-6){const k2=ax2.map(z=>z/al);u=rotA(u,k2,a);r=rotA(r,k2,a)}else{u=u.map(z=>-z);r=r.map(z=>-z)}d=sn(d2);u=sn(u);r=sn(r)}}
  return out}
 function close(){if(ov)ov.classList.remove("on");try{localStorage.setItem("pbm_egaku_cur",JSON.stringify({segs:EG.segs}))}catch(e){}}
 /* 絵 */
@@ -100,15 +106,21 @@ function draw(){if(!cv)return;dpr=window.devicePixelRatio||1;const W=cv.clientWi
  /* 描いた線 */
  const segs=EG.segs.slice();if(EG.cur&&EG.cur.D>=0)segs.push({d:EG.cur.D,n:EG.cur.n,l:0,live:1});
  let p=[0,0,0];x.lineCap="round";x.lineJoin="round";
- segs.forEach((s,i)=>{const a=scr(p),q=add3(p,D3[s.d],s.n),b=scr(q),hl=i===EG.hl&&!s.live;if(hl){x.strokeStyle="rgba(37,99,235,.28)";x.lineWidth=24;x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke()} // 今、長さを入れている線を光らせる
-  x.strokeStyle=s.live?"#f59e0b":hl?"#2563eb":"#c2703a";x.lineWidth=hl?10:7;x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();
-  const m=[(a[0]+b[0])/2,(a[1]+b[1])/2],t=(hl?"👉 ":"")+(i+1)+(s.l?"："+s.l:hl?"：ここ":"");x.font="bold "+(hl?18:14)+"px -apple-system,sans-serif";const w=x.measureText(t).width+12;x.fillStyle=hl?"#2563eb":s.l?"#0f766e":"#334155";x.beginPath();const bh=hl?26:20;x.roundRect?x.roundRect(m[0]-w/2,m[1]-bh-2,w,bh,8):x.rect(m[0]-w/2,m[1]-bh-2,w,bh);x.fill();x.fillStyle="#fff";x.fillText(t,m[0]-w/2+6,m[1]-(hl?9:7));p=q});
+ segs.forEach((s,i)=>{const a=scr(p),q=stp(p,segs,i,s.n),b=scr(q),hl=i===EG.hl&&!s.live;if(hl){x.strokeStyle="rgba(37,99,235,.28)";x.lineWidth=24;x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke()} // 今、長さを入れている線を光らせる
+  x.strokeStyle=s.live?"#f59e0b":hl?"#2563eb":s.k?"#dc2626":"#c2703a";x.lineWidth=hl?10:7;x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();
+  const m=[(a[0]+b[0])/2,(a[1]+b[1])/2],t=(hl?"👉 ":"")+(i+1)+(s.k?"（"+s.k+"°）":"")+(s.l?"："+(s.k?"差"+s.l:s.l):hl?"：ここ":"");x.font="bold "+(hl?18:14)+"px -apple-system,sans-serif";const w=x.measureText(t).width+12;x.fillStyle=hl?"#2563eb":s.l?"#0f766e":"#334155";x.beginPath();const bh=hl?26:20;x.roundRect?x.roundRect(m[0]-w/2,m[1]-bh-2,w,bh,8):x.rect(m[0]-w/2,m[1]-bh-2,w,bh);x.fill();x.fillStyle="#fff";x.fillText(t,m[0]-w/2+6,m[1]-(hl?9:7));p=q});
  if(EG.O&&segs.length){const s0=scr([0,0,0]);x.fillStyle="#16a34a";x.beginPath();x.arc(s0[0],s0[1],8,0,7);x.fill();const P=ends(),e=scr(P[P.length-1]);if(!EG.cur){x.strokeStyle="#f97316";x.lineWidth=3;x.beginPath();x.arc(e[0],e[1],14,0,7);x.stroke()}}
  if(EG.cur&&EG.tip)lp(EG.tip);
  const h=ov.querySelector("#egHint");h.textContent=!EG.segs.length?"方眼の上を指でなぞってください。線は「たて・横・奥」に吸い付きます。紙に描く絵と同じでOK。":"線 "+EG.segs.length+"本・曲げ "+Math.max(0,EG.segs.length-1)+"か所。オレンジの丸から続けて描けます。下で長さを入れてください。"}
 /* 線ごとの長さの欄 */
-function list(){if(!ov)return;const L=ov.querySelector("#egList");L.innerHTML=EG.segs.map((s,i)=>`<label style="flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:800;color:#334155">${i+1}・${DN[s.d]}<input data-i="${i}" inputmode="numeric" pattern="[0-9]*" value="${s.l||""}" placeholder="mm" style="width:78px;height:42px;border-radius:10px;border:1.5px solid ${s.l?"#0f766e":"#cbd5e1"};text-align:center;font-size:17px;font-weight:800"></label>`).join("")||'<div style="font-size:13px;color:#94a3b8">描くと、ここに線ごとの長さの欄が出ます</div>';
- L.querySelectorAll("input").forEach(e=>{e.onfocus=()=>{e.select();EG.last=EG.hl=+e.dataset.i;e.style.boxShadow="0 0 0 3px #2563eb";draw();setTimeout(()=>show(EG.hl),350)};e.onblur=()=>{e.style.boxShadow="";setTimeout(()=>{if(!ov.querySelector("#egList input:focus")){EG.hl=-1;draw()}},80)};e.oninput=()=>{const s=EG.segs[+e.dataset.i];if(s){s.l=Math.max(0,Math.round(uParse(e.value)||0));e.style.borderColor=s.l?"#0f766e":"#cbd5e1";draw()}};e.onkeydown=ev=>{if(ev.key==="Enter"){ev.preventDefault();const n=L.querySelector(`input[data-i="${+e.dataset.i+1}"]`);if(n)n.focus();else e.blur()}}})}
+function list(){if(!ov)return;const L=ov.querySelector("#egList");L.innerHTML=EG.segs.map((s,i)=>`<label style="flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:800;color:#334155">${i+1}・${DN[s.d]}<input data-i="${i}" inputmode="numeric" pattern="[0-9]*" value="${s.l||""}" placeholder="${s.k?"差":"mm"}" style="width:78px;height:42px;border-radius:10px;border:1.5px solid ${s.k?"#eab308":s.l?"#0f766e":"#cbd5e1"};text-align:center;font-size:17px;font-weight:800">${i>0?`<button type="button" data-k="${i}" style="width:86px;height:30px;white-space:nowrap;border-radius:9px;border:1.5px solid ${s.k?"#dc2626":"#cbd5e1"};background:${s.k?"#fee2e2":"#fff"};color:${s.k?"#dc2626":"#475569"};font-size:12px;font-weight:800;padding:0">${s.k?s.k+"° 斜め"+(s.l?Math.round(s.l/Math.sin(s.k*Math.PI/180)):""):"90° ▸45°"}</button>`:""}</label>`).join("")||'<div style="font-size:13px;color:#94a3b8">描くと、ここに線ごとの長さの欄が出ます</div>';
+ L.querySelectorAll("button[data-k]").forEach(b=>b.onclick=e=>{e.preventDefault();kTog(+b.dataset.k)});
+ L.querySelectorAll("input").forEach(e=>{e.onfocus=()=>{e.select();EG.last=EG.hl=+e.dataset.i;e.style.boxShadow="0 0 0 3px #2563eb";draw();setTimeout(()=>show(EG.hl),350)};e.onblur=()=>{e.style.boxShadow="";setTimeout(()=>{if(!ov.querySelector("#egList input:focus")){EG.hl=-1;draw()}},80)};e.oninput=()=>{const s=EG.segs[+e.dataset.i];if(s){s.l=Math.max(0,Math.round(uParse(e.value)||0));e.style.borderColor=s.k?"#eab308":s.l?"#0f766e":"#cbd5e1";const kb=L.querySelector(`button[data-k="${e.dataset.i}"]`);if(kb&&s.k)kb.textContent=s.k+"° 斜め"+(s.l?Math.round(s.l/Math.sin(s.k*Math.PI/180)):"");draw()}};e.onkeydown=ev=>{if(ev.key==="Enter"){ev.preventDefault();const n=L.querySelector(`input[data-i="${+e.dataset.i+1}"]`);if(n)n.focus();else e.blur()}}})}
+/* 線の角度を 90° → 45° → 30° → 90° と変える（その線＝斜めの線。長さの欄は「差（高さ）」、行には斜めの長さが入る） */
+function kTog(i){const s=EG.segs[i],p=EG.segs[i-1],n=EG.segs[i+1];if(!s||!p)return;
+ if(!s.k){if(p.k){toast("斜めの線のすぐ後は、斜めにできません");return}if(n&&n.d===OPP[p.d]){toast("この形は斜めにできません（前とうしろの線が反対向き）");return}}
+ EG.undo.push(JSON.stringify(EG.segs));s.k=!s.k?45:s.k===45?30:0;if(!s.k)delete s.k;list();draw();
+ if(s.k)toast(s.k+"°の斜めにしました。長さの欄には「差（ずらす高さ）」を入れてください");const e=ov.querySelector(`#egList input[data-i="${i}"]`);if(e)e.focus()}
 /* 光らせた線を、キーボードに隠れない見えている所の真ん中へ寄せる */
 function show(i){if(!cv||i<0||i>=EG.segs.length||!EG.O)return;const P=ends(),a=scr(P[i]),b=scr(P[i+1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2],r=cv.getBoundingClientRect(),vv=window.visualViewport,vt=vv?vv.offsetTop:0,vb=vv?vv.offsetTop+vv.height:window.innerHeight;
  const y0=Math.max(0,vt-r.top),y1=Math.min(r.height,vb-r.top);if(y1-y0<60)return;const ty=(y0+y1)/2,tx=r.width/2;if(m[1]>y0+30&&m[1]<y1-30&&m[0]>30&&m[0]<r.width-30)return;EG.O=[EG.O[0]+(tx-m[0]),EG.O[1]+(ty-m[1])];EG.zoomed=1;draw()}
@@ -133,8 +145,9 @@ function toRows(P,a45){const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],len=a=>M
  return rows}
 /* ✅ この形で曲げを作る */
 function apply(){if(!EG.segs.length){toast("先に形を描いてください（または上の欄に話す）");return}
+ const bad=EG.segs.findIndex((s,i)=>s.k&&EG.segs[i+1]&&EG.segs[i-1]&&EG.segs[i+1].d===OPP[EG.segs[i-1].d]);if(bad>=0){toast((bad+1)+"本目の斜めの後が反対向きなので作れません（90°にもどすか描き直してください）");return}
  const miss=EG.segs.findIndex(s=>!(s.l>0));if(miss>=0){toast((miss+1)+"本目の長さを入れてください");const e=ov.querySelector(`#egList input[data-i="${miss}"]`);if(e)e.focus();return}
- let p=[0,0,0];const P=[p];for(const s of EG.segs){p=add3(p,D3[s.d],s.l);P.push(p)}
+ let p=[0,0,0];const P=[p];EG.segs.forEach((s,i)=>{p=stp(p,EG.segs,i,s.l);P.push(p)});
  const nw=EG.segs.length===1?[{l:EG.segs[0].l,a:0,t:0,o:false}]:toRows(P);
  const rows=LR();rows.splice(0,rows.length,...nw);sel=0;save();close();render();if(T){T.dirty=true;try{build3D()}catch(e){}fitT(true)}
  toast("✅ 描いた形で曲げを作りました（"+nw.length+"本・曲げ "+(nw.length-1)+"か所）。違う時は ↩️ で戻せます")}

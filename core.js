@@ -3439,11 +3439,73 @@ $("#shPaste").onclick=()=>{closeShare();$("#impTxt").value="";$("#impOv").classL
 $("#shMore").onclick=()=>{closeShare();$("#cloudBtn").click()};
 /* 寸法計算 */
 const OFS=[45,30,15];
-let ofsMode="add",ofsMs="";
-/* 📏 測った寸法に合わせる（2026-11-03 ユーザー：45°・30°は計算が大変）
-   🔴 r＝上げて・まっすぐ・下ろす形の、1つ目の曲げから最後の曲げまでの幅（真ん中＝幅−進み×2）
-   🟠 o＝基準（始まり）から、上がりきった所（2つ目の曲げ）までの距離（最初のまっすぐ＝距離−進み） */
-function ofsMV(){return Math.max(0,uParse($("#ofsM").value)||0)}
+let ofsMode="add";
+/* 📐 45°・30°の計算（絵の上に数字を入れる・2026-11-03 ユーザー：前の画面は使いにくい）
+   形 Q45.s：c＝ずらす（クランク）・h＝上げて下ろす。角度 Q45.a。差 H（高さ）は必ず。
+   🟠 基準から（c）：基準の線から上がりきった所（2つ目の曲げ）まで → 最初のまっすぐ＝距離−進み
+   🔴 曲げ〜曲げの幅（h）：1つ目の曲げから最後の曲げまで → 真ん中のまっすぐ＝幅−進み×2 */
+const Q45={s:"c",a:45,t:0};
+function q45V(id){const e=$("#"+id);return e?Math.max(0,uParse(e.value)||0):0}
+function q45Calc(){const H=q45V("q45H"),M=q45V("q45M"),th=Q45.a*Math.PI/180,L=H/Math.sin(th),run=H/Math.tan(th),x=M?(Q45.s==="h"?M-2*run:M-run):null;return{H,M,L,run,x}}
+function q45Build(){const box=$("#q45");if(!box||box.dataset.b)return;box.dataset.b=1;
+ const ic=(s)=>`<svg viewBox="0 0 60 30" width="54" height="27"><path d="${s==="c"?"M4 24 H22 L34 8 H56":"M4 24 H14 L24 8 H36 L46 24 H56"}" fill="none" stroke="#c2703a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+ box.innerHTML=`<div class="ctitle">📐 45°・30°の計算<small style="font-weight:600;color:var(--sub);margin-left:6px">90°で曲げられない時</small></div>
+ <div class="q45r" id="q45S"><button data-v="c">${ic("c")}<span>ずらす</span></button><button data-v="h">${ic("h")}<span>上げて下ろす</span></button></div>
+ <div class="q45r" id="q45A"><button data-v="45">45°</button><button data-v="30">30°</button></div>
+ <div class="q45p" id="q45P"></div>
+ <div class="q45o" id="q45O"></div>
+ <div class="q45d"><span>上げる向き</span><div class="q45r" id="q45T"><button data-v="0">⬆️上</button><button data-v="180">⬇️下</button><button data-v="90">➡️右</button><button data-v="270">⬅️左</button></div></div>
+ <button class="primary" id="q45Go" style="width:100%;height:52px;font-size:16px;margin-top:8px">✅ 曲げの最後に入れる</button>
+ <div class="calcsep"></div>`;
+ const seg=(id,k,f)=>$("#"+id).onclick=e=>{const b=e.target.closest("button");if(!b)return;Q45[k]=f(b.dataset.v);q45Draw()};
+ seg("q45S","s",v=>v);seg("q45A","a",v=>+v);seg("q45T","t",v=>+v);
+ $("#q45Go").onclick=q45Apply;
+}
+function q45Draw(){q45Build();const P=$("#q45P");if(!P)return;
+ [["q45S","s"],["q45A","a"],["q45T","t"]].forEach(([id,k])=>[...$("#"+id).children].forEach(b=>b.classList.toggle("on",b.dataset.v===String(Q45[k]))));
+ const h=Q45.s==="h",a30=Q45.a===30,Hp=h?(a30?50:78):(a30?55:72),rp=Hp/Math.tan(Q45.a*Math.PI/180),y0=h?182:150,y1=y0-Hp;
+ const keep={};P.querySelectorAll("input").forEach(e=>keep[e.id]=e.value);
+ const r=q45Calc(),U=ezU(),f=v=>v==null?"":fmt(Math.round(v));
+ let path,dims="",lab="",ins="";
+ const box=(id,x,y,w,col,ph)=>`<input id="${id}" inputmode="numeric" pattern="[0-9]*" placeholder="${ph}" style="left:${x/340*100}%;top:${y/215*100}%;width:${w/340*100}%;border-color:${col}" value="${keep[id]!=null?keep[id]:""}">`;
+ const ar=(x1,y,x2,col)=>`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${col}" stroke-width="2.5" marker-start="url(#qa${col.slice(1)})" marker-end="url(#qa${col.slice(1)})"/>`;
+ const mk=c=>`<marker id="qa${c.slice(1)}" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`;
+ if(!h){const x1=110,x2=x1+rp;path=`M18 ${y0} H${x1} L${x2} ${y1} H322`;
+  dims=`<line x1="18" y1="40" x2="18" y2="200" stroke="#f97316" stroke-width="2" stroke-dasharray="5 4"/><line x1="${x2}" y1="${y1}" x2="${x2}" y2="200" stroke="#f97316" stroke-width="1.5" stroke-dasharray="3 3"/>`+ar(20,192,x2-2,"#f97316")+
+   `<line x1="300" y1="${y1}" x2="300" y2="${y0}" stroke="#eab308" stroke-width="2.5" marker-start="url(#qaeab308)" marker-end="url(#qaeab308)"/>`;
+  lab=`<text x="${(x1+x2)/2-12}" y="${(y0+y1)/2-16}" text-anchor="end" class="q45L">斜め ${r.H?f(r.L):"？"}</text><text x="${(x1+x2)/2+8}" y="${y0+16}" class="q45s">進み ${r.H?f(r.run):"？"}</text>`+
+   `<text x="${(18+x1)/2}" y="${y0-10}" text-anchor="middle" class="q45L"></text>`;
+  ins=box("q45H",228,(y0+y1)/2-17,66,"#eab308","差")+box("q45M",(20+x2)/2-38,176,76,"#f97316","基準から");
+ }else{const x1=50,x2=x1+rp,x4=290,x3=x4-rp;path=`M14 ${y0} H${x1} L${x2} ${y1} H${x3} L${x4} ${y0} H326`;
+  dims=`<line x1="${x1}" y1="${y1-52}" x2="${x1}" y2="${y0}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3 3"/><line x1="${x4}" y1="${y1-52}" x2="${x4}" y2="${y0}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3 3"/>`+ar(x1+2,y1-45,x4-2,"#ef4444")+
+   `<line x1="${(x2+x3)/2}" y1="${y1+3}" x2="${(x2+x3)/2}" y2="${y0}" stroke="#eab308" stroke-width="2.5" marker-start="url(#qaeab308)" marker-end="url(#qaeab308)"/>`;
+  lab=`<text x="${(x1+x2)/2-6}" y="${(y0+y1)/2-6}" text-anchor="end" class="q45L">斜め ${r.H?f(r.L):"？"}</text><text x="${(x1+x2)/2}" y="${y0+20}" text-anchor="middle" class="q45s">進み ${r.H?f(r.run):"？"}</text>`+
+   `<text x="${(x2+x3)/2}" y="${y1-7}" text-anchor="middle" class="q45L"></text>`;
+  ins=box("q45H",(x2+x3)/2-33,(y0+y1)/2-14,66,"#eab308","差")+box("q45M",170-40,y1-64,80,"#ef4444","幅");
+ }
+ P.innerHTML=`<svg viewBox="0 0 340 215"><defs>${mk("#f97316")+mk("#eab308")+mk("#ef4444")}</defs>${dims}<path d="${path}" fill="none" stroke="#7c2d12" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="${path}" fill="none" stroke="#e8903f" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>${lab}</svg>${ins}`;
+ P.querySelectorAll("input").forEach(e=>{e.onfocus=()=>e.select();e.oninput=()=>q45Out()});
+ q45Out();
+}
+/* 絵の下：答えを言葉で（絵の数字も入れ直す） */
+function q45Out(){const r=q45Calc(),U=ezU(),f=v=>fmt(Math.round(v)),h=Q45.s==="h",o=$("#q45O");if(!o)return;
+ const L=$("#q45P").querySelectorAll("text.q45L,text.q45s");
+ if(L[0])L[0].textContent="斜め "+(r.H?f(r.L):"？");if(L[1])L[1].textContent="進み "+(r.H?f(r.run):"？");
+ if(L[2])L[2].textContent=r.x==null?"":r.x<0?"⚠️ 足りない":(h?"真ん中 ":"最初 ")+f(r.x);
+ if(!r.H){o.innerHTML=`<span class="q45hint">黄色の「差」（ずらす高さ）を入れてください。${h?"🔴 曲げ〜曲げの幅":"🟠 基準からの距離"}は、測った時だけ</span>`;return}
+ o.innerHTML=`<div>${Q45.a}°で差 <b>${f(r.H)}</b> → 斜め（行に入れる長さ）<b class="big">${f(r.L)}${U}</b>・前へ進む <b>${f(r.run)}${U}</b></div>`+
+  (r.x==null?"":r.x<0?`<div class="w">⚠️ ${h?"幅":"距離"} ${f(r.M)} では足りません（${Q45.a}°で進むだけで ${f(h?2*r.run:r.run)}${U}）</div>`:`<div>${h?"真ん中のまっすぐ":"最初のまっすぐ"} <b class="big">${f(r.x)}${U}</b></div>`);
+}
+function q45Apply(){const r=q45Calc(),deg=Q45.a,t=Q45.t,h=Q45.s==="h";
+ if(!r.H){toast("黄色の「差」を入れてください");const e=$("#q45H");if(e)e.focus();return}
+ if(r.x!=null&&r.x<0){toast("⚠️ 測った寸法が足りません");return}
+ const rows=LR(),last=rows[rows.length-1],L=Math.round(r.L),x=r.x==null?null:Math.round(r.x);
+ if(last&&!last.a){last.a=deg;last.t=t;last.o=false;if(!h&&x!=null)last.l=x}else rows.push({l:!h&&x!=null?x:300,a:deg,t,o:false});
+ if(h)rows.push({l:L,a:deg,t:0,o:true},{l:x!=null?x:500,a:deg,t:normT(t+180),o:false},{l:L,a:deg,t:0,o:true},{l:500,a:0,t:0,o:false});
+ else rows.push({l:L,a:deg,t:0,o:true},{l:500,a:0,t:0,o:false});
+ sel=rows.length-2;save();render();if(T){build3D();fitT(true)}$("#calcOv").classList.remove("on");
+ toast(`最後に ${deg}° の${h?"上げて下ろす形":"ずらし"}（斜め ${fmt(L)}${x!=null?(h?"・真ん中 ":"・最初 ")+fmt(x):""}）を入れました`);
+}
 function ofsVal(){
  const sx=+($("#ofsH .on")||{dataset:{v:1}}).dataset.v,sy=+($("#ofsV .on")||{dataset:{v:1}}).dataset.v;
  const x=Math.max(0,uParse($("#ofsX").value)||0)*sx,y=Math.max(0,uParse($("#ofsY").value)||0)*sy;
@@ -3457,12 +3519,10 @@ function renderCalc(){
  [...$("#ofsMode").children].forEach(b=>b.classList.toggle("on",b.dataset.v===ofsMode));
  OFS.forEach(deg=>{
   const th=deg*Math.PI/180,b=document.createElement("button");b.className="card2";
-  const run=d/Math.tan(th),mv=ofsMV(),mx=ofsMs==="r"?mv-2*run:ofsMs==="o"?mv-run:0;
-  b.innerHTML=`<i>${deg}°</i><span>斜め<b>${d?fmt(d/Math.sin(th)):"-"}</b></span><span>進み<b>${d?fmt(run):"-"}</b></span>`+
-   (ofsMs&&d&&mv?(mx<0?`<span class="w" style="color:var(--warn);font-weight:800">⚠️ 幅が足りない</span>`:`<span>${ofsMs==="r"?"真ん中":"最初"}<b>${fmt(mx)}</b></span>`):"");
+  b.innerHTML=`<i>${deg}°</i><span>斜め<b>${d?fmt(d/Math.sin(th)):"-"}</b></span><span>進み<b>${d?fmt(d/Math.tan(th)):"-"}</b></span>`;
   b.onclick=()=>applyOffset(deg);box.appendChild(b);
  });
- $("#ofsNote").innerHTML=TI("tap")+(ofsMode==="add"?"角度をタップすると、最後に「曲げ→斜め→曲げ戻し→直管」を追加します":(ofsMs?"📏 測った寸法に合わせる時は、最後に追加します（「➕ 最後に追加する」）":k<1?"2行目以降の行を選んでから使います":`タップで ${nm(k-1)} の曲げと ${nm(k)} の斜めに入れます（${nm(k)}は反対向きで戻す）`));
+ $("#ofsNote").innerHTML=TI("tap")+(ofsMode==="add"?"角度をタップすると、最後に「曲げ→斜め→曲げ戻し→直管」を追加します":(k<1?"2行目以降の行を選んでから使います":`タップで ${nm(k-1)} の曲げと ${nm(k)} の斜めに入れます（${nm(k)}は反対向きで戻す）`));
  const g=st.goal||0,c=calc(),rest=c.tot-LR()[k].l,need=g-rest,gr=$("#goalRes"),ga=$("#goalApply");
  if(!g){gr.textContent="目標の合計を入れると、選んだ行の長さを自動で出します";ga.style.display="none";return}
  ga.style.display="block";
@@ -3474,32 +3534,26 @@ function applyOffset(deg){
  if(d<=0){toast("ずらしたい寸法を入れてください");return}
  const L=Math.round(d/Math.sin(deg*Math.PI/180)),rows=LR();
  if(ofsMode==="add"){
-  const last=rows[rows.length-1],run=d/Math.tan(deg*Math.PI/180),mv=ofsMV(),mx=Math.round(ofsMs==="r"?mv-2*run:mv-run);
-  if(ofsMs&&mv&&mx<0){toast(`⚠️ ${fmt(mv)}mm では足りません（${deg}°で進むだけで ${fmt(ofsMs==="r"?2*run:run)}mm）`);return}
-  if(last&&!last.a){last.a=deg;last.t=t;last.o=false;if(ofsMs==="o"&&mv)last.l=mx}else rows.push({l:ofsMs==="o"&&mv?mx:300,a:deg,t:t,o:false});
-  if(ofsMs==="r"&&mv)rows.push({l:L,a:deg,t:0,o:true},{l:mx,a:deg,t:normT(t+180),o:false},{l:L,a:deg,t:0,o:true},{l:500,a:0,t:0,o:false});
-  else rows.push({l:L,a:deg,t:0,o:true},{l:500,a:0,t:0,o:false});
+  const last=rows[rows.length-1];
+  if(last&&!last.a){last.a=deg;last.t=t;last.o=false}else rows.push({l:300,a:deg,t:t,o:false});
+  rows.push({l:L,a:deg,t:0,o:true},{l:500,a:0,t:0,o:false});
   sel=rows.length-2;
   save();render();if(T)fitT(true);$("#calcOv").classList.remove("on");
-  toast(ofsMs==="r"&&mv?`最後に ${deg}° で上げて下ろす形（斜め${fmt(L)}・真ん中${fmt(mx)}mm）を追加しました`:`最後に ${deg}°・${dirName(t)} のずらし（斜め${fmt(L)}mm）を追加しました`+(ofsMs==="o"&&mv?`・最初のまっすぐ ${fmt(mx)}mm`:""));
+  toast(`最後に ${deg}°・${dirName(t)} のずらし（斜め${fmt(L)}mm）を追加しました`);
   return;
  }
- if(ofsMs){ofsMode="add";renderCalc();toast("📏 測った寸法に合わせる時は「➕ 最後に追加する」で入れます");return}
  const k=sel;if(k<1){toast("2行目以降の行を選んでください");return}
  const pv=rows[k-1],cu=rows[k];
  pv.a=deg;pv.t=t;pv.o=false;cu.a=deg;cu.l=L;cu.o=true;
  save();render();if(T)fitT(true);$("#calcOv").classList.remove("on");
  toast(`${nm(k)} を ${fmt(L)}mm・${deg}° に（${nm(k-1)}も${deg}°・${dirName(t)}）`);
 }
-["#ofsH","#ofsV","#ofsMode","#ofsMs"].forEach(q=>$(q).onclick=e=>{const b=e.target.closest("button");if(!b)return;
- if(q==="#ofsMode")ofsMode=b.dataset.v;else if(q==="#ofsMs"){ofsMs=b.dataset.v;[...$(q).children].forEach(x=>x.classList.toggle("on",x===b));
-  $("#ofsMr").hidden=$("#ofsMn").hidden=!ofsMs;$("#ofsMt").textContent=ofsMs==="r"?"🔴 曲げ〜曲げの幅":"🟠 基準からの距離";
-  $("#ofsMn").textContent=ofsMs==="r"?"上げて・まっすぐ・下ろす形。1つ目の曲げの所から、最後の曲げの所までの幅（赤の矢印）。真ん中のまっすぐを計算します":"始まり（基準の線）から、上がりきった所までの距離（オレンジの矢印）。最初のまっすぐを計算します";
-  if(ofsMs)setTimeout(()=>$("#ofsM").focus(),50)}else[...$(q).children].forEach(x=>x.classList.toggle("on",x===b));renderCalc()});
-$("#calcBtn").onclick=()=>{$("#goalIn").value=st.goal?uVal(st.goal):"";if(IN()&&!$("#ofsX").dataset.u){$("#ofsX").value=uVal(300);$("#ofsX").dataset.u=1}renderCalc();$("#calcOv").classList.add("on")};
+["#ofsH","#ofsV","#ofsMode"].forEach(q=>$(q).onclick=e=>{const b=e.target.closest("button");if(!b)return;
+ if(q==="#ofsMode")ofsMode=b.dataset.v;else[...$(q).children].forEach(x=>x.classList.toggle("on",x===b));renderCalc()});
+$("#calcBtn").onclick=()=>{q45Draw();$("#goalIn").value=st.goal?uVal(st.goal):"";if(IN()&&!$("#ofsX").dataset.u){$("#ofsX").value=uVal(300);$("#ofsX").dataset.u=1}renderCalc();$("#calcOv").classList.add("on")};
 $("#closeCalc").onclick=()=>$("#calcOv").classList.remove("on");
 $("#calcOv").addEventListener("click",e=>{if(e.target.id==="calcOv")$("#calcOv").classList.remove("on")});
-$("#ofsX").oninput=renderCalc;$("#ofsY").oninput=renderCalc;$("#ofsM").oninput=renderCalc;$("#ofsM").onfocus=e=>e.target.select();$("#ofsX").onfocus=e=>e.target.select();$("#ofsY").onfocus=e=>e.target.select();
+$("#ofsX").oninput=renderCalc;$("#ofsY").oninput=renderCalc;$("#ofsX").onfocus=e=>e.target.select();$("#ofsY").onfocus=e=>e.target.select();
 $("#goalIn").oninput=e=>{st.goal=normGoal(uParse(e.target.value)||0);save();upd();renderCalc()};
 $("#goalApply").onclick=()=>{
  const k=sel,need=(st.goal||0)-(calc().tot-LR()[k].l);

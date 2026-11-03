@@ -75,7 +75,7 @@ body.ed{padding:0;overflow:hidden;position:fixed;inset:0}
 </head>
 <body>
 <div id="app"></div>
-<input type="file" id="fCam" accept="image/*" capture="environment" hidden><input type="file" id="fPick" accept="image/*" hidden>
+<input type="file" id="fCam" accept="image/*" capture="environment" hidden><input type="file" id="fPick" accept="image/*,.pdf,.dxf,application/pdf" hidden>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -90,6 +90,25 @@ const allReps=()=>dbDo("readonly",s=>s.getAll()),getRep=id=>dbDo("readonly",s=>s
 function genbaSites(){return new Promise(ok=>{try{const o=indexedDB.open("genba",1);o.onupgradeneeded=()=>{const d=o.result;if(!d.objectStoreNames.contains("sites"))d.createObjectStore("sites",{keyPath:"id"});if(!d.objectStoreNames.contains("photos"))d.createObjectStore("photos",{keyPath:"id"})};
  o.onsuccess=()=>{try{const r=o.result.transaction("sites","readonly").objectStore("sites").getAll();r.onsuccess=()=>ok(r.result||[]);r.onerror=()=>ok([])}catch(e){ok([])}};o.onerror=()=>ok([])}catch(e){ok([])}})}
 function shrink(file){return new Promise((ok,ng)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,2000/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement("canvas");c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok({b,w:c.width,h:c.height}):ng(new Error("写真を読めませんでした")),"image/jpeg",.85)};im.onerror=()=>{URL.revokeObjectURL(u);ng(new Error("写真を読めませんでした"))};im.src=u})}
+/* 図面のファイル（PDF・DXF）も絵にして入れる。PDF は pdf.js（図面の画面と同じ）、DXF は dxf.js の dxfRead。mpp＝絵の1ピクセルが何mmか（DXF・地図だけ。機器の模型を実物の大きさで置くため） */
+function loadJs(src){return new Promise((ok,ng)=>{const sc=document.createElement("script");sc.src=src;sc.onload=ok;sc.onerror=()=>ng(new Error("読み込めませんでした（電波を確かめてください）"));document.head.appendChild(sc)})}
+async function pdfImg(f){if(!window.pdfjsLib){await loadJs("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js");pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"}
+ const doc=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer()),cMapUrl:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/cmaps/",cMapPacked:true}).promise;
+ let n=1;if(doc.numPages>1)n=await pickNo(doc.numPages);if(!n){doc.destroy();return null}
+ const pg=await doc.getPage(n),v0=pg.getViewport({scale:1}),k=2600/Math.max(v0.width,v0.height),vp=pg.getViewport({scale:k}),c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);
+ const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:g,viewport:vp}).promise;doc.destroy();
+ return new Promise(ok=>c.toBlob(b=>ok({b,w:c.width,h:c.height}),"image/jpeg",.9))}
+function pickNo(N){return new Promise(ok=>{const ov=document.createElement("div");ov.className="sheet";ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px">何ページ目を使いますか？（全部で ${N}）</div><div class="chips">${Array.from({length:Math.min(N,30)},(_,i)=>`<button class="chip" data-n="${i+1}">${i+1}</button>`).join("")}</div><div class="row"><button class="btn" data-n="0">やめる</button></div></div>`;
+ document.body.appendChild(ov);ov.onclick=e=>{const b=e.target.closest("button");if(!b&&e.target!==ov)return;ov.remove();ok(b?+b.dataset.n:0)}})}
+async function dxfImg(f){if(!window.dxfRead)await loadJs("dxf.js?v=328");const G=await dxfRead(f);let x0=1e18,y0=1e18,x1=-1e18,y1=-1e18;const S=G.segs.filter(s=>isFinite(s[0])&&Math.hypot(s[2]-s[0],s[3]-s[1])>0.5);if(S.length<5)throw new Error("線がありません");
+ /* 外れた点（遠くのゴミ）で小さくならないよう、端の1%は外して範囲を決める */const xs=[],ys=[];S.forEach(s=>{xs.push(s[0],s[2]);ys.push(s[1],s[3])});xs.sort((a,b)=>a-b);ys.sort((a,b)=>a-b);const q=a=>[a[Math.floor(a.length*.005)],a[Math.ceil(a.length*.995)-1]];[x0,x1]=q(xs);[y0,y1]=q(ys);
+ const pad=(Math.max(x1-x0,y1-y0))*.03;x0-=pad;y0-=pad;x1+=pad;y1+=pad;const L=2600,mpp=Math.max(x1-x0,y1-y0)/L,W=Math.max(200,Math.round((x1-x0)/mpp)),H=Math.max(200,Math.round((y1-y0)/mpp)),c=document.createElement("canvas");c.width=W;c.height=H;const g=c.getContext("2d");
+ g.fillStyle="#fff";g.fillRect(0,0,W,H);g.lineWidth=2.6;g.lineCap="round";const P=(x,y)=>[(x-x0)/mpp,(y1-y)/mpp];
+ S.forEach(s=>{let col=s[5]||"#333";if(/^#(f{6}|fff)$/i.test(col))col="#333";g.strokeStyle=col;g.beginPath();const a=P(s[0],s[1]),b=P(s[2],s[3]);g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke()});
+ (G.texts||[]).forEach(t=>{const p=P(t.x,t.y),h=t.h/mpp;if(h<6||h>80||!t.s)return;g.fillStyle="#334155";g.font=`${Math.round(h)}px ${'-apple-system,"Hiragino Sans",sans-serif'}`;g.fillText(String(t.s).slice(0,40),p[0],p[1])});
+ return new Promise(ok=>c.toBlob(b=>ok({b,w:W,h:H,mpp}),"image/jpeg",.9))}
+async function anyImg(f){const n=(f.name||"").toLowerCase();if(/\.dwg$/.test(n))throw new Error("DWG は読めません。CADで DXF か PDF に保存してから選んでください");
+ if(/\.pdf$/.test(n)||f.type==="application/pdf"){toast("PDFを読んでいます…");return pdfImg(f)}if(/\.dxf$/.test(n)){toast("DXFを読んでいます…");return dxfImg(f)}return shrink(f)}
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
 const dTxt=s=>s?s.slice(5).replace("-","/"):"";
 const urls=[];const freeUrls=()=>{while(urls.length)URL.revokeObjectURL(urls.pop())};
@@ -149,7 +168,8 @@ async function renderRep(id){
   ${SUMF.map(([k,n])=>k==="nt"?`<label class="f"><span>${n}</span><textarea data-s="${k}" placeholder="気をつける事など">${esc((r.sum||{})[k])}</textarea></label>`:`<label class="f"><span>${n}</span><input data-s="${k}" value="${esc((r.sum||{})[k])}" placeholder="${{iu:"例：PFAV-P280DMJ3 床置き",ou:"例：PUHV-P280DMJ3",n:"例：1台",pp:"例：液 9.52／ガス 22.2（3分・7分）",el:"例：電源 14sq・連絡線 VA 2mm 3芯",dr:"例：VP25（白）外へ"}[k]||""}"></label>`).join("")}
  </div>
  <h2>② 全体図 <small>図面か建物の写真。どこから撮ったかの矢印を置く</small></h2>
- ${r.map?`<button class="memo" id="bMap">${thumb(r.map)}<span><b>全体図</b><span class="sub">矢印 ${r.map.items.filter(i=>i.k==="m").length}本・タップで直す</span></span></button>`:`<div class="row" style="display:flex;gap:8px;margin-top:6px"><button class="btn" style="flex:1" id="bMapCam">📷 撮る</button><button class="btn" style="flex:1" id="bMapPick">🖼 図面・写真を選ぶ</button></div>`}
+ ${r.map?`<button class="memo" id="bMap">${thumb(r.map)}<span><b>全体図</b><span class="sub">矢印 ${r.map.items.filter(i=>i.k==="m").length}本・タップで直す</span></span></button>`:`<div class="row" style="display:flex;gap:8px;margin-top:6px"><button class="btn" style="flex:1" id="bMapCam">📷 撮る</button><button class="btn" style="flex:1" id="bMapPick">🖼 図面・写真を選ぶ</button></div><div style="font-size:12px;color:var(--sub);margin:4px 2px">図面のファイル（PDF・DXF）も選べます</div>`}
+ <button class="btn" style="width:100%;margin-top:8px" id="bGeo">🗺 地図から作る（駐車の場所と現場）</button>
  <h2>③ 写真 <small>1枚ずつ。名前（①室内機位置など）・線・寸法・その場所の材料</small></h2>
  ${r.pages.map((p,i)=>{const n=Object.keys(p.mats||{}).filter(k=>p.mats[k]).length;return `<button class="memo" data-p="${p.id}">${thumb(p)}<span><b>${esc(p.name||"写真 "+(i+1))}</b><span class="sub">${p.items.length?"書きこみ "+p.items.length+"・":""}材料 ${n}種類${n?"<br>"+esc(Object.keys(p.mats).filter(k=>p.mats[k]).slice(0,3).map(k=>matOf(k).n+" "+qty(p.mats[k])+matOf(k).u).join("・")):""}</span></span></button>`}).join("")}
  <div style="display:flex;gap:8px;margin-top:8px"><button class="btn pri" style="flex:1" id="bCam">📷 写真を撮る</button><button class="btn" style="flex:1" id="bPick">🖼 写真を選ぶ</button></div>
@@ -172,6 +192,7 @@ async function renderRep(id){
  if($("#bMap"))$("#bMap").onclick=()=>{location.hash="e="+R.id+":map"};
  const pick=(cam,tgt)=>{PICK=tgt;$(cam?"#fCam":"#fPick").click()};
  if($("#bMapCam")){$("#bMapCam").onclick=()=>pick(1,"map");$("#bMapPick").onclick=()=>pick(0,"map")}
+ $("#bGeo").onclick=()=>{location.hash="g="+R.id};
  $("#bCam").onclick=()=>pick(1,"page");$("#bPick").onclick=()=>pick(0,"page");
  $("#bExtra").onclick=()=>matSheet(R.extra=R.extra||{},"全体で足す材料",()=>{$("#mtBox").innerHTML=matHtml(R)});
  $("#bCopy").onclick=async()=>{try{await navigator.clipboard.writeText(matText(R));toast("材料と道具をコピーしました")}catch(e){toast("コピーできませんでした")}};
@@ -180,8 +201,8 @@ async function renderRep(id){
 }
 let PICK="page";
 ["#fCam","#fPick"].forEach(id=>$(id).onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f||!R)return;
- try{const {b,w,h}=await shrink(f);if(PICK==="map"){R.map={img:b,w,h,items:[]};await putRep(R);location.hash="e="+R.id+":map"}
-  else{const p={id:rid("p"),name:"",img:b,w,h,items:[],mats:{}};R.pages.push(p);await putRep(R);location.hash="e="+R.id+":"+p.id}}catch(err){toast(err.message||"写真を読めませんでした")}});
+ try{const r=await anyImg(f);if(!r)return;const {b,w,h,mpp}=r;if(PICK==="map"){R.map={img:b,w,h,items:[],mpp:mpp||0};await putRep(R);location.hash="e="+R.id+":map"}
+  else{const p={id:rid("p"),name:"",img:b,w,h,items:[],mats:{},mpp:mpp||0};R.pages.push(p);await putRep(R);location.hash="e="+R.id+":"+p.id}}catch(err){toast(err.message||"写真を読めませんでした")}});
 /* 材料の表（合計 → 場所ごと） */
 function matHtml(r){const t=totals(r),g=matsByCat(t);if(!g.length)return `<div style="color:var(--sub);font-size:14px">まだありません。写真を開いて「🧰 材料」から入れてください。</div>`;
  let h=`<div style="font-weight:900">合計</div>`+g.map(([c,a])=>`<div class="cat">${esc(c)}</div>`+a.map(([m,v])=>`<div class="row"><span>${esc(m.n)}</span><b>${qty(v)} ${esc(m.u)}</b></div>`).join("")).join("");
@@ -245,12 +266,12 @@ async function renderEdit(rId,key){
  $("#app").innerHTML=`<div class="top"><button class="btn" id="bBack">‹ もどる</button>${isMap?'<div style="flex:1;font-weight:900">全体図</div>':`<input id="fName" placeholder="名前（例：①室内機位置）" value="${esc(o.name)}">`}<button class="btn" id="bMore">…</button></div>
  <canvas id="cv"></canvas>
  <div class="bot"><div class="pens" id="pens" ${isMap?"hidden":""}>${PENS.map(([k,n,c])=>`<button data-c="${k}" style="background:${c}">${n}</button>`).join("")}</div><div class="hint" id="hint"></div>
- <div class="row">${isMap?'<button class="btn" id="mM">📍 撮った所</button>':'<button class="btn" id="mL">✏️ 線</button>'}<button class="btn" id="mD">📏 寸法</button><button class="btn" id="mT">💬 文字</button>${isMap?"":'<button class="btn" id="bMat">🧰 材料</button>'}<button class="btn" id="bUndo">↶</button></div></div>`;
+ <div class="row">${isMap?'<button class="btn" id="mM">📍 撮った所</button>':'<button class="btn" id="mL">✏️ 線</button>'}<button class="btn" id="mD">📏 寸法</button><button class="btn" id="mT">💬 文字</button>${o.mpp?'<button class="btn" id="mU">🧊 機器</button>':""}${isMap?"":'<button class="btn" id="bMat">🧰 材料</button>'}<button class="btn" id="bUndo">↶</button></div></div>`;
  cv=$("#cv");cx=cv.getContext("2d");
  const u=URL.createObjectURL(o.img);urls.push(u);IMG=new Image();IMG.onload=()=>{layout();fit();draw()};IMG.src=u;
  $("#bBack").onclick=()=>{clearTimeout(saveT);putRep(R).finally(()=>{location.hash="r="+R.id})};
  if($("#fName"))$("#fName").onfocus=()=>nameSheet();
- const sm=m=>()=>{mode=m;ui()};if($("#mL"))$("#mL").onclick=sm("l");if($("#mM"))$("#mM").onclick=sm("m");$("#mD").onclick=sm("d");$("#mT").onclick=sm("t");
+ const sm=m=>()=>{mode=m;ui()};if($("#mL"))$("#mL").onclick=sm("l");if($("#mU"))$("#mU").onclick=sm("u");if($("#mM"))$("#mM").onclick=sm("m");$("#mD").onclick=sm("d");$("#mT").onclick=sm("t");
  $("#pens").querySelectorAll("button").forEach(b=>b.onclick=()=>{pen=b.dataset.c;mode="l";ui()});
  $("#bUndo").onclick=()=>{if(!E.items.length){toast("戻す物がありません");return}E.items.pop();save();draw()};
  if($("#bMat"))$("#bMat").onclick=()=>matSheet(E.mats=E.mats||{},(E.name||"この写真")+" の材料");
@@ -268,9 +289,9 @@ function nameSheet(){const inp=$("#fName");if(inp)inp.blur();const ov=document.c
  const done=()=>{E.name=ni.value.trim();if($("#fName"))$("#fName").value=E.name;ov.remove();save()};
  ni.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();done()}};
  ov.onclick=e=>{if(e.target===ov){done();return}const b=e.target.closest("button");if(!b)return;if(b.dataset.n){ni.value=b.dataset.n+ni.value.replace(/^[①-⑳]/,"");return}if(b.dataset.w){const m=ni.value.match(/^[①-⑳]/);ni.value=(m?m[0]:"")+b.dataset.w;return}if(b.dataset.a==="ok")done()}}
-function ui(){["mL","mM","mD","mT"].forEach(id=>{const b=$("#"+id);if(b)b.classList.toggle("on",(id==="mL"&&mode==="l")||(id==="mM"&&mode==="m")||(id==="mD"&&mode==="d")||(id==="mT"&&mode==="t"))});
+function ui(){["mL","mM","mD","mT","mU"].forEach(id=>{const b=$("#"+id);if(b)b.classList.toggle("on",(id==="mL"&&mode==="l")||(id==="mM"&&mode==="m")||(id==="mD"&&mode==="d")||(id==="mT"&&mode==="t")||(id==="mU"&&mode==="u"))});
  $("#pens").querySelectorAll("button").forEach(b=>b.classList.toggle("on",mode==="l"&&b.dataset.c===pen));
- $("#hint").textContent={l:`「${penN(pen)}」の線：指でなぞる（2本指で拡大・移動）`,m:"立って撮った所から、見ている向きへ指でなぞる → 写真の名前",d:"測った所を指でなぞる → 数字を入れる",t:"文字を置く所をタップ"}[mode]}
+ $("#hint").textContent={l:`「${penN(pen)}」の線：指でなぞる（2本指で拡大・移動）`,m:"立って撮った所から、見ている向きへ指でなぞる → 写真の名前",d:"測った所を指でなぞる → 数字を入れる",t:"文字を置く所をタップ（🅿 駐車位置・🏗 現場などはタップで）",u:"機器を置く所をタップ → 品番・種類をえらぶ（置いた機器は指で動かす・タップで回す）"}[mode]}
 function layout(){const t=$(".top").getBoundingClientRect().bottom,b=$(".bot").getBoundingClientRect().top,d=devicePixelRatio||1;cv.style.top=t+"px";cv.style.height=(b-t)+"px";cv.width=innerWidth*d;cv.height=(b-t)*d;cv.style.width=innerWidth+"px"}
 function fit(){const W=cv.width/(devicePixelRatio||1),H=cv.height/(devicePixelRatio||1);V.s=Math.min(W/E.w,H/E.h);V.tx=(W-E.w*V.s)/2;V.ty=(H-E.h*V.s)/2}
 addEventListener("resize",()=>{if(E&&cv&&document.body.className==="ed"){layout();fit();draw()}});
@@ -287,6 +308,10 @@ function paint(c,items,P,k,sel){
    for(const [p,s] of [[a,1],[b,-1]]){c.moveTo(p[0]+nx*t,p[1]+ny*t);c.lineTo(p[0]-nx*t,p[1]-ny*t);c.moveTo(p[0],p[1]);c.lineTo(p[0]+(ux*s)*ah+nx*ah*.45,p[1]+(uy*s)*ah+ny*ah*.45);c.moveTo(p[0],p[1]);c.lineTo(p[0]+(ux*s)*ah-nx*ah*.45,p[1]+(uy*s)*ah-ny*ah*.45)}
    c.stroke();if(it.v)label(c,(a[0]+b[0])/2,(a[1]+b[1])/2,it.v,k,"#ffffff","#e11d48",it===sel)}
   else if(it.k==="t"){const p=P(it.p),y=p[1]-31*k<0?p[1]+18*k:p[1]-18*k;c.fillStyle="#e11d48";c.beginPath();c.arc(p[0],p[1],4*k,0,Math.PI*2);c.fill();label(c,p[0],y,it.v,k,"#fef08a","#0f172a",it===sel)}
+  else if(it.k==="u"){/* 機器の模型（上から見た形・実物の大きさ） */const p=P(it.p),q=P([it.p[0]+1,it.p[1]]),sc=Math.hypot(q[0]-p[0],q[1]-p[1]),w=it.sw*sc,h=it.sd*sc,r=(it.rot||0)*Math.PI/180;
+   c.save();c.translate(p[0],p[1]);c.rotate(r);c.fillStyle=it===sel?"#fde68acc":(it.ki==="out"?"#e2e8f0ee":"#bfdbfeee");c.strokeStyle="#1e3a8a";c.lineWidth=Math.max(1.5,2*k);c.beginPath();c.rect(-w/2,-h/2,w,h);c.fill();c.stroke();
+   if(it.ki==="out"){const nf=it.nf||1;for(let i=0;i<nf;i++){const cx0=-w/2+w*(i+.5)/nf;c.beginPath();c.arc(cx0,0,Math.min(w/nf,h)*.36,0,Math.PI*2);c.stroke()}c.lineWidth=Math.max(3,4*k);c.beginPath();c.moveTo(-w/2,h/2);c.lineTo(w/2,h/2);c.stroke()}   // 太い線＝正面
+   else{c.strokeRect(-w*.32,-h*.32,w*.64,h*.64)}c.restore();if(it.v)label(c,p[0],p[1]-Math.max(w,h)/2-16*k,it.v,k,"#ffffff","#1e3a8a",it===sel)}
   else if(it.k==="m"){/* 全体図の矢印：撮った所 → 見ている向き（オレンジの太い矢印・名前の札） */const a=P(it.a),b=P(it.b),dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,nx=-uy,ny=ux,W=14*k,H=26*k,e=[b[0]-ux*H,b[1]-uy*H];
    c.fillStyle=it===sel?"#f59e0b":"#f97316";c.strokeStyle="#7c2d12";c.lineWidth=2*k;c.beginPath();c.moveTo(a[0]+nx*W/2,a[1]+ny*W/2);c.lineTo(e[0]+nx*W/2,e[1]+ny*W/2);c.lineTo(e[0]+nx*W*1.3,e[1]+ny*W*1.3);c.lineTo(b[0],b[1]);c.lineTo(e[0]-nx*W*1.3,e[1]-ny*W*1.3);c.lineTo(e[0]-nx*W/2,e[1]-ny*W/2);c.lineTo(a[0]-nx*W/2,a[1]-ny*W/2);c.closePath();c.fill();c.stroke();
    if(it.v)label(c,a[0]-ux*20*k,a[1]-uy*20*k,it.v,k,"#fde047","#7c2d12",it===sel)}}
@@ -310,23 +335,26 @@ function hitItem(p){let best=null,bd=24;for(const it of E.items){let d=1e9;
   else if(it.k==="t"){const q=i2s(...it.p);d=Math.min(Math.hypot(p[0]-q[0],p[1]-q[1]),Math.hypot(p[0]-q[0],p[1]-(q[1]-18)))}
   else if(it.k==="m"){const a=i2s(...it.a),b=i2s(...it.b);d=segD(p,a,b)}
   else if(it.k==="l"){const ps=it.pts.map(q=>i2s(...q));for(let i=1;i<ps.length;i++)d=Math.min(d,segD(p,ps[i-1],ps[i]))}
+  else if(it.k==="u"){const ip=s2i(...p),r=-(it.rot||0)*Math.PI/180,dx=ip[0]-it.p[0],dy=ip[1]-it.p[1],lx=dx*Math.cos(r)-dy*Math.sin(r),ly=dx*Math.sin(r)+dy*Math.cos(r);if(Math.abs(lx)<=it.sw/2+12/V.s&&Math.abs(ly)<=it.sd/2+12/V.s)d=0}
   if(d<bd){bd=d;best=it}}return best}
 function pDown(e){cv.setPointerCapture(e.pointerId);const p=evP(e);ptrs.set(e.pointerId,p);
- if(ptrs.size===1)G={type:"d",start:p,a:s2i(...p),b:null,moved:false,pts:[s2i(...p)],last:null};
+ if(ptrs.size===1){G={type:"d",start:p,a:s2i(...p),b:null,moved:false,pts:[s2i(...p)],last:null};const hu=mode==="u"&&hitItem(p);if(hu&&hu.k==="u")G={type:"mv",it:hu,start:p,p0:[...hu.p],moved:false}}
  else if(ptrs.size===2){const [a,b]=[...ptrs.values()];G={type:"pinch",d0:Math.hypot(a[0]-b[0],a[1]-b[1])||1,c0:[(a[0]+b[0])/2,(a[1]+b[1])/2],v0:{...V}};draw()}}
 function pMove(e){if(!ptrs.has(e.pointerId)||!G)return;const p=evP(e);ptrs.set(e.pointerId,p);
+ if(G.type==="mv"){if(Math.hypot(p[0]-G.start[0],p[1]-G.start[1])>8)G.moved=true;if(G.moved){G.it.p=[G.p0[0]+(p[0]-G.start[0])/V.s,G.p0[1]+(p[1]-G.start[1])/V.s];draw()}return}
  if(G.type==="d"){if(!G.moved&&Math.hypot(p[0]-G.start[0],p[1]-G.start[1])>10)G.moved=true;if(!G.moved)return;G.last=p;
   if(mode==="l"){const q=s2i(...p),l=G.pts[G.pts.length-1];if(Math.hypot(q[0]-l[0],q[1]-l[1])*V.s>4)G.pts.push(q)}else G.b=s2i(...p);draw()}
  else if(G.type==="pinch"&&ptrs.size>=2){const [a,b]=[...ptrs.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]),c=[(a[0]+b[0])/2,(a[1]+b[1])/2],v0=G.v0,ix=(G.c0[0]-v0.tx)/v0.s,iy=(G.c0[1]-v0.ty)/v0.s;
   V.s=Math.max(0.02,Math.min(20,v0.s*d/G.d0));V.tx=c[0]-ix*V.s;V.ty=c[1]-iy*V.s;draw()}}
 function pUp(e,cancel){if(!ptrs.has(e.pointerId))return;ptrs.delete(e.pointerId);const g=G;if(!g)return;
  if(g.type==="pinch"){if(!ptrs.size)G=null;else G={type:"none"};return}
+ if(g.type==="mv"){G=null;if(g.moved)save();else editItem(g.it);draw();return}
  if(g.type!=="d"||ptrs.size)return;G=null;if(cancel){draw();return}
- if(!g.moved){const it=hitItem(g.start);if(it){editItem(it);return}if(mode==="t")askVal({k:"t",p:g.a,v:""},true);else toast(mode==="t"?"":"指でなぞってください");draw();return}
+ if(!g.moved){const it=hitItem(g.start);if(it){editItem(it);return}if(mode==="t")askVal({k:"t",p:g.a,v:""},true);else if(mode==="u")unitSheet(g.a);else toast(mode==="t"?"":"指でなぞってください");draw();return}
  if(mode==="l"){if(g.pts.length>1){E.items.push({k:"l",c:pen,pts:g.pts.map(q=>[Math.round(q[0]),Math.round(q[1])])});save()}draw();return}
  if((mode!=="d"&&mode!=="m")||!g.b){draw();return}const a=i2s(...g.a),b=i2s(...g.b);if(Math.hypot(b[0]-a[0],b[1]-a[1])<16){draw();return}
  askVal({k:mode==="m"?"m":"d",a:g.a,b:g.b,v:""},true)}
-const WORDS_D=["天井高","梁下","壁から","芯から","幅","奥行","高さ","床から","フリースペース"],WORDS_T=["穴あけ位置","室内機","室外機","架台","転倒防止","既設","撤去","電気屋さん","高所作業車","メクラの板","点検口","障害物"];
+const WORDS_D=["天井高","梁下","壁から","芯から","幅","奥行","高さ","床から","フリースペース"],WORDS_T=["🅿 駐車位置","🏗 現場","入口","搬入口","穴あけ位置","室内機","室外機","架台","転倒防止","既設","撤去","電気屋さん","高所作業車","メクラの板","点検口","障害物"];
 function askVal(it,isNew){
  const ov=document.createElement("div");ov.className="sheet";const words=it.k==="d"?WORDS_D:it.k==="m"?(R.pages||[]).map((p,i)=>p.name||"写真 "+(i+1)):WORDS_T;
  ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px;margin-bottom:8px">${it.k==="d"?"📏 寸法（mm）":it.k==="m"?"📍 この矢印はどの写真？":"💬 文字"}</div>
@@ -340,11 +368,38 @@ function askVal(it,isNew){
   if(b.dataset.w){const w=b.dataset.w;inp.value=it.k==="d"?w+" "+inp.value.replace(/^[^\d]*/,"").trim():it.k==="m"?w:(inp.value?inp.value+" ":"")+w;inp.focus();return}
   const a=b.dataset.a;if(a==="ok")done(true);else if(a==="no"){ov.remove();draw()}else if(a==="del"){E.items=E.items.filter(x=>x!==it);ov.remove();save();draw()}};
 }
-function editItem(it){G={sel:it};draw();G=null;if(it.k!=="l"){askVal(it,false);return}
+function editItem(it){G={sel:it};draw();G=null;if(it.k==="u"){unitEdit(it);return}if(it.k!=="l"){askVal(it,false);return}
  const ov=document.createElement("div");ov.className="sheet";ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px;margin-bottom:8px">✏️ この線</div><div class="pens" style="flex-wrap:wrap">${PENS.map(([k,n,c])=>`<button data-c="${k}" class="${it.c===k?"on":""}" style="background:${c}">${n}</button>`).join("")}</div>
   <div class="row"><button class="btn del" data-a="del">消す</button><button class="btn pri" data-a="ok" style="flex:2">閉じる</button></div></div>`;
  document.body.appendChild(ov);ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.a==="ok")){ov.remove();draw();return}if(!b)return;
   if(b.dataset.c){it.c=b.dataset.c;save();ov.remove();draw();return}if(b.dataset.a==="del"){E.items=E.items.filter(x=>x!==it);save();ov.remove();draw()}}}
+/* 機器の模型を置く：models.js の室外機（OUTM）・天井カセット（CAS2M）・壁掛け（WALLM）・天吊（CEILM）の大きさ。品番で探す・大きさを入れる */
+async function unitSheet(pos){if(typeof OUTM==="undefined"){try{await loadJs("models.js?v=307")}catch(e){}}
+ const L=[];if(typeof OUTM!=="undefined")for(const k in OUTM){const m=OUTM[k];L.push({n:m.n+(m.sub?"（"+m.sub+"）":""),w:m.w,d:m.d,ki:"out",nf:m.f==="top"?(m.nf||1):1,g:"室外機"})}
+ if(typeof CAS2M!=="undefined")for(const k in CAS2M){const m=CAS2M[k];L.push({n:m.n,w:m.pa||m.L,d:m.pb||m.W,ki:"in",g:"室内機（天井）"})}
+ if(typeof WALLM!=="undefined")for(const k in WALLM){const m=WALLM[k];L.push({n:m.n,w:m.W,d:m.D,ki:"in",g:"壁掛け"})}
+ if(typeof CEILM!=="undefined")for(const k in CEILM){const m=CEILM[k];L.push({n:m.n,w:m.W,d:m.D,ki:"in",g:"天吊"})}
+ const ov=document.createElement("div");ov.className="sheet";let q="";document.body.appendChild(ov);
+ const list=()=>{const nq=q.replace(/[\s\-ー－]/g,"").toUpperCase();return L.filter(m=>!nq||m.n.replace(/[\s\-ー－]/g,"").toUpperCase().includes(nq)||m.g.includes(q)).slice(0,60).map(m=>`<button class="memo" data-i="${L.indexOf(m)}" style="margin-top:6px;padding:8px 10px"><span><b style="font-size:15px">${esc(m.n)}</b><span class="sub">${esc(m.g)}・${m.w}×${m.d}mm（上から）</span></span></button>`).join("")||'<div style="color:var(--sub);padding:8px 0">見つかりません。下で大きさを入れてください</div>'};
+ ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px">🧊 置く機器</div>
+  <input id="uq" placeholder="🔍 品番・種類でさがす（例：PUHV・室外機）" style="width:100%;height:42px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px;padding:0 10px;margin:8px 0">
+  <div id="ul">${list()}</div>
+  <div style="font-weight:800;margin-top:12px">大きさを入れる（品番が無い時）</div>
+  <label class="f"><span>名前</span><input id="un" placeholder="例：PUHV-P280DMJ3"></label>
+  <label class="f"><span>幅×奥行</span><input id="uw" inputmode="numeric" placeholder="幅 mm"><input id="ud" inputmode="numeric" placeholder="奥行 mm"></label>
+  <label class="f" style="gap:6px"><input type="checkbox" id="uo" checked style="flex:none;width:22px;height:22px"> 室外機（太い線＝正面）</label>
+  <div class="row"><button class="btn" data-a="no">やめる</button><button class="btn pri" data-a="ok" style="flex:2">この大きさで置く</button></div></div>`;
+ const put=m=>{const mpp=E.mpp||1;E.items.push({k:"u",p:[...pos],sw:m.w/mpp,sd:m.d/mpp,rot:0,v:m.n,ki:m.ki,nf:m.nf||1,mm:[m.w,m.d]});save();ov.remove();draw();toast("置きました。指で動かす・タップで回す")};
+ ov.querySelector("#uq").oninput=e=>{q=e.target.value.trim();ov.querySelector("#ul").innerHTML=list()};
+ ov.onclick=e=>{if(e.target===ov){ov.remove();return}const b=e.target.closest("button");if(!b)return;if(b.dataset.i){put(L[+b.dataset.i]);return}
+  if(b.dataset.a==="no"){ov.remove();return}if(b.dataset.a==="ok"){const w=+ov.querySelector("#uw").value,d=+ov.querySelector("#ud").value;if(!(w>0&&d>0)){toast("幅と奥行を入れてください");return}put({n:ov.querySelector("#un").value.trim()||`${w}×${d}`,w,d,ki:ov.querySelector("#uo").checked?"out":"in",nf:1})}}}
+function unitEdit(it){const ov=document.createElement("div");ov.className="sheet";const info=()=>(it.mm?it.mm[0]+"×"+it.mm[1]+"mm（上から）":"")+"・向き "+Math.round(it.rot||0)+"°";
+ ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px">🧊 ${esc(it.v)}</div><div id="uinf" style="color:var(--sub);font-size:13px;margin-top:2px">${info()}</div>
+  <div class="row"><button class="btn" data-r="-90">↺ 90°</button><button class="btn" data-r="-15">↺ 15°</button><button class="btn" data-r="15">↻ 15°</button><button class="btn" data-r="90">↻ 90°</button></div>
+  <div class="row"><button class="btn del" data-a="del">消す</button><button class="btn pri" data-a="ok" style="flex:2">閉じる</button></div></div>`;
+ document.body.appendChild(ov);ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.a==="ok")){ov.remove();draw();return}if(!b)return;
+  if(b.dataset.r){it.rot=(((it.rot||0)+ +b.dataset.r)%360+360)%360;save();draw();ov.querySelector("#uinf").textContent=info();return}
+  if(b.dataset.a==="del"){E.items=E.items.filter(x=>x!==it);save();ov.remove();draw()}}}
 function moreSheet(){const ov=document.createElement("div");ov.className="sheet";const isMap=EK==="map";
  ov.innerHTML=`<div class="sbox"><div style="font-weight:900;font-size:16px">${isMap?"全体図":"この写真"}</div>
   <div class="row"><button class="btn" data-a="fit">全体を見る</button>${isMap?"":'<button class="btn" data-a="name">名前を変える</button>'}</div>
@@ -392,9 +447,59 @@ async function sendAll(){if(!R)return;toast("画像を作っています…");cl
  try{if(navigator.canShare&&navigator.canShare({files})){await navigator.share({files,title:R.title||"現調まとめ",text:matText(R)});return}}catch(e){if(e&&e.name==="AbortError")return}
  for(const f of files){const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();await new Promise(r=>setTimeout(r,300));setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},3000)}toast(`画像を${files.length}枚保存しました`)}
 
+/* ===== 🗺 地図から全体図（国土地理院の地図・空から見た写真。駐車の場所と現場が分かる絵を作る） =====
+   2026-11-03 ユーザー：遠ければ「広い地図」と「現場の近く（拡大）」の2枚。地図の絵は1ピクセルが何mmか分かるので、機器の模型を実物の大きさで置ける */
+const GT={photo:["空から","https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg",18],std:["地図","https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",18]};
+let GM={z:17,x:0,y:0,t:"photo"},gcv=null,gcx=null,gptr=new Map(),gG=null;const TILES=new Map();
+const lonX=(lon,z)=>(lon+180)/360*256*2**z,latY=(lat,z)=>{const r=lat*Math.PI/180;return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*256*2**z},yLat=(y,z)=>{const n=Math.PI-2*Math.PI*y/(256*2**z);return 180/Math.PI*Math.atan(Math.sinh(n))};
+function tile(t,z,x,y){const n=2**z;if(y<0||y>=n)return null;x=((x%n)+n)%n;const k=t+z+"/"+x+"/"+y;let im=TILES.get(k);if(im)return im;im=new Image();im.crossOrigin="anonymous";im.onload=()=>{im.ok=1;gDraw()};im.onerror=()=>{im.bad=1};im.src=GT[t][1].replace("{z}",z).replace("{x}",x).replace("{y}",y);TILES.set(k,im);if(TILES.size>600){const f=TILES.keys().next().value;TILES.delete(f)}return im}
+/* 地図の絵を描く（z が地図の一番細かい段より大きい時は、一番細かい段の絵を大きくして使う＝機器が見える大きさまで寄れる）。cx,cy＝真ん中（z の段のピクセル）、W×H＝描く大きさ、s＝指で広げている倍率 */
+function drawTiles(g,t,z,cx,cy,W,H,s,ims){s=s||1;const tz=Math.min(z,GT[t][2]),f=2**(z-tz),T=256*f*s,x0=cx-W/2/s,y0=cy-H/2/s;
+ for(let tx=Math.floor(x0/(256*f));tx<=Math.floor((x0+W/s)/(256*f));tx++)for(let ty=Math.floor(y0/(256*f));ty<=Math.floor((y0+H/s)/(256*f));ty++){const im=tile(t,tz,tx,ty);if(ims)ims.push([tx,ty,im,(tx*256*f-x0)*s,(ty*256*f-y0)*s,T]);else if(im&&im.ok)g.drawImage(im,(tx*256*f-x0)*s,(ty*256*f-y0)*s,T+.6,T+.6)}}
+function gDraw(sc){if(!gcx)return;const d=devicePixelRatio||1,W=gcv.width/d,H=gcv.height/d;gcx.setTransform(d,0,0,d,0,0);gcx.fillStyle="#cbd5e1";gcx.fillRect(0,0,W,H);
+ drawTiles(gcx,GM.t,GM.z,GM.x,GM.y,W,H,sc);
+ gcx.fillStyle="#0f172acc";gcx.font="12px sans-serif";const at="出典：国土地理院";gcx.fillText(at,W-gcx.measureText(at).width-6,H-6);
+ gcx.strokeStyle="#ef4444";gcx.lineWidth=2;gcx.beginPath();gcx.moveTo(W/2-10,H/2);gcx.lineTo(W/2+10,H/2);gcx.moveTo(W/2,H/2-10);gcx.lineTo(W/2,H/2+10);gcx.stroke()}
+function gGo(lat,lon,z){if(z)GM.z=z;GM.x=lonX(lon,GM.z);GM.y=latY(lat,GM.z);try{localStorage.setItem("pbm_mt_geo",JSON.stringify({lat,lon,z:GM.z}))}catch(e){}gDraw()}
+function gZoom(dz,cx,cy){const nz=Math.max(5,Math.min(22,GM.z+dz));/* 18より上は地図の絵を大きくする（機器を置くため） */if(nz===GM.z)return;const d=devicePixelRatio||1,W=gcv.width/d,H=gcv.height/d;cx=cx==null?W/2:cx;cy=cy==null?H/2:cy;
+ const px=GM.x+(cx-W/2),py=GM.y+(cy-H/2),k=2**(nz-GM.z);GM.z=nz;GM.x=px*k-(cx-W/2);GM.y=py*k-(cy-H/2);gDraw()}
+async function renderGeo(rId){const r=await getRep(rId);if(!r){location.hash="";return}R=r;document.body.className="ed";freeUrls();
+ const last=ls("pbm_mt_geo");
+ $("#app").innerHTML=`<div class="top"><button class="btn" id="gBack">‹ もどる</button><input id="gQ" placeholder="住所をさがす（例：岐阜県○○市…）" enterkeyhint="search"><button class="btn" id="gS">🔍</button></div>
+ <canvas id="cv"></canvas>
+ <div class="bot"><div class="hint">指で動かす・2本指で大きく。1枚目は現場と駐車の場所が入る広さ、2枚目は現場の近く（機器を置くならもっと大きく）</div>
+ <div class="row"><button class="btn" id="gHere">📍 今いる所</button><button class="btn" id="gT">${GT[GM.t==="photo"?"std":"photo"][0]}にする</button><button class="btn" id="gM">－</button><button class="btn" id="gP">＋</button></div>
+ <div class="row" style="margin-top:6px"><button class="btn pri" id="gOk" style="flex:1">✅ この範囲で作る</button></div></div>`;
+ gcv=$("#cv");gcx=gcv.getContext("2d");const lay=()=>{const t=$(".top").getBoundingClientRect().bottom,b=$(".bot").getBoundingClientRect().top,d=devicePixelRatio||1;gcv.style.top=t+"px";gcv.style.height=(b-t)+"px";gcv.style.width=innerWidth+"px";gcv.width=innerWidth*d;gcv.height=(b-t)*d;gDraw()};lay();
+ const q=$("#gQ");q.value=(await genbaSites().then(ss=>{const st=ss.find(x=>x.id===r.site);return st&&st.addr||""}).catch(()=>""))||"";
+ if(last)gGo(last.lat,last.lon,last.z);else gGo(35.68,139.76,12);
+ const search=async()=>{const v=q.value.trim();if(!v)return;q.blur();try{const j=await (await fetch("https://msearch.gsi.go.jp/address-search/AddressSearch?q="+encodeURIComponent(v))).json();if(!j||!j.length){toast("見つかりませんでした。市の名前からさがしてみてください");return}const c=j[0].geometry.coordinates;gGo(c[1],c[0],17);toast(j[0].properties&&j[0].properties.title||"見つかりました")}catch(e){toast("さがせませんでした（電波を確かめてください）")}};
+ $("#gS").onclick=search;q.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();search()}};if(q.value&&!last)search();
+ $("#gHere").onclick=()=>{if(!navigator.geolocation){toast("今いる所が分かりません");return}toast("今いる所をさがしています…");navigator.geolocation.getCurrentPosition(p=>gGo(p.coords.latitude,p.coords.longitude,18),()=>toast("今いる所が分かりませんでした（位置情報を許可してください）"),{enableHighAccuracy:true,timeout:15000})};
+ $("#gT").onclick=e=>{GM.t=GM.t==="photo"?"std":"photo";e.target.textContent=GT[GM.t==="photo"?"std":"photo"][0]+"にする";gDraw()};
+ $("#gM").onclick=()=>gZoom(-1);$("#gP").onclick=()=>gZoom(1);$("#gBack").onclick=()=>{location.hash="r="+R.id};
+ gcv.onwheel=e=>{e.preventDefault();const r2=gcv.getBoundingClientRect();gZoom(e.deltaY<0?1:-1,e.clientX-r2.left,e.clientY-r2.top)};
+ const P=e=>{const r2=gcv.getBoundingClientRect();return[e.clientX-r2.left,e.clientY-r2.top]};
+ gcv.onpointerdown=e=>{gcv.setPointerCapture(e.pointerId);gptr.set(e.pointerId,P(e));if(gptr.size===1)gG={t:"pan",p:P(e),x:GM.x,y:GM.y};else{const [a,b]=[...gptr.values()];gG={t:"pin",d0:Math.hypot(a[0]-b[0],a[1]-b[1])||1,s:1}}};
+ gcv.onpointermove=e=>{if(!gptr.has(e.pointerId)||!gG)return;gptr.set(e.pointerId,P(e));if(gG.t==="pan"){const p=P(e);GM.x=gG.x-(p[0]-gG.p[0]);GM.y=gG.y-(p[1]-gG.p[1]);gDraw()}else if(gptr.size>=2){const [a,b]=[...gptr.values()];gG.s=Math.hypot(a[0]-b[0],a[1]-b[1])/gG.d0;gDraw(gG.s)}};
+ const up=e=>{if(!gptr.has(e.pointerId))return;gptr.delete(e.pointerId);if(gG&&gG.t==="pin"&&!gptr.size){const dz=Math.round(Math.log2(gG.s));gG=null;if(dz)gZoom(dz);else gDraw()}else if(!gptr.size)gG=null};gcv.onpointerup=up;gcv.onpointercancel=up;
+ $("#gOk").onclick=geoMake;
+}
+/* 見えている範囲を絵にして、写真の1枚目（地図）にする。2倍の大きさで作る */
+async function geoMake(){const d=devicePixelRatio||1,W=Math.round(gcv.width/d),H=Math.round(gcv.height/d),K=2,z=GM.z+1,c=document.createElement("canvas");c.width=W*K;c.height=H*K;const g=c.getContext("2d");
+ toast("地図を作っています…");const ims=[];drawTiles(g,GM.t,z,GM.x*2,GM.y*2,W*K,H*K,1,ims);
+ await new Promise(ok=>{const t0=Date.now(),chk=()=>{if(ims.every(a=>!a[2]||a[2].ok||a[2].bad)||Date.now()-t0>12000)ok();else setTimeout(chk,150)};chk()});
+ g.fillStyle="#cbd5e1";g.fillRect(0,0,c.width,c.height);g.imageSmoothingQuality="high";ims.forEach(([,,im,x,y,T])=>{if(im&&im.ok)g.drawImage(im,x,y,T+.6,T+.6)});
+ g.fillStyle="#ffffffcc";g.fillRect(c.width-200,c.height-34,200,34);g.fillStyle="#0f172a";g.font="bold 20px sans-serif";g.fillText("出典：国土地理院",c.width-190,c.height-10);
+ const lat=yLat(GM.y,GM.z),mpp=156543.03392*Math.cos(lat*Math.PI/180)/2**z*1000;   // 1ピクセルが何mmか
+ let b;try{b=await new Promise((ok,ng)=>{try{c.toBlob(x=>x?ok(x):ng(new Error("x")),"image/jpeg",.88)}catch(e){ng(e)}})}catch(e){toast("地図を写せませんでした。地図のアプリの画面写真を「図面・写真を選ぶ」で入れてください");return}
+ const n=R.pages.filter(p=>p.geo).length,p={id:rid("p"),name:n?"現場の近く（拡大）":"駐車の場所と現場（地図）",img:b,w:c.width,h:c.height,items:[],mats:{},mpp,geo:1};
+ R.pages.splice(n,0,p);await putRep(R);toast("地図を入れました。🅿・現場の印や機器の模型を置けます");location.hash="e="+R.id+":"+p.id}
+
 /* ===== 画面の切りかえ ===== */
 async function route(){const h=location.hash.slice(1);E=null;if(R){clearTimeout(saveT);await putRep(R).catch(()=>{})}
  if(h.startsWith("e=")){const [a,b]=h.slice(2).split(":");renderEdit(a,b);return}
+ if(h.startsWith("g=")){renderGeo(h.slice(2));return}
  if(h.startsWith("r=")){renderRep(h.slice(2));return}R=null;renderList()}
 addEventListener("hashchange",route);
 addEventListener("pagehide",()=>{if(R){clearTimeout(saveT);putRep(R)}});

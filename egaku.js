@@ -4,7 +4,7 @@
    データ：EG.segs=[{d:向きの番号,n:方眼のます数,l:長さmm}]。向き 0:+x 1:-x 2:+y（上） 3:-y 4:+z 5:-z（3D：x＝右奥、z＝左奥、y＝上） */
 (function(){
 if(typeof APP==="undefined"||APP!=="bend")return;
-const D3=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]],OPP=[1,0,3,2,5,4],DN=["横（右奥へ）","横（左手前へ）","上へ","下へ","奥（左奥へ）","奥（右手前へ）"];
+const D3=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]],OPP=[1,0,3,2,5,4],DN=["右手前へ","左奥へ","上へ","下へ","左手前へ","右奥へ"];
 const EG={segs:[],cell:34,O:null,cur:null,undo:[]};
 let ov=null,cv=null,cx=null,dpr=1;
 const C30=Math.cos(Math.PI/6),S30=Math.sin(Math.PI/6);
@@ -19,7 +19,8 @@ function build(){
   <div class="shead" style="flex:none"><h3>✏️ 描いて曲げ</h3><button id="egClose">✕</button></div>
   <div class="note" id="egHint" style="flex:none;font-size:13px;margin:0 0 6px">方眼の上を指でなぞってください。線は「たて・横・奥」に吸い付きます。紙に描く絵と同じでOK。</div>
   <div style="flex:1;min-height:180px;position:relative;border-radius:14px;overflow:hidden;background:#f8fafc;border:1.5px solid #cbd5e1"><canvas id="egCv" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>
-   <div style="position:absolute;right:8px;bottom:8px;display:flex;gap:6px"><button class="sharebtn" id="egRot" style="height:40px;padding:0 10px;font-size:13px">↻ 向きを変える</button><button class="sharebtn" id="egUndo" style="height:40px;padding:0 10px;font-size:13px">↩ 1つ戻す</button><button class="sharebtn" id="egClr" style="height:40px;padding:0 10px;font-size:13px">🗑 描き直す</button></div></div>
+   <canvas id="egLp" style="position:absolute;left:8px;top:8px;width:120px;height:120px;border-radius:60px;display:none;box-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none"></canvas><div id="egPad" style="position:absolute;left:8px;bottom:56px;width:150px;height:150px;display:none"></div>
+   <div style="position:absolute;right:8px;bottom:8px;display:flex;gap:6px"><button class="sharebtn" id="egCmp" style="height:40px;padding:0 10px;font-size:13px">🧭 ボタン</button><button class="sharebtn" id="egRot" style="height:40px;padding:0 10px;font-size:13px">↻ 向き</button><button class="sharebtn" id="egUndo" style="height:40px;padding:0 10px;font-size:13px">↩ 戻す</button><button class="sharebtn" id="egClr" style="height:40px;padding:0 10px;font-size:13px">🗑 消す</button></div></div>
   <div style="flex:none;margin-top:8px">
    <div style="display:flex;gap:6px;align-items:center"><input id="egSay" type="text" enterkeyhint="done" autocomplete="off" placeholder="🎙 まとめて：450の250の600のクランク" style="flex:1;min-width:0;height:46px;border-radius:12px;border:1.5px solid #cbd5e1;padding:0 10px;font-size:16px"><button class="sharebtn" id="egSayGo" style="height:46px;padding:0 12px;margin:0">入れる</button><button class="sharebtn" id="egPen" style="height:46px;padding:0 12px;margin:0">✍️ 書く</button></div>
    <div style="font-size:12px;color:#64748b;margin:3px 2px 6px">キーボードのマイク🎙を押して話すと入ります（イヤホンのマイクでもOK）。形の言葉：クランク・L・U・コの字・45のクランク・登録した名前</div>
@@ -31,6 +32,11 @@ function build(){
  ov.querySelector("#egUndo").onclick=()=>{if(EG.segs.length){EG.undo.push(JSON.stringify(EG.segs));EG.segs.pop();if(!EG.segs.length)EG.O=null;list();draw()}};
  ov.querySelector("#egClr").onclick=()=>{if(EG.segs.length)EG.undo.push(JSON.stringify(EG.segs));EG.segs=[];EG.O=null;EG.lock=null;list();draw()};
  ov.querySelector("#egRot").onclick=rot;
+ /* 🧭 ボタンで描く（なぞるのが苦手な人）：6つの向きの矢印。同じ向きを押すとのびる・ちがう向きで曲がる */
+ const pad=ov.querySelector("#egPad");pad.innerHTML=[2,5,0,3,4,1].map(k=>{const v=sv(k),a=Math.atan2(v[1],v[0])*180/Math.PI;return`<button data-k="${k}" style="position:absolute;left:${55+v[0]*52}px;top:${55+v[1]*52}px;width:40px;height:40px;border-radius:20px;border:0;background:#0f766e;color:#fff;font-size:18px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.3)"><span style="display:inline-block;transform:rotate(${a}deg)">➜</span></button>`}).join("")+`<div style="position:absolute;left:52px;top:63px;width:46px;text-align:center;font-size:10px;font-weight:800;color:#0f766e">押すと<br>のびる</div>`;
+ pad.querySelectorAll("button").forEach(b=>b.onclick=()=>{const k=+b.dataset.k,L=EG.segs[EG.segs.length-1];if(L&&OPP[L.d]===k){toast("今の線と反対の向きにはもどれません（↩ 1つ戻すで短くできます）");return}EG.undo.push(JSON.stringify(EG.segs));
+  if(!EG.segs.length){const W=cv.clientWidth,H=cv.clientHeight;EG.O=[W*0.35,H*0.6]}if(L&&L.d===k&&!L.l)L.n++;else EG.segs.push({d:k,n:2,l:0});list();draw()});
+ ov.querySelector("#egCmp").onclick=()=>{const on2=pad.style.display==="none";pad.style.display=on2?"block":"none";ov.querySelector("#egCmp").style.background=on2?"#ccfbf1":""};
  ov.querySelector("#egGo").onclick=apply;
  ov.querySelector("#egReg").onclick=reg;
  ov.querySelector("#egPen").onclick=()=>{if(!EG.segs.length){toast("先に形を描くか、「クランク」などを入れてください");return}const i=EG.segs.findIndex(s=>!(s.l>0));penOpen(i>=0?i:EG.last||0)};
@@ -38,19 +44,25 @@ function build(){
  say.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();sayGo(say.value);say.blur()}});
  /* 指でなぞる */
  const pos=e=>{const r=cv.getBoundingClientRect(),t=e.touches?e.touches[0]||e.changedTouches[0]:e;return[t.clientX-r.left,t.clientY-r.top]};
- let on=false;
- const down=e=>{e.preventDefault();const p=pos(e);
+ let on=false,gz=null;
+ const two=e=>{const r=cv.getBoundingClientRect(),a=e.touches[0],b=e.touches[1];return{c:[(a.clientX+b.clientX)/2-r.left,(a.clientY+b.clientY)/2-r.top],d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1}};
+ const down=e=>{e.preventDefault();if(e.touches&&e.touches.length>=2){EG.pend=null;if(on&&EG.cur){on=false;EG.cur=null;if(!EG.segs.length)EG.O=null}const t=two(e);gz={...t,cell:EG.cell,O:(EG.O||[cv.clientWidth/2,cv.clientHeight/2]).slice()};lp(null);draw();return} // 2本指：広げる・動かす
+  const p=pos(e);EG.tip=p;
+  if(EG.segs.length&&!EG.cur){const k=hitSeg(p);if(k>=0&&!near(p)){const ip=ov.querySelector(`#egList input[data-i="${k}"]`);if(ip){ip.focus();return}}}
   if(!EG.segs.length){EG.O=p;EG.cur={V:[0,0,0],D:-1,n:0};on=true;draw();return}
   const P=ends(),E=scr(P[P.length-1]);
-  if(Math.hypot(p[0]-E[0],p[1]-E[1])>60){toast("線の先（オレンジの丸）から続けて描いてください。描き直す時は🗑");return}
+  if(!near(p)){EG.pend={p,O:(EG.O||[0,0]).slice(),mv:0};return} // 線の先から離れた所：1本指でずらす（動かさずに離したら案内）
   EG.undo.push(JSON.stringify(EG.segs));EG.cur={V:P[P.length-1],D:-1,n:0};on=true;draw()};
- const move=e=>{if(!on)return;e.preventDefault();const p=pos(e),c=EG.cur,V=scr(c.V),r=[p[0]-V[0],p[1]-V[1]],best=(rel,ex)=>{let bk=-1,ba=0;for(let k=0;k<6;k++){if(ex&&ex.includes(k))continue;const s=sv(k),a=(rel[0]*s[0]+rel[1]*s[1])/EG.cell;if(a>ba){ba=a;bk=k}}return[bk,ba]};
+ const move=e=>{if(gz&&e.touches&&e.touches.length>=2){e.preventDefault();const t=two(e),k=Math.max(10,Math.min(140,gz.cell*t.d/gz.d))/gz.cell;EG.cell=gz.cell*k;EG.O=[t.c[0]+(gz.O[0]-gz.c[0])*k,t.c[1]+(gz.O[1]-gz.c[1])*k];EG.zoomed=1;draw();return}
+  if(EG.pend){e.preventDefault();const p=pos(e),q=EG.pend;if(Math.hypot(p[0]-q.p[0],p[1]-q.p[1])>8)q.mv=1;if(q.mv&&EG.O){EG.O=[q.O[0]+p[0]-q.p[0],q.O[1]+p[1]-q.p[1]];EG.zoomed=1;draw()}return}
+  if(!on)return;e.preventDefault();const p=pos(e);EG.tip=p;const c=EG.cur,V=scr(c.V),r=[p[0]-V[0],p[1]-V[1]],best=(rel,ex)=>{let bk=-1,ba=0;for(let k=0;k<6;k++){if(ex&&ex.includes(k))continue;const s=sv(k),a=(rel[0]*s[0]+rel[1]*s[1])/EG.cell;if(a>ba){ba=a;bk=k}}return[bk,ba]};
   if(c.D<0){const [k,a]=best(r,EG.segs.length?[OPP[EG.segs[EG.segs.length-1].d],EG.segs[EG.segs.length-1].d]:null);if(k>=0&&a>=0.5){c.D=k;c.n=Math.max(1,Math.round(a))}draw();return}
-  const s=sv(c.D),al=(r[0]*s[0]+r[1]*s[1])/EG.cell;c.n=Math.max(1,Math.round(al));
+  const s=sv(c.D),al=(r[0]*s[0]+r[1]*s[1])/EG.cell,pp=Math.hypot(r[0]-s[0]*al*EG.cell,r[1]-s[1]*al*EG.cell)/EG.cell;if(pp<0.5)c.n=Math.max(1,Math.round(al)); // 指が線からそれている間（曲がり角）は、今の線の長さを変えない
   const E=scr(add3(c.V,D3[c.D],c.n)),re=[p[0]-E[0],p[1]-E[1]],[k,a]=best(re,[c.D,OPP[c.D]]);
   if(k>=0&&a>=0.8&&EG.segs.length<20){EG.segs.push({d:c.D,n:c.n,l:0});c.V=add3(c.V,D3[c.D],c.n);c.D=k;c.n=Math.max(1,Math.round(a));list()}   // 曲がり角
   draw()};
- const up=e=>{if(!on)return;on=false;const c=EG.cur;if(c&&c.D>=0&&EG.segs.length<20)EG.segs.push({d:c.D,n:c.n,l:0});EG.cur=null;list();draw()};
+ const up=e=>{if(gz){if(!e.touches||e.touches.length<2)gz=null;return}lp(null);if(EG.pend){const q=EG.pend;EG.pend=null;if(!q.mv)toast("線の先（オレンジの丸）から続けて描いてください。図をずらす時は1本指で、広げる時は2本指で");return}if(!on)return;on=false;const c=EG.cur;if(c&&c.D>=0&&EG.segs.length<20)EG.segs.push({d:c.D,n:c.n,l:0});EG.cur=null;list();draw()};
+ const near=p=>{const P=ends(),E=scr(P[P.length-1]);return Math.hypot(p[0]-E[0],p[1]-E[1])<=60};
  cv.addEventListener("touchstart",down,{passive:false});cv.addEventListener("touchmove",move,{passive:false});cv.addEventListener("touchend",up);cv.addEventListener("touchcancel",up);
  cv.addEventListener("mousedown",down);cv.addEventListener("mousemove",e=>{if(on)move(e)});window.addEventListener("mouseup",up);
  window.addEventListener("resize",()=>{if(ov.classList.contains("on"))draw()});
@@ -60,9 +72,9 @@ function close(){if(ov)ov.classList.remove("on");try{localStorage.setItem("pbm_e
 /* 絵 */
 function draw(){if(!cv)return;dpr=window.devicePixelRatio||1;const W=cv.clientWidth,H=cv.clientHeight;if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
  const x=cx;x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
- if(EG.segs.length&&!EG.O){/* 描いた形を真ん中に */const P=ends();EG.O=[0,0];const sp=P.map(scr),mx=Math.min(...sp.map(q=>q[0])),Mx=Math.max(...sp.map(q=>q[0])),my=Math.min(...sp.map(q=>q[1])),My=Math.max(...sp.map(q=>q[1]));
+ if(EG.segs.length&&!EG.O){EG.zoomed=0;/* 描いた形を真ん中に */const P=ends();EG.O=[0,0];const sp=P.map(scr),mx=Math.min(...sp.map(q=>q[0])),Mx=Math.max(...sp.map(q=>q[0])),my=Math.min(...sp.map(q=>q[1])),My=Math.max(...sp.map(q=>q[1]));
   const k=Math.min(1,(W-80)/Math.max(1,Mx-mx),(H-110)/Math.max(1,My-my));EG.cell=Math.max(14,Math.round(34*k));const sp2=P.map(scr),m2=Math.min(...sp2.map(q=>q[0])),M2=Math.max(...sp2.map(q=>q[0])),n2=Math.min(...sp2.map(q=>q[1])),N2=Math.max(...sp2.map(q=>q[1]));EG.O=[W/2-(m2+M2)/2,(H-50)/2-(n2+N2)/2]}
- if(!EG.segs.length&&!EG.cur)EG.cell=34;
+ if(!EG.segs.length&&!EG.cur&&!EG.zoomed)EG.cell=34;
  /* 立体の方眼（3つの向きの点線） */
  const c=EG.cell,o=EG.O||[W/2,H/2];x.lineWidth=1;
  x.strokeStyle="#e2e8f0";x.beginPath();
@@ -72,18 +84,30 @@ function draw(){if(!cv)return;dpr=window.devicePixelRatio||1;const W=cv.clientWi
   const b=o[1]+i*c-sg*o[0]*Math.tan(Math.PI/6);x.moveTo(0,b);x.lineTo(W,b+sg*W*Math.tan(Math.PI/6))}
  x.stroke();
  /* 向きの目印 */
- x.font="bold 12px -apple-system,sans-serif";x.fillStyle="#64748b";const g=[40,44];x.lineWidth=2;
- [[2,"上"],[0,"右奥"],[4,"左奥"]].forEach(([k,t])=>{const s=sv(k);x.strokeStyle="#94a3b8";x.beginPath();x.moveTo(g[0],g[1]);x.lineTo(g[0]+s[0]*26,g[1]+s[1]*26);x.stroke();x.fillText(t,g[0]+s[0]*30-8,g[1]+s[1]*30+4)});
+ x.font="bold 12px -apple-system,sans-serif";x.fillStyle="#64748b";const g=[40,64];x.lineWidth=2;
+ [[2,"上"],[5,"右奥"],[1,"左奥"]].forEach(([k,t])=>{const s=sv(k);x.strokeStyle="#94a3b8";x.beginPath();x.moveTo(g[0],g[1]);x.lineTo(g[0]+s[0]*26,g[1]+s[1]*26);x.stroke();x.fillText(t,g[0]+s[0]*30-8,g[1]+s[1]*30+4)});
  /* 描いた線 */
  const segs=EG.segs.slice();if(EG.cur&&EG.cur.D>=0)segs.push({d:EG.cur.D,n:EG.cur.n,l:0,live:1});
  let p=[0,0,0];x.lineCap="round";x.lineJoin="round";
- segs.forEach((s,i)=>{const a=scr(p),q=add3(p,D3[s.d],s.n),b=scr(q);x.strokeStyle=s.live?"#f59e0b":"#c2703a";x.lineWidth=7;x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();
-  const m=[(a[0]+b[0])/2,(a[1]+b[1])/2],t=(i+1)+(s.l?"："+s.l:"");x.font="bold 14px -apple-system,sans-serif";const w=x.measureText(t).width+12;x.fillStyle=s.l?"#0f766e":"#334155";x.beginPath();x.roundRect?x.roundRect(m[0]-w/2,m[1]-22,w,20,8):x.rect(m[0]-w/2,m[1]-22,w,20);x.fill();x.fillStyle="#fff";x.fillText(t,m[0]-w/2+6,m[1]-7);p=q});
+ segs.forEach((s,i)=>{const a=scr(p),q=add3(p,D3[s.d],s.n),b=scr(q),hl=i===EG.hl&&!s.live;if(hl){x.strokeStyle="rgba(37,99,235,.28)";x.lineWidth=24;x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke()} // 今、長さを入れている線を光らせる
+  x.strokeStyle=s.live?"#f59e0b":hl?"#2563eb":"#c2703a";x.lineWidth=hl?10:7;x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();
+  const m=[(a[0]+b[0])/2,(a[1]+b[1])/2],t=(hl?"👉 ":"")+(i+1)+(s.l?"："+s.l:hl?"：ここ":"");x.font="bold "+(hl?18:14)+"px -apple-system,sans-serif";const w=x.measureText(t).width+12;x.fillStyle=hl?"#2563eb":s.l?"#0f766e":"#334155";x.beginPath();const bh=hl?26:20;x.roundRect?x.roundRect(m[0]-w/2,m[1]-bh-2,w,bh,8):x.rect(m[0]-w/2,m[1]-bh-2,w,bh);x.fill();x.fillStyle="#fff";x.fillText(t,m[0]-w/2+6,m[1]-(hl?9:7));p=q});
  if(EG.O&&segs.length){const s0=scr([0,0,0]);x.fillStyle="#16a34a";x.beginPath();x.arc(s0[0],s0[1],8,0,7);x.fill();const P=ends(),e=scr(P[P.length-1]);if(!EG.cur){x.strokeStyle="#f97316";x.lineWidth=3;x.beginPath();x.arc(e[0],e[1],14,0,7);x.stroke()}}
+ if(EG.cur&&EG.tip)lp(EG.tip);
  const h=ov.querySelector("#egHint");h.textContent=!EG.segs.length?"方眼の上を指でなぞってください。線は「たて・横・奥」に吸い付きます。紙に描く絵と同じでOK。":"線 "+EG.segs.length+"本・曲げ "+Math.max(0,EG.segs.length-1)+"か所。オレンジの丸から続けて描けます。下で長さを入れてください。"}
 /* 線ごとの長さの欄 */
-function list(){if(!ov)return;const L=ov.querySelector("#egList");L.innerHTML=EG.segs.map((s,i)=>`<label style="flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:800;color:#334155">${i+1}・${DN[s.d].replace(/（.*）/,"")}<input data-i="${i}" inputmode="numeric" pattern="[0-9]*" value="${s.l||""}" placeholder="mm" style="width:78px;height:42px;border-radius:10px;border:1.5px solid ${s.l?"#0f766e":"#cbd5e1"};text-align:center;font-size:17px;font-weight:800"></label>`).join("")||'<div style="font-size:13px;color:#94a3b8">描くと、ここに線ごとの長さの欄が出ます</div>';
- L.querySelectorAll("input").forEach(e=>{e.onfocus=()=>{e.select();EG.last=+e.dataset.i};e.oninput=()=>{const s=EG.segs[+e.dataset.i];if(s){s.l=Math.max(0,Math.round(uParse(e.value)||0));e.style.borderColor=s.l?"#0f766e":"#cbd5e1";draw()}};e.onkeydown=ev=>{if(ev.key==="Enter"){ev.preventDefault();const n=L.querySelector(`input[data-i="${+e.dataset.i+1}"]`);if(n)n.focus();else e.blur()}}})}
+function list(){if(!ov)return;const L=ov.querySelector("#egList");L.innerHTML=EG.segs.map((s,i)=>`<label style="flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:800;color:#334155">${i+1}・${DN[s.d]}<input data-i="${i}" inputmode="numeric" pattern="[0-9]*" value="${s.l||""}" placeholder="mm" style="width:78px;height:42px;border-radius:10px;border:1.5px solid ${s.l?"#0f766e":"#cbd5e1"};text-align:center;font-size:17px;font-weight:800"></label>`).join("")||'<div style="font-size:13px;color:#94a3b8">描くと、ここに線ごとの長さの欄が出ます</div>';
+ L.querySelectorAll("input").forEach(e=>{e.onfocus=()=>{e.select();EG.last=EG.hl=+e.dataset.i;e.style.boxShadow="0 0 0 3px #2563eb";draw();setTimeout(()=>show(EG.hl),350)};e.onblur=()=>{e.style.boxShadow="";setTimeout(()=>{if(!ov.querySelector("#egList input:focus")){EG.hl=-1;draw()}},80)};e.oninput=()=>{const s=EG.segs[+e.dataset.i];if(s){s.l=Math.max(0,Math.round(uParse(e.value)||0));e.style.borderColor=s.l?"#0f766e":"#cbd5e1";draw()}};e.onkeydown=ev=>{if(ev.key==="Enter"){ev.preventDefault();const n=L.querySelector(`input[data-i="${+e.dataset.i+1}"]`);if(n)n.focus();else e.blur()}}})}
+/* 光らせた線を、キーボードに隠れない見えている所の真ん中へ寄せる */
+function show(i){if(!cv||i<0||i>=EG.segs.length||!EG.O)return;const P=ends(),a=scr(P[i]),b=scr(P[i+1]),m=[(a[0]+b[0])/2,(a[1]+b[1])/2],r=cv.getBoundingClientRect(),vv=window.visualViewport,vt=vv?vv.offsetTop:0,vb=vv?vv.offsetTop+vv.height:window.innerHeight;
+ const y0=Math.max(0,vt-r.top),y1=Math.min(r.height,vb-r.top);if(y1-y0<60)return;const ty=(y0+y1)/2,tx=r.width/2;if(m[1]>y0+30&&m[1]<y1-30&&m[0]>30&&m[0]<r.width-30)return;EG.O=[EG.O[0]+(tx-m[0]),EG.O[1]+(ty-m[1])];EG.zoomed=1;draw()}
+/* 図の線をタップ：その線の番号 */
+function hitSeg(p){const P=ends();let bk=-1,bd=22;for(let i=0;i<P.length-1;i++){const a=scr(P[i]),b=scr(P[i+1]),dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L2)),d=Math.hypot(a[0]+dx*t-p[0],a[1]+dy*t-p[1]);if(d<bd){bd=d;bk=i}}return bk}
+/* 🔍 拡大の丸：なぞっている指の下を2倍で左上（指が左上の時は右上）に映す */
+function lp(t){const c=ov&&ov.querySelector("#egLp");if(!c)return;if(!t){c.style.display="none";return}const W=cv.clientWidth,S=120,left=t[0]<S+30&&t[1]<S+30;c.style.left=left?"":"8px";c.style.right=left?"8px":"";c.style.display="block";
+ const d=dpr;if(c.width!==S*d){c.width=S*d;c.height=S*d}const x=c.getContext("2d");x.setTransform(1,0,0,1,0,0);x.save();x.beginPath();x.arc(S*d/2,S*d/2,S*d/2,0,7);x.clip();x.fillStyle="#f8fafc";x.fillRect(0,0,S*d,S*d);
+ x.drawImage(cv,(t[0]-S/4)*d,(t[1]-S/4)*d,S/2*d,S/2*d,0,0,S*d,S*d);x.strokeStyle="#ef4444";x.lineWidth=2*d;x.beginPath();x.moveTo(S*d/2-10*d,S*d/2);x.lineTo(S*d/2+10*d,S*d/2);x.moveTo(S*d/2,S*d/2-10*d);x.lineTo(S*d/2,S*d/2+10*d);x.stroke();x.restore();
+ x.strokeStyle="#334155";x.lineWidth=3*d;x.beginPath();x.arc(S*d/2,S*d/2,S*d/2-1.5*d,0,7);x.stroke()}
 /* ↻ 向きを変える：2本目から先を、1本目の線を軸に90°まわす（クランクの出る向きを上→横→下→…） */
 function rot(){if(EG.segs.length<2){toast("2本以上描くと、曲げの向きを回せます");return}const ax=D3[EG.segs[0].d],cr=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
  EG.undo.push(JSON.stringify(EG.segs));for(const s of EG.segs.slice(1)){const v=D3[s.d],c=cr(ax,v),w=[c[0]+ax[0]*dot(ax,v),c[1]+ax[1]*dot(ax,v),c[2]+ax[2]*dot(ax,v)];s.d=D3.findIndex(q=>q[0]===Math.round(w[0])&&q[1]===Math.round(w[1])&&q[2]===Math.round(w[2]))}EG.O=null;draw();list()}
@@ -156,7 +180,7 @@ function penOpen(i){EG.pi=i;if(!pen){pen=document.createElement("div");pen.style
   c.addEventListener("touchstart",dn,{passive:false});c.addEventListener("touchmove",mv,{passive:false});c.addEventListener("touchend",upf);c.addEventListener("mousedown",dn);c.addEventListener("mousemove",mv);window.addEventListener("mouseup",upf);
   pen.querySelector("#pnX").onclick=()=>{pen.remove();pen=null};pen.querySelector("#pnClr").onclick=()=>pen.reset();pen.querySelector("#pnAdd").onclick=()=>{if(pen.cand&&pen.cand[0])put(pen.cand[0]);else toast("数字を書いてください")};
   pen.S=()=>S2;pen.setS=v=>{S2=v;drw();cand()}}
- const ttl=()=>{if(pen)pen.querySelector("#pnT").textContent="✍️ "+(EG.pi+1)+"本目（"+DN[EG.segs[EG.pi].d].replace(/（.*）/,"")+"）の長さを書く"};ttl();setTimeout(()=>pen&&pen.reset(),20)}
+ const ttl=()=>{if(pen)pen.querySelector("#pnT").textContent="✍️ "+(EG.pi+1)+"本目（"+DN[EG.segs[EG.pi].d]+"）の長さを書く"};ttl();setTimeout(()=>pen&&pen.reset(),20)}
 window.egRec=recNum;window.egPen=()=>pen;
 window.egOpen=open;window.egRows=toRows;window.egSay=sayGo;window.EG=EG;
 const b=document.getElementById("egOpen");if(b)b.onclick=open;

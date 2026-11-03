@@ -236,7 +236,7 @@ function updUndoUI(){const u=$("#undoBtn"),r=$("#redoBtn");if(!u||!r)return;u.di
 function histGo(d){
  if(!hist)return;const n=hi+d;if(n<0||n>=hist.length)return;
  hi=n;const o=JSON.parse(hist[hi]);
- st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null,bhid:o.bhid&&typeof o.bhid==="object"?o.bhid:null};
+ st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,bldHideB:o.bldHideB===false?false:undefined,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null,bhid:o.bhid&&typeof o.bhid==="object"?o.bhid:null};
  if(!legIds().includes(leg))leg="m";
  try{localStorage.setItem("pbm1",JSON.stringify(st))}catch(e){}
  histT=0;sel=0;render();if(T)fitT(true);updUndoUI();
@@ -865,7 +865,7 @@ const LG=[];
  let GY=null,CY=null;
  const C2=UN.find(u=>u.c2);
  const SCV=typeof SCAN!=="undefined"&&SCAN&&SCAN.obj&&st.scan&&st.scan.show;
- if((st.gnd.on||st.gnd.c||(st.bld&&st.bld.length&&!st.bldHide)||SCV)&&!GM){
+ if((st.gnd.on||st.gnd.c||(st.bld&&st.bld.length&&!BH())||SCV)&&!GM){
   const G=st.gnd,IN=["cas","cas2","ceil","wall","flr"];
   if(G.mode==="auto"&&C2)GY=C2.c2.cy-G.ch;   // 天カセ2方向があれば：その天井面＝天井、地面は天井高さぶん下
   else if(G.mode==="start")GY=-G.h;
@@ -881,7 +881,7 @@ const LG=[];
   if(G.c)CY=(G.mode==="auto"&&C2)?C2.c2.cy:GY+G.ch;
   {const c0=bb.getCenter(new V());if(G.on)bb.expandByPoint(new V(c0.x,GY,c0.z));if(CY!==null)bb.expandByPoint(new V(c0.x,CY,c0.z))}
  }
- if(GY!==null&&st.bld&&st.bld.length&&!st.bldHide){const CHb=CY!==null?CY-GY:st.gnd.ch;st.bld.forEach(o=>{const h=o.full?CHb:o.h,y0=GY+(o.full?0:o.y),R2=Math.hypot(o.w,o.d)/2;bb.expandByPoint(new V(o.x-R2,y0,o.z-R2));bb.expandByPoint(new V(o.x+R2,y0+h,o.z+R2))})}
+ if(GY!==null&&st.bld&&st.bld.length&&!BH()){const CHb=CY!==null?CY-GY:st.gnd.ch;st.bld.forEach(o=>{const h=o.full?CHb:o.h,y0=GY+(o.full?0:o.y),R2=Math.hypot(o.w,o.d)/2;bb.expandByPoint(new V(o.x-R2,y0,o.z-R2));bb.expandByPoint(new V(o.x+R2,y0+h,o.z+R2))})}
  T.GYr=GY;if(SCV&&GY!==null&&!GM){try{scanApply();bb.union(new THREE.Box3().setFromObject(SCAN.obj))}catch(e){}}
  try{updNop()}catch(e){}
  T.gy=st.gnd.on?GY:null;T.cy=CY;T.UN=UN;T.GYr=GY;T.CHh=GY!==null&&CY!==null?CY-GY:st.gnd.ch;
@@ -1959,10 +1959,10 @@ ${APP==="zumen"?`  <div class="pt pt2" style="margin-top:10px;font-size:13px">�
   <div class="pr"><button class="pm" data-a="b_col">🏛 柱</button><button class="pm" data-a="b_wall">🧱 壁</button></div>
   <div class="pr"><button class="pm" data-a="b_beam">🟫 梁</button><button class="pm" data-a="b_box">📦 障害物</button></div>
   <button class="pm" data-a="b_ind">❄️ 室内機（複数置けます）</button>
-  <button class="pm" data-a="scan">${typeof SCAN!=="undefined"&&SCAN&&SCAN.obj?"📡 部屋のスキャン（位置合わせ・表示）":"📡 部屋のスキャンを読み込む"}</button>${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}
+  <button class="pm" data-a="scan">${typeof SCAN!=="undefined"&&SCAN&&SCAN.obj?"📡 部屋のスキャン（位置合わせ・表示）":"📡 部屋のスキャンを読み込む"}</button>${st.bld&&st.bld.length?`<button class="pm${BH()?"":" red"}" data-a="bhide">${BH()?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}
   <button class="pm" data-a="route">🧭 ルートおまかせ（始点と終点から）</button>
   <button class="pm" data-a="plan"><img alt="" src="${NICO.plan}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">図面を読み込む・なぞる</button>${typeof PLAN!=="undefined"&&PLAN&&(PLAN.map||(PLAN.img&&PLAN.mmpp&&PLAN.org))?`<button class="pm${PLAN.show?" red":""}" data-a="plan3d">${PLAN.show?"🙈 図面と壁を3Dで隠す":"👁 図面と壁を3Dで表示"}</button>${PLAN.show?`<button class="pm" data-a="planop">🌫 図面の濃さ：${Math.round((PLAN.planOp!=null?PLAN.planOp:.4)*100)}%（変える）</button>`:""}`:""}
-`:`${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}`}  <button class="pm" data-a="ben"><img alt="" src="${icoSrc("bender")}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">ベンダー：${(()=>{const D0=SIZES[st.s]?SIZES[st.s][1]:0,k=benFor(D0);return k?BENDERS[k].n:"⚠️ "+szName(D0)+"に使える物なし"})()}</button>
+`:`${st.bld&&st.bld.length?`<button class="pm${BH()?"":" red"}" data-a="bhide">${BH()?"👁 建物・障害物を表示":"🙈 建物・障害物を隠す"}（${st.bld.length}）</button>`:""}`}  <button class="pm" data-a="ben"><img alt="" src="${icoSrc("bender")}" style="width:1.45em;height:1.45em;vertical-align:-0.4em;margin-right:4px">ベンダー：${(()=>{const D0=SIZES[st.s]?SIZES[st.s][1]:0,k=benFor(D0);return k?BENDERS[k].n:"⚠️ "+szName(D0)+"に使える物なし"})()}</button>
   <button class="pm${LABC.neko!==false?" red":""}" data-a="neko">${LABC.neko!==false?"🙈 ネコの高さを隠す":NI("neko")+"ネコ（吊り金具）の高さを表示"}</button>`+ALLROW,cx,cy,a=>{
   if(a==="tbl"){openTable();return}
   if(a==="unit"){st.units.on=!on;save();unitRefresh();toast(st.units.on?"機器の模型を表示しました":"機器の模型を隠しました")}
@@ -1975,7 +1975,7 @@ ${APP==="zumen"?`  <div class="pt pt2" style="margin-top:10px;font-size:13px">�
   else if(a==="route")openRoute();
   else if(a.startsWith("b_"))bldAddAt(a.slice(2),cx,cy);
   else if(a==="scan")openScan();
-  else if(a==="bhide"){st.bldHide=!st.bldHide;save();unitRefresh()}
+  else if(a==="bhide"){if(APP==="bend")st.bldHideB=!BH();else st.bldHide=!st.bldHide;save();unitRefresh()}
   else if(a==="plan3d"){PLAN.show=!PLAN.show;unitRefresh()}
   else if(a==="planop"){const L=[.2,.4,.6,.8];const cur=PLAN.planOp!=null?PLAN.planOp:.4;PLAN.planOp=L[(L.findIndex(v=>Math.abs(v-cur)<.05)+1)%L.length];try{save()}catch(e){}if(T){build3D();T.dirty=true}unitRefresh()}
   else if(a==="neko"){LABC.neko=LABC.neko===false;applyLabels();toast(LABC.neko?"ネコの高さを表示しました":"ネコの高さを隠しました")}
@@ -2705,7 +2705,7 @@ const dlOnOf=k=>{const o=st.dlOn||{};return o[k]!==undefined?!!o[k]:true};
 /* 障害物（建物の物）の種類ごとの表示・非表示（室内機・穴は配管とつながるので常に表示） */
 const BLD_TG=[["wall","壁"],["col","柱"],["beam","梁"],["box","障害物"],["door","扉"],["win","窓"],["ins","点検口"],["eq","機器"],["ceil","天井"],["rack","ラック"],["out","室外機"],["spot","置場"]];
 const bldHid=k=>!!(st.bhid&&st.bhid[k]);
-function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
+function addDL3D(GY,ext){const D=APP==="bend"&&BH()?null:st.dln;dlBar();if(!D)return;
  const sMat={duct:new THREE.MeshStandardMaterial({color:0xcbd5e1,roughness:.35,metalness:.55})},eMat=DL_SUB.map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.5,metalness:.1}));
  /* 図面の空調ドレンのたて管（アプリのドレンの端から床へ）：外に出る管なので VP（保温付きの ACドレンから変更）。色も VP。
     アプリのドレンを出している時は、衛生を消していてもドレンの続きとして出す */
@@ -2819,8 +2819,8 @@ function addDL3D(GY,ext){const D=st.dln;dlBar();if(!D)return;
 /* 衛生の種類ごとの出し入れ（0 給水・給湯／1 汚水・排水／2 通気／3 その他。4 空調ドレンはドレンの続きなのでいつも出す） */
 const ES_SUB=[[0,"給水・給湯","#2563eb"],[1,"汚水・排水","#a16207"],[2,"通気","#6b7280"],[3,"その他","#16a34a"]],esOn=sb=>!(st.dlSub&&st.dlSub[sb]===false);
 let DLG=null,DLX=false;   // DLX：下のボタンを開いているか（ふだんは「🗂 表示」1つだけ。要る時だけ開く）   // 3Dの下のボタン：開いているグループ（null＝グループの一覧）
-function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=st.dln;
- const dk=DLK.filter(([k])=>D&&((D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))),bk=(st.bld&&st.bld.length&&!st.bldHide)?BLD_TG.filter(([k])=>st.bld.some(o=>o.k===k)):[];
+function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b=document.getElementById("dlBar");const D=APP==="bend"&&BH()?null:st.dln;
+ const dk=DLK.filter(([k])=>D&&((D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length))),bk=(st.bld&&st.bld.length&&!BH())?BLD_TG.filter(([k])=>st.bld.some(o=>o.k===k)):[];
  const PLf=typeof PLAN!=="undefined"&&PLAN&&PLAN.img&&PLAN.mmpp&&PLAN.org?PLAN:null,PL2=PLf&&typeof PLAN2!=="undefined"&&PLAN2?PLAN2:null;   // 床に映す図面（図面のページだけ）・下の図面（shita.js）
  const big=!!(T&&T.full);   /* 全画面の時だけ大きく（図面の画面の小さい3Dでも小さく） */let hd=false;try{hd=big&&!EZ&&st.drain&&typeof DRN==="function"&&DRN().show!==false&&DRN().rows.length>0}catch(e){}   // アプリのドレンがある時も「🎨継手」を出す（曲げ共有は大きい3Dの時だけ）
  if(!dk.length&&!bk.length&&!PLf&&!hd){if(b)b.remove();const lg=document.getElementById("dlLeg");if(lg)lg.remove();return}
@@ -2840,7 +2840,7 @@ function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b
   const has=new Set((D.eiseiS||[]).map(s=>s[8]));ES_SUB.forEach(([sb,n2,c2])=>{if(!has.has(sb))return;const on=dlOnOf("eisei")&&esOn(sb);IT.push(["eisei",btn("es",sb,n2,c2,on),on,v=>{st.dlSub={...(st.dlSub||{}),[sb]:v};if(v)st.dlOn={...(st.dlOn||{}),eisei:true}}])})});
  /* 空調：室内機・室外機（図面に置いた物とアプリの機器の模型） */
  let apI=false,apO=false;try{if(st.units&&st.units.on)Object.keys(st.units).forEach(t=>{const v=st.units[t];if(/^(s|e|L.+)$/.test(t)){if(["cas","cas2","ceil","wall","flr"].includes(v))apI=true;if(v==="out")apO=true}})}catch(e){}
- const hasB=k=>!st.bldHide&&st.bld&&st.bld.some(o=>o.k===k);
+ const hasB=k=>!BH()&&st.bld&&st.bld.some(o=>o.k===k);
  [["ind","室内機",hasB("ind")||apI],["out","室外機",hasB("out")||apO]].forEach(([k,n,has])=>{if(has)IT.push(["ac",btn("bh",k,n,"#0369a1",!bldHid(k)),!bldHid(k),v=>{st.bhid={...(st.bhid||{}),[k]:!v}}])});
  bk.forEach(([k,n])=>{if(k==="out")return;IT.push([k==="eq"?"duct":"arch",btn("bh",k,n,"#475569",!bldHid(k)),!bldHid(k),v=>{st.bhid={...(st.bhid||{}),[k]:!v}}])});
  if(D&&D.insp&&D.insp.length)IT.push(["arch",btn("bh","insp","点検口","#475569",!bldHid("insp")),!bldHid("insp"),v=>{st.bhid={...(st.bhid||{}),insp:!v}}]);   // 図面の点検口（天井の枠）
@@ -2869,7 +2869,7 @@ function dlBar(){const stg=document.getElementById("stage");if(!stg)return;let b
  b.querySelectorAll("[data-bh]").forEach(x=>x.onclick=e=>{e.stopPropagation();const k=x.dataset.bh;st.bhid={...(st.bhid||{}),[k]:!bldHid(k)};redo()})}
 /* 3Dに描く（build3Dから呼ぶ。GY＝床の高さ） */
 function addBld3D(GY,CH,ext){
- T.bldM=[];if(!st.bld||!st.bld.length||st.bldHide)return;
+ T.bldM=[];if(!st.bld||!st.bld.length||BH())return;
  const draw1=(o,i)=>{const K=BLDK[o.k],h=o.full?bldFullH(o,CH):o.h,y0=GY+(o.full?0:o.y);
   if(o.k==="ind"){const zc=ceilAt(o.x,o.z),CYd=GY+(zc?zc.h:CH),ib=indMesh(o,CYd);T.grp.add(ib.g);ib.g.userData.bld=i+1;
    T.bldM.push({i,k:"ind",c:new THREE.Vector3(ib.cx,ib.y0+ib.h/2,ib.cz),hw:ib.hw,hd:ib.hd,hh:ib.h/2,r:o.r,y0:ib.y0,h:ib.h,port:ib.port});
@@ -3071,6 +3071,8 @@ function pickBld(cx,cy){
   if(ok&&px>=x0&&px<=x1&&py>=y0&&py<=y1&&zz<bz){bz=zz;best=b.i}});
  return best}
 let BI=-1,BSTEP=100;
+/* 曲げ共有では、図面から来た建物・ダクト・衛生を初めはしまって冷媒配管だけ見せる（2026-11-03 ユーザー）。図面・現調は今までどおり st.bldHide */
+function BH(){return APP==="bend"?st.bldHideB!==false:!!st.bldHide}
 function bldChanged(){save(true);if(T){build3D();T.dirty=true}}
 function openBld(i){BI=i;renderBld();$("#bldOv").classList.add("on")}
 function renderBld(){
@@ -3165,7 +3167,7 @@ $("#closeNew").onclick=()=>$("#newOv").classList.remove("on");
 $("#newOv").addEventListener("click",e=>{if(e.target.id==="newOv")$("#newOv").classList.remove("on")});
 $("#newPipe").onclick=()=>newPlan("pipe");$("#newModel").onclick=()=>newPlan("model");$("#newMachine").onclick=()=>newPlan("machine");
 function bldAddAt(k,cx,cy){if(!T)return;let p=cx!=null?bldFloorAt(cx,cy):null;if(!p){const c=T.ctr||{x:0,z:0};p={x:Math.round(c.x/10)*10,z:Math.round(c.z/10)*10}}
- st.bld.push(bldNew(k,p));st.bldHide=false;bldChanged();openBld(st.bld.length-1)}
+ st.bld.push(bldNew(k,p));st.bldHide=false;st.bldHideB=false;bldChanged();openBld(st.bld.length-1)}
 $("#closePhoto").onclick=()=>$("#photoOv").classList.remove("on");
 $("#photoOv").addEventListener("click",e=>{if(e.target.id==="photoOv")$("#photoOv").classList.remove("on")});
 $("#photoIn").onchange=e=>{
@@ -3227,7 +3229,7 @@ let LOCAL=false;const SITES_KEY="pbm_sites";
 function loadSites(){try{const a=JSON.parse(localStorage.getItem(SITES_KEY));return Array.isArray(a)?a:[]}catch(e){return[]}}
 function storeSites(a){localStorage.setItem(SITES_KEY,JSON.stringify(a))}
 function restoreSt(o){
- st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null,bhid:o.bhid&&typeof o.bhid==="object"?o.bhid:null};
+ st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,bldHideB:o.bldHideB===false?false:undefined,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null,bhid:o.bhid&&typeof o.bhid==="object"?o.bhid:null};
  leg="m";sel=0;save();$("#sz").value=st.s;render();if(T)fitT(true);
 }
 function openPlan(p){

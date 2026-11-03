@@ -24,7 +24,7 @@ function build(){
   <div style="flex:none;margin-top:8px">
    <div style="display:flex;gap:6px;align-items:center"><input id="egSay" type="text" enterkeyhint="done" autocomplete="off" placeholder="🎙 まとめて：450の250の600のクランク" style="flex:1;min-width:0;height:46px;border-radius:12px;border:1.5px solid #cbd5e1;padding:0 10px;font-size:16px"><button class="sharebtn" id="egSayGo" style="height:46px;padding:0 12px;margin:0">入れる</button><button class="sharebtn" id="egPen" style="height:46px;padding:0 12px;margin:0">✍️ 書く</button></div>
    <div style="font-size:12px;color:#64748b;margin:3px 2px 6px">キーボードのマイク🎙を押して話すと入ります（イヤホンのマイクでもOK）。形の言葉：クランク・L・U・コの字・45のクランク・登録した名前</div>
-   <div id="egList" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px"></div>
+   <div id="egList" style="display:flex;flex-wrap:wrap;gap:6px;max-height:32vh;overflow-y:auto;padding-bottom:4px"></div>
    <div style="display:flex;gap:8px;margin-top:6px"><button class="sharebtn" id="egReg" style="flex:1;height:46px;margin:0">🏷 形を登録</button><button class="primary" id="egGo" style="flex:1.6;height:46px;border-radius:12px;font-weight:800">✅ この形で曲げを作る</button></div>
   </div></div>`;
  document.body.appendChild(ov);cv=ov.querySelector("#egCv");cx=cv.getContext("2d");
@@ -67,7 +67,18 @@ function build(){
  cv.addEventListener("mousedown",down);cv.addEventListener("mousemove",e=>{if(on)move(e)});window.addEventListener("mouseup",up);
  window.addEventListener("resize",()=>{if(ov.classList.contains("on"))draw()});
 }
-function open(){if(!ov)build();ov.classList.add("on");try{const s=JSON.parse(localStorage.getItem("pbm_egaku_cur")||"null");if(s&&Array.isArray(s.segs)&&!EG.segs.length){EG.segs=s.segs;EG.O=null}}catch(e){}list();setTimeout(draw,30)}
+function open(){if(!ov)build();ov.classList.add("on");const fr=fromRows();
+ if(fr&&fr.length){if(EG.segs.length&&JSON.stringify(EG.segs.map(q=>[q.d,q.l]))!==JSON.stringify(fr.map(q=>[q.d,q.l])))EG.undo.push(JSON.stringify(EG.segs));EG.segs=fr;EG.O=null}   // 今の曲げ（図面から来た物・手で入れた物）を絵にして出す
+ else{if(fr===null)setTimeout(()=>toast("今の曲げに45°などの曲げがあるので、絵にできません（描き直すと置きかえます）"),300);try{const s=JSON.parse(localStorage.getItem("pbm_egaku_cur")||"null");if(s&&Array.isArray(s.segs)&&!EG.segs.length){EG.segs=s.segs;EG.O=null}}catch(e){}}
+ list();setTimeout(draw,30)}
+/* 今の曲げの行 → 方眼の線（90°・180°・まっすぐだけ。toRows の逆：最初は右手前・上は上）。45°などがある時は null */
+function fromRows(){const R=LR(),rows=R.filter((r,i)=>i<R.length-1||r.l>0);if(!rows.length||!(rows.length>1||rows[0].l>0))return[];if(rows.some((r,i)=>i<rows.length-1&&r.a&&r.a!==90&&r.a!==180))return null;
+ const cr=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],rn=v=>v.map(z=>Math.round(z)),rotA=(v,k,t)=>{const c=Math.cos(t),sn=Math.sin(t),kv=cr(k,v),kd=dot(k,v);return v.map((_,j)=>v[j]*c+kv[j]*sn+k[j]*kd*(1-c))};
+ let d=[1,0,0],u=[0,1,0],r=cr(d,u);const out=[],mx=Math.max(...rows.map(q=>q.l))||1;
+ rows.forEach((q,i)=>{const k=D3.findIndex(z=>z[0]===Math.round(d[0])&&z[1]===Math.round(d[1])&&z[2]===Math.round(d[2]));out.push({d:k<0?0:k,n:Math.max(1,Math.min(8,Math.round(q.l/mx*6))),l:Math.round(q.l)||0});
+  if(i<rows.length-1&&q.a){const t=(typeof effT==="function"?effT(i,rows):q.t)*Math.PI/180,b=u.map((z,j)=>z*Math.cos(t)+r[j]*Math.sin(t)),a=q.a*Math.PI/180,d2=d.map((z,j)=>z*Math.cos(a)+b[j]*Math.sin(a));const ax=cr(d,d2),al=Math.hypot(...ax);
+   if(al>1e-6){const k2=ax.map(z=>z/al);u=rotA(u,k2,a);r=rotA(r,k2,a)}else{u=u.map(z=>-z);r=r.map(z=>-z)}d=rn(d2);u=rn(u);r=rn(r)}});
+ return out}
 function close(){if(ov)ov.classList.remove("on");try{localStorage.setItem("pbm_egaku_cur",JSON.stringify({segs:EG.segs}))}catch(e){}}
 /* 絵 */
 function draw(){if(!cv)return;dpr=window.devicePixelRatio||1;const W=cv.clientWidth,H=cv.clientHeight;if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
@@ -182,6 +193,6 @@ function penOpen(i){EG.pi=i;if(!pen){pen=document.createElement("div");pen.style
   pen.S=()=>S2;pen.setS=v=>{S2=v;drw();cand()}}
  const ttl=()=>{if(pen)pen.querySelector("#pnT").textContent="✍️ "+(EG.pi+1)+"本目（"+DN[EG.segs[EG.pi].d]+"）の長さを書く"};ttl();setTimeout(()=>pen&&pen.reset(),20)}
 window.egRec=recNum;window.egPen=()=>pen;
-window.egOpen=open;window.egRows=toRows;window.egSay=sayGo;window.EG=EG;
+window.egOpen=open;window.egRows=toRows;window.egFrom=fromRows;window.egSay=sayGo;window.EG=EG;
 const b=document.getElementById("egOpen");if(b)b.onclick=open;
 })();

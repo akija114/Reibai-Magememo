@@ -3914,8 +3914,122 @@ async function mageRead(){
   const f = $('#v3dF'), r = await new Promise(ok => { V3.wait = ok; f.src = '../zumen.html?from=cad3d&t=' + Date.now(); setTimeout(() => { if (V3.wait === ok){ V3.wait = null; ok({err:'時間切れ'}); } }, 90000); });
   f.src = 'about:blank'; return r;
 }
+/* 🏠 外壁の図（立面図）から家の3D（2026-11-03 ユーザー）。図面に「東・西・南・北立面図」と「▽1FL」があれば、平面図の読み方の代わりにこれで3Dにする。
+   ① 面ごとに：名前の文字の上の ▽1FL・▽2FL・▽最高高さ／軒高、建物の左右の端（建物の線のたて線が続く所）。縦の縮尺は「1階の高さの寸法（3,250など）」で確かめて直す（elevK）。
+   ② 家の箱：南・北の幅 × 東・西の幅、高さは ▽最高高さ（無ければ軒高）。各面の図の線を、その外壁にはる（窓・扉はその線で見える）。
+   ③ スリムダクト＝ピンクの2本線の間（太さ 40〜160mm）を1本に。つながりの木で、端（下＝室外機の方）から数えて「上の穴の数」が2つ以上の所は大きいサイズ。
+      穴＝下でない端（2階・1階の壁の穴）。異形＝細いダクトが太い所に合流する所の手前 ofs mm。サイズ・手前の長さは 3D の上の欄で直せる（zumen-elevsd） */
+function elevRGB(ck){ try { if (ck[0] === '#'){ const v = parseInt(ck.slice(1), 16); return [(v>>16)&255, (v>>8)&255, v&255]; } return aciRGB(+ck.slice(1)) || [0, 0, 0]; } catch(e){ return [0, 0, 0]; } }
+const elevPink = l => { const [r, g, b] = elevRGB(l.ck); return r > 150 && b > 120 && g < 110 || /ピンク/.test(l.name); };
+function elevSD(){ try { return {s:77, b:100, ofs:300, ...JSON.parse(localStorage.getItem('zumen-elevsd') || '{}')}; } catch(e){ return {s:77, b:100, ofs:300}; } }
+function elevTexts(){ const u = unitMM(), T = []; G.L.forEach((l, li) => { if (l.deleted) return; for (const t of G.textsBy[li] || []) T.push({s:t.lines.join(' ').trim(), x:t.x*u, y:t.y*u, h:t.h*u}); }); return T; }
+function elevIs(){ if (!G) return false; const T = elevTexts(); return T.filter(t => /^(東|西|南|北)立面図$/.test(t.s)).length >= 2 && T.some(t => /^▽\s*1FL/.test(t.s)); }
+function elevAna(){
+  const u = unitMM(), T = elevTexts(), sg = G.segs, lv = re => T.filter(t => re.test(t.s));
+  const L1 = lv(/^▽\s*1FL/), L2 = lv(/^▽\s*2FL/), LT = lv(/^▽\s*(最高高さ|軒高|RFL|屋上)/);
+  const above = (arr, y, x) => arr.filter(t => t.y > y).sort((a, b) => (a.y - y) - (b.y - y) + (Math.abs(a.x - x) - Math.abs(b.x - x))*0.02)[0];
+  // 縦の縮尺の確かめ：▽1FL と ▽2FL の間にある 2000〜6000 の寸法の文字（1階の高さ）
+  let ks = []; for (const a of L1){ const b = above(L2, a.y, a.x); if (!b) continue; for (const t of T){ const n = +t.s.replace(/,/g, ''); if (/^\d{1,2},?\d{3}$/.test(t.s) && n >= 2000 && n <= 6000 && t.y > a.y && t.y < b.y && Math.abs(t.x - a.x) < (b.y - a.y)*1.5){ const k = n/(b.y - a.y); if (k > 0.25 && k < 4) ks.push(k); } } }
+  ks.sort((a, b) => a - b); const K = ks.length ? ks[ks.length >> 1] : 1;
+  // 建物の線（黒・緑などの建物の線。点線・網・文字・色の線は除く）のたて線
+  const bldL = new Set(); G.L.forEach((l, li) => { if (l.deleted || !l.on || /点線|網|斜線|文字/.test(l.name)) return; const [r, g, b] = elevRGB(l.ck), mx = Math.max(r, g, b), mn = Math.min(r, g, b); if (elevPink(l)) return; if (mx - mn > 90 && !(g > r + 60 && g > b + 60)) return; bldL.add(li); });
+  const faces = [];
+  for (const t of lv(/^(東|西|南|北)立面図$/)){ const a = above(L1, t.y, t.x); if (!a || a.y - t.y > 60000/K) continue; const b2 = above(L2, a.y, a.x), tp = above(LT, a.y, a.x), y1 = a.y, yT = tp ? tp.y : b2 ? b2.y + (b2.y - y1) : y1 + 6000/K, h = yT - y1;
+    // 建物の左右：名前の文字のまわりで、1FL〜上 の帯の中のたて線がとぎれずに続く所（すき間 h×0.25 まで）
+    const iv = []; for (let i = 0; i < sg.length; i += SS){ if (!bldL.has(sg[i+4])) continue; const x1 = sg[i]*u, y1s = sg[i+1]*u, x2 = sg[i+2]*u, y2s = sg[i+3]*u; if (Math.abs(x2 - x1) > Math.abs(y2s - y1s)*0.2 || Math.abs(y2s - y1s) < h*0.05) continue; const lo = Math.min(y1s, y2s), hi = Math.max(y1s, y2s); if (lo < y1 + h*0.05 - h*0.3 || hi > yT + h*0.05 || hi < y1 + h*0.15) continue; iv.push((x1 + x2)/2); }
+    if (iv.length < 6) continue; iv.sort((p, q) => p - q); const runs = []; let s0 = iv[0], p0 = iv[0], n = 1; for (const x of iv.slice(1)){ if (x - p0 > h*0.25){ runs.push([s0, p0, n]); s0 = x; n = 0; } p0 = x; n++; } runs.push([s0, p0, n]);
+    const run = runs.filter(r => r[2] >= 4).sort((p, q) => { const dp = t.x >= p[0] && t.x <= p[1] ? 0 : Math.min(Math.abs(t.x - p[0]), Math.abs(t.x - p[1])), dq = t.x >= q[0] && t.x <= q[1] ? 0 : Math.min(Math.abs(t.x - q[0]), Math.abs(t.x - q[1])); return dp - dq || (q[1] - q[0]) - (p[1] - p[0]); })[0];
+    if (!run) continue; let w = (run[1] - run[0])*K;
+    /* 全体の寸法の文字（38,220 など）：建物の下にある、いちばん大きい数字。測った幅と2割以内ならそれを幅に */
+    { let best = 0; for (const q of T){ if (!/^\d{1,3},\d{3}$/.test(q.s)) continue; const n = +q.s.replace(/,/g, ''); if (q.y < y1 - h*0.9 || q.y > y1 || q.x < run[0] - (run[1] - run[0])*0.1 || q.x > run[1] + (run[1] - run[0])*0.1) continue; if (n > best && n > w*0.75 && n < w*1.2) best = n; } if (best) w = best; }
+    faces.push({dir:t.s[0], x0:run[0], x1:run[1], y1, y2:b2 ? b2.y : null, yT, w, h:h*K, ty:t.y}); }
+  // 同じ向きが2つある時（建物の出っぱりの小さい図）は、幅の大きい方を家の面に
+  const main = {}; for (const f of faces) if (!main[f.dir] || f.w > main[f.dir].w) main[f.dir] = f;
+  const Wd = Math.max(main['南'] ? main['南'].w : 0, main['北'] ? main['北'].w : 0) || 10000, Dd = Math.max(main['東'] ? main['東'].w : 0, main['西'] ? main['西'].w : 0) || 8000, Hh = Math.max(...Object.values(main).map(f => f.h), 3000);
+  return {K, faces:Object.values(main), all:faces, W:Wd, D:Dd, H:Hh, u};
+}
+/* 立面の点（図面 mm）→ 家の3D（x＝東・z＝南・y＝上）。off＝壁から外へ */
+function elevMap(f, A, x, y, off){ const s = (x - f.x0)/(f.x1 - f.x0), hh = (y - f.y1)*A.K, W = A.W, D = A.D, o = off || 0;
+  if (f.dir === '南') return [-W/2 + s*W, hh, D/2 + o]; if (f.dir === '北') return [W/2 - s*W, hh, -D/2 - o];
+  if (f.dir === '東') return [W/2 + o, hh, D/2 - s*D]; return [-W/2 - o, hh, -D/2 + s*D]; }
+/* ピンクの2本線 → ダクトの芯。返す：[{a:[x,y], b:[x,y], w}]（図面 mm・その面の中） */
+function elevDucts(f, A){ const u = A.u, sg = G.segs, V = [], H = [], mg = (f.yT - f.y1)*0.3;
+  for (let i = 0; i < sg.length; i += SS){ const l = G.L[sg[i+4]]; if (!l || l.deleted || !l.on || !elevPink(l)) continue; const x1 = sg[i]*u, y1 = sg[i+1]*u, x2 = sg[i+2]*u, y2 = sg[i+3]*u;
+    if (Math.max(x1, x2) < f.x0 - mg || Math.min(x1, x2) > f.x1 + mg || Math.max(y1, y2) < f.y1 - mg || Math.min(y1, y2) > f.yT + mg) continue;
+    if (Math.abs(x2 - x1) <= Math.abs(y2 - y1)*0.05 && Math.abs(y2 - y1) > 30/A.K) V.push([(x1 + x2)/2, Math.min(y1, y2), Math.max(y1, y2)]); else if (Math.abs(y2 - y1) <= Math.abs(x2 - x1)*0.05 && Math.abs(x2 - x1) > 30/A.K) H.push([(y1 + y2)/2, Math.min(x1, x2), Math.max(x1, x2)]); }
+  const pair = (L, vert) => { L.sort((p, q) => p[0] - q[0]); const out = []; for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++){ const d = (L[j][0] - L[i][0])*A.K; if (d < 40) continue; if (d > 160) break; const lo = Math.max(L[i][1], L[j][1]), hi = Math.min(L[i][2], L[j][2]); if (hi - lo < Math.min(L[i][2] - L[i][1], L[j][2] - L[j][1])*0.5) continue; const c = (L[i][0] + L[j][0])/2; out.push(vert ? {a:[c, lo], b:[c, hi], w:d} : {a:[lo, c], b:[hi, c], w:d}); } return out; };
+  let P = pair(V, 1).concat(pair(H, 0));
+  // 重なる芯は1本に・同じ線の上でつながる物はつなぐ
+  const tol = 60/A.K, out = []; const vt = p => Math.abs(p.a[0] - p.b[0]) < 1e-6;
+  P.sort((p, q) => (vt(p) ? p.a[0] : p.a[1]) - (vt(q) ? q.a[0] : q.a[1]) || (vt(p) ? p.a[1] : p.a[0]) - (vt(q) ? q.a[1] : q.a[0]));
+  for (const p of P){ const v = vt(p), k = v ? 1 : 0, c = v ? 0 : 1; const q = out.find(o => vt(o) === v && Math.abs(o.a[c] - p.a[c]) < tol && p.a[k] <= o.b[k] + tol*2.5 && p.b[k] >= o.a[k] - tol*2.5);
+    if (q){ q.a[k] = Math.min(q.a[k], p.a[k]); q.b[k] = Math.max(q.b[k], p.b[k]); q.w = Math.max(q.w, p.w); } else out.push({a:[...p.a], b:[...p.b], w:p.w}); }
+  return out.filter(p => Math.hypot(p.b[0] - p.a[0], p.b[1] - p.a[1])*A.K > 150); }
+/* つながり：端どうし・端と途中（tol 以内）。根＝いちばん低い端の木。葉（根でない端）＝穴。合流の数でサイズ */
+function elevNet(D, A, f){ const tol = 200/A.K, ends = [], near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < tol;
+  const onSeg = (p, s) => { const vx = s.b[0] - s.a[0], vy = s.b[1] - s.a[1], L2 = vx*vx + vy*vy || 1, t = Math.max(0, Math.min(1, ((p[0] - s.a[0])*vx + (p[1] - s.a[1])*vy)/L2)); return Math.hypot(p[0] - s.a[0] - vx*t, p[1] - s.a[1] - vy*t) < tol ? t : -1; };
+  const adj = D.map(() => []); // [相手, 自分の端 'a'|'b'|t, 相手の点]
+  D.forEach((s, i) => ['a', 'b'].forEach(e => { const p = s[e]; D.forEach((q, j) => { if (j === i) return; if (near(p, q.a) || near(p, q.b) || onSeg(p, q) >= 0){ adj[i].push(j); } }); }));
+  adj.forEach((a, i) => { adj[i] = [...new Set(a)]; a.forEach(j => { if (!adj[j].includes(i)) adj[j].push(i); }); });
+  const free = (s, e) => !D.some((q, j) => q !== s && (near(s[e], q.a) || near(s[e], q.b) || onSeg(s[e], q) >= 0));
+  const seen = new Set(), comps = []; D.forEach((_, i) => { if (seen.has(i)) return; const st = [i], c = []; seen.add(i); while (st.length){ const k = st.pop(); c.push(k); for (const j of adj[k]) if (!seen.has(j)){ seen.add(j); st.push(j); } } comps.push(c); });
+  const holes = [], cnt = new Map(), root = new Map();
+  for (const c of comps){ let r = null; for (const i of c) for (const e of ['a', 'b']) if (free(D[i], e) && (!r || D[i][e][1] < r.p[1])) r = {i, e, p:D[i][e]};
+    if (!r){ let lo = c[0]; for (const i of c) if (Math.min(D[i].a[1], D[i].b[1]) < Math.min(D[lo].a[1], D[lo].b[1])) lo = i; r = {i:lo, e:D[lo].a[1] < D[lo].b[1] ? 'a' : 'b', p:null}; r.p = D[lo][r.e]; }
+    for (const i of c) for (const e of ['a', 'b']) if (!(i === r.i && e === r.e) && free(D[i], e) && D[i][e][1] - f.y1 > 300/A.K) holes.push({i, p:D[i][e]});
+    // 木：根から深さ優先。葉の穴の数を足していく
+    const par = new Map([[r.i, -1]]), order = [r.i]; for (let k = 0; k < order.length; k++) for (const j of adj[order[k]]) if (!par.has(j) && c.includes(j)){ par.set(j, order[k]); order.push(j); }
+    for (const i of c) cnt.set(i, holes.filter(h => h.i === i).length);
+    for (let k = order.length - 1; k > 0; k--){ const i = order[k], p = par.get(i); cnt.set(p, cnt.get(p) + cnt.get(i)); }
+    for (const i of c) root.set(i, par.get(i)); }
+  return {holes, cnt, par:root}; }
+async function open3DElev(){
+  let TH; try { TH = await loadThree(); } catch(e){ toast(e.message); return; }
+  $('#v3d').hidden = false; const box = $('#v3dS');
+  if (V3.r) V3.r.domElement.style.display = 'block'; if (!V3.r){ V3.r = new TH.WebGLRenderer({antialias:true}); V3.r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); box.prepend(V3.r.domElement); V3.r.domElement.style.display = 'block'; v3dCtl(); }
+  const A = elevAna(); if (!A.faces.length){ toast('立面図の建物の端が見つかりませんでした'); $('#v3d').hidden = true; return; }
+  const SD = elevSD(), sc = new TH.Scene(); sc.background = new TH.Color(tok.dark ? '#1b1f24' : '#f4f6f8'); sc.add(new TH.HemisphereLight(0xffffff, 0x777777, 0.9)); const dl = new TH.DirectionalLight(0xffffff, 0.6); dl.position.set(1, 2, 1.5); sc.add(dl);
+  const grp = k => { const g = new TH.Group(); g.userData.k = k; g.visible = V3.on[k] !== false; sc.add(g); return g; }, gW = grp('wall'), gP = grp('pipe'), gL = grp('plan'), u = A.u, W = A.W, Dp = A.D, H = A.H;
+  // 家の箱：うすい壁4枚と屋根（簡単）・地面
+  const wm = new TH.MeshStandardMaterial({color:0xe7e2d8, transparent:true, opacity:.55, side:TH.DoubleSide}), wb = (w, h, x, z, ry) => { const m = new TH.Mesh(new TH.PlaneGeometry(w, h), wm); m.position.set(x, h/2, z); m.rotation.y = ry; gW.add(m); };
+  wb(W, H, 0, Dp/2, 0); wb(W, H, 0, -Dp/2, 0); wb(Dp, H, W/2, 0, Math.PI/2); wb(Dp, H, -W/2, 0, Math.PI/2);
+  { const r = new TH.Mesh(new TH.BoxGeometry(W + 600, 150, Dp + 600), new TH.MeshStandardMaterial({color:0x8a8f96})); r.position.set(0, H + 75, 0); gW.add(r);
+    const gr = new TH.Mesh(new TH.PlaneGeometry(W + 8000, Dp + 8000), new TH.MeshStandardMaterial({color:0xcfd6cc, side:TH.DoubleSide})); gr.rotation.x = -Math.PI/2; gr.position.y = -2; gW.add(gr); }
+  // 各面の図の線を外壁に（窓・扉・室外機・ドレンもこの線で見える）
+  const pos = [], col = [], c = new TH.Color(), sg = G.segs;
+  for (const f of A.faces){ const mg = (f.yT - f.y1)*0.35;
+    for (let i = 0; i < sg.length; i += SS){ const l = G.L[sg[i+4]]; if (!l || l.deleted || !l.on || /文字/.test(l.name) || elevPink(l)) continue; const x1 = sg[i]*u, y1 = sg[i+1]*u, x2 = sg[i+2]*u, y2 = sg[i+3]*u;
+      if (Math.min(x1, x2) < f.x0 - 50 || Math.max(x1, x2) > f.x1 + 50 || Math.min(y1, y2) < f.y1 - mg || Math.max(y1, y2) > f.yT + 200/A.K) continue;
+      const a = elevMap(f, A, x1, y1, 8), b = elevMap(f, A, x2, y2, 8); pos.push(...a, ...b); c.setStyle(colorCss(l.ck)); col.push(c.r, c.g, c.b, c.r, c.g, c.b); } }
+  { const g = new TH.BufferGeometry(); g.setAttribute('position', new TH.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new TH.Float32BufferAttribute(col, 3)); gL.add(new TH.LineSegments(g, new TH.LineBasicMaterial({vertexColors:true, transparent:true, opacity:.8}))); }
+  // スリムダクト・穴・異形
+  const pm = new TH.MeshStandardMaterial({color:0xe11d9a, roughness:.5}), pm2 = new TH.MeshStandardMaterial({color:0xf472b6, roughness:.5}), hm = new TH.MeshStandardMaterial({color:0xea580c}), rm = new TH.MeshStandardMaterial({color:0xfacc15});
+  let nH = 0, nR = 0; const LB = [], HL = [], seg3 = (f, a, b, w) => { const d = w*0.75, p = elevMap(f, A, a[0], a[1], d/2 + 10), q = elevMap(f, A, b[0], b[1], d/2 + 10), P = new TH.Vector3(...p), Q = new TH.Vector3(...q), L = P.distanceTo(Q); if (L < 1) return;
+    const vert = Math.abs(p[1] - q[1]) > Math.abs(p[0] - q[0]) + Math.abs(p[2] - q[2]), alongX = f.dir === '南' || f.dir === '北', gx = vert ? w : L, gy = vert ? L : w, m = new TH.Mesh(new TH.BoxGeometry(alongX ? gx : d, gy, alongX ? d : gx), w >= SD.b ? pm : pm2);
+    if (!vert && !alongX){ m.geometry = new TH.BoxGeometry(d, gy, gx); } m.position.copy(P).add(Q).multiplyScalar(.5); gP.add(m); };
+  for (const f of A.faces){ const D = elevDucts(f, A), N = elevNet(D, A, f);
+    D.forEach((s, i) => { const n = N.cnt.get(i) || 0, w = n >= 2 ? SD.b : SD.s, p = N.par.get(i), up = p >= 0 ? (N.cnt.get(p) || 0) : n;
+      // 細い所から太い所へ合流する手前 ofs mm を太く（異形）
+      if (n < 2 && up >= 2 && p >= 0){ const P = D[p], jn = ['a', 'b'].map(e => s[e]).sort((x, y) => Math.hypot(x[0] - (P.a[0] + P.b[0])/2, x[1] - (P.a[1] + P.b[1])/2) - Math.hypot(y[0] - (P.a[0] + P.b[0])/2, y[1] - (P.a[1] + P.b[1])/2))[0], far = jn === s.a ? s.b : s.a, L = Math.hypot(far[0] - jn[0], far[1] - jn[1]), o = Math.min(SD.ofs/A.K, L*0.8), sp = [jn[0] + (far[0] - jn[0])*o/L, jn[1] + (far[1] - jn[1])*o/L];
+        seg3(f, far, sp, SD.s); seg3(f, sp, jn, SD.b); const rp = new TH.Vector3(...elevMap(f, A, sp[0], sp[1], SD.b*0.4 + 10)), ring = new TH.Mesh(new TH.TorusGeometry(SD.b*0.75, 18, 8, 20), rm); ring.position.copy(rp); ring.lookAt(rp.clone().add(new TH.Vector3(...(Math.abs(far[1] - jn[1]) > Math.abs(far[0] - jn[0]) ? [0, 1, 0] : (f.dir === '南' || f.dir === '北') ? [1, 0, 0] : [0, 0, 1])))); gP.add(ring); nR++;
+        LB.push([`異形`, rp.clone().add(new TH.Vector3(0, 220, 0))]); return; }
+      seg3(f, s.a, s.b, w); });
+    for (const h of N.holes){ nH++; const p = elevMap(f, A, h.p[0], h.p[1], 4), m = new TH.Mesh(new TH.TorusGeometry(70, 20, 8, 20), hm); m.position.set(...p); if (f.dir === '東' || f.dir === '西') m.rotation.y = Math.PI/2; gP.add(m);
+      const fl = (h.p[1] - f.y1)*A.K, lf = (h.p[0] - f.x0)/(f.x1 - f.x0)*f.w, n = N.cnt.get(h.i) || 0; HL.push({n:nH, dir:f.dir, fl, lf, w:SD.s}); LB.push([`穴${nH}`, new TH.Vector3(p[0], p[1] + 200, p[2])]); } }
+  for (const [t, at] of LB) gP.add(v3dLabel(TH, t, at));
+  for (const b of document.querySelectorAll('#v3dT [data-t3]')) b.hidden = !/^(wall|pipe|plan)$/.test(b.dataset.t3); { const b = document.querySelector('#v3dT [data-t3="pipe"]'); if (b) b.textContent = 'スリムダクト'; }
+  { let e = $('#elevSD'); if (!e){ e = document.createElement('div'); e.id = 'elevSD'; e.style.cssText = 'display:flex;gap:6px;align-items:center;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);font-size:13px;flex-wrap:wrap'; $('#v3dT').after(e); }
+    e.hidden = false; e.innerHTML = `スリムダクト：1本 <input data-k="s" value="${SD.s}" inputmode="numeric" style="width:52px;height:30px">　2本から <input data-k="b" value="${SD.b}" inputmode="numeric" style="width:52px;height:30px">　異形は合流の <input data-k="ofs" value="${SD.ofs}" inputmode="numeric" style="width:56px;height:30px"> mm 手前`;
+    e.onchange = ev => { const k = ev.target.dataset.k, v = +ev.target.value; if (!k || !(v > 0)) return; const o = elevSD(); o[k] = v; try { localStorage.setItem('zumen-elevsd', JSON.stringify(o)); } catch(er){} open3DElev(); }; }
+  V3.elevHL = HL; { const e = $('#elevSD'); const b = document.createElement('button'); b.className = 'btn'; b.style.cssText = 'height:30px;padding:0 10px'; b.textContent = '📋 穴の一覧（' + HL.length + '）'; b.onclick = () => { openSheet('スリムダクトの穴', body => { const g = {}; HL.forEach(h => (g[h.dir] = g[h.dir] || []).push(h)); body.innerHTML = '<div class="note">高さは1FLから・横はその面を外から見て左の角から（mm・図面から読んだ目安）。</div>' + Object.keys(g).map(d => `<div class="ghead" style="margin-top:10px"><b>${d}の面</b><span class="ct">${g[d].length}</span></div>` + g[d].map(h => `<div class="row" style="justify-content:space-between"><b>穴${h.n}</b><span>FL+${Math.round(h.fl).toLocaleString()}・左の角から ${Math.round(h.lf).toLocaleString()}</span></div>`).join('')).join(''); }); $('#sheetRoot').querySelectorAll('.sheet,.back').forEach(x => { x.style.zIndex = x.classList.contains('back') ? 74 : 75; }); }; e.appendChild(b); }   /* 3D の上に出す */
+  const bb = new TH.Box3(new TH.Vector3(-W/2, 0, -Dp/2), new TH.Vector3(W/2, H, Dp/2)); V3.sc = sc; V3.bb = bb; V3.TH = TH; V3.ana = null; V3.elev = A;
+  $('#v3dN').textContent = `外壁の図（立面図）から：家 ${Math.round(W)}×${Math.round(Dp)}・高さ ${Math.round(H)}（${A.faces.map(f => f.dir).join('・')}の面）・スリムダクトの穴 ${nH}・異形 ${nR}。` + (Math.abs(A.K - 1) > 0.05 ? `図面の「1階の高さ」の寸法から縮尺を直して読みました（×${A.K.toFixed(2)}）。` : '') + '窓・扉・室外機は面の図の線で出しています。1本指で回す・2本指で動かす／ひろげる';
+  v3dView('iso');
+}
 async function open3D(){
   if (!G){ toast('先に図面を開いてください'); return; }
+  if (elevIs()) return open3DElev();   // 外壁の図（立面図）は家の3Dに
+  { const e = $('#elevSD'); if (e) e.hidden = true; for (const b of document.querySelectorAll('#v3dT [data-t3]')) if (/^(wall|ub|unit|plan)$/.test(b.dataset.t3)) b.hidden = false; const b = document.querySelector('#v3dT [data-t3="pipe"]'); if (b) b.textContent = '冷媒配管'; }
   await loadModels(); await askUnitModels(); // 室内機の品番が図面に無い時は、機械の形ごとに機種を聞く
   if (MAGE3D && !mageOk()){ $('#v3d').hidden = false; $('#v3dN').textContent = '図面を読んでいます（曲げメモと同じ読み方：室内機・冷媒配管のルート・壁・ダクト・衛生）…'; if (V3.r) V3.r.domElement.style.display = 'none';
     let r = null; try { r = await mageRead(); } catch(e){ r = {err:(e && e.message) || String(e)}; } if ($('#v3d').hidden) return; if (r && r.err) toast('曲げメモと同じ読み方ができませんでした（' + r.err + '）。今までの読み方で出します'); }

@@ -42,9 +42,13 @@ function build(){
  ov.querySelector("#egGo").onclick=apply;
  ov.querySelector("#egReg").onclick=reg;
  ov.querySelector("#egPen").onclick=()=>{if(!EG.segs.length){toast("先に形を描くか、「クランク」などを入れてください");return}const i=EG.segs.findIndex(s=>!(s.l>0));penOpen(i>=0?i:EG.last||0)};
- const say=ov.querySelector("#egSay");ov.querySelector("#egSayGo").onclick=()=>sayGo(say.value);
+ const say=ov.querySelector("#egSay");ov.querySelector("#egSayGo").onclick=()=>{if(KM)KM.last=say.value;sayGo(say.value)};
  ov.querySelector("#egMic").onclick=()=>mic(say);
- say.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();sayGo(say.value);say.blur()}});
+ say.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();if(KM)KM.last=say.value;sayGo(say.value);say.blur()}});
+ /* キーボードのマイクで話している間：言葉が止まって1.5秒で入れる・欄から出た時も入れる */
+ say.addEventListener("input",()=>{if(!KM)return;clearTimeout(KM.t);KM.t=setTimeout(()=>{if(KM&&say.value.trim()&&say.value!==KM.last){KM.last=say.value;sayGo(say.value)}},1500)});
+ say.addEventListener("focus",()=>{const b=document.getElementById("egKm");if(KM&&b&&b.style.display!=="none"&&/タップして/.test(b.textContent))kbMic(say,0)});
+ say.addEventListener("blur",()=>{if(!KM)return;clearTimeout(KM.t);const v=say.value;if(v.trim()&&v!==KM.last)sayGo(v);kmOff()});
  /* 指でなぞる */
  const pos=e=>{const r=cv.getBoundingClientRect(),t=e.touches?e.touches[0]||e.changedTouches[0]:e;return[t.clientX-r.left,t.clientY-r.top]};
  let on=false,gz=null;
@@ -86,7 +90,7 @@ function fromRows(){const R=LR(),rows=R.filter((r,i)=>i<R.length-1||r.l>0);if(ro
   if(i<rows.length-1&&q.a){const t=(typeof effT==="function"?effT(i,rows):q.t)*Math.PI/180,b=u.map((z,j)=>z*Math.cos(t)+r[j]*Math.sin(t)),a=q.a*Math.PI/180,d2=d.map((z,j)=>z*Math.cos(a)+b[j]*Math.sin(a));const ax2=cr(d,d2),al=Math.hypot(...ax2);
    if(al>1e-6){const k2=ax2.map(z=>z/al);u=rotA(u,k2,a);r=rotA(r,k2,a)}else{u=u.map(z=>-z);r=r.map(z=>-z)}d=sn(d2);u=sn(u);r=sn(r)}}
  return out}
-function close(){if(ov)ov.classList.remove("on");try{localStorage.setItem("pbm_egaku_cur",JSON.stringify({segs:EG.segs}))}catch(e){}}
+function close(){kmOff();if(ov)ov.classList.remove("on");try{localStorage.setItem("pbm_egaku_cur",JSON.stringify({segs:EG.segs}))}catch(e){}}
 /* 絵 */
 function draw(){if(!cv)return;dpr=window.devicePixelRatio||1;const W=cv.clientWidth,H=cv.clientHeight;if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
  const x=cx;x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
@@ -155,15 +159,25 @@ function apply(){if(!EG.segs.length){toast("先に形を描いてください（
 /* 🎙 を押すと話して入れる（2026-11-03 ユーザー：押してもできない）。ブラウザの音声認識（ja-JP）が使える時はそれで聞いて、終わったら sayGo。
    使えない時は欄にカーソルを入れて、キーボードのマイクの場所を案内する */
 let REC=null;
+/* iPhone・iPad（とくにホーム画面のアプリ）は音声認識が始まっても何も返さない（2026-11-04 ユーザー：話しても反応しない）→ キーボードのマイクで話してもらう */
+const IOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+let KM=null;
+function kbMic(say,tap){KM={last:say.value||"",t:0};if(!tap)say.focus();
+ let bn=document.getElementById("egKm");if(!bn){bn=document.createElement("div");bn.id="egKm";bn.style.cssText="position:fixed;left:8px;right:8px;z-index:80;background:#1d4ed8;color:#fff;border-radius:14px;padding:10px 12px;font-size:16px;font-weight:800;line-height:1.45;box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:none";document.body.appendChild(bn)}
+ bn.innerHTML=tap?"👆 上の欄をタップして、キーボードの右下の 🎙 を押して話してください":"🎙 キーボードの<b>右下のマイク</b>を押して話してください<br><small style=\"font-weight:700\">話し終わると自動で入ります（「入れる」でもOK）</small><span style=\"position:absolute;right:18px;bottom:-14px;font-size:22px\">⬇️</span>";
+ const pl=()=>{const vv=window.visualViewport,h=bn.offsetHeight||60;bn.style.top=Math.max(4,(vv?vv.offsetTop+vv.height:innerHeight)-h-14)+"px"};pl();setTimeout(pl,350);setTimeout(pl,800);
+ if(window.visualViewport&&!kbMic.on){kbMic.on=1;visualViewport.addEventListener("resize",()=>{const b=document.getElementById("egKm");if(b&&b.style.display!=="none"){const vv=visualViewport;b.style.top=Math.max(4,vv.offsetTop+vv.height-(b.offsetHeight||60)-14)+"px"}})}
+ bn.style.display="block"}
+function kmOff(){KM=null;const b=document.getElementById("egKm");if(b)b.style.display="none"}
 function mic(say){const SR=window.SpeechRecognition||window.webkitSpeechRecognition,b=ov.querySelector("#egMic");
  if(REC){try{REC.stop()}catch(e){}return}
- if(!SR){say.focus();toast("キーボードの右下のマイク🎙を押して話してください（話し終わったら「入れる」）");return}
+ if(!SR||IOS){kbMic(say);return}
  let r;try{r=new SR()}catch(e){say.focus();toast("キーボードの右下のマイク🎙を押して話してください");return}
- REC=r;r.lang="ja-JP";r.interimResults=true;r.continuous=false;let fin="";
+ REC=r;r.lang="ja-JP";r.interimResults=true;r.continuous=false;let fin="",got=0;const wd=setTimeout(()=>{if(REC===r&&!got){r.onend=null;try{r.abort()}catch(e){}REC=null;b.style.background="#dbeafe";b.textContent="🎙";say.placeholder="まとめて：450の250の600のクランク";kbMic(say,1)}},6000);
  b.style.background="#ef4444";b.textContent="⏹";say.value="";say.placeholder="🎙 聞いています… 話してください";
- r.onresult=e=>{let t="";fin="";for(const x of e.results){t+=x[0].transcript;if(x.isFinal)fin+=x[0].transcript}say.value=t};
+ r.onresult=e=>{got=1;let t="";fin="";for(const x of e.results){t+=x[0].transcript;if(x.isFinal)fin+=x[0].transcript}say.value=t};
  r.onerror=e=>{toast(e.error==="not-allowed"||e.error==="service-not-allowed"?"マイクが使えません（設定でマイクを許可するか、キーボードのマイク🎙で話してください）":e.error==="no-speech"?"声が聞こえませんでした。もう一度🎙を押してください":"うまく聞き取れませんでした。もう一度🎙を押してください")};
- r.onend=()=>{REC=null;b.style.background="#dbeafe";b.textContent="🎙";say.placeholder="まとめて：450の250の600のクランク";const v=(say.value||"").trim();if(v)sayGo(v)};
+ r.onend=()=>{clearTimeout(wd);REC=null;b.style.background="#dbeafe";b.textContent="🎙";say.placeholder="まとめて：450の250の600のクランク";const v=(say.value||"").trim();if(v)sayGo(v)};
  try{r.start()}catch(e){REC=null;b.style.background="#dbeafe";b.textContent="🎙";say.focus();toast("キーボードの右下のマイク🎙を押して話してください")}}
 /* 話した言葉の数字：「2500引く500」「350たす200」「300かける2」は計算して1つの数に（2026-11-03 ユーザー） */
 function sayNums(txt){let t=String(txt).normalize("NFKC").replace(/(\d),(?=\d{3})/g,"$1")

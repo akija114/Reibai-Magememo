@@ -413,7 +413,7 @@ function upd(){
   el.classList.toggle("over",o.over);el.classList.toggle("sel",i===sel);
   el.querySelector(".inf").innerHTML=EZ?ezInf(o,r,i):(
    `<span class="${o.shoe<0?"neg":""}">${RI("shoe")}シュー<b>${fmt(o.shoe)}</b></span><span>${RI("cum")}累計<b>${fmt(o.cum)}</b></span>`+
-   (r.a?`<span>${RI("pull")}引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>${RI("ofs")}差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+ofsInf(i)+(o.shoe<0?cvBtn(i,o):"")+(st.sup.on&&supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length?`<span><img alt="" src="${$("#supBtn img").src}" style="width:1.3em;height:1.3em;vertical-align:-0.32em;margin-right:2px">${DS[i]&&isVert(DS[i])?"縦":"横"}<b>${supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length}</b></span><span style="flex-basis:100%">↔間隔 <b>${supGaps(r.l,!!(DS[i]&&isVert(DS[i]))).map(fmt).join(" ・ ")}</b></span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:""));
+   (r.a?`<span>${RI("pull")}引き<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+(r.o&&r.a?`<span>${RI("ofs")}差<b>${fmt(r.l*Math.sin(r.a*Math.PI/180))}</b></span><span>↩️反対向き自動</span>`:"")+ofsInf(i)+mjBtn(i)+(o.shoe<0?cvBtn(i,o):"")+(st.sup.on&&supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length?`<span><img alt="" src="${$("#supBtn img").src}" style="width:1.3em;height:1.3em;vertical-align:-0.32em;margin-right:2px">${DS[i]&&isVert(DS[i])?"縦":"横"}<b>${supPos(r.l,!!(DS[i]&&isVert(DS[i]))).length}</b></span><span style="flex-basis:100%">↔間隔 <b>${supGaps(r.l,!!(DS[i]&&isVert(DS[i]))).map(fmt).join(" ・ ")}</b></span>`:"")+(o.over?`<span class="w">⚠️定尺超え</span>`:""));
  });
  const over=c.tot>c.lim;
  $("#tot").className="tot"+(over?" over":"");
@@ -2116,7 +2116,7 @@ const TUT_EZ=[
 function ezU(){return IN()?"":" mm"}
 function ezSzName(i){return szShort(i)+"（"+SIZES[i][1]+"mm）"}
 function ezInf(o,r,i){
- return `<span class="${o.shoe<0?"neg":""}">${RI("shoe")}印の位置（シュー）<b>${fmt(o.shoe)}</b></span>`+(i>=0?ofsInf(i):"")+
+ return `<span class="${o.shoe<0?"neg":""}">${RI("shoe")}印の位置（シュー）<b>${fmt(o.shoe)}</b></span>`+(i>=0?ofsInf(i)+mjBtn(i):"")+
   (r.a?`<span>${RI("pull")}曲げで縮む長さ（引き）<b>${fmt(o.back)}</b></span>`:"")+(r.a>=180?`<span>${RI("uw")}U幅<b>${fmt(8*cur().D)}</b></span>`:"")+
   (o.shoe<0?`<span class="w">⚠️ 短すぎて曲げられません</span>`+(i>=0?cvBtn(i,o):""):"")+(o.over?`<span class="w">⚠️ 定尺超え（つなぎが必要）</span>`:"");
 }
@@ -2138,8 +2138,41 @@ function cvAsk(i){
   toast(`${nm(i-1)}〜${nm(i+1)} を ${q.deg}° に変えました（↩️で元に戻せます）`);
  });
 }
-document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".cv45");if(!b)return;e.stopPropagation();e.preventDefault();cvAsk(+b.dataset.cv)},true);
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".cv45[data-cv]");if(!b)return;e.stopPropagation();e.preventDefault();cvAsk(+b.dataset.cv)},true);
 /* 45°・30°・15°の曲げの後の行：上がる高さ（差）と前へ進む長さ（2026-11-03 ユーザー：45°の時の高さを出したい） */
+/* ↗ 2本を斜め1本に（2026-11-04 ユーザー：→↑ を ↗ に・前は段ボールに書いて出していた）
+   i 本目と i+1 本目（曲がった2本）を、i 本目の始まりから i+1 本目の終わりへの1本にする。前の曲げ（i-1 の終わり）・この曲げ・後ろの曲げの向き（t）は
+   点の並びから計算し直す（曲げ方向を回すので、その先の曲げの向きも変わる）。曲げの角度は 15・30・45・90・180 のどれかになる時だけ */
+const mjV={cr:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],nz:a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return a.map(z=>z/l)},
+ rot:(v,k,t)=>{const c=Math.cos(t),s=Math.sin(t),kv=mjV.cr(k,v),kd=mjV.dot(k,v);return v.map((_,j)=>v[j]*c+kv[j]*s+k[j]*kd*(1-c))}};
+function mjBend(F,a,t){const{cr,nz,rot}=mjV,{d,u,r}=F,T=t*Math.PI/180,A=a*Math.PI/180,b=u.map((z,j)=>z*Math.cos(T)+r[j]*Math.sin(T)),d2=d.map((z,j)=>z*Math.cos(A)+b[j]*Math.sin(A));
+ const ax=cr(d,d2),al=Math.hypot(...ax);if(!a)return F;if(al>1e-9){const k=ax.map(z=>z/al);return{d:nz(d2),u:rot(u,k,A),r:rot(r,k,A)}}return{d:nz(d2),u:u.map(z=>-z),r:r.map(z=>-z)}}
+function mjFK(R){let F={d:[1,0,0],u:[0,1,0],r:[0,0,1]},p=[0,0,0];const P=[p],D=[];
+ R.forEach((q,i)=>{D.push(F.d);p=p.map((z,j)=>z+F.d[j]*q.l);P.push(p);if(i<R.length-1&&q.a)F=mjBend(F,q.a,effT(i,R))});return{P,D}}
+function mjPlan(i,x,y){const R=LR();if(i<1||i>=R.length-1)return null;const{P,D}=mjFK(R);
+ const pn=P[i].map((z,j)=>z+D[i][j]*x+D[i+1][j]*y),dl=pn.map((z,j)=>z-P[i+2][j]),Q=[...P.slice(0,i+1),pn,...P.slice(i+3).map(q=>q.map((z,j)=>z+dl[j]))];
+ const{dot,cr,nz,rot}=mjV;let F={d:[1,0,0],u:[0,1,0],r:[0,0,1]};const out=[];
+ for(let k=0;k<Q.length-1;k++){const sg=Q[k+1].map((z,j)=>z-Q[k][j]),l=Math.hypot(...sg);if(l<1)return{bad:"斜めの長さが短すぎます"};const d1=F.d;let a=0,t=0;   // 今の向きは丸めた角度で曲げた後の本当の向き（ずれをためない）
+  if(k<Q.length-2){const d2=nz(Q[k+2].map((z,j)=>z-Q[k+1][j])),c=Math.max(-1,Math.min(1,dot(d1,d2)));a=Math.acos(c)*180/Math.PI;
+   if(a>0.3){const b=nz(d2.map((z,j)=>z-d1[j]*c));t=Math.atan2(dot(b,F.r),dot(b,F.u))*180/Math.PI;const sa=ANG.find(v=>Math.abs(v-a)<0.35);F=mjBend(F,sa!=null?sa:a,Math.round(t))}else a=0}
+  out.push({l,a,t})}
+ const N=[];for(let k=0;k<out.length;k++){const o=out[k],src=k<i?R[k]:k===i?null:R[k+1],ang=ANG.find(v=>Math.abs(v-o.a)<0.35);
+  if(k===out.length-1){N.push(k===i?{...R[i+1],l:Math.round(o.l)}:{...src});continue}
+  if(ang==null)return{bad:`${nm(k)} の曲げが ${Math.round(o.a)}° になるので、この形は斜めにできません（曲げられる角度にならない）`};
+  if(src&&k!==i-1&&src.a===ang&&(ang===0||Math.abs(((o.t-effT(k<i?k:k+1,R))%360+540)%360-180)<0.6)){N.push({...src});continue}   // 変わらない曲げはそのまま
+  N.push({l:k===i?Math.round(o.l):src.l,a:ang,t:normT(o.t),o:false})}
+ return{N,L:Math.round(Math.hypot(...pn.map((z,j)=>z-P[i][j]))),x,y}}
+function mjBtn(i){const R=LR();if(i!==sel||i<1||i>=R.length-1||!R[i].a||!(R[i].l>0)||!(R[i+1].l>0))return"";return`<button class="cv45 mj" data-mj="${i}" style="background:#2563eb">↗ ${nm(i)}と${nm(i+1)}を斜め1本に</button>`}
+function mjAsk(i){const R=LR(),U=ezU(),x0=R[i].l,y0=R[i+1].l;
+ const ov=sheetMsg(`<b style="font-size:17px">↗ ${nm(i)}と${nm(i+1)}を斜め1本にする</b>
+  <div style="display:flex;gap:10px;margin:8px 0"><label style="flex:1;font-weight:800">${nm(i)}の向きに<input id="mjX" inputmode="numeric" value="${x0}" style="width:100%;height:44px;font-size:19px;font-weight:800;text-align:center;border:2px solid #94a3b8;border-radius:10px"></label><label style="flex:1;font-weight:800">${nm(i+1)}の向きに<input id="mjY" inputmode="numeric" value="${y0}" style="width:100%;height:44px;font-size:19px;font-weight:800;text-align:center;border:2px solid #94a3b8;border-radius:10px"></label></div>
+  <div id="mjR" style="font-size:15px"></div><div style="font-size:12.5px;color:#64748b;margin-top:4px">そのあとの配管は同じ向きのまま（寸法を変えた分だけずれる）。曲げの向き（回す角度）は自動で直します</div>`,[["↗ 斜め1本にする",()=>{const q=mjPlan(i,+ov.querySelector("#mjX").value||0,+ov.querySelector("#mjY").value||0);if(!q||q.bad){toast(q?q.bad:"できません");return}
+   R.splice(0,R.length,...q.N);sel=i;save();render();if(T){build3D();T.dirty=true}toast(`${nm(i)}を斜め ${fmt(q.L)}${U} にしました（↩️で元に戻せます）`)},"#2563eb","#fff"],["やめる",null]]);
+ const up=()=>{const q=mjPlan(i,uParse(ov.querySelector("#mjX").value)||0,uParse(ov.querySelector("#mjY").value)||0),e=ov.querySelector("#mjR");if(!q){e.textContent="";return}if(q.bad){e.innerHTML=`<b style="color:#c2410c">⚠️ ${q.bad}</b>`;return}
+  const N=q.N,ln=k=>`<div>${nm(k)}　<b>${fmt(N[k].l)}${U}</b>${N[k].a&&k<N.length-1?`　曲げ ${N[k].a}°・向き <b style="color:#dc2626">${dirName(N[k].t)}</b>`:""}</div>`;
+  e.innerHTML=`<div style="font-size:16px">斜め <b style="font-size:22px;color:#dc2626">${fmt(q.L)}${U}</b>（${nm(i)}${fmt(q.x)}・${nm(i+1)}${fmt(q.y)}）</div>`+ln(i-1)+ln(i)+(N[i+1]?ln(i+1):"")};
+ ov.querySelectorAll("input").forEach(e=>{e.oninput=up;e.onfocus=()=>e.select()});up()}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".mj");if(!b)return;e.stopPropagation();e.preventDefault();mjAsk(+b.dataset.mj)},true);
 function ofsInf(i){const R=LR(),p=R[i-1],r=R[i];if(!p||!(p.a>0&&p.a<90)||(r.o&&r.a))return"";const th=p.a*Math.PI/180;return`<span>${RI("ofs")}差（高さ）<b>${fmt(r.l*Math.sin(th))}</b></span><span>進み<b>${fmt(r.l*Math.cos(th))}</b></span>`}
 function ezUpd(){
  if(APP!=="bend")return;

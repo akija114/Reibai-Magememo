@@ -224,6 +224,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 <div id="sheetRoot"></div>
 
 <iframe id="v3dF" title="読み取り" aria-hidden="true" tabindex="-1" style="position:fixed;left:-10000px;top:0;width:390px;height:700px;border:0;visibility:hidden"></iframe>
+<script src="../jwc.js?v=1"></script>
 <script type="application/octet-stream" id="sample">__SAMPLE__</script>
 <script>
 "use strict";
@@ -3332,6 +3333,8 @@ async function readUpload(file){
   if (buf[0] === 0x50 && buf[1] === 0x4B){ const r = await unzipDxf(buf); if (!r) throw new Error('ZIPの中にDXFがありません'); return r; }
   if (/^AutoCAD Binary DXF/.test(String.fromCharCode(...buf.slice(0, 18)))) throw new Error('バイナリDXFは未対応です（テキスト形式で保存してください）');
   if (buf[0] === 0x41 && buf[1] === 0x43 && buf[2] === 0x31) throw new Error('DWGは開けません。CADでDXFに書き出してください');
+  if (window.isJwc && isJwc(buf)){ const r = jwcToDxf(buf); if (!r.ok) setTimeout(() => toast('Jw_cad の図面：縮尺が分からなかったので、寸法を1本測って確かめてください'), 1500); return {text:r.dxf, name:file.name.replace(/\.jwc$/i, '')}; }   /* Jw_cad の昔の図面（.jwc）はDXFにしてから読む（2026-11-04 ユーザー） */
+  if (/^JwwData/.test(String.fromCharCode(...buf.slice(0, 7)))) throw new Error('新しい形の Jw_cad（.jww）はまだ開けません。Jw_cad で DXF に保存してください');
   return {text:decodeBytes(buf), name:file.name};
 }
 $('#fileIn').onchange = async e => {

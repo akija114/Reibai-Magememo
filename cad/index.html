@@ -3921,7 +3921,7 @@ async function mageRead(){
       穴＝下でない端（2階・1階の壁の穴）。異形＝細いダクトが太い所に合流する所の手前 ofs mm。サイズ・手前の長さは 3D の上の欄で直せる（zumen-elevsd） */
 function elevRGB(ck){ try { if (ck[0] === '#'){ const v = parseInt(ck.slice(1), 16); return [(v>>16)&255, (v>>8)&255, v&255]; } return aciRGB(+ck.slice(1)) || [0, 0, 0]; } catch(e){ return [0, 0, 0]; } }
 const elevPink = l => { const [r, g, b] = elevRGB(l.ck); return r > 150 && b > 120 && g < 110 || /ピンク/.test(l.name); };
-function elevSD(){ try { return {s:77, b:100, ofs:300, ...JSON.parse(localStorage.getItem('zumen-elevsd') || '{}')}; } catch(e){ return {s:77, b:100, ofs:300}; } }
+function elevSD(){ try { return {s:77, b:100, ofs:300, gap:30, ...JSON.parse(localStorage.getItem('zumen-elevsd') || '{}')}; } catch(e){ return {s:77, b:100, ofs:300}; } }
 function elevTexts(){ const u = unitMM(), T = []; G.L.forEach((l, li) => { if (l.deleted) return; for (const t of G.textsBy[li] || []) T.push({s:t.lines.join(' ').trim(), x:t.x*u, y:t.y*u, h:t.h*u}); }); return T; }
 function elevIs(){ if (!G) return false; const T = elevTexts(); return T.filter(t => /^(東|西|南|北)立面図$/.test(t.s)).length >= 2 && T.some(t => /^▽\s*1FL/.test(t.s)); }
 function elevAna(){
@@ -4064,6 +4064,74 @@ function elevBuild2(TH, A, gW, gU, gP){ const glass = new TH.MeshStandardMateria
     for (const s of E.drains){ const r = Math.max(14, Math.min(30, s.w/2)), p = new TH.Vector3(...elevMap(f, A, s.a[0], s.a[1], 60)), q = new TH.Vector3(...elevMap(f, A, s.b[0], s.b[1], 60)), L = p.distanceTo(q); if (L < 50) continue;
       const m = new TH.Mesh(new TH.CylinderGeometry(r, r, L, 12), drM); m.position.copy(p).add(q).multiplyScalar(.5); m.quaternion.setFromUnitVectors(new TH.Vector3(0, 1, 0), q.clone().sub(p).normalize()); gP.add(m); n.drain++; } }
   return n; }
+/* 🧩 スリムダクトを部品で読む（2026-11-04 ユーザー：頭・L・T・ジョイント・45°も、品番ごとに数を拾う。直管は2m・間にジョイント）
+   ピンクの線を 0°・45°・90°・135° の4つの向きに分け、同じ線の上のかけらをつなぎ、平行な2本（図の幅 16〜95mm）を1本のダクトに。
+   同じ向きで続くダクトはつなぐ（幅がちがえば異径）。端どうしが会う所＝L（90°＝SK 平面90°・45°＝SKF 平面45°）、3本以上・途中に当たる所＝T（ST）、
+   空いた端：たてのダクトの下の端＝端末カバー（SE・室外機の所）、ほか＝頭（SW ウォールコーナー・壁の穴）。太さは図の幅（細いのより 17% 以上太い＝太い方）、
+   幅が同じ図面は上の頭の数（2つ以上＝太い方）。座標はその面の左下（1FL）から mm。 */
+const SLIM_P = {SD:'スリムダクト 2m', SJ:'スリムジョイント', SW:'ウォールコーナー（頭）', SK:'コーナー平面90°（L）', SKF:'コーナー平面45°', ST:'T型ジョイント', SDR:'異径ジョイント', SJA:'分岐ジョイント（うしろの穴から）', SE:'端末カバー'};
+const SLIM_C = {SD:0xe11d9a, SJ:0xfafafa, SW:0x2563eb, SK:0xf97316, SKF:0xf59e0b, ST:0x16a34a, SDR:0xfacc15, SJA:0x0d9488, SE:0x7c3aed};
+function elevSlim(f, A){
+  const u = A.u, K = A.K, sg = G.segs, mg = (f.yT - f.y1)*0.35, DV = {0:[1, 0], 45:[Math.SQRT1_2, Math.SQRT1_2], 90:[0, 1], 135:[-Math.SQRT1_2, Math.SQRT1_2]}, B = {0:[], 45:[], 90:[], 135:[]};
+  for (let i = 0; i < sg.length; i += SS){ const l = G.L[sg[i+4]]; if (!l || l.deleted || !l.on || !elevPink(l)) continue; const x1 = sg[i]*u, y1 = sg[i+1]*u, x2 = sg[i+2]*u, y2 = sg[i+3]*u;
+    if (Math.max(x1, x2) < f.x0 - 300/K || Math.min(x1, x2) > f.x1 + 300/K || Math.max(y1, y2) < f.y1 - mg || Math.min(y1, y2) > f.yT + 300/K) continue;
+    const X1 = (x1 - f.x0)*K, Y1 = (y1 - f.y1)*K, X2 = (x2 - f.x0)*K, Y2 = (y2 - f.y1)*K, L = Math.hypot(X2 - X1, Y2 - Y1); if (L < 6) continue;
+    let an = Math.atan2(Y2 - Y1, X2 - X1)*180/Math.PI; an = ((an % 180) + 180) % 180; let bk = null; for (const b of [0, 45, 90, 135, 180]) if (Math.abs(an - b) < 4) bk = b % 180; if (bk == null) continue;
+    const d = DV[bk], n = [-d[1], d[0]], off = (X1 + X2)/2*n[0] + (Y1 + Y2)/2*n[1], ta = X1*d[0] + Y1*d[1], tb = X2*d[0] + Y2*d[1]; B[bk].push({off, t0:Math.min(ta, tb), t1:Math.max(ta, tb)}); }
+  const segs = [];
+  for (const bk of [0, 45, 90, 135]){ const L0 = B[bk].sort((p, q) => p.off - q.off || p.t0 - q.t0), M = [];
+    for (const s of L0){ const o = M.find(q => Math.abs(q.off - s.off) < 1.2 && s.t0 <= q.t1 + 12 && s.t1 >= q.t0 - 12); if (o){ o.t0 = Math.min(o.t0, s.t0); o.t1 = Math.max(o.t1, s.t1); } else M.push({...s, use:[]}); }
+    /* 点線（芯の一点鎖線など）：同じ芯の上に短いかけら（160mm 未満）が4つ以上並ぶ物は使わない */
+    { const g = new Map(); for (const m of M){ const k = Math.round(m.off/2); (g.get(k) || g.set(k, []).get(k)).push(m); } for (const a of g.values()){ const ls = a.map(m => m.t1 - m.t0).sort((x, y) => x - y); if (a.length >= 4 && ls[a.length >> 1] < 160) a.forEach(m => m.dash = 1); } }
+    for (let i = M.length - 1; i >= 0; i--) if (M[i].dash) M.splice(i, 1);
+    M.sort((p, q) => p.off - q.off); const C = [];
+    for (let i = 0; i < M.length; i++) for (let j = i + 1; j < M.length; j++){ const dd = M[j].off - M[i].off; if (dd < 55) continue; if (dd > 165) break; const lo = Math.max(M[i].t0, M[j].t0), hi = Math.min(M[i].t1, M[j].t1), ov = hi - lo;
+      if (ov < Math.max(25, 0.9*dd) || ov < 0.5*Math.min(M[i].t1 - M[i].t0, M[j].t1 - M[j].t0)) continue; C.push({dd, i, j, lo, hi, sc:Math.min(Math.abs(dd - 77), Math.abs(dd - 100), Math.abs(dd - 140)) - ov/1e5}); }
+    C.sort((p, q) => p.sc - q.sc); const free = (m, lo, hi) => !m.use.some(r => Math.min(hi, r[1]) - Math.max(lo, r[0]) > 0.3*(hi - lo));
+    const d = DV[bk], n = [-d[1], d[0]];
+    for (const c of C){ const a = M[c.i], b = M[c.j]; if (!free(a, c.lo, c.hi) || !free(b, c.lo, c.hi)) continue; a.use.push([c.lo, c.hi]); b.use.push([c.lo, c.hi]); const o = (a.off + b.off)/2;
+      segs.push({bk, o, t0:c.lo, t1:c.hi, w:c.dd, d, n}); } }
+  /* 短い組（頭の箱・記号）と、同じ所に重なる組（3本並んだ線）は使わない */
+  for (let i = segs.length - 1; i >= 0; i--){ const s = segs[i], L = s.t1 - s.t0; if (L < 80 || L < 0.9*s.w){ segs.splice(i, 1); continue; } if (segs.some(q => q !== s && q.bk === s.bk && Math.abs(q.o - s.o) < 0.6*Math.max(q.w, s.w) && Math.min(q.t1, s.t1) - Math.max(q.t0, s.t0) > 0.6*L && (q.t1 - q.t0 > L || (q.t1 - q.t0 === L && segs.indexOf(q) < i)))) segs.splice(i, 1); }
+  // 同じ向き・同じ芯で続く物をつなぐ（すき間 幅×2.5 まで・芯が12mm以内なら 850mm まで＝T や異径の箱をはさむ）。幅の変わり目は印 sw に
+  const P = (s, t) => [s.d[0]*t + s.n[0]*s.o, s.d[1]*t + s.n[1]*s.o];
+  let ch = true; while (ch){ ch = false; for (let i = 0; i < segs.length && !ch; i++) for (let j = 0; j < segs.length && !ch; j++){ if (i === j) continue; const a = segs[i], b = segs[j]; if (a.bk !== b.bk || Math.abs(a.o - b.o) > 0.35*Math.max(a.w, b.w)) continue;
+    const gap = b.t0 - a.t1; if (gap < -Math.min(a.w, b.w) || gap > (Math.abs(a.o - b.o) < 12 ? 850 : Math.max(2.5*Math.max(a.w, b.w), 60))) continue;
+    const ch2 = (a.ch || [[a.t0, a.t1, a.w]]).concat(b.ch || [[b.t0, b.t1, b.w]]); a.t1 = Math.max(a.t1, b.t1); a.ch = ch2; a.w = Math.max(a.w, b.w); segs.splice(j, 1); ch = true; } }
+  // 細い・太い：長い（300mm 以上）ダクトの図の幅
+  /* 頭の箱：ダクトの端のすぐ所にある、向きのちがう短い組（長さ 2.2×幅 か 250mm まで）は使わない */
+  for (let i = segs.length - 1; i >= 0; i--){ const s = segs[i], L = s.t1 - s.t0; if (L > Math.max(2.2*s.w, 250)) continue; const m = P(s, (s.t0 + s.t1)/2);
+    if (segs.some(q => q !== s && q.bk !== s.bk && q.t1 - q.t0 > L && [P(q, q.t0), P(q, q.t1)].some(e => Math.hypot(e[0] - m[0], e[1] - m[1]) < Math.max(q.w, s.w)*(q.w > 120 ? 2.5 : 0.9) + 20))) segs.splice(i, 1); }
+  /* 太さ：図の幅にいちばん近い 77・100・140 */
+  const SZ = [77, 100, 140], near = w => SZ.reduce((b, z) => Math.abs(z - w) < Math.abs(b - w) ? z : b, 77);
+  // 太さの変わる所で分ける（短い箱の所は前後と同じにする）
+  const out = []; for (const s of segs){ const pcs = (s.ch || [[s.t0, s.t1, s.w]]).sort((p, q) => p[0] - q[0]); let cur = null;
+    for (const c of pcs){ const sz = c[1] - c[0] > 120 ? near(c[2]) : null; if (!cur){ cur = {...s, t0:c[0], t1:c[1], sz, ch:null}; continue; } if (sz == null || cur.sz == null || sz === cur.sz){ cur.t1 = Math.max(cur.t1, c[1]); if (cur.sz == null) cur.sz = sz; continue; } out.push(cur); cur = {...s, t0:cur.t1, t1:c[1], sz, ch:null, sdr:cur.sz}; }
+    if (cur) out.push(cur); }
+  out.forEach(s => { if (s.sz == null) s.sz = near(s.w); s.a = P(s, s.t0); s.b = P(s, s.t1); s.L = s.t1 - s.t0; });
+  // 端のつながり
+  const E = []; out.forEach((s, i) => { E.push({i, e:'a', p:s.a}); E.push({i, e:'b', p:s.b}); });
+  const nodes = [], used = new Set(), mx = mem => Math.max(...mem.map(i => out[i].sz));
+  for (const e of E){ if (used.has(e)) continue; const cl = [e]; for (const q of E){ if (q === e || used.has(q) || q.i === e.i) continue; const a = out[e.i], b = out[q.i], dist = Math.hypot(q.p[0] - e.p[0], q.p[1] - e.p[1]);
+      /* 向きがちがう端は角で会う（幅くらいまで）・同じ向きは同じ芯の上だけ（となりに並ぶダクトとはつながない） */
+      if (a.bk !== b.bk ? dist < Math.max(a.w, b.w)*(Math.abs(a.bk - b.bk) % 90 ? 2.0 : 1.25) + 20 : (Math.abs(a.o - b.o) < 0.35*Math.max(a.w, b.w) && dist < Math.max(a.w, b.w)*2.5 + 30)) cl.push(q); }
+    // 端が別のダクトの途中に当たる
+    let mid = null; if (cl.length === 1) for (let j = 0; j < out.length; j++){ if (j === e.i) continue; const s = out[j], t = (e.p[0] - s.n[0]*s.o)*s.d[0] + (e.p[1] - s.n[1]*s.o)*s.d[1], dp = Math.abs(e.p[0]*s.n[0] + e.p[1]*s.n[1] - s.o); if (s.bk !== out[e.i].bk && t > s.t0 + s.w*0.5 && t < s.t1 - s.w*0.5 && dp < s.w*0.5 + out[e.i].w*0.9 + 30){ mid = {j, t}; break; } }
+    if (cl.length === 1 && !mid) continue; cl.forEach(q => used.add(q));
+    const p = cl.reduce((m, q) => [m[0] + q.p[0]/cl.length, m[1] + q.p[1]/cl.length], [0, 0]), mem = cl.map(q => q.i).concat(mid ? [mid.j] : []);
+    let k, z2; if (mid || cl.length >= 3) k = 'ST'; else { const a = out[cl[0].i], b = out[cl[1].i], da = Math.abs(a.bk - b.bk) % 180, dd = Math.min(da, 180 - da); k = dd === 0 ? (a.sz !== b.sz ? 'SDR' : 'SJ') : dd === 90 ? 'SK' : 'SKF'; if (k === 'SDR') z2 = Math.min(a.sz, b.sz); }
+    nodes.push({k, p: mid ? P(out[mid.j], mid.t) : p, mem, sz:mx(mem), sz2:z2, ends:cl}); }
+  for (const s of out) if (s.sdr){ if (!nodes.some(nd => nd.k === 'SDR' && Math.hypot(nd.p[0] - s.a[0], nd.p[1] - s.a[1]) < 60)) nodes.push({k:'SDR', p:s.a, mem:[out.indexOf(s)], sz:Math.max(s.sz, s.sdr), sz2:Math.min(s.sz, s.sdr)});
+    /* 太くなる所に横から入るダクトが無い＝うしろの壁の穴から入る（分岐ジョイント SJA・その所に穴） */
+    if (!nodes.some(nd => nd.k === 'ST' && Math.hypot(nd.p[0] - s.a[0], nd.p[1] - s.a[1]) < 450)) nodes.push({k:'SJA', p:s.a, mem:[out.indexOf(s)], sz:Math.max(s.sz, s.sdr), hole:true}); }
+  // 空いた端：たての下の端＝端末カバー、ほか＝頭
+  for (const e of E){ if (used.has(e)) continue; const s = out[e.i], low = s.bk === 90 && e.p[1] <= Math.min(s.a[1], s.b[1]) + 1; nodes.push({k: low ? 'SE' : 'SW', p:e.p, mem:[e.i], sz:s.sz, end:e, hole: !low}); }
+  return {segs:out, nodes};
+}
+/* 数を拾う：直管は 2m（すき間 gap）で割って SD と SJ。部品は太さごと */
+function slimCount(R, SD){ const c = {}, add = (key, n) => { c[key] = (c[key] || 0) + n; };
+  for (const s of R.segs){ if (s.L < 150) continue; const n = Math.ceil((s.L + SD.gap)/(2000 + SD.gap)); add('SD-' + s.sz, n); if (n > 1) add('SJ-' + s.sz, n - 1); }
+  for (const nd of R.nodes) add(nd.k + '-' + nd.sz + (nd.sz2 ? '-' + nd.sz2 : ''), 1); return c; }
 async function open3DElev(){
   let TH; try { TH = await loadThree(); } catch(e){ toast(e.message); return; }
   $('#v3d').hidden = false; const box = $('#v3dS');
@@ -4100,28 +4168,34 @@ async function open3DElev(){
       const sp = v3dLabel(TH, (L >= 100 ? Math.round(L) : Math.round(L*10)/10).toLocaleString(), p.clone().add(q).multiplyScalar(.5).add(new TH.Vector3(0, 90, 0))); gL.add(sp); nd++; }
     A.nDim = nd; }
   // スリムダクト・穴・異形
-  const pm = new TH.MeshStandardMaterial({color:0xe11d9a, roughness:.5}), pm2 = new TH.MeshStandardMaterial({color:0xf472b6, roughness:.5}), hm = new TH.MeshStandardMaterial({color:0xea580c}), rm = new TH.MeshStandardMaterial({color:0xfacc15});
-  let nH = 0, nR = 0; const LB = [], HL = [], seg3 = (f, a, b, w) => { const d = w*0.75, p = elevMap(f, A, a[0], a[1], d/2 + 10), q = elevMap(f, A, b[0], b[1], d/2 + 10), P = new TH.Vector3(...p), Q = new TH.Vector3(...q), L = P.distanceTo(Q); if (L < 1) return;
-    const vert = Math.abs(p[1] - q[1]) > Math.abs(p[0] - q[0]) + Math.abs(p[2] - q[2]), alongX = f.dir === '南' || f.dir === '北', gx = vert ? w : L, gy = vert ? L : w, m = new TH.Mesh(new TH.BoxGeometry(alongX ? gx : d, gy, alongX ? d : gx), w >= SD.b ? pm : pm2);
-    if (!vert && !alongX){ m.geometry = new TH.BoxGeometry(d, gy, gx); } m.position.copy(P).add(Q).multiplyScalar(.5); gP.add(m); };
-  for (const f of A.faces){ const D = elevDucts(f, A), N = elevNet(D, A, f);
-    D.forEach((s, i) => { const n = N.cnt.get(i) || 0, w = n >= 2 ? SD.b : SD.s, p = N.par.get(i), up = p >= 0 ? (N.cnt.get(p) || 0) : n;
-      // 細い所から太い所へ合流する手前 ofs mm を太く（異形）
-      if (n < 2 && up >= 2 && p >= 0){ const P = D[p], jn = ['a', 'b'].map(e => s[e]).sort((x, y) => Math.hypot(x[0] - (P.a[0] + P.b[0])/2, x[1] - (P.a[1] + P.b[1])/2) - Math.hypot(y[0] - (P.a[0] + P.b[0])/2, y[1] - (P.a[1] + P.b[1])/2))[0], far = jn === s.a ? s.b : s.a, L = Math.hypot(far[0] - jn[0], far[1] - jn[1]), o = Math.min(SD.ofs/A.K, L*0.8), sp = [jn[0] + (far[0] - jn[0])*o/L, jn[1] + (far[1] - jn[1])*o/L];
-        seg3(f, far, sp, SD.s); seg3(f, sp, jn, SD.b); const rp = new TH.Vector3(...elevMap(f, A, sp[0], sp[1], SD.b*0.4 + 10)), ring = new TH.Mesh(new TH.TorusGeometry(SD.b*0.75, 18, 8, 20), rm); ring.position.copy(rp); ring.lookAt(rp.clone().add(new TH.Vector3(...(Math.abs(far[1] - jn[1]) > Math.abs(far[0] - jn[0]) ? [0, 1, 0] : (f.dir === '南' || f.dir === '北') ? [1, 0, 0] : [0, 0, 1])))); gP.add(ring); nR++;
-        LB.push([`異形`, rp.clone().add(new TH.Vector3(0, 220, 0))]); return; }
-      seg3(f, s.a, s.b, w); });
-    for (const h of N.holes){ nH++; const p = elevMap(f, A, h.p[0], h.p[1], 4), m = new TH.Mesh(new TH.TorusGeometry(70, 20, 8, 20), hm); m.position.set(...p); if (f.dir === '東' || f.dir === '西') m.rotation.y = Math.PI/2; gP.add(m);
-      const fl = (h.p[1] - f.y1)*A.K, lf = (h.p[0] - f.x0)/(f.x1 - f.x0)*f.w, n = N.cnt.get(h.i) || 0; HL.push({n:nH, dir:f.dir, fl, lf, w:SD.s}); LB.push([`穴${nH}`, new TH.Vector3(p[0], p[1] + 200, p[2])]); } }
+  // スリムダクト：部品の模型（色＝部品の種類）・穴・数（elevSlim・slimCount）
+  let nH = 0, nR = 0; const LB = [], HL = [], CNT = {}, MAT = {}, mat = k => MAT[k] || (MAT[k] = new TH.MeshStandardMaterial({color:SLIM_C[k] || 0x999999, roughness:.5})), hm = new TH.MeshStandardMaterial({color:0xea580c});
+  const fm = (f, X, Y, off) => new TH.Vector3(...elevMap(f, A, f.x0 + X/A.K, f.y1 + Y/A.K, off));
+  /* 面の上の向き dir（3D）に長さ L・幅 w・壁から出る dep の箱 */
+  const sbox = (f, X, Y, dx, dy, L, w, dep, k, out) => { const c = fm(f, X, Y, (out || 0) + dep/2 + 8), e = fm(f, X + dx, Y + dy, (out || 0) + dep/2 + 8).sub(c).normalize(), nz = fm(f, X, Y, 1).sub(fm(f, X, Y, 0)).normalize(), py = new TH.Vector3().crossVectors(nz, e).normalize();
+    const m = new TH.Mesh(new TH.BoxGeometry(L, w, dep), mat(k)); m.quaternion.setFromRotationMatrix(new TH.Matrix4().makeBasis(e, py, nz)); m.position.copy(c); gP.add(m); return m; };
+  for (const f of A.faces){ let R; try { R = elevSlim(f, A); } catch(er){ console.warn('slim', er); continue; } const c = slimCount(R, SD); for (const k in c) CNT[k] = (CNT[k] || 0) + c[k];
+    for (const s of R.segs){ const dx = s.d[0], dy = s.d[1], dep = s.sz*0.85, step = 2000 + SD.gap, n = s.L < 150 ? 0 : Math.ceil((s.L + SD.gap)/step);
+      if (!n){ sbox(f, (s.a[0] + s.b[0])/2, (s.a[1] + s.b[1])/2, dx, dy, Math.max(20, s.L), s.sz, dep, 'SD'); continue; }
+      for (let i = 0; i < n; i++){ const t0 = i*step, t1 = Math.min(s.L, t0 + 2000); if (t1 <= t0) break; const tm = (t0 + t1)/2; sbox(f, s.a[0] + dx*tm, s.a[1] + dy*tm, dx, dy, t1 - t0, s.sz, dep, 'SD');
+        if (i < n - 1){ const tj = t1 + SD.gap/2; sbox(f, s.a[0] + dx*tj, s.a[1] + dy*tj, dx, dy, 110, s.sz*1.12, dep*1.12, 'SJ'); } } }
+    for (const nd of R.nodes){ const s0 = R.segs[nd.mem[0]], z = nd.sz, dx = s0.d[0], dy = s0.d[1];
+      if (nd.k === 'SJ' || nd.k === 'SDR'){ sbox(f, nd.p[0], nd.p[1], dx, dy, 140, z*1.14, z*0.97, nd.k); if (nd.k === 'SDR'){ nR++; LB.push([`異径 ${nd.sz}-${nd.sz2}`, fm(f, nd.p[0], nd.p[1], z + 60).add(new TH.Vector3(0, 160, 0))]); } continue; }
+      if (nd.k === 'SW' || nd.k === 'SJA'){ sbox(f, nd.p[0], nd.p[1], dx, dy, z*1.5, z*1.3, z*1.15, nd.k, -6);   // 頭・分岐：壁から出る所
+        nH++; const p = fm(f, nd.p[0], nd.p[1], 4), m = new TH.Mesh(new TH.TorusGeometry(z*0.75, 16, 8, 20), hm); m.position.copy(p); if (f.dir === '東' || f.dir === '西') m.rotation.y = Math.PI/2; gP.add(m);
+        const fl = nd.p[1], lf = nd.p[0]*f.w/((f.x1 - f.x0)*A.K); HL.push({n:nH, dir:f.dir, fl, lf, k:nd.k, sz:z}); LB.push([`穴${nH}`, p.clone().add(new TH.Vector3(0, z + 160, 0))]); continue; }
+      sbox(f, nd.p[0], nd.p[1], dx, dy, z*1.45, z*1.45, z*1.05, nd.k); } }
   for (const [t, at] of LB) gP.add(v3dLabel(TH, t, at));
   let N2 = {win:0, door:0, gdoor:0, units:0, rack:0, drain:0}; try { N2 = elevBuild2(TH, A, gW, gU, gP); } catch(er){ console.warn('elev2', er); }
   for (const b of document.querySelectorAll('#v3dT [data-t3]')) b.hidden = !/^(wall|pipe|plan|unit)$/.test(b.dataset.t3); { const b = document.querySelector('#v3dT [data-t3="pipe"]'); if (b) b.textContent = 'スリムダクト'; }
   { let e = $('#elevSD'); if (!e){ e = document.createElement('div'); e.id = 'elevSD'; e.style.cssText = 'display:flex;gap:6px;align-items:center;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);font-size:13px;flex-wrap:wrap'; $('#v3dT').after(e); }
-    e.hidden = false; e.innerHTML = `スリムダクト：1本 <input data-k="s" value="${SD.s}" inputmode="numeric" style="width:52px;height:30px">　2本から <input data-k="b" value="${SD.b}" inputmode="numeric" style="width:52px;height:30px">　異形は合流の <input data-k="ofs" value="${SD.ofs}" inputmode="numeric" style="width:56px;height:30px"> mm 手前`;
+    e.hidden = false; const KS = ['SD', 'SJ', 'SW', 'SK', 'SKF', 'ST', 'SDR', 'SJA', 'SE'], tot = k => Object.keys(CNT).filter(q => q.split('-')[0] === k).reduce((a, q) => a + CNT[q], 0);
+    e.innerHTML = `スリムダクト 直管2m・すき間 <input data-k="gap" value="${SD.gap}" inputmode="numeric" style="width:46px;height:30px">mm <button class="btn" data-cnt style="height:30px;padding:0 10px;font-weight:800">🧾 部品の数</button><div style="flex-basis:100%;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px">${KS.filter(k => tot(k)).map(k => `<span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;background:#${SLIM_C[k].toString(16).padStart(6, '0')};border:1px solid #9ca3af"></i> ${k} ${tot(k)}</span>`).join('')}</div>`;
+    e.querySelector('[data-cnt]').onclick = () => { openSheet('スリムダクトの部品の数', body => { const rows = Object.keys(CNT).sort((a, b) => KS.indexOf(a.split('-')[0]) - KS.indexOf(b.split('-')[0]) || a.localeCompare(b)); body.innerHTML = '<div class="note">外壁の図から読んだ目安です。直管は2m（間にジョイント）で数えています。品番は因幡電工 スリムダクトSD の形（色・メーカーで品番の後ろが変わります）。</div>' + rows.map(q => { const k = q.split('-')[0], sz = q.slice(k.length + 1); return `<div class="row" style="justify-content:space-between;gap:8px"><span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;background:#${SLIM_C[k].toString(16).padStart(6, '0')};border:1px solid #9ca3af"></i> <b>${k}-${sz}</b> ${esc(SLIM_P[k] || '')}</span><b>${CNT[q]}</b></div>`; }).join('') + `<div class="row" style="justify-content:space-between"><b>穴（壁の貫通）</b><b>${HL.length}</b></div>`; }); $('#sheetRoot').querySelectorAll('.sheet,.back').forEach(x => { x.style.zIndex = x.classList.contains('back') ? 74 : 75; }); };
     e.onchange = ev => { const k = ev.target.dataset.k, v = +ev.target.value; if (!k || !(v > 0)) return; const o = elevSD(); o[k] = v; try { localStorage.setItem('zumen-elevsd', JSON.stringify(o)); } catch(er){} open3DElev(); }; }
   V3.elevHL = HL; { const e = $('#elevSD'); const b = document.createElement('button'); b.className = 'btn'; b.style.cssText = 'height:30px;padding:0 10px'; b.textContent = '📋 穴の一覧（' + HL.length + '）'; b.onclick = () => { openSheet('スリムダクトの穴', body => { const g = {}; HL.forEach(h => (g[h.dir] = g[h.dir] || []).push(h)); body.innerHTML = '<div class="note">高さは1FLから・横はその面を外から見て左の角から（mm・図面から読んだ目安）。</div>' + Object.keys(g).map(d => `<div class="ghead" style="margin-top:10px"><b>${d}の面</b><span class="ct">${g[d].length}</span></div>` + g[d].map(h => `<div class="row" style="justify-content:space-between"><b>穴${h.n}</b><span>FL+${Math.round(h.fl).toLocaleString()}・左の角から ${Math.round(h.lf).toLocaleString()}</span></div>`).join('')).join(''); }); $('#sheetRoot').querySelectorAll('.sheet,.back').forEach(x => { x.style.zIndex = x.classList.contains('back') ? 74 : 75; }); }; e.appendChild(b); }   /* 3D の上に出す */
   const bb = new TH.Box3(new TH.Vector3(-W/2, 0, -Dp/2), new TH.Vector3(W/2, H, Dp/2)); V3.sc = sc; V3.bb = bb; V3.TH = TH; V3.ana = null; V3.elev = A;
-  $('#v3dN').textContent = `外壁の図（立面図）から：家 ${Math.round(W)}×${Math.round(Dp)}・高さ ${Math.round(H)}（${A.faces.map(f => f.dir).join('・')}の面）・スリムダクトの穴 ${nH}・異形 ${nR}・窓 ${N2.win}・扉 ${N2.door}・自動ドア ${N2.gdoor}・室外機 ${N2.units}（架台 ${N2.rack}）・ドレン ${N2.drain}${A.nDim ? `・測った寸法 ${A.nDim}` : ''}。` + (Math.abs(A.K - 1) > 0.05 ? `図面の「1階の高さ」の寸法から縮尺を直して読みました（×${A.K.toFixed(2)}）。` : '') + '1本指で回す・2本指で動かす／ひろげる';
+  $('#v3dN').textContent = `外壁の図（立面図）から：家 ${Math.round(W)}×${Math.round(Dp)}・高さ ${Math.round(H)}（${A.faces.map(f => f.dir).join('・')}の面）・スリムダクトの穴 ${nH}・異径 ${nR}・窓 ${N2.win}・扉 ${N2.door}・自動ドア ${N2.gdoor}・室外機 ${N2.units}（架台 ${N2.rack}）・ドレン ${N2.drain}${A.nDim ? `・測った寸法 ${A.nDim}` : ''}。` + (Math.abs(A.K - 1) > 0.05 ? `図面の「1階の高さ」の寸法から縮尺を直して読みました（×${A.K.toFixed(2)}）。` : '') + '1本指で回す・2本指で動かす／ひろげる';
   v3dView('iso');
 }
 async function open3D(){

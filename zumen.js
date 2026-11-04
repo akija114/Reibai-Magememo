@@ -46,7 +46,7 @@ function openDraw(){
   ov.style.cssText="position:fixed;inset:0;z-index:80;background:#0f172a;display:flex;flex-direction:column;color:#fff;font-family:-apple-system,'Hiragino Sans',sans-serif";
   const bt=(id,t,st2)=>`<button id="${id}" style="height:40px;padding:0 10px;border-radius:12px;font-weight:800;font-size:13px;background:#ffffffee;color:#0f172a;flex:none;${st2||""}">${t}</button>`;
   ov.innerHTML=`<div style="display:flex;gap:6px;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 8px) 8px 6px;overflow-x:auto">
-   <label style="height:40px;padding:0 12px;border-radius:12px;font-weight:800;font-size:13px;background:#2563eb;display:flex;align-items:center;flex:none">📄 図面を開く<input id="plFile" type="file" accept="application/pdf,image/*,.dxf,application/dxf,image/vnd.dxf,application/octet-stream" style="display:none"></label>
+   <label style="height:40px;padding:0 12px;border-radius:12px;font-weight:800;font-size:13px;background:#2563eb;display:flex;align-items:center;flex:none">📄 図面を開く<input id="plFile" type="file" accept="application/pdf,image/*,.dxf,.jwc,application/dxf,image/vnd.dxf,application/octet-stream" style="display:none"></label>
    ${bt("plPrev","◀")}<span id="plPg" style="font-size:13px;flex:none"></span>${bt("plNext","▶")}${bt("plJoin","🧩 つなぐ","display:none")}<span style="flex:1"></span>${bt("plHelp","❓ 使い方","background:#fbbf24")}${bt("plClose","✕ 閉じる")}</div>
    <div id="plSteps" style="display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 8px 6px;flex:none"></div>
    <div id="plInfo" style="padding:0 10px 4px;font-size:12px;line-height:1.4;color:#cbd5e1;max-height:2.9em;overflow:hidden;flex:none"></div>
@@ -781,6 +781,8 @@ function cadxDraw(){const P=PLAN;if(!T||!T.grp||!CADX||!P||!P.dxf||!P.org||CADX.
  T.dirty=true}
 async function planLoad(f,resume){
  try{try{$("#plJoin").style.display="none"}catch(e){}
+  {const h=new Uint8Array(await f.slice(0,20).arrayBuffer());if(window.isJwc&&isJwc(h)){f=await jwcFile(f);if(!f.jwc.ok)setTimeout(()=>toast("Jw_cad の図面：縮尺が分からなかったので、寸法を1本測って確かめてください"),2500)}   // Jw_cad の昔の図面（.jwc）はDXFにしてから読む（2026-11-04 ユーザー）
+   else if(/^JwwData/.test(String.fromCharCode(...h.slice(0,7)))){toast("新しい形の Jw_cad（.jww）はまだ開けません。Jw_cad で DXF に保存してください");return}}
   if(!resume){W.resume=false;plSaveLast(f)}
   if(/\.dxf$/i.test(f.name)){
    toast("DXFを読み込んでいます…");const G=await dxfRead(f),Q=dxfToPlan(G,f);

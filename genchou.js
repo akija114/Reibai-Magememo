@@ -493,3 +493,77 @@ async function ar2Start(){
  window.__AR2={X,grp,drawAll,mkRoutes,placeU};   // 確かめる用
  ui();toast("室内機の真下あたりに立って、天井を映してください");
 }
+/* ===== 📍 支持に沿って曲げ（カメラの画面・2026-11-04 ユーザー：お風呂で考えた）=====
+   ar2 と同じく、スマホの傾きと「スマホの高さ」「配管の高さ（床から）」からタップの位置を計算（立ったまま・長さはだいたい）。
+   横：今の高さの面に当てる。向きは最初の横の向きから 45° きざみに吸い付く（前の横の向きから ±90° まで）。
+   ⬆⬇ 上下：次のタップは、今の点の真上・真下の線の上（その高さにする）。
+   ✅ 決める → 寸法を直す画面（だいたいの長さ）→ 曲げの行（gPolyRows）。90°のクランクが短すぎる所は 45°（だめなら30°）に自動で（cvBest） */
+const SJ={h:2550};try{Object.assign(SJ,JSON.parse(localStorage.getItem("pbm_sj")||"{}"))}catch(e){}
+async function sjStart(){
+ try{if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function"){const p=await DeviceOrientationEvent.requestPermission();if(p!=="granted"){toast("向きのセンサーが許可されませんでした");return}}}catch(e){toast("向きのセンサーが使えませんでした");return}
+ let stream=null;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false})}catch(e){toast("カメラが使えませんでした");return}
+ const V=THREE.Vector3,ov=document.createElement("div");ov.id="sjOv";ov.style.cssText="position:fixed;inset:0;z-index:400;background:#000;font-family:-apple-system,'Hiragino Sans',sans-serif;touch-action:none";
+ ov.innerHTML=`<video playsinline muted autoplay style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video><canvas style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+  <div id="sjT" style="position:absolute;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 8px);background:#0f172add;color:#fff;border-radius:14px;padding:10px 12px;font-size:15px;font-weight:800;line-height:1.45"></div>
+  <div style="position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border:2px solid #fbbf24;border-radius:50%;pointer-events:none"></div>
+  <div id="sjB" style="position:absolute;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;flex-direction:column;gap:6px"></div>`;
+ document.body.appendChild(ov);const vid=ov.querySelector("video");vid.srcObject=stream;try{await vid.play()}catch(e){}
+ const cv=ov.querySelector("canvas"),R=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true,preserveDrawingBuffer:true});R.setPixelRatio(Math.min(2,devicePixelRatio||1));
+ const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(AR2.fov,1,10,60000);sc.add(new THREE.HemisphereLight(0xffffff,0x667788,1.0));
+ const size=()=>{R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.fov=AR2.fov;cam.updateProjectionMatrix()};size();addEventListener("resize",size);
+ const X={P:[],y:SJ.h,v:false,q:null,ref:null},grp=new THREE.Group();sc.add(grp);
+ const onOri=ev=>{if(ev.alpha==null&&ev.beta==null)return;X.q=genGyroQ(ev).clone()};addEventListener("deviceorientation",onOri);
+ const ray=(cx,cy)=>{cam.position.set(0,AR2.ph,0);if(X.q)cam.quaternion.copy(X.q);cam.updateMatrixWorld();const rc=new THREE.Raycaster();rc.setFromCamera({x:cx/innerWidth*2-1,y:-(cy/innerHeight)*2+1},cam);return rc.ray};
+ const sv=()=>{try{localStorage.setItem("pbm_sj",JSON.stringify({h:SJ.h}));localStorage.setItem("pbm_ar2",JSON.stringify({ch:AR2.ch,ph:AR2.ph,fov:AR2.fov}))}catch(e){}};
+ const cu=new THREE.MeshStandardMaterial({color:0xc2703a,metalness:.35,roughness:.4}),dot=new THREE.MeshBasicMaterial({color:0xfbbf24}),dv=new THREE.MeshBasicMaterial({color:0x22c55e});
+ const lab=(t,p)=>{const c=document.createElement("canvas"),x=c.getContext("2d");x.font="800 44px -apple-system,'Hiragino Sans',sans-serif";const w=Math.ceil(x.measureText(t).width)+36;c.width=w;c.height=64;
+  x.fillStyle="rgba(15,23,42,.85)";x.fillRect(0,0,w,64);x.fillStyle="#fff";x.font="800 44px -apple-system,'Hiragino Sans',sans-serif";x.fillText(t,18,47);const tx=new THREE.CanvasTexture(c),s2=new THREE.Sprite(new THREE.SpriteMaterial({map:tx,depthTest:false}));
+  const d=p.distanceTo(new V(0,AR2.ph,0)),k=d*0.045;s2.scale.set(k*w/64,k,1);s2.position.copy(p);s2.renderOrder=9;grp.add(s2)};
+ const draw=()=>{while(grp.children.length)grp.remove(grp.children[0]);const P=X.P;
+  P.forEach((p,i)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(45,14,10),i===P.length-1&&X.v?dv:dot);m.position.copy(p);grp.add(m);
+   if(i){const a=P[i-1],l=a.distanceTo(p);if(l>1){const c=new THREE.Mesh(new THREE.CylinderGeometry(25,25,l,14),cu);c.position.copy(a).add(p).multiplyScalar(.5);c.quaternion.setFromUnitVectors(new V(0,1,0),p.clone().sub(a).normalize());grp.add(c);lab(nm(i-1)+" 約"+fmt(Math.round(l/10)*10),a.clone().add(p).multiplyScalar(.5).add(new V(0,90,0)))}}})};
+ const ui=()=>{const n=X.P.length,T2=ov.querySelector("#sjT");
+  T2.innerHTML=!n?"① 配管の<b>始まり</b>（室内機の配管の口・1つ目の支持）をタップ<br><small style='font-weight:600;opacity:.85'>配管の高さ 床から "+fmt(X.y)+"（⚙で変える）</small>"
+   :X.v?"⬆⬇ <b>上がった・下がった所</b>をタップ（今の点の真上・真下の線で高さを決める）":"次の<b>支持・曲がる所</b>をタップ<br><small style='font-weight:600;opacity:.85'>今の高さ 床から "+fmt(Math.round(X.y))+"・"+Math.max(0,n-1)+"本・まっすぐの所は1本にまとめます</small>";
+  const B=(id,t,bg,f)=>`<button id="${id}" style="flex:${f||1};min-height:50px;border:0;border-radius:12px;background:${bg};color:#fff;font-size:15px;font-weight:800">${t}</button>`;
+  ov.querySelector("#sjB").innerHTML=`<div style="display:flex;gap:6px">${B("sjV",X.v?"↔ 横にもどす":"⬆⬇ 上下へ","#16a34a",1.3)}${B("sjU","↩ 1つ戻す","#475569")}${B("sjS","⚙ 高さ","#475569",.8)}</div><div style="display:flex;gap:6px">${B("sjX","✕ やめる","#64748b",.7)}${B("sjOk","✅ 決める（"+Math.max(0,n-1)+"本）","#2563eb",1.6)}</div>`;
+  const on=(id,f)=>{const e=ov.querySelector("#"+id);e.onclick=ev=>{ev.stopPropagation();f()}};
+  on("sjV",()=>{if(!X.P.length){toast("先に始まりをタップしてください");return}X.v=!X.v;draw();ui()});
+  on("sjU",()=>{if(X.v){X.v=false}else if(X.P.length){X.P.pop();const l=X.P[X.P.length-1];X.y=l?l.y:SJ.h;if(X.P.length<2)X.ref=null}draw();ui()});
+  on("sjS",()=>{const a=prompt("配管の高さ（床から mm）",String(Math.round(X.P.length?X.y:SJ.h)));if(a!=null&&+a>0){if(X.P.length){toast("今の点から先の高さを変えました");X.y=+a}else{SJ.h=+a;X.y=+a}}const b=prompt("スマホを持っている高さ（床から mm）",String(AR2.ph));if(b!=null&&+b>0)AR2.ph=+b;sv();ui()});
+  on("sjX",()=>end());
+  on("sjOk",()=>{if(X.P.length<2){toast("2か所以上タップしてください");return}review()})};
+ /* タップ → 点 */
+ ov.addEventListener("click",e=>{if(e.target.closest("button"))return;const r=ray(e.clientX,e.clientY),P=X.P,last=P[P.length-1];
+  if(X.v&&last){const o=r.origin,d=r.direction,hd=Math.hypot(d.x,d.z);if(hd<1e-3)return;const t=((last.x-o.x)*d.x+(last.z-o.z)*d.z)/(hd*hd);if(t<=0)return;const y=Math.round((o.y+d.y*t)/10)*10;
+   if(Math.abs(y-last.y)<30){toast("今の高さとほとんど同じです");return}if(P.length<2){toast("最初は横の配管から。始まりの次は横の支持をタップしてください");return}P.push(new V(last.x,y,last.z));X.y=y;X.v=false;draw();ui();return}
+  if(Math.abs(r.direction.y)<1e-4)return;const t=(X.y-r.origin.y)/r.direction.y;if(t<=0){toast(X.y>AR2.ph?"上の方（配管の高さ）をタップしてください":"下の方をタップしてください");return}
+  const h=r.origin.clone().addScaledVector(r.direction,t);
+  if(!last){P.push(h)}else{const dx=h.x-last.x,dz=h.z-last.z,L=Math.hypot(dx,dz);if(L<50){toast("近すぎます");return}let an=Math.atan2(dz,dx);
+   if(X.ref==null)X.ref=an;else{const st2=Math.PI/4;let k=Math.round((an-X.ref)/st2);an=X.ref+k*st2;
+    let ph=null;{const n=P.length;if(n>1){const a=P[n-2],b=P[n-1];if(Math.hypot(b.x-a.x,b.z-a.z)>1)ph=Math.atan2(b.z-a.z,b.x-a.x)}}   // 前の線が横の時：±90°まで（後ろへは折り返さない）。前がたての時はどの向きでもよい
+    if(ph!=null){let df=Math.atan2(Math.sin(an-ph),Math.cos(an-ph));if(Math.abs(df)>Math.PI/2+1e-6){toast("後ろへは曲げられません（90°まで）");return}}}
+   const ux=Math.cos(an),uz=Math.sin(an),l=Math.round((dx*ux+dz*uz)/10)*10;if(l<50){toast("向きが合いません。進む方をタップしてください");return}
+   P.push(new V(last.x+ux*l,last.y,last.z+uz*l))}
+  draw();ui()});
+ /* 寸法を直す画面 → 曲げの行 */
+ function review(){let P=X.P.map(p=>p.clone());for(let i=1;i+1<P.length;i++){const a=P[i].clone().sub(P[i-1]).normalize(),b=P[i+1].clone().sub(P[i]).normalize();if(a.dot(b)>0.999){P.splice(i,1);i--}}   // まっすぐの所の支持は1本に
+  if(P.length<2)return;const a=P[1].clone().sub(P[0]);if(Math.hypot(a.x,a.z)<1){toast("最初は横の配管にしてください");return}
+  const th=Math.atan2(a.z,a.x),Q=P.map(p=>p.clone().sub(P[0]).applyAxisAngle(new V(0,1,0),th)),rows=gPolyRows(Q);
+  const dn=(i)=>{if(i===0)return"始まり";const r=rows[i-1];return(r.a?r.a+"°・"+dirName(r.t)+"へ曲げてから":"")};
+  const sh=document.createElement("div");sh.style.cssText="position:fixed;inset:0;z-index:450;background:rgba(15,23,42,.6);display:flex;align-items:flex-end;justify-content:center";
+  sh.innerHTML=`<div style="background:#fff;color:#0f172a;width:100%;max-width:520px;max-height:88vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 14px)">
+   <b style="font-size:17px">📏 測った寸法に直す</b><div style="font-size:13px;color:#64748b;margin:2px 0 8px">カメラの長さは<b>だいたい</b>です。測った寸法に直してください（曲げと曲げの間＝交点から交点）</div>
+   ${rows.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><div style="flex:1;font-weight:800">${nm(i)}<small style="display:block;font-weight:600;color:#64748b">${dn(i)}</small></div><input data-i="${i}" inputmode="numeric" value="${r.l}" style="width:110px;height:46px;font-size:19px;font-weight:800;text-align:center;border:2px solid #94a3b8;border-radius:10px"></div>`).join("")}
+   <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px"><button id="sjGo" style="min-height:52px;border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:800;font-size:16px">✅ 曲げに入れる</button><button id="sjBk" style="min-height:46px;border:0;border-radius:12px;background:#e2e8f0;font-weight:800;font-size:15px">◀ カメラにもどる</button></div></div>`;
+  ov.appendChild(sh);sh.querySelectorAll("input").forEach(e=>e.onfocus=()=>e.select());
+  sh.querySelector("#sjBk").onclick=()=>sh.remove();
+  sh.querySelector("#sjGo").onclick=()=>{sh.querySelectorAll("input").forEach(e=>{const v=uParse(e.value);if(v>0)rows[+e.dataset.i].l=Math.round(v)});
+   st.rows=rows;sel=0;let n45=0;for(let i=1;i<rows.length-1;i++){if(cvCrank(i)&&calc().out[i].shoe<0){const q=cvBest(i);if(q){cvSet(LR(),i,q);n45++}}}
+   save(true);build3D();try{fitT()}catch(e){}SJ.h=Math.round(X.P[0].y);sv();end();
+   sheetMsg(`<b style="font-size:17px">✅ 曲げに入れました（${rows.length}本・曲げ ${rows.filter(r=>r.a).length}か所）</b>`+(n45?`<div style="margin-top:6px;color:#c2410c;font-weight:800">90°では短すぎるクランクが ${n45}か所あったので、45°（または30°）に変えました</div>`:"")+`<div style="margin-top:6px">曲げ共有で、向き・寸法をもう一度確かめてください。</div>`,[["🔧 曲げ共有で見る",()=>{location.href="index.html"},"#2563eb","#fff"],["ここで3Dを見る",null]])}}
+ function end(){removeEventListener("deviceorientation",onOri);removeEventListener("resize",size);try{stream.getTracks().forEach(t=>t.stop())}catch(e){}cancelAnimationFrame(X.raf);try{R.dispose()}catch(e){}ov.remove()}
+ const loop2=()=>{X.raf=requestAnimationFrame(loop2);cam.position.set(0,AR2.ph,0);if(X.q)cam.quaternion.copy(X.q);R.render(sc,cam)};loop2();
+ window.__SJ={X,draw,review,ray};   // 確かめる用
+ ui();toast("立ったまま動かずに、配管が通る所（支持）を映してください");
+}

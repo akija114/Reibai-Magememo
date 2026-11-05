@@ -3033,7 +3033,7 @@ function openViewSheet(){
           <button class="btn ${isCur ? 'sel' : 'pri'}" data-open="${v.id}">${isCur ? '表示中' : '切り替え'}</button><span class="confirm"><button class="btn" data-more="${v.id}">…</button></span></div>`;
       }
     }
-    h += `<div class="grp">すぐ使える</div><div class="sh-tools"><button class="btn" data-a="allon">全部表示</button><button class="btn" data-a="archwall">🧱 建築は壁・扉・窓だけ</button>${S.hideObj.size ? '<button class="btn" data-a="objshow">隠した部品も全部表示</button>' : ''}</div>`;
+    h += `<div class="grp">すぐ使える</div><div class="sh-tools"><button class="btn" data-a="allon">全部表示</button><button class="btn" data-a="archwall">🧱 建築は壁・扉・窓だけ</button>${SH.on ? `<button class="btn ${shFollow() ? 'sel' : ''}" data-a="shfollow">${shFollow() ? '✓ 共有の人と同じ表示' : '👀 自分で1から見ている'}</button>` : ''}${S.hideObj.size ? '<button class="btn" data-a="objshow">隠した部品も全部表示</button>' : ''}</div>`;
     body.innerHTML = h;
     const inp = body.querySelector('#viewName');
     body.onclick = e => {
@@ -3048,6 +3048,7 @@ function openViewSheet(){
       }
       if (b.dataset.a === 'allon'){ exec(cmdVis(G.L.filter(l => !l.deleted).map(l => l.name), true)); return; }
       if (b.dataset.a === 'archwall'){ archWallOnly(); return; }
+      if (b.dataset.a === 'shfollow'){ const on = !shFollow(); try { localStorage.setItem('zumen-shfollow', on ? '1' : '0'); } catch(e){} if (!on){ exec(cmdVis(G.L.filter(l => !l.deleted).map(l => l.name), true)); if (S.hideObj.size) exec(cmdObjs([...S.hideObj], 'show')); toast('自分で1から見ます（全部表示にしました・相手の表示は変わりません）'); } else { for (const [k, d] of SH.R || []) if (k[1] === ':' && (k[0] === 'H' || k[0] === 'x')) applyItem(k, d.gone ? null : JSON.parse(d.j), new Set()); refreshGeom(); buildIndex(); renderBase(); renderTabs(); toast('共有の人と同じ表示にしました'); } refreshOpenSheet(); return; }
       if (b.dataset.a === 'objshow'){ exec(cmdObjs([...S.hideObj], 'show')); return; }
       if (b.dataset.open){ const v = S.views.find(x => x.id === b.dataset.open); if (!v) return; exec(cmdApplyView(v)); closeSheet(); toast(`「${v.name}」の表示にしました（↶で戻せます）`); return; }
       if (b.dataset.more){ const v = S.views.find(x => x.id === b.dataset.more); b.parentElement.innerHTML = `<button class="btn" data-ow="${v.id}">今の表示で上書き</button><button class="btn" data-ren="${v.id}">名前</button><button class="btn del" data-delv="${v.id}">削除</button>`; return; }
@@ -4371,7 +4372,7 @@ function ceilAna(){
         if (!mks.length || mks[mks.length - 1].p !== m){ /* 真ん中の線が印の所で切れている時：その端を少し引いて、両側を別にする */ const at2 = CS.filter(e => Math.abs(e.d[0]*cd[0] + e.d[1]*cd[1]) < 0.3 && Math.abs(c.md - e.cw) <= e.cw*0.35 && [e.a, e.b].some(q => Math.hypot(q[0] - m[0], q[1] - m[1]) < 6));
           if (at2.length === 2){ for (const e of at2){ const fa = Math.hypot(e.a[0] - m[0], e.a[1] - m[1]) < 6; if (fa){ e.a = [e.a[0] + e.d[0]*4, e.a[1] + e.d[1]*4]; } else e.b = [e.b[0] - e.d[0]*4, e.b[1] - e.d[1]*4]; e.L -= 4; } mks.push({p:m, a:at2[0], b:at2[1]}); } } } }
     /* ドレンの曲がり角で真ん中の線が十字に重なって描いてある所（2026-11-05 ユーザー：エルボになっていない）：2本が両方の端の近く（120mm）で交わる時は交わる所までにする */
-    if (k === 'drn'){ const CS = E.filter(e => e.cw && !e.arc); for (let i = 0; i < CS.length; i++) for (let j = i + 1; j < CS.length; j++){ const p = CS[i], q = CS[j], cr = p.d[0]*q.d[1] - p.d[1]*q.d[0]; if (Math.abs(cr) < 0.5) continue;
+    if (k === 'drn'){ const CS = E.filter(e => e.cw && !e.arc); for (let i = 0; i < CS.length; i++) for (let j = i + 1; j < CS.length; j++){ const p = CS[i], q = CS[j], cr = p.d[0]*q.d[1] - p.d[1]*q.d[0]; if (Math.abs(cr) < 0.5 || p.L < 200 || q.L < 200) continue;   /* 短い線（チーズの胴）は角にしない */
         const t = ((q.a[0] - p.a[0])*q.d[1] - (q.a[1] - p.a[1])*q.d[0])/cr, v = ((q.a[0] - p.a[0])*p.d[1] - (q.a[1] - p.a[1])*p.d[0])/cr; if (t < -1 || t > p.L + 1 || v < -1 || v > q.L + 1) continue; const ne = (e, x) => x < 120 ? 'a' : x > e.L - 120 ? 'b' : null, ep = ne(p, t), eq = ne(q, v); if (!ep || !eq) continue;
         const X = [p.a[0] + p.d[0]*t, p.a[1] + p.d[1]*t]; for (const [e, w] of [[p, ep], [q, eq]]){ e[w] = [X[0], X[1]]; e.L = Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]); } } }
     // ② 端の点でつながった線のかたまり（3mm）
@@ -4389,7 +4390,11 @@ function ceilAna(){
     const used = new Set(); for (const a of ends){ if (used.has(a)) continue; let best = null, bd = 150; for (const b of ends){ if (b === a || used.has(b) || b.e.c === a.e.c) continue; const v = [b.p[0] - a.p[0], b.p[1] - a.p[1]], L = Math.hypot(...v); if (L >= bd) continue; if (L > 5 && (v[0]*a.d[0] + v[1]*a.d[1])/L < 0.9) continue; if (a.d[0]*b.d[0] + a.d[1]*b.d[1] > -0.9) continue; bd = L; best = b; } if (best){ used.add(a); used.add(best); brg.push({k, a:a.p, b:best.p, ea:a.e, eb:best.e, na:a.n, nb:best.n}); } }
     for (const a of ends){ if (used.has(a)) continue; let best = null, bd = 1e9; for (const s of S){ if (s.c === a.e.c || s.arc) continue; const tg = Math.abs(a.d[0]*s.d[0] + a.d[1]*s.d[1]) > 0.5;   /* 曲がって本管に沿って入る枝（分岐管）は本管の真ん中の線の上（15mm）に端がある時だけ */ const t = (a.p[0] - s.a[0])*s.d[0] + (a.p[1] - s.a[1])*s.d[1], dp = -(a.p[0] - s.a[0])*s.d[1] + (a.p[1] - s.a[1])*s.d[0]; if (t < -20 || t > s.L + 20) continue; if (tg && Math.abs(dp) > 15) continue; if (Math.abs(dp) > s.w/2 + 45 || (dp*(-a.d[0]*s.d[1] + a.d[1]*s.d[0]) > 0 && Math.abs(dp) > s.w/2 + 35)) continue;   /* 少し突き抜けて描いてある枝も分岐 */ if (Math.abs(dp) < bd){ bd = Math.abs(dp); best = {s, t, p:[s.a[0] + s.d[0]*t, s.a[1] + s.d[1]*t]}; } } if (best){ used.add(a); const ends2 = !best.s.nbr0 && (best.t < 70 && P[best.s.na].e.filter(i => E[i].c != null).length === 1 || best.t > best.s.L - 70 && P[best.s.nb].e.filter(i => E[i].c != null).length === 1); if (ends2) brg.push({k, a:a.p, b:best.p, ea:a.e, eb:best.s, na:a.n, nb:best.t < 70 ? best.s.na : best.s.nb, corner:1}); else br.push({k, e:a.p, p:best.p, from:a.e, to:best.s, n:a.n, t:best.t}); } }   /* 相手の管の空いた端の近く＝曲がり角（エルボ）。途中＝分岐 */
     P.forEach((n, ni) => { const es = n.e.map(i => E[i]).filter(e => e.c != null); if (es.length < 2 || new Set(es.map(e => e.c)).size < 2) return; const od = es.map(e => e.na === ni ? e.d : [-e.d[0], -e.d[1]]); let ok = es.length >= 3; for (let i = 0; i < od.length && !ok; i++) for (let j = i + 1; j < od.length; j++) if (od[i][0]*od[j][0] + od[i][1]*od[j][1] > 0.9) ok = true;
-      if (ok) br.push({k, e:n.p, p:n.p, from:es[0], to:es[es.length - 1], node:1, n:ni}); });   // 3本が1つの点で会う所・2本が同じ点から同じ向きに分かれて出る所（重ねて描いた分岐）も分岐
+      if (!ok) return; let pr = null; for (let i = 0; i < od.length && !pr; i++) for (let j = i + 1; j < od.length; j++) if (od[i][0]*od[j][0] + od[i][1]*od[j][1] > 0.9){ pr = [es[i], es[j]]; break; }
+      if (pr && es.length === 2){ /* 同じ点から並んで出る2本（分岐管から枝が並んで描いてある）：短い方は描かず、その先で本管から枝を出す（2026-11-05 ユーザー：枝が2本ずつ出ている） */ const [sb, mn] = pr[0].L <= pr[1].L ? pr : [pr[1], pr[0]], far = sb.na === ni ? sb.b : sb.a, t = (far[0] - mn.a[0])*mn.d[0] + (far[1] - mn.a[1])*mn.d[1];
+        if (t > 0 && t < mn.L){ sb.hide = 1; br.push({k, e:far, p:[mn.a[0] + mn.d[0]*t, mn.a[1] + mn.d[1]*t], from:sb, to:mn, n:sb.na === ni ? sb.nb : sb.na, t, y:1}); return; } }
+      br.push({k, e:n.p, p:n.p, from:es[0], to:es[es.length - 1], node:1, n:ni}); });   // 3本が1つの点で会う所・2本が同じ点から同じ向きに分かれて出る所（重ねて描いた分岐）も分岐
+    for (const b of br) if (b.k === k && !b.node && b.n != null){ const e = b.from; if (Math.hypot(b.e[0] - b.p[0], b.e[1] - b.p[1]) > 1){ if (b.n === e.na) e.a = [b.p[0], b.p[1]]; else e.b = [b.p[0], b.p[1]]; e.L = Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]); b.e = [b.p[0], b.p[1]]; } }   /* 本管を突き抜けて（手前で止まって）描いてある枝は本管の真ん中まで */
     // つながり（同じ点・つないだ所・分岐）
     S.forEach(e => e.nbr = []); for (const e of S) for (const n of [e.na, e.nb]) for (const i of P[n].e){ const q = E[i]; if (q !== e && q.c != null) e.nbr.push(q); }
     for (const g of brg.filter(g => g.k === k)){ g.ea.nbr.push(g.eb); g.eb.nbr.push(g.ea); } for (const b of br.filter(b => b.k === k)){ b.from.nbr.push(b.to); b.to.nbr.push(b.from); }
@@ -4415,11 +4420,17 @@ function ceilAna(){
   const OUT_H = 350;   // 室外機の配管の口の高さ（目安）
   for (const k of ['ref', 'drn']){ const S = out[k]; for (const f of ['h', 'sz']) prop(S, f); if (k === 'ref'){ for (const q of oe) if (q.e.h == null) q.e.h = OUT_H; prop(S, 'h'); }   /* 文字の届かない所（∩ の先）は室外機の口の高さから */ for (const p of S) if (p.h == null) p.h = k === 'ref' ? 2850 : 2700; }
   /* ドレンの勾配（2026-11-05 ユーザー：高さの勾配を気にして）：つながりの上の距離で、近い2つの「FL+」の間を直線で（文字1つの所は平ら） */
+  /* 本管は自分の FL+ の間をまっすぐ勾配で、枝はチーズの所の本管の高さへ下る（2026-11-05 ユーザー：本管はまっすぐ勾配・チーズで拾っていく）。文字の無い枝はチーズから 1/100 で上る */
   { const D = GR.drn; if (D){ const NS = new Map(), id = n => NS.has(n) ? NS.get(n) : (NS.set(n, NS.size), NS.size - 1), adj = [], add = (a, b, w) => { const i = id(a), j = id(b); (adj[i] = adj[i] || []).push([j, w]); (adj[j] = adj[j] || []).push([i, w]); };
-      for (const e of D.S) add(e.na, e.nb, e.L); for (const g of brg) if (g.k === 'drn' && g.na != null && g.nb != null) add(g.na, g.nb, Math.hypot(g.b[0] - g.a[0], g.b[1] - g.a[1])); for (const b of br) if (b.k === 'drn' && !b.node && b.n != null){ add(b.n, b.to.na, b.t + 20); add(b.n, b.to.nb, b.to.L - b.t + 20); }
-      const N = NS.size, LB = labs.filter(l => l.k === 'drn' && l.h != null && l.run), DS = LB.map(l => { const q = l.run, t = Math.max(0, Math.min(q.L, (l.x - q.a[0])*q.d[0] + (l.y - q.a[1])*q.d[1])), d = new Float64Array(N).fill(Infinity), done = new Uint8Array(N), ia = id(q.na), ib = id(q.nb); d[ia] = Math.min(d[ia], t); d[ib] = Math.min(d[ib], q.L - t);
-        for (;;){ let x = -1, bv = Infinity; for (let i = 0; i < N; i++) if (!done[i] && d[i] < bv){ bv = d[i]; x = i; } if (x < 0) break; done[x] = 1; for (const [j, w] of adj[x] || []) if (d[x] + w < d[j]) d[j] = d[x] + w; } return d; });
-      const H = new Map(); for (const [n, i] of NS){ const c = LB.map((l, j) => [DS[j][i], l.h]).filter(x => isFinite(x[0])).sort((a, b) => a[0] - b[0]); if (!c.length) continue; const [d1, h1] = c[0], c2 = c.find(x => Math.abs(x[1] - h1) > 2); H.set(n, !c2 || d1 < 1 ? h1 : (h1*c2[0] + c2[1]*d1)/(d1 + c2[0])); }
+      for (const e of D.S) add(e.na, e.nb, e.L); for (const g of brg) if (g.k === 'drn' && g.na != null && g.nb != null) add(g.na, g.nb, Math.hypot(g.b[0] - g.a[0], g.b[1] - g.a[1])); for (const b of br) if (b.k === 'drn' && b.n != null) id(b.n);   // 枝と本管はつながりに入れない
+      const N = NS.size, dij = st => { const d = new Float64Array(N).fill(Infinity), done = new Uint8Array(N); for (const [i, v] of st) d[i] = Math.min(d[i], v); for (;;){ let x = -1, bv = Infinity; for (let i = 0; i < N; i++) if (!done[i] && d[i] < bv){ bv = d[i]; x = i; } if (x < 0) break; done[x] = 1; for (const [j, w] of adj[x] || []) if (d[x] + w < d[j]) d[j] = d[x] + w; } return d; };
+      const LB = labs.filter(l => l.k === 'drn' && l.h != null && l.run).map(l => { const q = l.run, t = Math.max(0, Math.min(q.L, (l.x - q.a[0])*q.d[0] + (l.y - q.a[1])*q.d[1])); return {h:l.h, d:dij([[id(q.na), t], [id(q.nb), q.L - t]])}; });
+      const DB = br.filter(b => b.k === 'drn' && !b.node), TS = new Map(); let H = new Map();
+      for (let pass = 0; pass < 5; pass++){ const SR = LB.concat([...TS.values()]); H = new Map();
+        for (const [n, i] of NS){ const c = SR.map(o => [o.d[i], o.h, o.tee]).filter(x => isFinite(x[0])).sort((a, b) => a[0] - b[0]); if (!c.length) continue; const [d1, h1, t1] = c[0], c2 = c.find(x => Math.abs(x[1] - h1) > 2);
+          H.set(n, d1 < 1 ? h1 : c2 ? (h1*c2[0] + c2[1]*d1)/(d1 + c2[0]) : t1 ? h1 + d1/100 : h1); }
+        let ch = false; for (const b of DB){ const q = b.to, ha = H.get(q.na), hb = H.get(q.nb); if (ha == null || hb == null) continue; const hm = ha + (hb - ha)*Math.max(0, Math.min(1, b.t/q.L)); const o = TS.get(b); if (!o || Math.abs(o.h - hm) > 0.5){ TS.set(b, {h:hm + 10, tee:1, d:dij([[id(b.n), 0]])}); ch = true; } }   // 枝の口はチーズの少し上（+10）
+        if (!ch) break; }
       for (const e of D.S){ e.ha = H.has(e.na) ? H.get(e.na) : e.h; e.hb = H.has(e.nb) ? H.get(e.nb) : e.h; }
       for (const g of brg) if (g.k === 'drn'){ g.ha = H.has(g.na) ? H.get(g.na) : g.ea.h; g.hb = H.has(g.nb) ? H.get(g.nb) : g.eb.h; }
       for (const b of br) if (b.k === 'drn'){ const q = b.to; b.hm = b.node ? (H.get(b.n) ?? q.h) : (q.ha ?? q.h) + ((q.hb ?? q.h) - (q.ha ?? q.h))*Math.max(0, Math.min(1, b.t/q.L)); b.he = b.node ? b.hm : (H.has(b.n) ? H.get(b.n) : b.from.h); } } }
@@ -4428,8 +4439,14 @@ function ceilAna(){
   const slv = []; for (const t of T){ const m = SLV.exec(t.s); if (!m) continue; slv.push({p:[t.x - t.dy*t.h*1.2, t.y + t.dx*t.h*1.2], d:[t.dx, t.dy], h:+m[2], w:+m[3], lo:+m[4], s:t.s.replace(/\s+/g, '')}); }
   const nOf = k => new Set(out[k].map(e => e.c)).size;
   /* ドレンのエルボ：真ん中の線の2本だけが角で会う所（30°より曲がる）・曲がり角でつないだ所 */
-  const els = []; { const D = GR.drn; if (D){ D.P.forEach((n, ni) => { const es = n.e.map(i => D.E[i]).filter(e => e.c != null && !e.arc); if (es.length !== 2) return; const o = es.map(e => e.na === ni ? e.d : [-e.d[0], -e.d[1]]); if (o[0][0]*o[1][0] + o[0][1]*o[1][1] > -0.85) els.push({p:n.p, e:es[0], h:es[0].na === ni ? es[0].ha : es[0].hb}); }); for (const g of brg) if (g.k === 'drn' && g.corner) els.push({p:g.b, e:g.eb, h:g.hb}); } }
-  return {ref:out.ref, drn:out.drn, br, brg, labs, slv, tab, mks, outs, oe, cos, els, OUT_H, n:{ref:nOf('ref'), drn:nOf('drn'), br:br.length, slv:slv.length}};
+  const els = []; { const D = GR.drn; if (D){ D.P.forEach((n, ni) => { const es = n.e.map(i => D.E[i]).filter(e => e.c != null && !e.arc); if (es.length !== 2) return; const o = es.map(e => e.na === ni ? e.d : [-e.d[0], -e.d[1]]); if (o[0][0]*o[1][0] + o[0][1]*o[1][1] > -0.85) els.push({p:n.p, e:es[0], h:es[0].na === ni ? es[0].ha : es[0].hb, o}); }); for (const g of brg) if (g.k === 'drn' && g.corner) els.push({p:g.b, e:g.eb, h:g.hb}); } }
+  const dEnds = GR.drn ? GR.drn.ends.filter(a => !GR.drn.used.has(a) && !cos.some(q => q.a === a)) : [];
+  /* 点検口（2026-11-05 ユーザー：四角の中に三角）：斜めの2本が1つの点（四角の辺の真ん中）から、反対の辺の両はしの角へ */
+  const insp = []; { const DG = [], km = new Map(), kk = p => Math.round(p[0]/4) + ',' + Math.round(p[1]/4); for (let i = 0; i < sg.length; i += SS){ const l = G.L[sg[i+4]]; if (!l || l.deleted || !l.on || kOf[sg[i+4]] || sg[i+5] === 1) continue; const a = [sg[i]*u, sg[i+1]*u], b = [sg[i+2]*u, sg[i+3]*u], dx = Math.abs(b[0] - a[0]), dy = Math.abs(b[1] - a[1]), L = Math.hypot(dx, dy); if (L < 150 || L > 1000 || dx < L*0.2 || dy < L*0.2) continue; const o = {a, b}; DG.push(o); for (const p of [a, b]) (km.get(kk(p)) || km.set(kk(p), []).get(kk(p))).push(o); }
+    for (const [key, L2] of km){ if (L2.length < 2) continue; for (let i = 0; i < L2.length; i++) for (let j = i + 1; j < L2.length; j++){ const s1 = L2[i], s2 = L2[j], A = kk(s1.a) === key ? s1.a : s1.b, B1 = A === s1.a ? s1.b : s1.a, B2 = kk(s2.a) === key ? s2.b : s2.a, bx = B2[0] - B1[0], by = B2[1] - B1[1], bl = Math.hypot(bx, by);
+      if (bl < 200 || bl > 900 || (Math.abs(bx) > 6 && Math.abs(by) > 6)) continue; const m = [(B1[0] + B2[0])/2, (B1[1] + B2[1])/2], hh = Math.hypot(A[0] - m[0], A[1] - m[1]); if (Math.abs(hh - bl) > bl*0.2 || Math.abs((A[0] - m[0])*bx + (A[1] - m[1])*by)/bl > 25) continue;
+      const r = [Math.min(B1[0], B2[0], A[0]), Math.min(B1[1], B2[1], A[1]), Math.max(B1[0], B2[0], A[0]), Math.max(B1[1], B2[1], A[1])]; if (!insp.some(q => Math.abs(q[0] - r[0]) + Math.abs(q[1] - r[1]) < 60)) insp.push(r); } } }
+  return {ref:out.ref, drn:out.drn, br, brg, labs, slv, tab, mks, outs, oe, cos, els, OUT_H, dEnds, insp, n:{ref:nOf('ref'), drn:nOf('drn'), br:br.length, slv:slv.length}};
 }
 /* 🧾 材料（2026-11-05 ユーザー：冷媒は系統ごと・サイズごとの m と合計、ドレンは継手ごと・サイズごと）。たての所（高さの変わる所・室外機へ下ろす所）も長さに入れる */
 /* 冷媒の系統（2026-11-05 ユーザー：系統を選んで光らせる・割り振り）：つながり（∩ の印をこえる）で自動、名前を付けた管（zumen-ceilsys・図面ごと・管の両端の座標）はその名前の系統。CE.sys＝[{key, nm, segs, len:{記号:mm}, tot}]・CE.sysOf＝管→系統 */
@@ -4489,7 +4506,7 @@ function ceilMat(CE){ const SY = ceilSys(CE).map(o => o.len);
   const D = {}, ad = (k, n) => D[k] = (D[k] || 0) + n, dz = e => (e && e.sz ? e.sz : '?') + 'A';
   for (const e of CE.drn) ad('管|' + dz(e), Math.hypot(e.L, (e.ha || 0) - (e.hb || 0))); for (const g of CE.brg) if (g.k === 'drn') ad('管|' + dz(g.ea), Math.hypot(g.b[0] - g.a[0], g.b[1] - g.a[1]));
   for (const b of CE.br) if (b.k === 'drn'){ ad('管|' + dz(b.from), Math.hypot(Math.hypot(b.p[0] - b.e[0], b.p[1] - b.e[1]), b.he - b.hm)); const a = b.to.sz || 0, c = b.from.sz || 0; ad('チーズ|' + (a && c && a !== c ? Math.max(a, c) + '×' + Math.min(a, c) + 'A' : dz(b.to)), 1); }
-  for (const q of CE.els) ad('90°エルボ|' + dz(q.e), 1); for (const q of CE.cos) ad('掃除口|' + dz(q.e), 1);
+  for (const q of CE.els) ad('90°エルボ|' + dz(q.e), 1); for (const q of CE.cos) ad('掃除口|' + dz(q.e), 1); for (const q of CE.hose || []) ad('ドレンホース（可変）|' + dz(q.e), 1);
   const dk = Object.keys(D).sort(); h += '<div class="ghead" style="margin-top:8px"><b>ドレン（サイズごと）</b></div>' + dk.map(k => { const [a, z] = k.split('|'); return `<div class="row" style="justify-content:space-between"><span>${esc(a)} ${esc(z)}</span><b>${a === '管' ? m(D[k]) + '（4mで' + Math.ceil(D[k]/4000) + '本）' : D[k]}</b></div>`; }).join('');
   return h; }
 /* 3D：冷媒（銅色）・ドレン（緑）・分岐管（こげ茶／濃い緑の箱）・サイズと高さの吹き出し（ceil_l）・梁の貫通（オレンジ・初めは消す ceil_b）。線ごとの管、高さがちがう線のつなぎ目はたて管 */
@@ -4500,16 +4517,20 @@ function ceilBuild(TH, CE, grp, W, u, bb){
   if (V3.on.ceil_b == null) V3.on.ceil_b = false;   // 梁の貫通は初めは消す
   const gl = grp('ceil_l');
   for (const [k, gk] of [['ref', 'pipe'], ['drn', 'ceil_d']]){ const g = grp(gk), S = CE[k];
-    for (const e of S){ tg(tube(g, at(e.a, e.ha), at(e.b, e.hb), rad(e), M[k]), e, k); if (k === 'ref') for (const q of e.nbr) if (q.h !== e.h && S.indexOf(q) > S.indexOf(e)){ const n = [e.a, e.b].find(p => [q.a, q.b].some(r => Math.hypot(p[0] - r[0], p[1] - r[1]) < 160)); if (n) tg(tube(g, at(n, e.h), at(n, q.h), rad(e), M[k]), e, k); } }   // 高さの変わる所はたて管
+    const ELK = new Set(k === 'drn' ? CE.els.filter(q => q.o && Math.abs(q.o[0][0]*q.o[1][0] + q.o[0][1]*q.o[1][1]) < 0.2).map(q => Math.round(q.p[0]) + ',' + Math.round(q.p[1])) : []), cut = (p, q, r) => ELK.has(Math.round(p[0]) + ',' + Math.round(p[1])) ? [p[0] + (q[0] - p[0])/Math.max(1, Math.hypot(q[0] - p[0], q[1] - p[1]))*r*1.6, p[1] + (q[1] - p[1])/Math.max(1, Math.hypot(q[0] - p[0], q[1] - p[1]))*r*1.6] : p;   // エルボの所は管をエルボの手前まで
+    for (const e of S){ if (e.hide) continue; const ea = cut(e.a, e.b, rad(e)), eb = cut(e.b, e.a, rad(e)); tg(tube(g, at(ea, e.ha), at(eb, e.hb), rad(e), M[k]), e, k); if (k === 'ref') for (const q of e.nbr) if (q.h !== e.h && S.indexOf(q) > S.indexOf(e)){ const n = [e.a, e.b].find(p => [q.a, q.b].some(r => Math.hypot(p[0] - r[0], p[1] - r[1]) < 160)); if (n) tg(tube(g, at(n, e.h), at(n, q.h), rad(e), M[k]), e, k); } }   // 高さの変わる所はたて管
     for (const b of CE.brg.filter(b => b.k === k)) tg(tube(g, at(b.a, b.ha), at(b.b, b.hb), Math.min(rad(b.ea), rad(b.eb)), M[k]), b.ea, k);   // 継手で切れた所
     for (const b of CE.br.filter(b => b.k === k)){ const p = b.from, q = b.to, r = rad(p), rq = rad(q), P0 = at(b.p, b.hm);
-      if (k === 'drn'){ tg(tube(g, at(b.e, b.he), P0, r, M[k]), p, k); /* チーズ：本管にそったソケット＋枝の口（2026-11-05 ユーザー：きれいなチーズに） */ const d3 = at([b.p[0] + q.d[0], b.p[1] + q.d[1]], b.hm).sub(P0).normalize(), sl = new TH.Mesh(new TH.CylinderGeometry(rq*1.3, rq*1.3, rq*4.2, 14), BM[k]); sl.position.copy(P0); sl.quaternion.setFromUnitVectors(new V3v(0, 1, 0), d3); g.add(sl);
-        const bd = at(b.e, b.he).sub(P0); if (bd.length() > 1){ bd.normalize(); const st = new TH.Mesh(new TH.CylinderGeometry(r*1.3, r*1.3, rq*1.9, 14), BM[k]); st.position.copy(P0).addScaledVector(bd, rq*0.95); st.quaternion.setFromUnitVectors(new V3v(0, 1, 0), bd); g.add(st); } continue; }
-      tg(tube(g, at(b.e, b.he), at(b.p, b.he), r, M[k]), p, k); if (Math.abs(b.he - b.hm) > 5) tg(tube(g, at(b.p, b.he), P0, r, M[k]), p, k); const m = new TH.Mesh(new TH.BoxGeometry(rq*3, rq*3, rq*3), BM[k]); m.position.copy(P0); g.add(m);
+      if (k === 'drn'){ tg(tube(g, at(b.e, b.he), P0, r, M[k]), p, k); /* チーズ：本管にそったソケット＋枝の口（2026-11-05 ユーザー：きれいなチーズに） */ const d3 = at([b.p[0] + q.d[0], b.p[1] + q.d[1]], b.hm).sub(P0).normalize(), sl = new TH.Mesh(new TH.CylinderGeometry(rq*1.18, rq*1.18, rq*3.6, 16), BM[k]); sl.position.copy(P0); sl.quaternion.setFromUnitVectors(new V3v(0, 1, 0), d3); g.add(sl);
+        const bd = at(b.e, b.he).sub(P0); if (bd.length() > 1){ bd.normalize(); const st = new TH.Mesh(new TH.CylinderGeometry(r*1.18, r*1.18, rq*1.8 + r*1.2, 16), BM[k]); st.position.copy(P0).addScaledVector(bd, (rq*1.8 + r*1.2)/2); st.quaternion.setFromUnitVectors(new V3v(0, 1, 0), bd); g.add(st); } continue; }
+      tg(tube(g, at(b.e, b.he), at(b.p, b.he), r, M[k]), p, k); if (Math.abs(b.he - b.hm) > 5) tg(tube(g, at(b.p, b.he), P0, r, M[k]), p, k); const dm = at([b.p[0] + q.d[0], b.p[1] + q.d[1]], b.hm).sub(P0).normalize(), m = new TH.Mesh(new TH.CylinderGeometry(rq*1.25, rq*1.75, rq*6, 16), BM[k]); m.position.copy(P0); m.quaternion.setFromUnitVectors(new V3v(0, 1, 0), dm); g.add(m);   // 分岐管：本管にそった、片方が太い筒
       gl.add(v3dLabel(TH, '分岐管', at(b.p, b.hm + 260), 150)); }
     if (k === 'ref'){ for (const q of CE.mks) tg(tube(g, at(q.p, q.a.h), at(q.p, q.b.h), rad(q.a), M[k]), q.a, k);   // ∩ の印：高さが変わる所
       for (const q of CE.oe) if (Math.abs(q.e.h - CE.OUT_H) > 30) tg(tube(g, at(q.p, q.e.h), at(q.p, CE.OUT_H), rad(q.e), M[k]), q.e, k); }   // 室外機の口へ下ろす
-    if (k === 'drn'){ const em = BM[k]; for (const q of CE.els){ const o = new TH.Mesh(new TH.SphereGeometry(rad(q.e)*1.35, 14, 10), em); o.position.copy(at(q.p, q.h)); g.add(o); }   // エルボ
+    if (k === 'drn'){ const em = BM[k]; for (const q of CE.els){ const r = rad(q.e), P1 = at(q.p, q.h), [u0, v0] = q.o || [], R = r*1.6;   // エルボ：曲がった管（90°の時）・ほかは丸
+        if (u0 && Math.abs(u0[0]*v0[0] + u0[1]*v0[1]) < 0.2){ const U = at([q.p[0] + u0[0], q.p[1] + u0[1]], q.h).sub(P1).normalize(), V = at([q.p[0] + v0[0], q.p[1] + v0[1]], q.h).sub(P1).normalize(), o = new TH.Mesh(new TH.TorusGeometry(R, r*1.18, 10, 14, Math.PI/2), em), X = V.clone().negate(), Y = U.clone().negate(), Z = new V3v().crossVectors(X, Y);
+          o.quaternion.setFromRotationMatrix(new TH.Matrix4().makeBasis(X, Y, Z)); o.position.copy(P1).addScaledVector(U, R).addScaledVector(V, R); g.add(o); }
+        else { const o = new TH.Mesh(new TH.SphereGeometry(r*1.25, 14, 10), em); o.position.copy(P1); g.add(o); } }
       const cm = new TH.MeshStandardMaterial({color:0x9ca3af, metalness:.3, roughness:.4}); for (const q of CE.cos){ const r = rad(q.e), hh = q.e.na === q.a.n ? q.e.ha : q.e.hb, P1 = at(q.p, hh), dd = at([q.p[0] + q.d[0], q.p[1] + q.d[1]], hh).sub(P1).normalize(), o = new TH.Mesh(new TH.CylinderGeometry(r*1.5, r*1.5, r*1.2, 16), cm); o.position.copy(P1).addScaledVector(dd, r*0.6); o.quaternion.setFromUnitVectors(new V3v(0, 1, 0), dd); g.add(o); gl.add(v3dLabel(TH, '掃除口', at(q.p, hh + 220), 130)); } }   // 掃除口
     g.updateMatrixWorld(true); if (g.children.length) bb.union(new TH.Box3().setFromObject(g)); }
   ceilSys(CE); for (const o of CE.sys){ const e = o.segs.reduce((a, b) => b.L > a.L ? b : a, o.segs[0]); gl.add(v3dLabel(TH, `${o.nm} ${(o.tot/1000).toFixed(1)}m`, at([(e.a[0] + e.b[0])/2, (e.a[1] + e.b[1])/2], e.h + 480), 170)); }   // 系統の名前と長さ
@@ -4517,6 +4538,11 @@ function ceilBuild(TH, CE, grp, W, u, bb){
   for (const lb of CE.labs){ const q = lb.run; if (!q) continue; const h = lb.h != null ? lb.h : q.h, sz = lb.sz != null ? lb.sz : q.sz; if (lb.only && sz == null) continue;
     let tx; if (lb.k === 'ref'){ const t = sz && CE.tab[sz]; tx = (sz ? sz + ' ' : '') + (t ? ceilBun(t[0]) + '・' + ceilBun(t[1]) + ' ' : '') + 'FL+' + h; } else tx = 'D ' + (sz ? sz + 'A ' : '') + 'FL+' + h;
     const t2 = (lb.x - q.a[0])*q.d[0] + (lb.y - q.a[1])*q.d[1], pp = [q.a[0] + q.d[0]*Math.max(0, Math.min(q.L, t2)), q.a[1] + q.d[1]*Math.max(0, Math.min(q.L, t2))]; gl.add(v3dLabel(TH, tx, at(pp, h + 230), 150)); }
+  /* ドレンホース（可変・2026-11-05 ユーザー）：室内機のそば（1.2m）のドレンの空いた端から室内機の横まで */
+  { const gd = grp('ceil_d'), hm = new TH.MeshStandardMaterial({color:0xcbd5e1, roughness:.8}); CE.hose = []; for (const a of CE.dEnds || []){ const hh = a.e.na === a.n ? a.e.ha : a.e.hb; let best = null, bd = 1200; for (const m of CE.units || []){ const q = [Math.max(m.x0, Math.min(m.x1, a.p[0])), Math.max(m.y0, Math.min(m.y1, a.p[1]))], d = Math.hypot(q[0] - a.p[0], q[1] - a.p[1]); if (d < bd){ bd = d; best = q; } } if (!best || bd < 5) continue;
+      const P1 = at(a.p, hh), P2 = at(best, hh + 30); tube(gd, P1, P2, 13, hm); for (let t = 0.1; t < 1; t += 0.18){ const ring = new TH.Mesh(new TH.TorusGeometry(13, 3, 6, 12), hm); ring.position.copy(P1).lerp(P2, t); ring.quaternion.setFromUnitVectors(new V3v(0, 0, 1), P2.clone().sub(P1).normalize()); gd.add(ring); } CE.hose.push({e:a.e}); } }
+  /* 点検口：天井に青い枠とうすい板 */
+  { const gi = grp('unit'), fm2 = new TH.LineBasicMaterial({color:0x2563eb}), pm = new TH.MeshStandardMaterial({color:0xdbeafe, transparent:true, opacity:.6, side:TH.DoubleSide}), y = CE.CH0 || 2400; for (const r of CE.insp || []){ const P = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]], [r[0], r[1]]].map(q => at(q, y)); gi.add(new TH.Line(new TH.BufferGeometry().setFromPoints(P), fm2)); const A0 = at([r[0], r[1]], y), B0 = at([r[2], r[3]], y), m = new TH.Mesh(new TH.PlaneGeometry(Math.abs(B0.x - A0.x), Math.abs(B0.z - A0.z)), pm); m.rotation.x = -Math.PI/2; m.position.copy(A0).add(B0).multiplyScalar(.5); gi.add(m); } }
   { const gu = grp('unit'), om = new TH.MeshStandardMaterial({color:0xeef0ee}), fm = new TH.MeshStandardMaterial({color:0x374151}); for (const r of CE.outs){ const c = at([(r[0] + r[2])/2, (r[1] + r[3])/2], 315), A = at([r[0], r[1]], 0), B = at([r[2], r[3]], 0), m = new TH.Mesh(new TH.BoxGeometry(Math.abs(B.x - A.x), 630, Math.abs(B.z - A.z)), om); m.position.copy(c); gu.add(m); const ed = new TH.LineSegments(new TH.EdgesGeometry(m.geometry), new TH.LineBasicMaterial({color:0x6b7280})); ed.position.copy(c); gu.add(ed); gl.add(v3dLabel(TH, '室外機', at([(r[0] + r[2])/2, (r[1] + r[3])/2], 820), 140)); } }   // 室外機（図面の四角の大きさ・高さ630の目安）
   const gb = grp('ceil_b'), sm = new TH.MeshStandardMaterial({color:0xf97316, transparent:true, opacity:.85});
   for (const s of CE.slv){ const c = at(s.p, s.lo + s.h/2), m = new TH.Mesh(new TH.BoxGeometry(s.w, s.h, 200), sm), e = at([s.p[0] + s.d[0], s.p[1] + s.d[1]], 0).sub(at(s.p, 0)); m.position.copy(c); m.rotation.y = -Math.atan2(e.z, e.x); gb.add(m); gb.add(v3dLabel(TH, s.s, at(s.p, s.lo + s.h + 200), 120)); }
@@ -4586,9 +4612,9 @@ async function open3Dold(){
       fp.position.set(c3[0], 0, c3[1]); fp.rotation.y = po.th; gM.add(fp); } }
   if (!MG) v3dWallAC(TH, A, gM, grp, boxAt, W, u, bb, gW, wm); // 壁掛け・室外機・壁を抜ける配管・図面の冷媒とドレンの線（色の決まりから読んだ図面）
   { const oum = new TH.MeshStandardMaterial({color:0xeef0ee}), ofm = new TH.MeshStandardMaterial({color:0x374151}); for (const q of A.outU || []){ boxAt(gM, q.x0, q.y0, q.x1, q.y1, 150, 1100, oum); boxAt(gM, q.x0, q.y0, q.x1, q.y1, 0, 150, ofm); } }   // 室外機（床に箱・下に台）
-  const om = new TH.MeshStandardMaterial({color:0x7cc4f0}); if (!MG) for (const q of A.outs){ if (CE && CE.outs.some(r => q.x0 < r[2] + 1500 && q.x1 > r[0] - 1500 && q.y0 < r[3] + 1500 && q.y1 > r[1] - 1500)) continue; /* 室外機の四角は吹出口にしない */ boxAt(gM, q.x0, q.y0, q.x1, q.y1, q.ch - 5, q.ch + 40, om); }; // 吹出口・吸込口：天井の面にうすい板
+  const om = new TH.MeshStandardMaterial({color:0x7cc4f0}); if (!MG) for (const q of A.outs){ if (CE) continue; /* 天井の配管図では吹出口の板は出さない（2026-11-05 ユーザー：変な物を読んでいる） */ /* 室外機の四角は吹出口にしない */ boxAt(gM, q.x0, q.y0, q.x1, q.y1, q.ch - 5, q.ch + 40, om); }; // 吹出口・吸込口：天井の面にうすい板
   if (!MG) for (const q of A.insp){ const a = W(q.x0/u, q.y0/u), b = W(q.x1/u, q.y1/u), y = q.ch; gM.add(new TH.Line(new TH.BufferGeometry().setFromPoints([[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]], [a[0], a[1]]].map(p => new TH.Vector3(p[0], y, p[1]))), new TH.LineBasicMaterial({color:0x2f6fe0}))); }
-  if (CE){ try { ceilBuild(TH, CE, grp, W, u, bb); const pb = document.querySelector('#v3dT [data-t3="pipe"]'); if (pb){ pb.hidden = !CE.ref.length; pb.textContent = '冷媒配管'; } const bx = $('#v3dR'); if (bx) bx.insertAdjacentHTML('beforeend', [['ceil_d', 'ドレン', CE.drn.length], ['ceil_l', 'サイズ・高さ', CE.labs.length], ['ceil_b', '梁の貫通', CE.slv.length]].filter(x => x[2]).map(([k, n]) => `<button class="btn ${V3.on[k] !== false ? 'sel' : ''}" data-t3="${k}" style="height:34px;padding:0 10px;flex:none">${n}</button>`).join('') + '<button class="btn" data-cmat style="height:34px;padding:0 10px;flex:none;font-weight:800">🧾 材料</button>'); { const mb = bx && bx.querySelector('[data-cmat]'); if (mb) mb.onclick = () => { openSheet('天井の配管の材料', body => { body.innerHTML = ceilMat(CE); body.onclick = ev => { const r = ev.target.closest('[data-sys]'); if (!r) return; closeSheet(); ceilSelect(CE, {sys:CE.sys[+r.dataset.sys].key, zoom:1}); }; }); $('#sheetRoot').querySelectorAll('.sheet,.back').forEach(x => { x.style.zIndex = x.classList.contains('back') ? 74 : 75; }); }; } } catch(e){ console.warn('ceil3d', e); } }
+  if (CE){ CE.units = A.units; CE.CH0 = A.CH0 || 2400; try { ceilBuild(TH, CE, grp, W, u, bb); const pb = document.querySelector('#v3dT [data-t3="pipe"]'); if (pb){ pb.hidden = !CE.ref.length; pb.textContent = '冷媒配管'; } const bx = $('#v3dR'); if (bx) bx.insertAdjacentHTML('beforeend', [['ceil_d', 'ドレン', CE.drn.length], ['ceil_l', 'サイズ・高さ', CE.labs.length], ['ceil_b', '梁の貫通', CE.slv.length]].filter(x => x[2]).map(([k, n]) => `<button class="btn ${V3.on[k] !== false ? 'sel' : ''}" data-t3="${k}" style="height:34px;padding:0 10px;flex:none">${n}</button>`).join('') + '<button class="btn" data-cmat style="height:34px;padding:0 10px;flex:none;font-weight:800">🧾 材料</button>'); { const mb = bx && bx.querySelector('[data-cmat]'); if (mb) mb.onclick = () => { openSheet('天井の配管の材料', body => { body.innerHTML = ceilMat(CE); body.onclick = ev => { const r = ev.target.closest('[data-sys]'); if (!r) return; closeSheet(); ceilSelect(CE, {sys:CE.sys[+r.dataset.sys].key, zoom:1}); }; }); $('#sheetRoot').querySelectorAll('.sheet,.back').forEach(x => { x.style.zIndex = x.classList.contains('back') ? 74 : 75; }); }; } } catch(e){ console.warn('ceil3d', e); } }
   V3.ana = A;
   // 追加機器：天井（2700）の下に箱
   const kli = G.L.findIndex(l => l.name === KIKI_LAYER), km = new TH.MeshStandardMaterial({color:0x3b82f6, transparent:true, opacity:.55});
@@ -5331,6 +5357,9 @@ function sharedState(){
   for (const l of S.clines) m.set('l:' + l.id, JSON.stringify(l));
   for (const g of S.dimGroups) m.set('g:' + g.id, JSON.stringify({name:g.name}));
   for (const l of G.L) if (l.deleted) m.set('L:' + l.name, '1');
+  /* 非表示のレイヤー・隠した部品も共有（2026-11-05 ユーザー：相手の見ている画面と同じに）。「自分で1から見る」にした端末は自分の表示を送らない（相手の物はそのまま） */
+  if (shFollow()){ for (const l of G.L) if (!l.deleted && !l.on) m.set('H:' + l.name, '1'); for (const e of S.hideObj) m.set('x:' + e, '1'); }
+  else for (const [k, d] of SH.R || []) if ((k[0] === 'H' || k[0] === 'x') && k[1] === ':' && !d.gone) m.set(k, d.j);
   for (const e of S.delObj) m.set('o:' + e, '1');
   for (const [e, d] of S.mov) m.set('m:' + e, JSON.stringify(d));
   for (const [e, nm] of S.lay) m.set('y:' + e, JSON.stringify(nm));
@@ -5343,6 +5372,7 @@ function sharedState(){
   for (const e of S.log) m.set('e:' + e.id, JSON.stringify(e));
   return m;
 }
+function shFollow(){ try { return localStorage.getItem('zumen-shfollow') !== '0'; } catch(e){ return true; } }
 function shSchedule(){ if (!SH.on || !SH.ready) return; clearTimeout(SH.pushT); SH.pushT = setTimeout(shPush, 250); }
 function shPush(){
   clearTimeout(SH.pushT);
@@ -5382,6 +5412,10 @@ function applyItem(k, v, kinds){
     kinds.add('dim');
   } else if (t === 'L'){
     const l = G.L.find(x => x.name === id); if (l) l.deleted = !!v; kinds.add('layer');
+  } else if (t === 'H'){
+    if (shFollow()){ const l = G.L.find(x => x.name === id); if (l) l.on = !v; kinds.add('layer'); }
+  } else if (t === 'x'){
+    if (shFollow()){ if (v) S.hideObj.add(+id); else S.hideObj.delete(+id); kinds.add('obj'); }
   } else if (t === 'o'){
     if (v) S.delObj.add(+id); else S.delObj.delete(+id); kinds.add('obj');
   } else if (t === 'm'){

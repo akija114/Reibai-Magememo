@@ -248,6 +248,12 @@ const GROUPS = [
   {id:'arch', name:'建築',   col:'#9A7B5F', re:/躯体|梁|柱|壁|スラブ|基礎|杭|建具|室名|天井|床|通り?芯|平面詳細|既設|隣家|方位|鉄骨|間仕切|RC|階段|窓|扉|建築|^A[-_ ]/i},
   {id:'etc',  name:'その他', col:'#8893A0', re:null},
 ];
+/* 自分で作るグループ（2026-11-05 ユーザー：空調のグループなどを自分で）：この端末で覚える（zumen-ugroups）。その他の前に足す */
+const UG_COLS = ['#E11D48', '#F97316', '#16A34A', '#0EA5E9', '#A855F7', '#DB2777', '#65A30D', '#0D9488'];
+try { for (const g of JSON.parse(localStorage.getItem('zumen-ugroups') || '[]')) if (g && g.id && !GROUPS.some(x => x.id === g.id)) GROUPS.splice(GROUPS.length - 1, 0, {id:g.id, name:g.name, col:g.col, re:null}); } catch(e){}
+function ugNew(){ const n = (prompt('新しいグループの名前（例：冷媒・11階の空調）') || '').trim().slice(0, 12); if (!n) return null; const ex = GROUPS.find(g => g.name === n); if (ex) return ex.id;
+  let L = []; try { L = JSON.parse(localStorage.getItem('zumen-ugroups') || '[]'); } catch(e){} const g = {id:'u' + Date.now().toString(36), name:n, col:UG_COLS[L.length % UG_COLS.length]}; L.push(g); try { localStorage.setItem('zumen-ugroups', JSON.stringify(L)); } catch(e){} GROUPS.splice(GROUPS.length - 1, 0, {...g, re:null}); return g.id; }
+const UG_OPT = '<option value="__new">＋ 新しいグループを作る</option>';
 const GROUP_ORDER = ['duct','ac','san','elec','arch']; // match order: duct first so 空調ダクト goes to ダクト
 const gById = id => GROUPS.find(g => g.id === id) || GROUPS[GROUPS.length-1];
 function autoGroup(name){ const n = name.normalize('NFKC'); for (const id of GROUP_ORDER){ if (gById(id).re.test(n)) return id; } return 'etc'; }
@@ -1827,13 +1833,13 @@ function updatePickBar(){
     if (!pk.lsel) pk.lsel = new Set([li]);
     [...pk.lsel].forEach(x => { if (G.L[x].deleted) pk.lsel.delete(x); }); if (!pk.lsel.size) pk.lsel.add(li);
     const many = pk.lsel.size > 1;
-    const n = pk.cands.length, opts = GROUPS.map(g => `<option value="${g.id}" ${g.id === l.g ? 'selected' : ''}>${g.name}</option>`).join('');
+    const n = pk.cands.length, opts = GROUPS.map(g => `<option value="${g.id}" ${g.id === l.g ? 'selected' : ''}>${g.name}</option>`).join('') + UG_OPT;
     bar.innerHTML = rRow + `<div class="frow">${n > 1 ? `<button class="btn" data-a="prev" aria-label="前の候補">◀</button>` : ''}
       <div class="grow">${many ? `<div class="lname">${pk.lsel.size} 個のレイヤーをえらんでいます</div><div class="lsub">${esc(short([...pk.lsel].map(x => G.L[x].name)))} ・ 長押しで追加／外す</div>` : `<div class="lname"><i class="sw" style="display:inline-block;vertical-align:-2px;margin-right:6px;background:${colorCss(l.ck)}"></i>${esc(l.name)}</div><div class="lsub">${l.count} 個の図形${n > 1 ? ` ・ 重なり ${pk.i + 1}/${n}（◀▶）` : ''} ・ 長押しで追加</div>`}</div>
       ${n > 1 ? `<button class="btn" data-a="next" aria-label="次の候補">▶</button>` : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
       ${scope}
       <div class="frow"><select class="gsel" data-a="grp" aria-label="グループ" style="height:40px;max-width:96px">${opts}</select><button class="btn" data-a="solo" style="flex:1">これだけ見る</button><button class="btn" data-a="hide" style="flex:1">非表示</button><button class="btn del" data-a="del" style="flex:1">削除</button></div>`;
-    bar.onchange = e => { if (e.target.dataset.a === 'grp'){ l.g = e.target.value; saveGroupPref(l.name, l.g); renderTabs(); autosave(); toast(`「${l.name}」を${gById(l.g).name}に移しました`); } };
+    bar.onchange = e => { if (e.target.dataset.a === 'grp'){ let v = e.target.value; if (v === '__new'){ v = ugNew(); if (!v){ e.target.value = l.g; return; } } const Ls = [...pk.lsel].map(x => G.L[x]).filter(Boolean); for (const q of Ls){ q.g = v; saveGroupPref(q.name, v); } renderTabs(); autosave(); updatePickBar(); toast(`${Ls.length > 1 ? Ls.length + ' 個のレイヤー' : '「' + l.name + '」'}を${gById(v).name}に移しました`); } };   /* 長押しで選んだレイヤーはまとめて移す */
   }
   bar.onclick = e => {
     const btn = e.target.closest('button[data-a]'); if (!btn || btn.disabled) return; const a = btn.dataset.a;
@@ -3069,9 +3075,9 @@ function openLayerSheet(trashFirst){
   openSheet('レイヤー', body => {
     const live = sortedLayers().filter(l => !l.deleted), dead = G.L.filter(l => l.deleted && l.count > 0);
     const hidden = live.filter(l => !l.on);
-    const opts = cur => GROUPS.map(g => `<option value="${g.id}" ${g.id === cur ? 'selected' : ''}>${g.name}</option>`).join('');
+    const opts = cur => GROUPS.map(g => `<option value="${g.id}" ${g.id === cur ? 'selected' : ''}>${g.name}</option>`).join('') + UG_OPT;
     let h = `<div class="sh-tools"><button class="btn" data-a="allon">全部表示</button><button class="btn" data-a="alloff">全部非表示</button><button class="btn del" data-a="delhidden" ${hidden.length ? '' : 'disabled style="opacity:.4"'}>非表示の${hidden.length}件を削除</button></div>
-      <div class="note">空調・ダクト・衛生・電気・建築に自動で振り分けています。違うときは右の選択で変えられます（この端末で覚えます）。削除してもゴミ箱から戻せます。</div>`;
+      <div class="note">空調・ダクト・衛生・電気・建築に自動で振り分けています。違うときは右の選択で変えられます。「＋ 新しいグループを作る」で自分のグループも作れます（この端末で覚えます）。削除してもゴミ箱から戻せます。</div>`;
     const trash = dead.length ? `<div class="ghead"><b>ゴミ箱</b><span class="ct">${dead.length}</span>${dead.length > 1 ? '<button class="btn" data-a="restoreall">全部戻す</button>' : ''}</div>` + dead.map(l => `<div class="row"><i class="sw" style="background:${colorCss(l.ck)}"></i><div class="grow"><div class="nm">${esc(l.name)}</div><div class="sub">${gById(l.g).name} ・ ${l.count} 個</div></div><button class="btn" data-restore="${esc(l.name)}">戻す</button></div>`).join('') : '';
     if (S.hideObj.size || S.delObj.size){
       h += `<div class="ghead"><b>部品</b></div>`;
@@ -3091,7 +3097,7 @@ function openLayerSheet(trashFirst){
     body.onchange = e => {
       const sel = e.target.closest('[data-grp]'); if (!sel) return;
       const l = G.L.find(x => x.name === sel.dataset.grp); if (!l) return;
-      l.g = sel.value; saveGroupPref(l.name, l.g); renderTabs(); if (S.group) renderBase(); updateLayerBar(); refreshOpenSheet(); autosave();
+      let v = sel.value; if (v === '__new'){ v = ugNew(); if (!v){ sel.value = l.g; return; } } l.g = v; saveGroupPref(l.name, l.g); renderTabs(); if (S.group) renderBase(); updateLayerBar(); refreshOpenSheet(); autosave();
       toast(`「${l.name}」を${gById(l.g).name}に移しました`);
     };
     body.onclick = e => {
@@ -3723,8 +3729,8 @@ function v3dAna(){
       for (let i = wallU.length - 1; i >= 0; i--){ const v = V2.get(gk(wallU[i])); if (v[0] + v[1] >= 3 && v[1] >= (v[0] + v[1])*0.6){ const q = wallU.splice(i, 1)[0]; oud.push({...q, n:q.n.map(z => -z)}); } }
       for (let i = oud.length - 1; i >= 0; i--){ const v = V2.get(gk(oud[i])); if (v[0] + v[1] >= 3 && v[0] >= (v[0] + v[1])*0.6){ const q = oud.splice(i, 1)[0], wn = acSide(q, q.hz, LL); wallU.push({...q, n:wn ? wn.n : (q.n ? q.n.map(z => -z) : [0, 1]), face:wn ? wn.face : (q.hz ? q.y1 : q.x1), t:wn ? wn.t : 150}); } } }
     un = keep; for (const q of wallU){ const cx = (q.x0 + q.x1)/2, cy = (q.y0 + q.y1)/2; let b = null, bd = 4500; for (const o of oud){ const ox = (o.x0 + o.x1)/2, oy = (o.y0 + o.y1)/2; if ((ox - cx)*q.n[0] + (oy - cy)*q.n[1] <= q.t*0.5) continue; const dd = Math.hypot(ox - cx, oy - cy); if (dd < bd && !wallU.some(z => z !== q && z.o === o)){ bd = dd; b = o; } } q.o = b; } } // 壁掛けごとに、壁の外のいちばん近い室外機
-  if (!window.V3ALL){ const NG = v3dUG() || {}; un = un.filter(m => m.mdl != null || NG[v3dUKey(m)] !== '__no'); for (let i = wallU.length - 1; i >= 0; i--) if (NG['W' + v3dUKey(wallU[i])] === '__no') wallU.splice(i, 1); }   // 「🚫 室内機ではない」にした形は出さない（2026-11-03 ユーザー）
-  return {walls, doors, reg:SH, ubs:ubs.filter(inB), units:un, insp:insp.filter(inB), outs:outs.filter(inB), wallU, oud, bld, CH0, wallH:CH0}; // 壁は天井の高さまで（天井の上の機器が見えるように）
+  const outU = []; if (!window.V3ALL){ const NG = v3dUG() || {}; un = un.filter(m => { const k = NG[v3dUKey(m)]; if (m.mdl == null && k === '__out'){ outU.push(m); return false; } return m.mdl != null || k !== '__no'; });   /* 「🌀 室外機」にした形は床に箱（2026-11-05 ユーザー：機種を聞く画面に室外機が出る） */ for (let i = wallU.length - 1; i >= 0; i--) if (NG['W' + v3dUKey(wallU[i])] === '__no') wallU.splice(i, 1); }   // 「🚫 室内機ではない」にした形は出さない（2026-11-03 ユーザー）
+  return {walls, doors, reg:SH, ubs:ubs.filter(inB), units:un, outU, insp:insp.filter(inB), outs:outs.filter(inB), wallU, oud, bld, CH0, wallH:CH0}; // 壁は天井の高さまで（天井の上の機器が見えるように）
 }
 /* 細長い機械の記号の中の、短い辺の向きの線（短い辺の6割以上）の本数。壁掛けは格子（多い）、室外機は横じま（少ない） */
 function acCross(c){ const hz = c.x1 - c.x0 >= c.y1 - c.y0, Sh = hz ? c.y1 - c.y0 : c.x1 - c.x0, xs = new Set(); for (const m of c.s || []){ const dx = Math.abs(m[2] - m[0]), dy = Math.abs(m[3] - m[1]); if (hz ? (dx < 5 && dy >= Sh*0.6) : (dy < 5 && dx >= Sh*0.6)) xs.add(Math.round((hz ? m[0] : m[1])/10)); } return xs.size; }
@@ -3849,7 +3855,7 @@ function askUnitModels(force){ return new Promise(ok => { if (!G || typeof CAS2M
   const L = [...grp.values()].sort((a, b) => b.n - a.n), sel = {}; L.forEach((g, i) => { const gs = g.wall ? (Math.min(g.m.x1 - g.m.x0, g.m.y1 - g.m.y0) < 300 ? 'mi_gv' : 'mi_zxv63') : v3dGuess(g.m); g.gs = gs; if (g.wall){ sel[g.k] = g.k in G0 ? G0[g.k] : gs; return; } sel[g.k] = g.k in G0 ? G0[g.k] : gs || (i === 0 ? v3dMdl() : ''); });
   let done = false; const fin = save => { if (done) return; done = true; if (save) v3dUGset({...G0, ...sel}); closeSheet(); ok(); };
   openSheet('室内機の機種を決める', body => {
-    body.innerHTML = `<div class="note">${v3dMdlTx() ? '' : '図面に室内機の品番が書いてありません。'}同じ形の機械ごとに機種を選んでください。分からない時は「わからない（箱で出す）」でOKです。室内機でない物は「🚫 室内機ではない」。</div>` + L.map(g => `<div style="padding:10px 2px;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:15px">約 ${g.wall ? g.k.slice(1) : g.k}mm の${g.wall ? '壁掛け' : '機械'}・${g.n}台</div><div style="font-size:12.5px;color:var(--sub)">${g.gs ? '形から見た目安：' + esc((g.wall ? WALLM : CAS2M)[g.gs].n) : '形からは分かりません'}</div></div><button class="btn" data-z="${g.k}" style="height:38px;flex:none">📍 図面の場所で見る</button></div><canvas data-th="${g.k}" style="display:block;width:100%;height:170px;margin-top:6px;border-radius:10px;border:1px solid var(--line);background:var(--panel2)"></canvas><select data-g="${g.k}" style="margin-top:6px;width:100%;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:15px">${g.wall ? WALL_MORDER.map(k => `<option value="${k}" ${k === sel[g.k] ? 'selected' : ''}>${esc(WALLM[k].n)}（壁掛け ${WALLM[k].W}×${WALLM[k].H}×${WALLM[k].D}）</option>`).join('') + `<option value="__no" ${sel[g.k] === '__no' ? 'selected' : ''}>🚫 室内機ではない（3Dに出さない）</option>` : `<option value="">わからない（箱で出す）</option>${CAS2_ORDER.filter(k => CAS2M[k]).map(k => `<option value="${k}" ${k === sel[g.k] ? 'selected' : ''}>${esc(CAS2M[k].n)}（${esc(CAS2M[k].kind)}）</option>`).join('')}<option value="__no" ${sel[g.k] === '__no' ? 'selected' : ''}>🚫 室内機ではない（3Dに出さない）</option>`}</select></div>`).join('') + `<div class="frow"><button class="btn pri" data-a="ok" style="flex:1;height:46px">決定</button></div>`;
+    body.innerHTML = `<div class="note">${v3dMdlTx() ? '' : '図面に室内機の品番が書いてありません。'}同じ形の機械ごとに機種を選んでください。分からない時は「わからない（箱で出す）」でOKです。室外機は「🌀 室外機」、室内機でない物は「🚫 室内機ではない」。</div>` + L.map(g => `<div style="padding:10px 2px;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:15px">約 ${g.wall ? g.k.slice(1) : g.k}mm の${g.wall ? '壁掛け' : '機械'}・${g.n}台</div><div style="font-size:12.5px;color:var(--sub)">${g.gs ? '形から見た目安：' + esc((g.wall ? WALLM : CAS2M)[g.gs].n) : '形からは分かりません'}</div></div><button class="btn" data-z="${g.k}" style="height:38px;flex:none">📍 図面の場所で見る</button></div><canvas data-th="${g.k}" style="display:block;width:100%;height:170px;margin-top:6px;border-radius:10px;border:1px solid var(--line);background:var(--panel2)"></canvas><select data-g="${g.k}" style="margin-top:6px;width:100%;height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:15px">${g.wall ? WALL_MORDER.map(k => `<option value="${k}" ${k === sel[g.k] ? 'selected' : ''}>${esc(WALLM[k].n)}（壁掛け ${WALLM[k].W}×${WALLM[k].H}×${WALLM[k].D}）</option>`).join('') + `<option value="__no" ${sel[g.k] === '__no' ? 'selected' : ''}>🚫 室内機ではない（3Dに出さない）</option>` : `<option value="">わからない（箱で出す）</option>${CAS2_ORDER.filter(k => CAS2M[k]).map(k => `<option value="${k}" ${k === sel[g.k] ? 'selected' : ''}>${esc(CAS2M[k].n)}（${esc(CAS2M[k].kind)}）</option>`).join('')}<option value="__out" ${sel[g.k] === '__out' ? 'selected' : ''}>🌀 室外機（床に箱で出す）</option><option value="__no" ${sel[g.k] === '__no' ? 'selected' : ''}>🚫 室内機ではない（3Dに出さない）</option>`}</select></div>`).join('') + `<div class="frow"><button class="btn pri" data-a="ok" style="flex:1;height:46px">決定</button></div>`;
     body.querySelectorAll('canvas[data-th]').forEach(c => { const g = grp.get(c.dataset.th); if (g) unitThumb(c, g.m); });   // その機械のまわりだけ切り抜いて見せる（2026-11-02 ユーザー：図面で見るでは下の画面に隠れて見えない）
     body.onchange = e => { const k = e.target.dataset.g; if (k != null) sel[k] = e.target.value; };
     body.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.a === 'ok') fin(true); else if (b.dataset.z){ const g = grp.get(b.dataset.z), u = unitMM(); if (g) unitPeek(g, u); } }; });
@@ -4313,58 +4319,79 @@ async function open3D(){
     let r = null; try { r = await mageRead(); } catch(e){ r = {err:(e && e.message) || String(e)}; } if ($('#v3d').hidden) return; if (r && r.err) toast('曲げメモと同じ読み方ができませんでした（' + r.err + '）。今までの読み方で出します'); }
   return open3Dold();
 }
-/* 🏨 天井の配管・ダクト図（ホテルの施工図など・2026-11-05 ユーザー：天井の中を3Dで見たい）。図面の文字から、どのレイヤが何かを決めて、2本線の真ん中を管にする。
-   冷媒＝近くに「R」「C FL+2850」の文字がある線、ドレン＝「D」「D 25A」「⊿」、梁＝「(-405)300×588(下端FL+3113)」（梁の貫通）。高さは近くの「FL+○○」（無い所はつながった管から）。
-   梁の高さは、その梁の貫通の文字（下端・たて×横）から。返す：{ref, drn:[{a,b,w,h}], beam:[{a,b,w,lo,hi}], slv:[{p,d,w,h,lo,bw}]}（図面の mm） */
+/* 🏨 天井の配管・ダクト図（ホテルの施工図など・2026-11-05 ユーザー：天井の中を3Dで・サイズと高さの吹き出し・分岐管も）。
+   冷媒・ドレンのレイヤは名前（冷媒・ドレン）、無ければ「R」「D」の文字のいちばん近い線のレイヤ。管は「外の線2本＋真ん中の線」の真ん中の線（両側に同じ間の線がある線）をつないで1本に。
+   文字は並んだ1組：「R」「C」「FL+3300」＝冷媒（記号 C は図面の冷媒サイズ表で 液 9.52・ガス 15.88＝3分・5分）、「D」「25A」「FL+2986」＝ドレン（25A・床から2986）、ほかの「FL+○○」は高さだけ。
+   1組の文字は向きがそろったいちばん近い管へ、文字の無い管はつながった管から（近い方から順に）。管の端がほかの管の途中に当たる所＝分岐管。
+   梁の貫通「(-405)300×588(下端FL+3113)」は文字の向き（梁の向き）に横588・たて300・下端3113 の箱（梁は描かない：2026-11-05 ユーザー：オレンジと梁がよく分からない） */
+const CEIL_BUN = {'6.35':'2分', '9.52':'3分', '12.7':'4分', '15.88':'5分', '19.05':'6分', '22.2':'7分', '22.22':'7分', '25.4':'8分', '28.58':'9分', '31.75':'10分', '34.92':'11分', '38.1':'12分', '41.28':'13分'};
+const CEIL_TAB0 = {A:['6.35', '9.52'], B:['6.35', '12.7'], C:['9.52', '15.88'], D:['9.52', '19.05'], E:['9.52', '22.2'], F:['9.52', '25.4'], G:['12.7', '25.4'], H:['15.88', '28.58']};
+const ceilBun = v => CEIL_BUN[String(+v)] || CEIL_BUN[v] || (v + 'φ');
 function ceilAna(){
-  const u = unitMM(), sg = G.segs, T = []; G.L.forEach((l, li) => { if (l.deleted) return; for (const t of G.textsBy[li] || []){ const s = t.lines.join(' ').trim(), h = t.h*u, a = t.a || 0, L = s.length*h*0.75; T.push({s, h, li, x:t.x*u + Math.cos(a)*L/2 - Math.sin(a)*h/2, y:t.y*u + Math.sin(a)*L/2 + Math.cos(a)*h/2}); } });
-  const SLV = /\((-?\d+)\)\s*(\d+)\s*[×xX*]\s*(\d+)\s*\(下端\s*FL\s*\+\s*(\d+)\)/, nSl = T.filter(t => SLV.test(t.s)).length, nR = T.filter(t => /^R$/.test(t.s)).length, nFL = T.filter(t => /FL\+\d{3,4}/.test(t.s)).length;
+  const u = unitMM(), sg = G.segs, T = []; G.L.forEach((l, li) => { if (l.deleted) return; for (const t of G.textsBy[li] || []){ const s = t.lines.join(' ').trim(), h = t.h*u, a = t.a || 0, L = s.length*h*0.75, dx = Math.cos(a), dy = Math.sin(a); T.push({s, h, li, a, dx, dy, x0:t.x*u, y0:t.y*u, x:t.x*u + dx*L/2 - dy*h/2, y:t.y*u + dy*L/2 + dx*h/2, L}); } });
+  const SLV = /\((-?\d+)\)\s*(\d+)\s*[×xX*]\s*(\d+)\s*\(下端\s*FL\s*\+\s*(\d+)\)/, nSl = T.filter(t => SLV.test(t.s)).length, nR = T.filter(t => t.s === 'R').length, nFL = T.filter(t => /FL\+\d{3,4}/.test(t.s)).length;
   if (nSl < 5 && !(nR >= 5 && nFL >= 8)) return null;
-  // 線（網・文字・見えないレイヤは除く・100mm 以上）と、1m の升目
-  const S = [], cell = 1000, gm = new Map(); for (let i = 0; i < sg.length; i += SS){ const l = G.L[sg[i+4]]; if (!l || l.deleted || !l.on || /網|斜線|文字/.test(l.name)) continue; const s = [sg[i]*u, sg[i+1]*u, sg[i+2]*u, sg[i+3]*u, sg[i+4]], L = Math.hypot(s[2] - s[0], s[3] - s[1]); if (L < 100) continue; s.push(L); S.push(s); }
-  S.forEach((s, k) => { for (let gx = Math.floor(Math.min(s[0], s[2])/cell); gx <= Math.floor(Math.max(s[0], s[2])/cell); gx++) for (let gy = Math.floor(Math.min(s[1], s[3])/cell); gy <= Math.floor(Math.max(s[1], s[3])/cell); gy++){ const q = gx + ',' + gy; (gm.get(q) || gm.set(q, []).get(q)).push(k); } });
-  const dseg = (p, s) => { const vx = s[2] - s[0], vy = s[3] - s[1], t = Math.max(0, Math.min(1, ((p[0] - s[0])*vx + (p[1] - s[1])*vy)/(vx*vx + vy*vy))); return Math.hypot(p[0] - s[0] - vx*t, p[1] - s[1] - vy*t); };
-  const near = (p, r, ok) => { let best = null, bd = r; for (let gx = Math.floor((p[0] - r)/cell); gx <= Math.floor((p[0] + r)/cell); gx++) for (let gy = Math.floor((p[1] - r)/cell); gy <= Math.floor((p[1] + r)/cell); gy++) for (const k of gm.get(gx + ',' + gy) || []){ const s = S[k]; if (ok && !ok(s)) continue; const d = dseg(p, s); if (d < bd){ bd = d; best = s; } } return best; };
-  // レイヤを決める：文字のいちばん近い線のレイヤに票
-  const KR = {ref:t => /^R$/.test(t.s) || /^[A-H]\s*FL\+\d/.test(t.s), drn:t => /^D$/.test(t.s) || /^D\s*\d+A/.test(t.s) || /^⊿/.test(t.s), beam:t => SLV.test(t.s)}, V = {ref:{}, drn:{}, beam:{}};
-  for (const t of T) for (const k in KR) if (KR[k](t)){ const s = near([t.x, t.y], 500); if (s) V[k][s[4]] = (V[k][s[4]] || 0) + 1; }
-  const LY = {}; for (const k in V){ const e = Object.entries(V[k]), top = Math.max(0, ...e.map(x => x[1])); for (const [li, n] of e) if (n >= Math.max(3, top*0.25) && (!LY[li] || V[LY[li]][li] < n)) LY[li] = k; }
-  // 2本線 → 真ん中（同じ向き・間が w の範囲・重なる所）
-  const WR = {ref:[12, 90], drn:[15, 120], beam:[120, 800]}, out = {ref:[], drn:[], beam:[]};
-  for (const k of ['ref', 'drn', 'beam']){ const L0 = S.filter(s => LY[s[4]] === k), B = new Map();
-    for (const s of L0){ let an = Math.atan2(s[3] - s[1], s[2] - s[0]); if (an < 0) an += Math.PI; if (an >= Math.PI - 0.009) an -= Math.PI; const bk = Math.round(an*180/Math.PI); const dx = Math.cos(bk*Math.PI/180), dy = Math.sin(bk*Math.PI/180), t = [s[0]*dx + s[1]*dy, s[2]*dx + s[3]*dy].sort((a, b) => a - b); const o = s[0]*-dy + s[1]*dx; (B.get(bk) || B.set(bk, []).get(bk)).push({o, t0:t[0], t1:t[1], dx, dy, use:0}); }
-    for (const [bk, A] of B){ A.sort((p, q) => p.o - q.o); const C = []; for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++){ const d = A[j].o - A[i].o; if (d < WR[k][0]) continue; if (d > WR[k][1]) break; const lo = Math.max(A[i].t0, A[j].t0), hi = Math.min(A[i].t1, A[j].t1); if (hi - lo < Math.max(100, 0.5*Math.min(A[i].t1 - A[i].t0, A[j].t1 - A[j].t0))) continue; C.push([d, i, j, lo, hi]); }
-      C.sort((p, q) => p[0] - q[0]); for (const [d, i, j, lo, hi] of C){ if (A[i].use || A[j].use) continue; A[i].use = A[j].use = 1; const o = (A[i].o + A[j].o)/2, dx = A[i].dx, dy = A[i].dy; out[k].push({a:[dx*lo - dy*o, dy*lo + dx*o], b:[dx*hi - dy*o, dy*hi + dx*o], w:d}); } } }
-  // 高さ：近くの「FL+○○」（その種類の線にいちばん近い文字）→ つながった管へ
-  const FLre = /FL\s*\+\s*(\d{3,4})/;
-  for (const k of ['ref', 'drn']){ const P = out[k], ok = s => LY[s[4]] === k;
-    for (const t of T){ const m = FLre.exec(t.s); if (!m || SLV.test(t.s)) continue; const s = near([t.x, t.y], 600); if (!s || !ok(s)) continue; let bi = -1, bd = 1500; P.forEach((q, i) => { const d = dseg([t.x, t.y], [...q.a, ...q.b]); if (d < bd){ bd = d; bi = i; } }); if (bi >= 0 && (P[bi].hd == null || bd < P[bi].hd)){ P[bi].h = +m[1]; P[bi].hd = bd; } }
-    for (let it = 0; it < 30; it++){ let ch = false; for (const p of P){ if (p.h != null) continue; for (const q of P){ if (q.h == null || q === p) continue; if ([p.a, p.b].some(e => [q.a, q.b].some(f => Math.hypot(e[0] - f[0], e[1] - f[1]) < 350)) || [p.a, p.b].some(e => dseg(e, [...q.a, ...q.b]) < 150)){ p.h = q.h; ch = true; break; } } } if (!ch) break; }
-    for (const p of P) if (p.h == null) p.h = k === 'ref' ? 2850 : 2700; }
-  // 梁の貫通 → いちばん近い梁。梁の高さは貫通から（無い梁はみんなの真ん中）
-  out.slv = []; for (const t of T){ const m = SLV.exec(t.s); if (!m) continue; let bi = -1, bd = 1e9; out.beam.forEach((q, i) => { const d = dseg([t.x, t.y], [...q.a, ...q.b]); if (d < q.w/2 + 400 && d < bd){ bd = d; bi = i; } }); if (bi < 0) continue;
-    const q = out.beam[bi], L = Math.hypot(q.b[0] - q.a[0], q.b[1] - q.a[1]), dx = (q.b[0] - q.a[0])/L, dy = (q.b[1] - q.a[1])/L, tt = Math.max(0, Math.min(L, (t.x - q.a[0])*dx + (t.y - q.a[1])*dy)), h = +m[2], w = +m[3], lo = +m[4];
-    out.slv.push({p:[q.a[0] + dx*tt, q.a[1] + dy*tt], d:[dx, dy], w, h, lo, bw:q.w, s:t.s}); q.lo = Math.min(q.lo == null ? 1e9 : q.lo, lo - 150); q.hi = Math.max(q.hi || 0, lo + h + 150); }
-  /* 梁は貫通のある梁と、それと同じ幅（±15mm）の長い（2m 以上）物だけ（建物のほかの線を梁にしない） */
-  { const ws = out.beam.filter(q => q.lo != null).map(q => q.w); out.beam = out.beam.filter(q => q.lo != null || (Math.hypot(q.b[0] - q.a[0], q.b[1] - q.a[1]) >= 2000 && ws.some(w => Math.abs(w - q.w) <= 15))); }
-  const md = a => { a = a.slice().sort((x, y) => x - y); return a[a.length >> 1]; }, LO = out.beam.filter(q => q.lo != null), lo0 = LO.length ? md(LO.map(q => q.lo)) : 2950, hi0 = LO.length ? md(LO.map(q => q.hi)) : 3900;
-  for (const q of out.beam){ if (q.lo == null){ q.lo = lo0; q.hi = hi0; } if (q.hi - q.lo < 450) q.lo = q.hi - 450; }
-  out.n = {ref:out.ref.length, drn:out.drn.length, beam:out.beam.length, slv:out.slv.length}; return out;
+  // 冷媒サイズ表（記号 → 液・ガス）
+  const tab = {...CEIL_TAB0}; { const h = T.find(t => /冷媒サイズ表/.test(t.s)); if (h) for (const t of T){ if (!/^[A-H]$/.test(t.s) || Math.abs(t.x - h.x) > 4000 || t.y > h.y || h.y - t.y > 5000) continue; const ns = T.filter(q => q !== t && Math.abs(q.y - t.y) < t.h*1.2 && q.x > t.x && q.x - t.x < 3000 && /^\d+\.\d+\s*φ?$/.test(q.s)).sort((a, b) => a.x - b.x).map(q => q.s.replace(/\s*φ/, '')); if (ns.length >= 2) tab[t.s] = [ns[0], ns[1]]; } }
+  // 線（100mm 以上でなくても：真ん中の線は継手で切れているので 30mm 以上）と升目
+  const kOf = {}; G.L.forEach((l, li) => { if (l.deleted) return; if (/冷媒/.test(l.name)) kOf[li] = 'ref'; else if (/ドレン/.test(l.name)) kOf[li] = 'drn'; });
+  const S = [], cell = 1000, gm = new Map(); for (let i = 0; i < sg.length; i += SS){ const li = sg[i+4], l = G.L[li]; if (!l || l.deleted || !l.on || /網|斜線|文字/.test(l.name)) continue; const s = [sg[i]*u, sg[i+1]*u, sg[i+2]*u, sg[i+3]*u, li], L = Math.hypot(s[2] - s[0], s[3] - s[1]); if (L < 30) continue; s.push(L); S.push(s); }
+  S.forEach((s, k) => { if (s[5] < 100) return; for (let gx = Math.floor(Math.min(s[0], s[2])/cell); gx <= Math.floor(Math.max(s[0], s[2])/cell); gx++) for (let gy = Math.floor(Math.min(s[1], s[3])/cell); gy <= Math.floor(Math.max(s[1], s[3])/cell); gy++){ const q = gx + ',' + gy; (gm.get(q) || gm.set(q, []).get(q)).push(k); } });
+  const dseg = (p, s) => { const vx = s[2] - s[0], vy = s[3] - s[1], t = Math.max(0, Math.min(1, ((p[0] - s[0])*vx + (p[1] - s[1])*vy)/(vx*vx + vy*vy || 1))); return Math.hypot(p[0] - s[0] - vx*t, p[1] - s[1] - vy*t); };
+  if (!Object.values(kOf).includes('ref') || !Object.values(kOf).includes('drn')){ const V = {ref:{}, drn:{}}, near = p => { let best = null, bd = 500; for (let gx = Math.floor((p[0] - 500)/cell); gx <= Math.floor((p[0] + 500)/cell); gx++) for (let gy = Math.floor((p[1] - 500)/cell); gy <= Math.floor((p[1] + 500)/cell); gy++) for (const k of gm.get(gx + ',' + gy) || []){ const d = dseg(p, S[k]); if (d < bd){ bd = d; best = S[k]; } } return best; };   /* 名前で分からない図面は「R」「D」の文字に近い線のレイヤ */
+    for (const t of T){ const k = t.s === 'R' ? 'ref' : t.s === 'D' ? 'drn' : null; if (!k || Object.values(kOf).includes(k)) continue; const s = near([t.x, t.y]); if (s) V[k][s[4]] = (V[k][s[4]] || 0) + 1; }
+    for (const k in V){ const e = Object.entries(V[k]).sort((a, b) => b[1] - a[1]); if (e.length && e[0][1] >= 3 && !kOf[e[0][0]]) kOf[e[0][0]] = k; } }
+  // 真ん中の線：両側に同じ間（8〜70mm）の線がある線。同じ線の上で 250mm までつなぐ
+  const out = {ref:[], drn:[]};
+  for (const k of ['ref', 'drn']){ const B = new Map();
+    for (const s of S){ if (kOf[s[4]] !== k) continue; let an = Math.atan2(s[3] - s[1], s[2] - s[0]); if (an < 0) an += Math.PI; if (an >= Math.PI - 0.009) an -= Math.PI; const bk = Math.round(an*180/Math.PI) % 180, dx = Math.cos(bk*Math.PI/180), dy = Math.sin(bk*Math.PI/180), t = [s[0]*dx + s[1]*dy, s[2]*dx + s[3]*dy].sort((a, b) => a - b); (B.get(bk) || B.set(bk, []).get(bk)).push({o:-s[0]*dy + s[1]*dx, t0:t[0], t1:t[1], dx, dy}); }
+    for (const [bk, A] of B){ A.sort((p, q) => p.o - q.o); const C = [];
+      for (let i = 0; i < A.length; i++){ const c = A[i]; let best = null; for (let j = i - 1; j >= 0 && c.o - A[j].o <= 70; j--){ const lo = A[j], d1 = c.o - lo.o; if (d1 < 8) continue; const ov1 = Math.min(c.t1, lo.t1) - Math.max(c.t0, lo.t0); if (ov1 < Math.min(30, (c.t1 - c.t0)*0.6)) continue;
+          for (let m = i + 1; m < A.length && A[m].o - c.o <= 70; m++){ const hi = A[m], d2 = hi.o - c.o; if (Math.abs(d2 - d1) > 4) continue; const t0 = Math.max(c.t0, lo.t0, hi.t0), t1 = Math.min(c.t1, lo.t1, hi.t1); if (t1 - t0 < Math.min(30, (c.t1 - c.t0)*0.6)) continue; if (!best || d1 + d2 < best.w) best = {o:c.o, t0, t1, w:d1 + d2}; } }
+        if (best) C.push(best); }
+      C.sort((p, q) => p.o - q.o || p.t0 - q.t0); const M = []; for (const c of C){ const m = M.find(q => Math.abs(q.o - c.o) < 3 && c.t0 <= q.t1 + 250 && c.t1 >= q.t0 - 250); if (m){ m.t0 = Math.min(m.t0, c.t0); m.t1 = Math.max(m.t1, c.t1); m.w = Math.max(m.w, c.w); } else M.push({...c}); }
+      const dx = Math.cos(bk*Math.PI/180), dy = Math.sin(bk*Math.PI/180); for (const m of M) if (m.t1 - m.t0 >= 150) out[k].push({a:[dx*m.t0 - dy*m.o, dy*m.t0 + dx*m.o], b:[dx*m.t1 - dy*m.o, dy*m.t1 + dx*m.o], d:[dx, dy], w:m.w, L:m.t1 - m.t0}); } }
+  // 文字の組（同じレイヤの種類・同じ向き・並んでいる）：R ＋ 記号 ＋ FL+、D ＋ 25A ＋ FL+、FL+ だけ
+  const labs = []; for (const k of ['ref', 'drn']){ const KT = T.filter(t => kOf[t.li] === k || (k === 'ref' ? t.s === 'R' : t.s === 'D')), used = new Set();
+    const along = (t, q) => Math.abs(t.a - q.a) < 0.05 && Math.abs(-(q.x0 - t.x0)*t.dy + (q.y0 - t.y0)*t.dx) < t.h*0.8 && (q.x0 - t.x0)*t.dx + (q.y0 - t.y0)*t.dy > 0 && (q.x0 - t.x0)*t.dx + (q.y0 - t.y0)*t.dy < 900;
+    for (const t of KT){ if (t.s !== (k === 'ref' ? 'R' : 'D')) continue; const g = [t, ...KT.filter(q => q !== t && along(t, q))]; g.forEach(q => used.add(q)); let sz = null, h = null; for (const q of g){ const m = /FL\s*\+\s*(\d{3,4})/.exec(q.s); if (m) h = +m[1]; if (k === 'ref' && /^[A-H]$/.test(q.s)) sz = q.s; if (k === 'drn'){ const a = /(\d{2,3})\s*A/.exec(q.s); if (a) sz = +a[1]; } } labs.push({k, x:g.reduce((s, q) => s + q.x, 0)/g.length, y:g.reduce((s, q) => s + q.y, 0)/g.length, dx:t.dx, dy:t.dy, sz, h}); }
+    for (const t of KT){ if (used.has(t)) continue; const m = /^FL\s*\+\s*(\d{3,4})$/.exec(t.s); if (m) labs.push({k, x:t.x, y:t.y, dx:t.dx, dy:t.dy, sz:null, h:+m[1], only:1}); } }
+  // 文字の組 → いちばん近い管（向きがそろった物を先に）
+  for (const lb of labs){ const P = out[lb.k]; let bi = -1, bd = 1e9; P.forEach((q, i) => { const d = dseg([lb.x, lb.y], [...q.a, ...q.b]), par = Math.abs(q.d[0]*lb.dy - q.d[1]*lb.dx) < 0.2, s = d + (par ? 0 : 250); if (d < (lb.only ? 700 : 600) && s < bd){ bd = s; bi = i; } }); if (bi < 0) continue; const q = P[bi]; lb.run = q; if (lb.h != null && (q.hd == null || bd < q.hd)){ q.h = lb.h; q.hd = bd; } if (lb.sz != null && (q.sd == null || bd < q.sd)){ q.sz = lb.sz; q.sd = bd; } }
+  // つながり（角＝端どうし 350mm・分岐＝端がほかの管の途中 150mm）→ 文字の無い管は近い方から
+  const br = []; for (const k of ['ref', 'drn']){ const P = out[k]; P.forEach(p => p.nb = []);
+    for (let i = 0; i < P.length; i++) for (let j = 0; j < P.length; j++){ if (i === j) continue; const p = P[i], q = P[j];
+      if (j > i && [p.a, p.b].some(e => [q.a, q.b].some(f => Math.hypot(e[0] - f[0], e[1] - f[1]) < 350))){ p.nb.push(q); q.nb.push(p); continue; }
+      for (const e of [p.a, p.b]){ const t = (e[0] - q.a[0])*q.d[0] + (e[1] - q.a[1])*q.d[1], dp = Math.abs(-(e[0] - q.a[0])*q.d[1] + (e[1] - q.a[1])*q.d[0]); if (t > 150 && t < q.L - 150 && dp < 150 && Math.abs(p.d[0]*q.d[1] - p.d[1]*q.d[0]) > 0.5){ p.nb.push(q); q.nb.push(p); br.push({k, e, p:[q.a[0] + q.d[0]*t, q.a[1] + q.d[1]*t], from:p, to:q}); } } }
+    for (const f of ['h', 'sz']){ for (let it = 0; it < 60; it++){ const nw = []; for (const p of P) if (p[f] == null){ const q = p.nb.find(q => q[f] != null); if (q) nw.push([p, q[f]]); } if (!nw.length) break; for (const [p, v] of nw) p[f] = v; } }
+    for (const p of P){ if (p.h == null) p.h = k === 'ref' ? 2850 : 2700; } }
+  // 梁の貫通（梁が隠してあっても文字から）
+  const slv = []; for (const t of T){ const m = SLV.exec(t.s); if (!m) continue; slv.push({p:[t.x - t.dy*t.h*1.2, t.y + t.dx*t.h*1.2], d:[t.dx, t.dy], h:+m[2], w:+m[3], lo:+m[4], s:t.s.replace(/\s+/g, '')}); }
+  return {ref:out.ref, drn:out.drn, br, labs, slv, tab, n:{ref:out.ref.length, drn:out.drn.length, br:br.length, slv:slv.length}};
 }
-/* 3Dに出す：冷媒（銅色）・ドレン（緑）・梁（灰色のすけた箱）・梁の貫通（オレンジ）。角は2本の線をのばして会わせ、高さがちがう時はたて管 */
+/* 3D：冷媒（銅色）・ドレン（緑）・分岐管（こげ茶の箱）・サイズと高さの吹き出し（ceil_l）・梁の貫通（オレンジ・初めは消す ceil_b）。角は2本をのばして会わせ、高さがちがう時はたて管 */
 function ceilBuild(TH, CE, grp, W, u, bb){
   const V3v = TH.Vector3, at = (p, y) => { const w = W(p[0]/u, p[1]/u); return new V3v(w[0], y, w[1]); };
   const tube = (g, p, q, r, m) => { const L = p.distanceTo(q); if (L < 5) return; const o = new TH.Mesh(new TH.CylinderGeometry(r, r, L, 10), m); o.position.copy(p).add(q).multiplyScalar(.5); o.quaternion.setFromUnitVectors(new V3v(0, 1, 0), q.clone().sub(p).normalize()); g.add(o); };
-  const M = {ref:new TH.MeshStandardMaterial({color:0xc8763a, metalness:.5, roughness:.4}), drn:new TH.MeshStandardMaterial({color:0x22c55e, roughness:.5})};
+  const M = {ref:new TH.MeshStandardMaterial({color:0xc8763a, metalness:.5, roughness:.4}), drn:new TH.MeshStandardMaterial({color:0x22c55e, roughness:.5})}, bm = new TH.MeshStandardMaterial({color:0x7c2d12}), bmD = new TH.MeshStandardMaterial({color:0x166534}), rad = p => Math.max(12, Math.min(45, p.w/2));
+  if (V3.on.ceil_b == null) V3.on.ceil_b = false;   // 梁の貫通は初めは消す
+  const gl = grp('ceil_l');
   for (const [k, gk] of [['ref', 'pipe'], ['drn', 'ceil_d']]){ const g = grp(gk), P = CE[k];
-    for (const p of P){ const r = Math.max(k === 'drn' ? 18 : 8, Math.min(45, p.w/2)); tube(g, at(p.a, p.h), at(p.b, p.h), r, M[k]); }
-    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++){ const p = P[i], q = P[j], d1 = [p.b[0] - p.a[0], p.b[1] - p.a[1]], d2 = [q.b[0] - q.a[0], q.b[1] - q.a[1]], cr = d1[0]*d2[1] - d1[1]*d2[0], L1 = Math.hypot(...d1), L2 = Math.hypot(...d2); if (Math.abs(cr) < 0.3*L1*L2) continue;   // ほぼ同じ向きはつながない
-      const s = ((q.a[0] - p.a[0])*d2[1] - (q.a[1] - p.a[1])*d2[0])/cr, X = [p.a[0] + d1[0]*s, p.a[1] + d1[1]*s], ep = [p.a, p.b].find(e => Math.hypot(e[0] - X[0], e[1] - X[1]) < 300), eq = [q.a, q.b].find(e => Math.hypot(e[0] - X[0], e[1] - X[1]) < 300); if (!ep || !eq) continue;
-      const r = Math.max(8, Math.min(45, Math.min(p.w, q.w)/2)); tube(g, at(ep, p.h), at(X, p.h), r, M[k]); tube(g, at(eq, q.h), at(X, q.h), r, M[k]); if (Math.abs(p.h - q.h) > 5) tube(g, at(X, p.h), at(X, q.h), r, M[k]); }
+    for (const p of P) tube(g, at(p.a, p.h), at(p.b, p.h), rad(p), M[k]);
+    for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++){ const p = P[i], q = P[j], cr = p.d[0]*q.d[1] - p.d[1]*q.d[0];
+      if (Math.abs(cr) < 0.1){ /* クランク（ずらし）：同じ向きの2本の端が向かい合っている所（450mm 以内・先へ 60mm 以上）を斜めにつなぐ */ for (const [ep, sp] of [[p.a, -1], [p.b, 1]]) for (const [eq, sq] of [[q.a, -1], [q.b, 1]]){ const v = [eq[0] - ep[0], eq[1] - ep[1]], al = (v[0]*p.d[0] + v[1]*p.d[1])*sp, bq = -(v[0]*q.d[0] + v[1]*q.d[1])*sq*Math.sign(p.d[0]*q.d[0] + p.d[1]*q.d[1]); if (Math.hypot(...v) < 450 && al > 60 && bq > 60){ const r = Math.min(rad(p), rad(q)); tube(g, at(ep, p.h), at(eq, q.h), r, M[k]); } } continue; }
+      if (Math.abs(cr) < 0.3) continue;   // 角：2本をのばして会わせる
+      const s = ((q.a[0] - p.a[0])*q.d[1] - (q.a[1] - p.a[1])*q.d[0])/cr, X = [p.a[0] + p.d[0]*s, p.a[1] + p.d[1]*s], ep = [p.a, p.b].find(e => Math.hypot(e[0] - X[0], e[1] - X[1]) < 350), eq = [q.a, q.b].find(e => Math.hypot(e[0] - X[0], e[1] - X[1]) < 350); if (!ep || !eq) continue;
+      const r = Math.min(rad(p), rad(q)); tube(g, at(ep, p.h), at(X, p.h), r, M[k]); tube(g, at(eq, q.h), at(X, q.h), r, M[k]); if (Math.abs(p.h - q.h) > 5) tube(g, at(X, p.h), at(X, q.h), r, M[k]); }
+    for (const b of CE.br.filter(b => b.k === k)){ const p = b.from, q = b.to, r = rad(p); tube(g, at(b.e, p.h), at(b.p, p.h), r, M[k]); if (Math.abs(p.h - q.h) > 5) tube(g, at(b.p, p.h), at(b.p, q.h), r, M[k]); const m = new TH.Mesh(new TH.BoxGeometry(rad(q)*3.2, rad(q)*3.2, rad(q)*3.2), k === 'ref' ? bm : bmD); m.position.copy(at(b.p, q.h)); g.add(m);
+      if (k === 'ref') gl.add(v3dLabel(TH, '分岐管', at(b.p, q.h + 260), 150)); }
     g.updateMatrixWorld(true); if (g.children.length) bb.union(new TH.Box3().setFromObject(g)); }
-  const gb = grp('ceil_b'), bm = new TH.MeshStandardMaterial({color:0x9ca3af, transparent:true, opacity:.45, depthWrite:false}), sm = new TH.MeshStandardMaterial({color:0xf97316, transparent:true, opacity:.85});
-  for (const q of CE.beam){ const c = at([(q.a[0] + q.b[0])/2, (q.a[1] + q.b[1])/2], (q.lo + q.hi)/2), L = Math.hypot(q.b[0] - q.a[0], q.b[1] - q.a[1]), m = new TH.Mesh(new TH.BoxGeometry(L, q.hi - q.lo, q.w), bm), e = at(q.b, 0).sub(at(q.a, 0)); m.position.copy(c); m.rotation.y = -Math.atan2(e.z, e.x); gb.add(m); }
-  for (const s of CE.slv){ const c = at(s.p, s.lo + s.h/2), m = new TH.Mesh(new TH.BoxGeometry(s.w, s.h, s.bw + 40), sm), e = at([s.p[0] + s.d[0], s.p[1] + s.d[1]], 0).sub(at(s.p, 0)); m.position.copy(c); m.rotation.y = -Math.atan2(e.z, e.x); gb.add(m); }
+  // 吹き出し：冷媒「C 3分・5分 FL+3300」、ドレン「D 25A FL+2986」
+  for (const lb of CE.labs){ const q = lb.run; if (!q) continue; const h = lb.h != null ? lb.h : q.h, sz = lb.sz != null ? lb.sz : q.sz; if (lb.only && sz == null) continue;
+    let tx; if (lb.k === 'ref'){ const t = sz && CE.tab[sz]; tx = (sz ? sz + ' ' : '') + (t ? ceilBun(t[0]) + '・' + ceilBun(t[1]) + ' ' : '') + 'FL+' + h; } else tx = 'D ' + (sz ? sz + 'A ' : '') + 'FL+' + h;
+    const t2 = (lb.x - q.a[0])*q.d[0] + (lb.y - q.a[1])*q.d[1], pp = [q.a[0] + q.d[0]*Math.max(0, Math.min(q.L, t2)), q.a[1] + q.d[1]*Math.max(0, Math.min(q.L, t2))]; gl.add(v3dLabel(TH, tx, at(pp, h + 230), 150)); }
+  const gb = grp('ceil_b'), sm = new TH.MeshStandardMaterial({color:0xf97316, transparent:true, opacity:.85});
+  for (const s of CE.slv){ const c = at(s.p, s.lo + s.h/2), m = new TH.Mesh(new TH.BoxGeometry(s.w, s.h, 200), sm), e = at([s.p[0] + s.d[0], s.p[1] + s.d[1]], 0).sub(at(s.p, 0)); m.position.copy(c); m.rotation.y = -Math.atan2(e.z, e.x); gb.add(m); gb.add(v3dLabel(TH, s.s, at(s.p, s.lo + s.h + 200), 120)); }
 }
 async function open3Dold(){
   let TH; try { TH = await loadThree(); } catch(e){ toast(e.message); return; } await loadModels();
@@ -4430,9 +4457,10 @@ async function open3Dold(){
       fp.add(new TH.Line(new TH.BufferGeometry().setFromPoints(q.map(p => new TH.Vector3(p[0], 3, p[1]))), new TH.LineBasicMaterial({color:0x2f6fe0}))); for (const p of q.slice(0, 4)) fp.add(new TH.Line(new TH.BufferGeometry().setFromPoints([new TH.Vector3(p[0], 3, p[1]), new TH.Vector3(p[0], m.ch, p[1])]), lm).computeLineDistances());
       fp.position.set(c3[0], 0, c3[1]); fp.rotation.y = po.th; gM.add(fp); } }
   if (!MG) v3dWallAC(TH, A, gM, grp, boxAt, W, u, bb, gW, wm); // 壁掛け・室外機・壁を抜ける配管・図面の冷媒とドレンの線（色の決まりから読んだ図面）
+  { const oum = new TH.MeshStandardMaterial({color:0xeef0ee}), ofm = new TH.MeshStandardMaterial({color:0x374151}); for (const q of A.outU || []){ boxAt(gM, q.x0, q.y0, q.x1, q.y1, 150, 1100, oum); boxAt(gM, q.x0, q.y0, q.x1, q.y1, 0, 150, ofm); } }   // 室外機（床に箱・下に台）
   const om = new TH.MeshStandardMaterial({color:0x7cc4f0}); if (!MG) for (const q of A.outs) boxAt(gM, q.x0, q.y0, q.x1, q.y1, q.ch - 5, q.ch + 40, om); // 吹出口・吸込口：天井の面にうすい板
   if (!MG) for (const q of A.insp){ const a = W(q.x0/u, q.y0/u), b = W(q.x1/u, q.y1/u), y = q.ch; gM.add(new TH.Line(new TH.BufferGeometry().setFromPoints([[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]], [a[0], a[1]]].map(p => new TH.Vector3(p[0], y, p[1]))), new TH.LineBasicMaterial({color:0x2f6fe0}))); }
-  if (CE){ try { ceilBuild(TH, CE, grp, W, u, bb); const pb = document.querySelector('#v3dT [data-t3="pipe"]'); if (pb){ pb.hidden = !CE.ref.length; pb.textContent = '冷媒配管'; } const bx = $('#v3dR'); if (bx) bx.insertAdjacentHTML('beforeend', [['ceil_d', 'ドレン', CE.drn.length], ['ceil_b', '梁・貫通', CE.beam.length]].filter(x => x[2]).map(([k, n]) => `<button class="btn ${V3.on[k] !== false ? 'sel' : ''}" data-t3="${k}" style="height:34px;padding:0 10px;flex:none">${n}</button>`).join('')); } catch(e){ console.warn('ceil3d', e); } }
+  if (CE){ try { ceilBuild(TH, CE, grp, W, u, bb); const pb = document.querySelector('#v3dT [data-t3="pipe"]'); if (pb){ pb.hidden = !CE.ref.length; pb.textContent = '冷媒配管'; } const bx = $('#v3dR'); if (bx) bx.insertAdjacentHTML('beforeend', [['ceil_d', 'ドレン', CE.drn.length], ['ceil_l', 'サイズ・高さ', CE.labs.length], ['ceil_b', '梁の貫通', CE.slv.length]].filter(x => x[2]).map(([k, n]) => `<button class="btn ${V3.on[k] !== false ? 'sel' : ''}" data-t3="${k}" style="height:34px;padding:0 10px;flex:none">${n}</button>`).join('')); } catch(e){ console.warn('ceil3d', e); } }
   V3.ana = A;
   // 追加機器：天井（2700）の下に箱
   const kli = G.L.findIndex(l => l.name === KIKI_LAYER), km = new TH.MeshStandardMaterial({color:0x3b82f6, transparent:true, opacity:.55});
@@ -4441,7 +4469,7 @@ async function open3Dold(){
   if (bb.isEmpty()){ bb.expandByPoint(new TH.Vector3((B.x0*u - cx), 0, -(B.y0*u - cy))); bb.expandByPoint(new TH.Vector3((B.x1*u - cx), 0, -(B.y1*u - cy))); }
   V3.sc = sc; V3.bb = bb; V3.TH = TH; lg.userData.k = 'plan'; for (const o of sc.children) if (o.userData.k) o.visible = V3.on[o.userData.k] !== false;
   $('#v3dN').textContent = (MG ? `曲げメモと同じ読み方：室内機 ${mg.ind || 'なし'}・壁 ${mg.walls.length}・ユニットバス ${A.ubs.length}` + (V3.mgN.duct ? '・ダクト' : '') + (V3.mgN.eisei ? '・衛生' : '') + '。' : `壁 ${A.walls.length}${A.doors && A.doors.length ? `・扉 ${A.doors.length}` : ''}・ユニットバス ${A.ubs.length}・室内機 ${A.units.length}・吹出口など ${A.outs.length}・点検口 ${A.insp.length}（図面から自動で読んだ目安・機器は天井の上）。` + (A.walls.length < 12 && S.pdfInfo ? `⚠️ 壁が少ししか読めていません。PDFの縮尺がずれているかもしれません（今 ${S.pdfInfo.scale ? niceScaleText(S.pdfInfo.scale) : '?'}${S.pdfInfo.from ? '・' + S.pdfInfo.from : ''}）。通り芯と通り芯など長さの分かる寸法を1本測って合わせ直してください。` : '')) + (nps.length ? `冷媒配管 ${nps.filter(p => p.k !== 'dr').length}本${nps.some(p => p.k === 'dr') ? `・ドレン配管 ${nps.filter(p => p.k === 'dr').length}本` : ''}${S.holes.length ? `・貫通部 ${S.holes.length}か所` : ''}（数字は長さmm・FLは床からの高さ）。1本指で回す・2本指で動かす／ひろげる` : '1本指で回す・2本指で動かす／ひろげる');
-  if (CE) $('#v3dN').textContent = `天井の中（図面の文字から読んだ目安）：冷媒 ${CE.ref.length}本・ドレン ${CE.drn.length}本・梁 ${CE.beam.length}・梁の貫通 ${CE.slv.length}。高さは近くの「FL+」の数字。` + $('#v3dN').textContent;
+  if (CE) $('#v3dN').textContent = `天井の中（図面の文字から読んだ目安）：冷媒 ${CE.ref.length}本・ドレン ${CE.drn.length}本・分岐 ${CE.br.length}・梁の貫通 ${CE.slv.length}（「梁の貫通」で出す）。サイズ・高さは図面の「R C FL+」「D 25A FL+」から。` + $('#v3dN').textContent;
   v3dView('iso');
 }
 function v3dLabel(TH, txt, at, wh){ /* wh：大きさ（mm）を決める時は、遠いと小さく見える */ const cv2 = document.createElement('canvas'), g = cv2.getContext('2d'), f = 40; g.font = `bold ${f}px ${FONT}`; cv2.width = Math.ceil(g.measureText(txt).width) + 24; cv2.height = f + 18;

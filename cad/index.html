@@ -224,7 +224,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 <div id="sheetRoot"></div>
 
 <iframe id="v3dF" title="読み取り" aria-hidden="true" tabindex="-1" style="position:fixed;left:-10000px;top:0;width:390px;height:700px;border:0;visibility:hidden"></iframe>
-<script src="../jwc.js?v=1"></script>
+<script src="../jwc.js?v=2"></script>
 <script type="application/octet-stream" id="sample">__SAMPLE__</script>
 <script>
 "use strict";
@@ -3384,8 +3384,8 @@ async function openProject(p){
 }
 function openStartSheet(){
   openSheet('図面を開く', async body => {
-    body.innerHTML = `<button class="bigbtn pri" id="pick"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>DXF・PDFファイルを選ぶ</button>
-      <div class="note">ファイルアプリ・メール添付・LINEで保存したDXFやPDFを選べます（このアプリで書き出したZIPもそのまま開けます）。CADから出したPDFなら線として読み込み、色ごとにレイヤーに分けます。スキャンした紙のPDFは読めません。DWGはCADでDXFに変換してください。</div>
+    body.innerHTML = `<button class="bigbtn pri" id="pick"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>DXF・PDF・Jwファイルを選ぶ</button>
+      <div class="note">ファイルアプリ・メール添付・LINEで保存したDXFやPDF・Jw_cad の図面（.jwc）を選べます（このアプリで書き出したZIPもそのまま開けます）。CADから出したPDFなら線として読み込み、色ごとにレイヤーに分けます。スキャンした紙のPDFは読めません。DWGはCADでDXFに変換してください。</div>
       <div class="grp">この端末に保存した図面</div><div id="plist"><div class="empty">読み込み中…</div></div>
       ${HAS_SAMPLE ? '<div class="grp">お試し</div><button class="bigbtn sec" id="smp">受け取った図面（サンプル）を開く</button>' : ''}`;
     body.querySelector('#pick').onclick = () => $('#fileIn').click();

@@ -23,19 +23,19 @@ function build(){
   <div class="shead" style="flex:none"><h3>✏️ 描いて曲げ</h3><button id="egClose">✕</button></div>
   <div class="note" id="egHint" style="flex:none;font-size:13px;margin:0 0 6px;height:3.1em;overflow:hidden;line-height:1.5">方眼の上を指でなぞってください。線は「たて・横・奥」に吸い付きます。紙に描く絵と同じでOK。</div>
   <div style="flex:1;min-height:180px;position:relative;border-radius:14px;overflow:hidden;background:#f8fafc;border:1.5px solid #cbd5e1"><canvas id="egCv" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>
-   <canvas id="egLp" style="position:absolute;left:8px;top:8px;width:120px;height:120px;border-radius:60px;display:none;box-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none"></canvas><div id="egPad" style="position:absolute;left:8px;bottom:56px;width:150px;height:150px;display:none"></div>
-   <div style="position:absolute;right:8px;bottom:8px;display:flex;gap:6px"><button class="sharebtn" id="egMot" style="height:40px;padding:0 9px;font-size:13px">📱</button><button class="sharebtn" id="egPho" style="height:40px;padding:0 9px;font-size:13px">📷</button><button class="sharebtn" id="egCmp" style="height:40px;padding:0 10px;font-size:13px">🧭 ボタン</button><button class="sharebtn" id="egRot" style="height:40px;padding:0 10px;font-size:13px">↻ 向き</button><button class="sharebtn" id="egUndo" style="height:40px;padding:0 10px;font-size:13px">↩ 戻す</button><button class="sharebtn" id="egClr" style="height:40px;padding:0 10px;font-size:13px">🗑 消す</button></div></div>
+   <canvas id="egLp" style="position:absolute;left:8px;top:8px;width:170px;height:170px;border-radius:50%;display:none;box-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none"></canvas><div id="egPad" style="position:absolute;left:8px;bottom:56px;width:150px;height:150px;display:none"></div>
+   <div style="position:absolute;right:8px;bottom:8px;display:flex;gap:6px"><button class="sharebtn" id="egMot" style="height:40px;padding:0 9px;font-size:13px">📱</button><button class="sharebtn" id="egPho" style="height:40px;padding:0 9px;font-size:13px">📷</button><button class="sharebtn" id="egLz" style="height:40px;padding:0 9px;font-size:13px">🔍</button><button class="sharebtn" id="egCmp" style="height:40px;padding:0 9px;font-size:13px">🧭</button><button class="sharebtn" id="egRot" style="height:40px;padding:0 10px;font-size:13px">↻ 向き</button><button class="sharebtn" id="egUndo" style="height:40px;padding:0 10px;font-size:13px">↩ 戻す</button><button class="sharebtn" id="egClr" style="height:40px;padding:0 10px;font-size:13px">🗑 消す</button></div></div>
   <div style="flex:none;margin-top:8px">
    <div style="display:flex;gap:6px;align-items:center"><div style="flex:1;min-width:0;position:relative"><button type="button" id="egMic" aria-label="話して入れる" style="position:absolute;left:3px;top:3px;bottom:3px;width:44px;border:0;border-radius:10px;background:#dbeafe;font-size:22px;padding:0;z-index:1">🎙</button><input id="egSay" type="text" enterkeyhint="done" autocomplete="off" placeholder="まとめて：450の250の600のクランク" style="width:100%;padding-left:52px!important;box-sizing:border-box;height:46px;border-radius:12px;border:1.5px solid #cbd5e1;padding:0 10px;font-size:16px"></div><button class="sharebtn" id="egSayGo" style="height:46px;padding:0 12px;margin:0">入れる</button><button class="sharebtn" id="egPen" style="height:46px;padding:0 12px;margin:0">✍️ 書く</button></div>
    <div style="font-size:12px;color:#64748b;margin:3px 2px 6px">キーボードのマイク🎙を押して話すと入ります（イヤホンのマイクでもOK）。形の言葉：クランク・L・U・コの字・45のクランク・登録した名前</div>
-   <div id="egList" style="display:flex;flex-wrap:wrap;gap:6px;max-height:32vh;overflow-y:auto;padding-bottom:4px"></div>
+   <div id="egList" style="display:flex;flex-wrap:wrap;gap:6px;height:20vh;overflow-y:auto;align-content:flex-start;padding-bottom:4px"></div>
    <div style="display:flex;gap:8px;margin-top:6px"><button class="sharebtn" id="egReg" style="flex:1;height:46px;margin:0">🏷 形を登録</button><button class="primary" id="egGo" style="flex:1.6;height:46px;border-radius:12px;font-weight:800">✅ この形で曲げを作る</button></div>
   </div></div>`;
  document.body.appendChild(ov);cv=ov.querySelector("#egCv");cx=cv.getContext("2d");
  ov.querySelector("#egClose").onclick=close;
  ov.querySelector("#egUndo").onclick=()=>{if(EG.segs.length){EG.undo.push(JSON.stringify(EG.segs));EG.segs.pop();if(!EG.segs.length)EG.O=null;list();draw()}};
  ov.querySelector("#egClr").onclick=()=>{if(EG.segs.length)EG.undo.push(JSON.stringify(EG.segs));EG.segs=[];EG.O=null;EG.lock=null;list();draw()};
- ov.querySelector("#egRot").onclick=rot;ov.querySelector("#egPho").onclick=phMenu;ov.querySelector("#egMot").onclick=motOpen;
+ ov.querySelector("#egRot").onclick=rot;ov.querySelector("#egPho").onclick=phMenu;ov.querySelector("#egMot").onclick=motOpen;ov.querySelector("#egLz").onclick=lzNext;
  /* 🧭 ボタンで描く（なぞるのが苦手な人）：6つの向きの矢印。同じ向きを押すとのびる・ちがう向きで曲がる */
  const pad=ov.querySelector("#egPad");pad.innerHTML=[2,5,0,3,4,1].map(k=>{const v=sv(k),a=Math.atan2(v[1],v[0])*180/Math.PI;return`<button data-k="${k}" style="position:absolute;left:${55+v[0]*52}px;top:${55+v[1]*52}px;width:40px;height:40px;border-radius:20px;border:0;background:#0f766e;color:#fff;font-size:18px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.3)"><span style="display:inline-block;transform:rotate(${a}deg)">➜</span></button>`}).join("")+`<div style="position:absolute;left:52px;top:63px;width:46px;text-align:center;font-size:10px;font-weight:800;color:#0f766e">押すと<br>のびる</div>`;
  pad.querySelectorAll("button").forEach(b=>b.onclick=()=>{const k=+b.dataset.k,L=EG.segs[EG.segs.length-1];if(L&&OPP[L.d]===k){toast("今の線と反対の向きにはもどれません（↩ 1つ戻すで短くできます）");return}EG.undo.push(JSON.stringify(EG.segs));
@@ -67,10 +67,10 @@ function build(){
  if(gz&&e.touches&&e.touches.length>=2){e.preventDefault();const t=two(e),k=Math.max(10,Math.min(140,gz.cell*t.d/gz.d))/gz.cell;EG.cell=gz.cell*k;EG.O=[t.c[0]+(gz.O[0]-gz.c[0])*k,t.c[1]+(gz.O[1]-gz.c[1])*k];EG.zoomed=1;draw();return}
   if(EG.pend){e.preventDefault();const p=pos(e),q=EG.pend;if(Math.hypot(p[0]-q.p[0],p[1]-q.p[1])>8)q.mv=1;if(q.mv&&EG.O&&!(PH&&PH.img)){EG.O=[q.O[0]+p[0]-q.p[0],q.O[1]+p[1]-q.p[1]];EG.zoomed=1;draw()}return}
   if(!on)return;e.preventDefault();const p=pos(e);EG.tip=p;const c=EG.cur,V=scr(c.V),r=[p[0]-V[0],p[1]-V[1]],best=(rel,ex)=>{let bk=-1,ba=0;for(let k=0;k<6;k++){if(ex&&ex.includes(k))continue;const s=sv(k),a=(rel[0]*s[0]+rel[1]*s[1])/EG.cell;if(a>ba){ba=a;bk=k}}return[bk,ba]};
-  if(c.D<0){const [k,a]=best(r,EG.segs.length?[OPP[EG.segs[EG.segs.length-1].d],EG.segs[EG.segs.length-1].d]:null);if(k>=0&&a>=0.5){c.D=k;c.n=Math.max(1,Math.round(a))}draw();return}
-  const s=sv(c.D),al=(r[0]*s[0]+r[1]*s[1])/EG.cell,pp=Math.hypot(r[0]-s[0]*al*EG.cell,r[1]-s[1]*al*EG.cell)/EG.cell;if(pp<0.5)c.n=Math.max(1,Math.round(al)); // 指が線からそれている間（曲がり角）は、今の線の長さを変えない
+  if(c.D<0){const [k,a]=best(r,EG.segs.length?[OPP[EG.segs[EG.segs.length-1].d],EG.segs[EG.segs.length-1].d]:null);if(k>=0&&a>=(PH&&PH.ax?16/EG.cell:0.5)){c.D=k;c.n=Math.max(1,Math.round(a))}draw();return}
+  const s=sv(c.D),al=(r[0]*s[0]+r[1]*s[1])/EG.cell,pp=Math.hypot(r[0]-s[0]*al*EG.cell,r[1]-s[1]*al*EG.cell)/EG.cell;if(pp<(PH&&PH.ax?14/EG.cell:0.5))c.n=Math.max(1,Math.round(al)); // 指が線からそれている間（曲がり角）は、今の線の長さを変えない
   const E=scr(add3(c.V,D3[c.D],c.n)),re=[p[0]-E[0],p[1]-E[1]],[k,a]=best(re,[c.D,OPP[c.D]]);
-  if(k>=0&&a>=0.8&&EG.segs.length<20){EG.segs.push({d:c.D,n:c.n,l:0});c.V=add3(c.V,D3[c.D],c.n);c.D=k;c.n=Math.max(1,Math.round(a));list()}   // 曲がり角
+  if(k>=0&&a>=(PH&&PH.ax?30/EG.cell:0.8)&&EG.segs.length<20){EG.segs.push({d:c.D,n:c.n,l:0});c.V=add3(c.V,D3[c.D],c.n);c.D=k;c.n=Math.max(1,Math.round(a))}   // 曲がり角
   draw()};
  const up=e=>{if(PH&&PH.step&&PH.ln){phLine();return}
  if(gz){if(!e.touches||e.touches.length<2)gz=null;return}lp(null);if(EG.pend){const q=EG.pend;EG.pend=null;if(!q.mv)toast("線の先（オレンジの丸）から続けて描いてください。図をずらす時は1本指で、広げる時は2本指で");return}if(!on)return;on=false;const c=EG.cur;if(c&&c.D>=0&&EG.segs.length<20)EG.segs.push({d:c.D,n:c.n,l:0});EG.cur=null;list();draw()};
@@ -116,6 +116,9 @@ function draw(){if(!cv)return;dpr=window.devicePixelRatio||1;const W=cv.clientWi
  for(const sg of[1,-1])for(let i=-160;i<=160;i++){ // 斜めの線（右奥・左奥）：傾き ±30°
   const b=o[1]+i*c-sg*o[0]*Math.tan(Math.PI/6);x.moveTo(0,b);x.lineTo(W,b+sg*W*Math.tan(Math.PI/6))}
  x.stroke();
+ if(PH&&PH.ax&&!PH.step){/* 写真の上になぞる案内の線（たて・横・奥の3つの向き）：線の先から出す */const P=ends(),E=EG.cur?scr(add3(EG.cur.V,EG.cur.D>=0?D3[EG.cur.D]:[0,0,0],EG.cur.D>=0?EG.cur.n:0)):(EG.segs.length?scr(P[P.length-1]):null);
+  if(E){x.save();x.setLineDash([10,8]);x.lineWidth=5;x.strokeStyle="rgba(255,255,255,.9)";const L=Math.max(W,H);for(let k=0;k<6;k++){const s=sv(k),m=Math.hypot(s[0],s[1])||1;x.beginPath();x.moveTo(E[0],E[1]);x.lineTo(E[0]+s[0]/m*L,E[1]+s[1]/m*L);x.stroke()}
+   x.lineWidth=2.5;for(let k=0;k<6;k++){const s=sv(k),m=Math.hypot(s[0],s[1])||1;x.strokeStyle=k<2?"rgba(220,38,38,.9)":k<4?"rgba(22,163,74,.9)":"rgba(37,99,235,.9)";x.beginPath();x.moveTo(E[0],E[1]);x.lineTo(E[0]+s[0]/m*L,E[1]+s[1]/m*L);x.stroke()}x.restore()}}
  /* 向きの目印 */
  x.font="bold 12px -apple-system,sans-serif";x.fillStyle="#64748b";const g=[40,64];x.lineWidth=2;
  [[2,"上"],[5,"右奥"],[1,"左奥"]].forEach(([k,t])=>{const s=sv(k);x.strokeStyle="#94a3b8";x.beginPath();x.moveTo(g[0],g[1]);x.lineTo(g[0]+s[0]*26,g[1]+s[1]*26);x.stroke();x.fillText(t,g[0]+s[0]*30-8,g[1]+s[1]*30+4)});
@@ -144,10 +147,20 @@ function show(i){if(!cv||i<0||i>=EG.segs.length||!EG.O)return;const P=ends(),a=s
 /* 図の線をタップ：その線の番号 */
 function hitSeg(p){const P=ends();let bk=-1,bd=22;for(let i=0;i<P.length-1;i++){const a=scr(P[i]),b=scr(P[i+1]),dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L2)),d=Math.hypot(a[0]+dx*t-p[0],a[1]+dy*t-p[1]);if(d<bd){bd=d;bk=i}}return bk}
 /* 🔍 拡大の丸：なぞっている指の下を2倍で左上（指が左上の時は右上）に映す */
-function lp(t){const c=ov&&ov.querySelector("#egLp");if(!c)return;if(!t){c.style.display="none";return}const W=cv.clientWidth,S=120,left=t[0]<S+30&&t[1]<S+30;c.style.left=left?"":"8px";c.style.right=left?"8px":"";c.style.display="block";
- const d=dpr;if(c.width!==S*d){c.width=S*d;c.height=S*d}const x=c.getContext("2d");x.setTransform(1,0,0,1,0,0);x.save();x.beginPath();x.arc(S*d/2,S*d/2,S*d/2,0,7);x.clip();x.fillStyle="#f8fafc";x.fillRect(0,0,S*d,S*d);
- x.drawImage(cv,(t[0]-S/4)*d,(t[1]-S/4)*d,S/2*d,S/2*d,0,0,S*d,S*d);x.strokeStyle="#ef4444";x.lineWidth=2*d;x.beginPath();x.moveTo(S*d/2-10*d,S*d/2);x.lineTo(S*d/2+10*d,S*d/2);x.moveTo(S*d/2,S*d/2-10*d);x.lineTo(S*d/2,S*d/2+10*d);x.stroke();x.restore();
- x.strokeStyle="#334155";x.lineWidth=3*d;x.beginPath();x.arc(S*d/2,S*d/2,S*d/2-1.5*d,0,7);x.stroke()}
+/* 🔍 拡大の丸：大きさ・倍率を3つから（`pbm_eglp`）。上に6つの向きの矢印（今の向きは太く） */
+const LZ=[[130,2,"小"],[170,2.5,"中"],[220,3,"大"]];let lzI=(()=>{try{const g=localStorage.getItem("pbm_eglp"),v=+g;return g!==null&&v>=0&&v<3?v:1}catch(e){return 1}})();
+function lzNext(){lzI=(lzI+1)%3;try{localStorage.setItem("pbm_eglp",lzI)}catch(e){}const c=ov.querySelector("#egLp"),S=LZ[lzI][0];c.style.width=c.style.height=S+"px";toast("🔍 なぞる時の拡大の丸："+LZ[lzI][2]+"（もう一度押すと変わります）");c.style.left="8px";c.style.right="";c.style.display="block";const W=cv.clientWidth,H=cv.clientHeight;lp([W/2,H/2]);clearTimeout(lzNext.t);lzNext.t=setTimeout(()=>{if(!on)lp(null)},1500)}
+function lp(t){const c=ov&&ov.querySelector("#egLp");if(!c)return;if(!t){c.style.display="none";return}const [S,Z]=LZ[lzI],left=t[0]<S+30&&t[1]<S+30;if(c.style.width!==S+"px")c.style.width=c.style.height=S+"px";c.style.left=left?"":"8px";c.style.right=left?"8px":"";c.style.display="block";
+ const d=dpr,h=S*d/2;if(c.width!==S*d){c.width=S*d;c.height=S*d}const x=c.getContext("2d");x.setTransform(1,0,0,1,0,0);x.save();x.beginPath();x.arc(h,h,h,0,7);x.clip();x.fillStyle="#f8fafc";x.fillRect(0,0,S*d,S*d);
+ x.drawImage(cv,(t[0]-S/Z/2)*d,(t[1]-S/Z/2)*d,S/Z*d,S/Z*d,0,0,S*d,S*d);
+ const cd=EG.cur?EG.cur.D:-1,NM=["右手前","左奥","上","下","左手前","右奥"],CL=["#dc2626","#dc2626","#16a34a","#16a34a","#2563eb","#2563eb"];x.font=`bold ${Math.round(S/13)*d}px -apple-system,sans-serif`;x.textAlign="center";x.textBaseline="middle";x.lineCap="round";
+ for(let k=0;k<6;k++){const s=sv(k),m=Math.hypot(s[0],s[1])||1,u=[s[0]/m,s[1]/m],on2=k===cd,r1=h*.16,r2=h*.56,lr=h*.73;x.globalAlpha=cd<0||on2?1:.55;
+  x.strokeStyle="rgba(255,255,255,.95)";x.lineWidth=(on2?8:5)*d;x.beginPath();x.moveTo(h+u[0]*r1,h+u[1]*r1);x.lineTo(h+u[0]*r2,h+u[1]*r2);x.stroke();
+  x.strokeStyle=CL[k];x.lineWidth=(on2?4.5:2.5)*d;x.beginPath();x.moveTo(h+u[0]*r1,h+u[1]*r1);x.lineTo(h+u[0]*r2,h+u[1]*r2);x.stroke();
+  const a=Math.atan2(u[1],u[0]),ah=7*d;x.fillStyle=CL[k];x.beginPath();x.moveTo(h+u[0]*(r2+ah),h+u[1]*(r2+ah));x.lineTo(h+u[0]*r2+Math.cos(a+2.3)*ah,h+u[1]*r2+Math.sin(a+2.3)*ah);x.lineTo(h+u[0]*r2+Math.cos(a-2.3)*ah,h+u[1]*r2+Math.sin(a-2.3)*ah);x.fill();
+  const lx=h+u[0]*lr,ly=h+u[1]*lr;x.lineWidth=3*d;x.strokeStyle="rgba(255,255,255,.95)";x.strokeText(NM[k],lx,ly);x.fillStyle=on2?CL[k]:"#0f172a";x.fillText(NM[k],lx,ly)}
+ x.globalAlpha=1;x.strokeStyle="#ef4444";x.lineWidth=2*d;x.beginPath();x.moveTo(h-10*d,h);x.lineTo(h+10*d,h);x.moveTo(h,h-10*d);x.lineTo(h,h+10*d);x.stroke();x.restore();
+ x.strokeStyle="#334155";x.lineWidth=3*d;x.beginPath();x.arc(h,h,h-1.5*d,0,7);x.stroke()}
 /* ↻ 向きを変える：2本目から先を、1本目の線を軸に90°まわす（クランクの出る向きを上→横→下→…） */
 function rot(){if(EG.segs.length<2){toast("2本以上描くと、曲げの向きを回せます");return}const ax=D3[EG.segs[0].d],cr=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
  EG.undo.push(JSON.stringify(EG.segs));for(const s of EG.segs.slice(1)){const v=D3[s.d],c=cr(ax,v),w=[c[0]+ax[0]*dot(ax,v),c[1]+ax[1]*dot(ax,v),c[2]+ax[2]*dot(ax,v)];s.d=D3.findIndex(q=>q[0]===Math.round(w[0])&&q[1]===Math.round(w[1])&&q[2]===Math.round(w[2]))}EG.O=null;draw();list()}

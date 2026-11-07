@@ -155,6 +155,8 @@ function rot(){if(EG.segs.length<2){toast("2本以上描くと、曲げの向き
    向き：右＝−z（右奥）・左＝+z・上＝+y・下＝−y・向こう（スマホの後ろへ押す）＝−x（左奥）・手前＝+x（絵は配管のうしろから見る形・行の右＝d×u と合う） */
 const MO={on:false,el:null,h:null,st:0,v:[0,0,0],pk:[0,0,0],t0:0,tq:0,cool:0,last:0,g:null,pause:false};
 const MDN={5:"➡️ 右へ",4:"⬅️ 左へ",2:"⤴️ 上へ",3:"⤵️ 下へ",1:"⬆️ 向こうへ（奥）",0:"⬇️ 手前へ"};
+/* 向きを逆に読むか：初めは iPhone だけ逆（iPhone は加速の向きが逆に出る）。「🔄 向きが逆に出る時」で入れかえてこの端末で覚える（pbm_motrev・2026-11-07 ユーザー：ほかのスマホでは逆かも） */
+function motRev(){try{const v=localStorage.getItem("pbm_motrev");if(v==="1"||v==="0")return v==="1"}catch(e){}return IOS}
 function motAxis(v){const a=v.map(Math.abs),i=a.indexOf(Math.max(...a));return i===0?(v[0]>0?5:4):i===1?(v[1]>0?2:3):(v[2]<0?1:0)}
 async function motOpen(){
  try{if(typeof DeviceMotionEvent!=="undefined"&&typeof DeviceMotionEvent.requestPermission==="function"){const p=await DeviceMotionEvent.requestPermission();if(p!=="granted"){toast("動きのセンサーが許可されませんでした");return}}}catch(e){toast("動きのセンサーが使えませんでした");return}
@@ -162,16 +164,19 @@ async function motOpen(){
  if(EG.segs.length){if(!confirm("今の絵を消して、スマホを動かして描き直しますか？"))return;EG.undo.push(JSON.stringify(EG.segs));EG.segs=[];EG.O=null;list();draw()}
  Object.assign(MO,{on:true,st:0,cool:0,last:0,g:null,pause:false,got:0});
  const el=document.createElement("div");el.id="egMo";el.style.cssText="position:absolute;left:8px;right:8px;top:8px;z-index:5;background:#0f172add;color:#fff;border-radius:14px;padding:10px;font-weight:800";
- el.innerHTML=`<div id="egMoT" style="font-size:14px;line-height:1.45"></div><div id="egMoD" style="font-size:24px;text-align:center;margin:2px 0 6px">-</div>
-  <div style="display:flex;gap:6px"><button id="egMoX" style="flex:1;min-height:50px;border:0;border-radius:12px;background:#16a34a;color:#fff;font-weight:800;font-size:15px">✅ おわり</button><button id="egMoU" style="flex:1;min-height:50px;border:0;border-radius:12px;background:#475569;color:#fff;font-weight:800;font-size:15px">↩ 1本戻す</button><button id="egMoP" style="flex:1;min-height:50px;border:0;border-radius:12px;background:#64748b;color:#fff;font-weight:800;font-size:15px">⏸ 止める</button></div>`;
+ el.innerHTML=`<div id="egMoT" style="font-size:13px;line-height:1.4"></div><div style="display:flex;align-items:center;gap:6px;margin:4px 0 6px"><div id="egMoD" style="flex:1;font-size:20px;text-align:center">-</div><button id="egMoR" style="flex:none;border:1px solid #94a3b8;border-radius:10px;background:transparent;color:#e2e8f0;font-size:12px;font-weight:800;padding:5px 8px;line-height:1.2">🔄 逆に<br>出る時</button></div>
+  <div style="display:flex;gap:6px"><button id="egMoX" style="flex:1;min-height:44px;border:0;border-radius:12px;background:#16a34a;color:#fff;font-weight:800;font-size:15px">✅ おわり</button><button id="egMoU" style="flex:1;min-height:44px;border:0;border-radius:12px;background:#475569;color:#fff;font-weight:800;font-size:15px">↩ 1本戻す</button><button id="egMoP" style="flex:1;min-height:44px;border:0;border-radius:12px;background:#64748b;color:#fff;font-weight:800;font-size:15px">⏸ 止める</button></div>`;
  cv.parentElement.appendChild(el);MO.el=el;
+ {const lw=ov.querySelector("#egList").parentElement;lw.style.display="none";EG.O=null;setTimeout(draw,30)}   // 動かす間は下の欄をしまって絵を大きく（おわりで出す）
  el.querySelector("#egMoX").onclick=motClose;
+ el.querySelector("#egMoR").onclick=()=>{const r=!motRev();try{localStorage.setItem("pbm_motrev",r?"1":"0")}catch(e){}   // 逆にする（この端末で覚える）・今まで入れた線も逆に
+  if(EG.segs.length){EG.undo.push(JSON.stringify(EG.segs));EG.segs.forEach(q=>q.d=OPP[q.d]);EG.O=null;list();draw()}motUi("🔄 向きを逆にしました");toast("向きを逆にしました（この端末で覚えます）。今まで入れた線も逆にしました")};
  el.querySelector("#egMoU").onclick=()=>{if(EG.segs.length){EG.undo.push(JSON.stringify(EG.segs));EG.segs.pop();EG.O=null;list();draw()}MO.cool=performance.now()+600;motUi("")};
  el.querySelector("#egMoP").onclick=()=>{MO.pause=!MO.pause;MO.st=0;el.querySelector("#egMoP").textContent=MO.pause?"▶ 続ける":"⏸ 止める";motUi("")};
  MO.h=motEv;addEventListener("devicemotion",MO.h);
- motUi("");setTimeout(()=>{if(MO.on&&!MO.got)toast("動きのセンサーが動いていません（パソコンでは使えません）")},2500)}
+ motUi("");toast("右・左・上・下・向こう（前へ押す）・手前。寸法はあとで下の欄に・45°は「90° ▸45°」");setTimeout(()=>{if(MO.on&&!MO.got)toast("動きのセンサーが動いていません（パソコンでは使えません）")},2500)}
 function motUi(msg){if(!MO.el)return;const t=MO.el.querySelector("#egMoT"),d=MO.el.querySelector("#egMoD");
- t.innerHTML=MO.pause?"⏸ 止めています（スマホを動かしても入りません）":`📱 スマホを<b>自分に向けてまっすぐ</b>持ち、<b>配管の通りに動かして</b>ください（1本ごとに止める）<br><small style="font-weight:600;opacity:.85">線 ${EG.segs.length}本。右・左・上・下・向こう（スマホを前へ押す）・手前。寸法はあとで下の欄に・45°は「90° ▸45°」</small>`;
+ t.innerHTML=MO.pause?"⏸ 止めています（動かしても入りません）":`📱 スマホを<b>自分に向けて</b>持ち、<b>配管の通りに動かす</b>（1本ごとに止める）・線 ${EG.segs.length}本`;
  if(msg!=null)d.textContent=msg||"…"}
 function motEv(e){MO.got=1;if(MO.pause)return;const now=performance.now(),dt=MO.tq?Math.min(0.1,(now-MO.tq)/1000):0.016;MO.tq=now;
  let a=e.acceleration&&e.acceleration.x!=null?[e.acceleration.x,e.acceleration.y,e.acceleration.z]:null;
@@ -180,11 +185,11 @@ function motEv(e){MO.got=1;if(MO.pause)return;const now=performance.now(),dt=MO.
  if(MO.st===0){if(now<MO.cool||m<1.2)return;MO.st=1;MO.v=[0,0,0];MO.pk=[0,0,0];MO.t0=now;MO.still=0}
  MO.v=MO.v.map((z,j)=>z+a[j]*dt);if(Math.hypot(...MO.v)>Math.hypot(...MO.pk))MO.pk=MO.v.slice();
  if(m<0.4)MO.still+=dt;else MO.still=0;
- if(MO.still>0.2||now-MO.t0>2500){MO.st=0;MO.cool=now+400;const dur=(now-MO.t0)/1000;if(Math.hypot(...MO.pk)<0.12||dur<0.15)return;motAdd(motAxis(IOS?MO.pk.map(z=>-z):MO.pk))}}
+ if(MO.still>0.2||now-MO.t0>2500){MO.st=0;MO.cool=now+400;const dur=(now-MO.t0)/1000;if(Math.hypot(...MO.pk)<0.12||dur<0.15)return;motAdd(motAxis(motRev()?MO.pk.map(z=>-z):MO.pk))}}
 function motAdd(k){const L=EG.segs[EG.segs.length-1];
- if(L&&k===OPP[L.d]){motUi("（戻した動きは入れません）");return}
+ if(L&&k===OPP[L.d]){motUi("↩ 戻す動き（入れない）");return}
  EG.undo.push(JSON.stringify(EG.segs));if(L&&L.d===k)L.n++;else EG.segs.push({d:k,n:3,l:0});EG.O=null;list();draw();motUi(MDN[k]+(L&&L.d===k?"（のばす）":""));try{navigator.vibrate&&navigator.vibrate(40)}catch(e){}}
-function motClose(){MO.on=false;if(MO.h)removeEventListener("devicemotion",MO.h);MO.h=null;if(MO.el)MO.el.remove();MO.el=null;
+function motClose(){MO.on=false;if(MO.h)removeEventListener("devicemotion",MO.h);MO.h=null;if(MO.el)MO.el.remove();MO.el=null;try{ov.querySelector("#egList").parentElement.style.display="";EG.O=null;setTimeout(draw,30)}catch(e){}
  if(EG.segs.length>1)toast("向きが決まりました。下の欄に寸法を入れてください（✍️ 書く・🎙 でも）。45°にする線は「90° ▸45°」")}
 /* 📷 写真：選ぶ → たての線・横の線・奥へ行く横の線をなぞる → その3つの向きに吸い付いて描ける（長さは自分で入れる。写真1枚では奥行きが分からない） */
 function phMenu(){if(!PH||!PH.img){phPick();return}

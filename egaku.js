@@ -24,7 +24,7 @@ function build(){
   <div class="note" id="egHint" style="flex:none;font-size:13px;margin:0 0 6px;height:3.1em;overflow:hidden;line-height:1.5">方眼の上を指でなぞってください。線は「たて・横・奥」に吸い付きます。紙に描く絵と同じでOK。</div>
   <div style="flex:1;min-height:180px;position:relative;border-radius:14px;overflow:hidden;background:#f8fafc;border:1.5px solid #cbd5e1"><canvas id="egCv" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>
    <canvas id="egLp" style="position:absolute;left:8px;top:8px;width:120px;height:120px;border-radius:60px;display:none;box-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none"></canvas><div id="egPad" style="position:absolute;left:8px;bottom:56px;width:150px;height:150px;display:none"></div>
-   <div style="position:absolute;right:8px;bottom:8px;display:flex;gap:6px"><button class="sharebtn" id="egPho" style="height:40px;padding:0 9px;font-size:13px">📷</button><button class="sharebtn" id="egCmp" style="height:40px;padding:0 10px;font-size:13px">🧭 ボタン</button><button class="sharebtn" id="egRot" style="height:40px;padding:0 10px;font-size:13px">↻ 向き</button><button class="sharebtn" id="egUndo" style="height:40px;padding:0 10px;font-size:13px">↩ 戻す</button><button class="sharebtn" id="egClr" style="height:40px;padding:0 10px;font-size:13px">🗑 消す</button></div></div>
+   <div style="position:absolute;right:8px;bottom:8px;display:flex;gap:6px"><button class="sharebtn" id="egMot" style="height:40px;padding:0 9px;font-size:13px">📱</button><button class="sharebtn" id="egPho" style="height:40px;padding:0 9px;font-size:13px">📷</button><button class="sharebtn" id="egCmp" style="height:40px;padding:0 10px;font-size:13px">🧭 ボタン</button><button class="sharebtn" id="egRot" style="height:40px;padding:0 10px;font-size:13px">↻ 向き</button><button class="sharebtn" id="egUndo" style="height:40px;padding:0 10px;font-size:13px">↩ 戻す</button><button class="sharebtn" id="egClr" style="height:40px;padding:0 10px;font-size:13px">🗑 消す</button></div></div>
   <div style="flex:none;margin-top:8px">
    <div style="display:flex;gap:6px;align-items:center"><div style="flex:1;min-width:0;position:relative"><button type="button" id="egMic" aria-label="話して入れる" style="position:absolute;left:3px;top:3px;bottom:3px;width:44px;border:0;border-radius:10px;background:#dbeafe;font-size:22px;padding:0;z-index:1">🎙</button><input id="egSay" type="text" enterkeyhint="done" autocomplete="off" placeholder="まとめて：450の250の600のクランク" style="width:100%;padding-left:52px!important;box-sizing:border-box;height:46px;border-radius:12px;border:1.5px solid #cbd5e1;padding:0 10px;font-size:16px"></div><button class="sharebtn" id="egSayGo" style="height:46px;padding:0 12px;margin:0">入れる</button><button class="sharebtn" id="egPen" style="height:46px;padding:0 12px;margin:0">✍️ 書く</button></div>
    <div style="font-size:12px;color:#64748b;margin:3px 2px 6px">キーボードのマイク🎙を押して話すと入ります（イヤホンのマイクでもOK）。形の言葉：クランク・L・U・コの字・45のクランク・登録した名前</div>
@@ -35,7 +35,7 @@ function build(){
  ov.querySelector("#egClose").onclick=close;
  ov.querySelector("#egUndo").onclick=()=>{if(EG.segs.length){EG.undo.push(JSON.stringify(EG.segs));EG.segs.pop();if(!EG.segs.length)EG.O=null;list();draw()}};
  ov.querySelector("#egClr").onclick=()=>{if(EG.segs.length)EG.undo.push(JSON.stringify(EG.segs));EG.segs=[];EG.O=null;EG.lock=null;list();draw()};
- ov.querySelector("#egRot").onclick=rot;ov.querySelector("#egPho").onclick=phMenu;
+ ov.querySelector("#egRot").onclick=rot;ov.querySelector("#egPho").onclick=phMenu;ov.querySelector("#egMot").onclick=motOpen;
  /* 🧭 ボタンで描く（なぞるのが苦手な人）：6つの向きの矢印。同じ向きを押すとのびる・ちがう向きで曲がる */
  const pad=ov.querySelector("#egPad");pad.innerHTML=[2,5,0,3,4,1].map(k=>{const v=sv(k),a=Math.atan2(v[1],v[0])*180/Math.PI;return`<button data-k="${k}" style="position:absolute;left:${55+v[0]*52}px;top:${55+v[1]*52}px;width:40px;height:40px;border-radius:20px;border:0;background:#0f766e;color:#fff;font-size:18px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.3)"><span style="display:inline-block;transform:rotate(${a}deg)">➜</span></button>`}).join("")+`<div style="position:absolute;left:52px;top:63px;width:46px;text-align:center;font-size:10px;font-weight:800;color:#0f766e">押すと<br>のびる</div>`;
  pad.querySelectorAll("button").forEach(b=>b.onclick=()=>{const k=+b.dataset.k,L=EG.segs[EG.segs.length-1];if(L&&OPP[L.d]===k){toast("今の線と反対の向きにはもどれません（↩ 1つ戻すで短くできます）");return}EG.undo.push(JSON.stringify(EG.segs));
@@ -95,7 +95,7 @@ function fromRows(){const R=LR(),rows=R.filter((r,i)=>i<R.length-1||r.l>0);if(ro
   if(i<rows.length-1&&q.a){const t=(typeof effT==="function"?effT(i,rows):q.t)*Math.PI/180,b=u.map((z,j)=>z*Math.cos(t)+r[j]*Math.sin(t)),a=q.a*Math.PI/180,d2=d.map((z,j)=>z*Math.cos(a)+b[j]*Math.sin(a));const ax2=cr(d,d2),al=Math.hypot(...ax2);
    if(al>1e-6){const k2=ax2.map(z=>z/al);u=rotA(u,k2,a);r=rotA(r,k2,a)}else{u=u.map(z=>-z);r=r.map(z=>-z)}d=sn(d2);u=sn(u);r=sn(r)}}
  return out}
-function close(){kmOff();if(ov)ov.classList.remove("on");try{localStorage.setItem("pbm_egaku_cur",JSON.stringify({segs:EG.segs}))}catch(e){}}
+function close(){kmOff();if(MO.on)motClose();if(ov)ov.classList.remove("on");try{localStorage.setItem("pbm_egaku_cur",JSON.stringify({segs:EG.segs}))}catch(e){}}
 /* 絵 */
 function draw(){if(!cv)return;dpr=window.devicePixelRatio||1;const W=cv.clientWidth,H=cv.clientHeight;if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
  const x=cx;x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
@@ -105,7 +105,7 @@ function draw(){if(!cv)return;dpr=window.devicePixelRatio||1;const W=cv.clientWi
    const h2=ov.querySelector("#egHint");h2.innerHTML=["","① <b style='color:#16a34a'>たての線</b>（柱・壁の角）をなぞってください","② <b style='color:#dc2626'>横の線</b>（天井と壁のさかい・梁）をなぞってください","③ もう1つの<b style='color:#2563eb'>奥へ行く横の線</b>をなぞってください"][PH.step];return}}
  if(EG.segs.length&&!EG.O&&PH&&PH.ax){EG.O=[W/2,H/2]}
  if(EG.segs.length&&!EG.O){EG.zoomed=0;/* 描いた形を真ん中に */const P=ends();EG.O=[0,0];const sp=P.map(scr),mx=Math.min(...sp.map(q=>q[0])),Mx=Math.max(...sp.map(q=>q[0])),my=Math.min(...sp.map(q=>q[1])),My=Math.max(...sp.map(q=>q[1]));
-  const k=Math.min(1,(W-80)/Math.max(1,Mx-mx),(H-110)/Math.max(1,My-my));EG.cell=Math.max(14,Math.round(34*k));const sp2=P.map(scr),m2=Math.min(...sp2.map(q=>q[0])),M2=Math.max(...sp2.map(q=>q[0])),n2=Math.min(...sp2.map(q=>q[1])),N2=Math.max(...sp2.map(q=>q[1]));EG.O=[W/2-(m2+M2)/2,(H-50)/2-(n2+N2)/2]}
+  const tp=MO.on&&MO.el?MO.el.offsetHeight+12:0,k=Math.min(1,(W-80)/Math.max(1,Mx-mx),(H-110-tp)/Math.max(1,My-my));EG.cell=Math.max(14,Math.round(34*k));const sp2=P.map(scr),m2=Math.min(...sp2.map(q=>q[0])),M2=Math.max(...sp2.map(q=>q[0])),n2=Math.min(...sp2.map(q=>q[1])),N2=Math.max(...sp2.map(q=>q[1]));EG.O=[W/2-(m2+M2)/2,(H-50+tp)/2-(n2+N2)/2]}
  if(!EG.segs.length&&!EG.cur&&!EG.zoomed)EG.cell=34;
  /* 立体の方眼（3つの向きの点線） */
  const c=EG.cell,o=EG.O||[W/2,H/2];x.lineWidth=1;
@@ -149,6 +149,42 @@ function lp(t){const c=ov&&ov.querySelector("#egLp");if(!c)return;if(!t){c.style
 /* ↻ 向きを変える：2本目から先を、1本目の線を軸に90°まわす（クランクの出る向きを上→横→下→…） */
 function rot(){if(EG.segs.length<2){toast("2本以上描くと、曲げの向きを回せます");return}const ax=D3[EG.segs[0].d],cr=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
  EG.undo.push(JSON.stringify(EG.segs));for(const s of EG.segs.slice(1)){const v=D3[s.d],c=cr(ax,v),w=[c[0]+ax[0]*dot(ax,v),c[1]+ax[1]*dot(ax,v),c[2]+ax[2]*dot(ax,v)];s.d=D3.findIndex(q=>q[0]===Math.round(w[0])&&q[1]===Math.round(w[1])&&q[2]===Math.round(w[2]))}EG.O=null;draw();list()}
+/* 📱 スマホを向けて曲げの向きを決める（2026-11-07 ユーザー：スマホを前に出して、右に向けたり上に上げたりして向きを決めたい・寸法はあとで）
+   スマホを平らに持ち、上の端を配管の向きに向ける。上の端の向き（deviceorientation の alpha・beta・gamma から）を、始めた時の前の向きを基準に
+   前・後ろ・右・左・上・下に分ける（上下は45°より上を向いた時）。「この向きで曲げる」で1本足す。前＝+x（右手前）・右＝+z・上＝+y（toRows の右＝d×u と同じ） */
+const MO={on:false,ref:null,v:null,k:-1,el:null,h:null};
+function motVec(e){const r=Math.PI/180,a=(e.alpha||0)*r,b=(e.beta||0)*r,cA=Math.cos(a),sA=Math.sin(a),cB=Math.cos(b);return[-cB*sA,cA*cB,Math.sin(b)]}   // 上の端の向き（東・北・上）
+function motDir(v){if(!MO.ref)return -1;const F=MO.ref,Rt=[F[1],-F[0]],f=v[0]*F[0]+v[1]*F[1],rt=v[0]*Rt[0]+v[1]*Rt[1];
+ if(Math.abs(v[2])>0.7)return v[2]>0?2:3;return Math.abs(f)>=Math.abs(rt)?(f>=0?0:1):(rt>=0?4:5)}
+const MDN=["⬆️ 前へ（まっすぐ）","⬇️ 後ろへ","⤴️ 上へ","⤵️ 下へ","➡️ 右へ","⬅️ 左へ"];
+async function motOpen(){
+ try{if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function"){const p=await DeviceOrientationEvent.requestPermission();if(p!=="granted"){toast("向きのセンサーが許可されませんでした");return}}}catch(e){toast("向きのセンサーが使えませんでした");return}
+ if(MO.on){motClose();return}
+ MO.on=true;MO.ref=null;MO.v=null;
+ const el=document.createElement("div");el.id="egMo";el.style.cssText="position:absolute;left:8px;right:8px;top:8px;z-index:5;background:#0f172add;color:#fff;border-radius:14px;padding:10px;font-weight:800";
+ el.innerHTML=`<div id="egMoT" style="font-size:14px;line-height:1.45"></div><div id="egMoD" style="font-size:24px;text-align:center;margin:2px 0 6px">-</div>
+  <div style="display:flex;gap:6px"><button id="egMoX" style="flex:.8;min-height:50px;border:0;border-radius:12px;background:#64748b;color:#fff;font-weight:800;font-size:15px">✕ おわり</button><button id="egMoU" style="flex:.8;min-height:50px;border:0;border-radius:12px;background:#475569;color:#fff;font-weight:800;font-size:15px">↩ 戻す</button><button id="egMoG" style="flex:1.6;min-height:50px;border:0;border-radius:12px;background:#16a34a;color:#fff;font-weight:800;font-size:16px">はじめる</button></div>`;
+ cv.parentElement.appendChild(el);MO.el=el;
+ el.querySelector("#egMoX").onclick=motClose;
+ el.querySelector("#egMoU").onclick=()=>{if(EG.segs.length){EG.undo.push(JSON.stringify(EG.segs));EG.segs.pop();if(!EG.segs.length){EG.O=null;MO.ref=null}list();draw()}motUi()};
+ el.querySelector("#egMoG").onclick=motGo;
+ MO.h=e=>{if(e.alpha==null&&e.beta==null)return;MO.v=motVec(e);const k=motDir(MO.v);if(k!==MO.k){MO.k=k;motUi()}};
+ addEventListener("deviceorientation",MO.h);
+ if(EG.segs.length){if(!confirm("今の絵を消して、スマホを向けて描き直しますか？")){motClose();return}EG.undo.push(JSON.stringify(EG.segs));EG.segs=[];EG.O=null;list();draw()}
+ motUi();setTimeout(()=>{if(MO.on&&!MO.v)toast("向きのセンサーが動いていません（パソコンでは使えません）")},2500)}
+function motUi(){if(!MO.el)return;const t=MO.el.querySelector("#egMoT"),d=MO.el.querySelector("#egMoD"),g=MO.el.querySelector("#egMoG");
+ if(!MO.ref){t.innerHTML="📱 スマホを<b>平らに持って</b>、上の端を<b>配管の始まりの向き</b>に向けてください";d.textContent="⬆️";g.textContent="はじめる（1本目）";return}
+ const k=MO.k,L=EG.segs[EG.segs.length-1],kd=k>=0?MD[k]:-1,bad=L&&(kd===L.d||kd===OPP[L.d]);
+ t.innerHTML=`線 ${EG.segs.length}本。<b>次の向き</b>にスマホを向けて押す（右に向ける・上に上げる…）<br><small style="font-weight:600;opacity:.85">寸法はあとで下の欄に。45°は線の下の「90° ▸45°」</small>`;
+ const dn=k>=0?MDN[[0,1,2,3,4,5].indexOf(k)]:"-";d.textContent=dn;d.style.color=bad?"#94a3b8":"#fde047";g.textContent=bad?(kd===L.d?"同じ向きです":"後ろへは曲げられません"):"✅ この向きで曲げる";g.disabled=!!bad;g.style.opacity=bad?.5:1}
+/* 前・後ろ・上・下・右・左（motDir の番号）→ 方眼の向き（D3）：絵を配管のうしろから見る形にするため 前＝−x（左奥）・後ろ＝+x・上＝+y・下＝−y・右＝−z（右奥）・左＝+z（MD・行の右＝d×u と合う） */
+const MD=[1,0,2,3,5,4];
+function motGo(){if(!MO.v){toast("向きのセンサーが動いていません");return}
+ if(!MO.ref){const v=MO.v,h=Math.hypot(v[0],v[1]);if(h<0.3){toast("スマホを平らに持って、上の端を前に向けてください");return}MO.ref=[v[0]/h,v[1]/h];MO.k=0;EG.undo.push(JSON.stringify(EG.segs));EG.segs=[{d:MD[0],n:3,l:0}];EG.O=null;list();draw();motUi();try{navigator.vibrate&&navigator.vibrate(40)}catch(e){}return}
+ const k=MO.k,L=EG.segs[EG.segs.length-1],kd=k>=0?MD[k]:-1;if(k<0||(L&&(kd===L.d||kd===OPP[L.d])))return;
+ EG.undo.push(JSON.stringify(EG.segs));EG.segs.push({d:kd,n:3,l:0});EG.O=null;list();draw();motUi();try{navigator.vibrate&&navigator.vibrate(40)}catch(e){}}
+function motClose(){MO.on=false;if(MO.h)removeEventListener("deviceorientation",MO.h);MO.h=null;if(MO.el)MO.el.remove();MO.el=null;
+ if(EG.segs.length>1)toast("向きが決まりました。下の欄に寸法を入れてください（✍️ 書く・🎙 でも）。45°にする線は「90° ▸45°」")}
 /* 📷 写真：選ぶ → たての線・横の線・奥へ行く横の線をなぞる → その3つの向きに吸い付いて描ける（長さは自分で入れる。写真1枚では奥行きが分からない） */
 function phMenu(){if(!PH||!PH.img){phPick();return}
  sheetMsg(`<b style="font-size:17px">📷 写真に沿って描く</b><div style="margin-top:4px">写真の上をなぞると、写真の向きに吸い付きます。長さは下の欄に入れます。</div>`,[["📷 写真を変える",phPick,"#2563eb","#fff"],["📐 向きを合わせ直す（線を3本なぞる）",()=>{PH.step=1;PH.L=[];PH.ax=null;draw()}],["🗑 写真をやめる（方眼にもどす）",()=>{PH=null;EG.O=null;draw()}],["とじる",null]])}

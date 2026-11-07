@@ -3902,7 +3902,7 @@ function v3dPoses(A, mdf){ return A.units.map(m => { const md = typeof mdf === '
   const th = Math.atan2(f[1], -f[0]); let port = [ccx, ccy], ph = m.ch, dport = null, dph = null;
   if (md){ const px = md.L/2 + 60, at = pz => { const dx = px*Math.cos(th) + pz*Math.sin(th), dz = -px*Math.sin(th) + pz*Math.cos(th); return [ccx + dx, ccy - dz]; }; port = at(md.gas.z); ph = m.ch + md.gas.y; if (md.dr){ dport = at(md.dr.z); dph = Math.round(m.ch + md.dr.y); } } // 3Dの z は図面の y と逆向き。ドレン口も
   return {m, k, cx:ccx, cy:ccy, f, th, port, ph:Math.round(ph), dport, dph}; }); }
-function loadModels(){ if (!mdlP) mdlP = new Promise(ok => { if (typeof CAS2M !== 'undefined') return ok(true); const sc = document.createElement('script'); sc.src = '../models.js?v=307'; sc.onload = () => ok(typeof CAS2M !== 'undefined'); sc.onerror = () => { mdlP = null; ok(false); }; document.head.appendChild(sc); }); return mdlP; } // 曲げ共有の機器の模型データ（同じサイトの models.js）
+function loadModels(){ if (!mdlP) mdlP = new Promise(ok => { if (typeof CAS2M !== 'undefined') return ok(true); const sc = document.createElement('script'); sc.src = '../models.js?v=308'; sc.onload = () => ok(typeof CAS2M !== 'undefined'); sc.onerror = () => { mdlP = null; ok(false); }; document.head.appendChild(sc); }); return mdlP; } // 曲げ共有の機器の模型データ（同じサイトの models.js）
 /* 室内機の機種：この図面で選び直した物 → 曲げメモの「全部自動」で決まった物 → 図面の品番の文字（曲げメモと同じ探し方） → 三菱 MBZ-2822AS-IN */
 const v3dMdl = () => { try { const k = localStorage.getItem('zumen-3dunit'), f = localStorage.getItem('zumen-3dunitF'); if (k != null && (f == null || f === (S.srcName || ''))) return k; } catch(e){}
   const mg = mageOk(); if (mg && mg.units.length) return mg.units[0].k; return v3dMdlTx() || 'mbz2822'; }; // 形ごとに決めていない機械の機種（形ごとの機種は v3dMdlKey）
@@ -3920,7 +3920,7 @@ function v3dUnit(TH, md){
   const cyl = (r, h, x, y, z, c, rz) => { const m = new TH.Mesh(new TH.CylinderGeometry(r, r, h, 16), M(c)); m.position.set(x, y, z); if (rz) m.rotation.z = Math.PI/2; g.add(m); return m; };
   const Lb = md.L, Wb = md.W, HB = md.H, TOP = md.top, YT = TOP + 420, yH = md.nk, MD = 0x94a3b8, DK = 0x334155;
   bx(Lb, HB, Wb, 0, TOP - HB/2, 0, 0x9ca3af); // 本体（天井裏）
-  if (md.bi && md.gd){ for (const [d, k, c] of [[md.sa, 1, DK], [md.ra, -1, 0xe8edf2]]){ bx(d[0], d[1], 30, 0, d[2], k*(Wb/2 + 15), c); bx(d[0]*.94, d[1]*.94, 120, 0, d[2], k*(Wb/2 + 90), 0xd6d3d1); } } // GE-M：両端のダクト（フランジ＋キャンバスダクト）
+  if (md.bi && md.gd){ const sf = md.sf || 1; for (const [d, k, c] of [[md.sa, sf, DK], [md.ra, -sf, 0xe8edf2]]){ if (!d) continue; bx(d[0], d[1], 30, 0, d[2], k*(Wb/2 + 15), c); bx(d[0]*.94, d[1]*.94, 120, 0, d[2], k*(Wb/2 + 90), 0xd6d3d1); } if (md.sr) for (const x of md.sr.xs) bx(md.sr.d, md.sr.d, 82, x, md.sr.y, sf*(Wb/2 + 41), DK); } // GE-M：両端のダクト（フランジ＋キャンバスダクト）・吹出しが反対の端（sf）・丸い吹出口（sr・箱で）
   else if (md.bi){ const yb = TOP - HB; bx(6, 150, 604, -Lb/2 - 3, yb + 110, 0, DK); bx(6, 171, 574, Lb/2 + 3, yb + 117, -70, 0xe8edf2); } // ビルトイン：正面の吹出し口・背面の吸込み口
   else { bx(md.pa, md.pt || 30, md.pb, 0, -(md.pt || 30)/2, 0, 0xf1f5f9); } // カセット：天井の下のパネル
   for (const k of [-1, 1]) for (const w of [-1, 1]){ const x = k*md.ba/2, z = w*md.bb/2; cyl(10, YT - yH + 40, x, (YT + yH - 40)/2, z, 0xdc2626); bx(md.ba/2 > Lb/2 + 5 ? 70 : 90, 8, 70, md.ba/2 > Lb/2 + 5 ? k*(Lb/2 + 30) : x, yH, z, 0x64748b); } // 吊りボルト（赤）と金具

@@ -639,7 +639,8 @@ function makeUnit(type,opt){
   else if(md.kind==="1方向"){const q=md.pb/2-80;sl(md.pa*.8,62,0,-q,-0.5);
    bx(md.pa*.82,4,md.pb*.5,0,py+1,md.pb*.12,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.8,2,5,0,py-2,md.pb*.12+i*md.pb*.045,MD)}
   else if(md.bi&&md.gd){const dk=(w,h,y,z,c)=>{bx(w,h,30,0,y,z*(Wb/2+15),c);bx(w*.94,h*.94,120,0,y,z*(Wb/2+90),0xd6d3d1)};   // GE-M：両端のダクト（フランジ＋キャンバスダクト）
-   dk(md.sa[0],md.sa[1],md.sa[2],sd,DK);dk(md.ra[0],md.ra[1],md.ra[2],-sd,0xe8edf2);
+   const sf=sd*(md.sf||1);if(md.sa)dk(md.sa[0],md.sa[1],md.sa[2],sf,DK);if(md.ra)dk(md.ra[0],md.ra[1],md.ra[2],-sf,0xe8edf2);   // sf=-1：吹出しが反対の端（PE-RP280EA5）
+   if(md.sr)md.sr.xs.forEach(x=>{const c=cyl(md.sr.d/2,82,x,md.sr.y,sf*(Wb/2+41),DK,24);c.rotation.x=Math.PI/2});   // 丸い吹出口（ビルトイン PD-RP）
    [md.hw,md.dup].forEach(q=>{if(q){const c=cyl(10,50,Lb/2+25,q.y,q.z*sd,0x94a3b8,12);c.rotation.z=Math.PI/2}})}   // 加湿器給水口・ドレンアップ用の口
   else if(md.bi){const yb=TOP-HB;
    bx(6,150,604,-Lb/2-3,yb+110,0,DK);                                                       // 正面の吹出し口（ダクト接続）
@@ -1561,7 +1562,7 @@ const SLOTS=[["s","起点"],...(st.nopipe?[]:brOn()?leaves().map(g=>["L"+g,slotN
     b.onclick=()=>{st.units[xk]=key;save();renderUnitSheet();unitRefresh()};g2.appendChild(b)});
    box.appendChild(g2);
   }
-  const n=document.createElement("div");n.className="note";n.textContent=OUT_PKG.includes(mkey)?"大きさは目安です。パッケージの配管は、正面から見て右下から出ます。":mkey==="ghp"?"大きさは目安です。GHPの配管は、正面から見て左下の真正面から出ます。":OUT_VRV.includes(mkey)?"大きさは目安です。ビルマルチの配管は、正面から見て左下から出ます。":"大きさは目安です。配管は、正面から見て右の側面から出ます（ルームエアコンは右側面の外側から後ろ向き・下から100mm上）。";box.appendChild(n);
+  const n=document.createElement("div");n.className="note";n.textContent=OUTM[mkey].ex?"三菱の外形図の大きさです。配管は右の横のバルブから後ろへ出します（外形図：配管は背面側からだけ）。":/^pz/.test(mkey)?"三菱の外形図の大きさです。配管の口の高さも外形図の値です。前・右・後ろ・下へ出せます。":OUT_PKG.includes(mkey)?"大きさは目安です。パッケージの配管は、正面から見て右下から出ます。":mkey==="ghp"?"大きさは目安です。GHPの配管は、正面から見て左下の真正面から出ます。":OUT_VRV.includes(mkey)?"大きさは目安です。ビルマルチの配管は、正面から見て左下から出ます。":"大きさは目安です。配管は、正面から見て右の側面から出ます（ルームエアコンは右側面の外側から後ろ向き・下から100mm上）。";box.appendChild(n);
  });
  SLOTS.map(([k,lab])=>[k,"#uW"+k,"w"+k,lab]).forEach(([k,q,wk,lab])=>{
   const box=$(q);box.innerHTML="";

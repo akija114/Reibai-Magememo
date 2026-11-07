@@ -42,7 +42,7 @@ a.doc{color:var(--acc);font-weight:700}
 <div id="qr"></div>
 <select id="m" aria-label="機種"></select>
 <div id="out"></div>
-<script src="models.js?v=307"></script>
+<script src="models.js?v=308"></script>
 <script src="kiso.js?v=17"></script>
 <script>
 /* 🔩 機器：仕込み用の寸法を見るページ（模型は three.js をこのページだけで読む・core.js は読まない）
@@ -164,7 +164,7 @@ function realUnit(TH,md,G,h){const M=c=>new TH.MeshStandardMaterial({color:c,rou
  else if(md.kind==="1方向"){const q=md.pb/2-80;sl(md.pa*.8,62,0,-q,-0.5);bx(md.pa*.82,4,md.pb*.5,0,py+1,md.pb*.12,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.8,2,5,0,py-2,md.pb*.12+i*md.pb*.045,MD)}
  else if(md.bi&&!md.gd){const yb2=TOP-HB;bx(6,150,604,-Lb/2-3,yb2+110,0,DK);bx(6,190*.9,574,Lb/2+3,yb2+117,-sd*70,0xe8edf2);for(let i=-6;i<=6;i++)bx(8,4,560,Lb/2+5,yb2+117+i*13,-sd*70,MD);
   [[-260,45],[0,115],[260,45]].forEach(([z,w])=>bx(170,6,w*1.6,-40,TOP+3,sd*z,MD))}
- else if(md.bi&&md.gd){const dk=(w,hh,y,z,c)=>{bx(w,hh,30,0,y,z*(Wb/2+15),c);bx(w*.94,hh*.94,120,0,y,z*(Wb/2+90),0xd6d3d1)};dk(md.sa[0],md.sa[1],md.sa[2],sd,DK);dk(md.ra[0],md.ra[1],md.ra[2],-sd,0xe8edf2);
+ else if(md.bi&&md.gd){const dk=(w,hh,y,z,c)=>{bx(w,hh,30,0,y,z*(Wb/2+15),c);bx(w*.94,hh*.94,120,0,y,z*(Wb/2+90),0xd6d3d1)};const sf=sd*(md.sf||1);if(md.sa)dk(md.sa[0],md.sa[1],md.sa[2],sf,DK);if(md.ra)dk(md.ra[0],md.ra[1],md.ra[2],-sf,0xe8edf2);if(md.sr)md.sr.xs.forEach(x=>{const c=cyl(md.sr.d/2,82,x,md.sr.y,sf*(Wb/2+41),DK,24);c.rotation.x=Math.PI/2});
   [md.hw,md.dup].forEach(q=>{if(q){const c=cyl(10,50,Lb/2+25,q.y,q.z*sd,0x94a3b8,12);c.rotation.z=Math.PI/2}})}
  else if(!md.bi&&md.pa){const q=md.pb/2-93;[-1,1].forEach(k=>sl(md.pa*.82,62,0,k*q,k*0.5));bx(md.pa*.62,4,md.pb*.46,0,py+1,0,0xdfe3e8);for(let i=-5;i<=5;i++)bx(md.pa*.6,2,5,0,py-2,i*md.pb*.042,MD)}
  if(md.mi)bx(10,140,185,Lb/2+4,TOP-116,-sd*(Wb/2-189),MD);   // 配管の接続口とドレン
@@ -257,7 +257,7 @@ async function draw3(m,VV){const box=$("#m3");if(!box)return;try{await load3()}c
   const sz=p.z>=0?1:-1;   // 上から見ても重ならないように、左右の寸法は配管の面の前へ、手前の寸法は横へずらす
   dim(new V(m.ba/2,y,zb),new V(m.ba/2,y,p.z),new V(span*(.1+i*.13),0,0),nm+" "+r.side+"から"+io(r.dz,"外へ","内へ"),c);
   dim(new V(m.ba/2,y,p.z),new V(xP,y,p.z),new V(0,0,sz*span*(.08+i*.11)),nm+" 手前から"+io(r.dx,"外へ","内へ"),c)});
- cg=G.db;if(m.gd)[[m.sa,1,"吹出し"],[m.ra,-1,"吸込み"]].forEach(([d,k,n])=>{if(d)lab(n+" "+f(d[0])+"×"+f(d[1]),new V(0,d[2]+d[1]/2+span*.04,k*(m.W/2+200)),0x475569)});
+ cg=G.db;if(m.gd)[[m.sa,1,"吹出し"],[m.ra,-1,"吸込み"],[m.sr&&[m.sr.d,m.sr.d,m.sr.y-m.sr.d/2],1,"吹出し φ"]].forEach(([d,k,n])=>{if(d)lab(n+(n.endsWith("φ")?f(d[0])+"×"+m.sr.xs.length+"か所":" "+f(d[0])+"×"+f(d[1])),new V(0,d[2]+d[1]/2+span*.04,k*(m.sf||1)*(m.W/2+200)),0x475569)});
  lab("▶ 配管の出る面",new V(m.L/2+260,top+80,0),0x0369a1);}
  /* 見る向き・回す */
  const fit=()=>{t.tgt.set(VV?0:m.L*.15,(top+350)/2,0);t.dist=span*1.75;},put=()=>{const c=t.cam,w=box.clientWidth||340,h=box.clientHeight||380;t.R.setSize(w,h,false);c.aspect=w/h;c.updateProjectionMatrix();

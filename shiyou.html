@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja" data-app="shiyou">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>仕様書 - 冷媒配管の曲げ共有</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="曲げ共有 v1.00">
+<!-- 📚 仕様書（2026-11-07 ユーザー：仕様書は重くて開くと遅い・電池を食う。読み込ませて品番・記号（PAC-112 など）ですぐ探したい・記号を選ぶと室内機・室外機などの品番、品番を選ぶと仕様書の中を探す）。
+     1回だけ PDF を読み込み、ページごとに軽い絵（JPEG・幅1400）と、文字の読み取り（tesseract.js 6.0.1・日本語 jpn best_int・表の線を消してから）を IndexedDB「shiyou」に入れる。
+     次からは PDF を開かず、軽い絵と文字だけで探す・見る。スキャンした仕様書でも使える（読み取りは目安。品番の読み違い O/0・G/C などは同じ物として探す `canon`）。
+     docs：{id,name,n,done,size,t,groups}・pages：キー "id:ページ" {img,w,h,lines:[{t,b:[x0,y0,x1,y1]}]}・files：キー id の PDF（ページを描き直す時だけ使う）。
+     一覧表のページから記号ごとの組（`parseGroups`：行の頭の「PAC-112」から次の記号まで・品番・台数・種類＝室内機／室外機／リモコンなど）。ユーザーの仕様書はリポジトリに入れない。 -->
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--panel:#e2e8f0;--danger:#dc2626;--hl:rgba(250,204,21,.45)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171}
+*,*:before,*:after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 24px)}
+h1{font-size:19px;margin:4px 2px 10px;display:flex;align-items:center;gap:8px}
+h1 a{font-size:14px;font-weight:800;color:var(--acc);text-decoration:none;margin-left:auto}
+h2{font-size:15px;margin:18px 2px 6px}
+.btn{height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:15px;padding:0 12px;white-space:nowrap}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}.btn.del{color:var(--danger)}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}
+.row{display:flex;align-items:center;gap:8px}
+.grow{flex:1;min-width:0}
+.sub{color:var(--sub);font-size:13px}
+.q{display:flex;gap:6px;position:sticky;top:0;z-index:5;background:var(--bg);padding:6px 0}
+.q input{flex:1;min-width:0;height:50px;border-radius:12px;border:2px solid var(--acc);background:var(--card);color:var(--ink);font-size:18px;padding:0 12px}
+.hit{display:block;width:100%;text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:10px;margin:6px 0;color:var(--ink);font:inherit}
+.hit b{color:var(--acc)}.hit mark{background:var(--hl);color:inherit;border-radius:3px}
+.grp{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:8px 12px;font-weight:800;font-size:15px;color:var(--ink)}
+.kind{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.kind .k{width:86px;flex:none;color:var(--sub);font-size:13px;font-weight:800}
+.kind .m{flex:1;font-size:17px;font-weight:800;color:var(--acc);text-decoration:underline}
+.bar{height:8px;border-radius:5px;background:var(--panel);overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--acc)}
+#pg[hidden]{display:none}
+#pg{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column}
+#pg .top{display:flex;gap:6px;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--card);border-bottom:1px solid var(--line)}
+#pg .view{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;position:relative;background:#fff}
+#pg .view .wrap{position:relative;transform-origin:0 0}
+#pg .view img{display:block;width:100%}
+#pg .view .hb{position:absolute;background:var(--hl);border:2px solid #eab308;border-radius:3px;pointer-events:none}
+.note{color:var(--sub);font-size:13px;line-height:1.5;margin:6px 2px}
+</style>
+</head>
+<body>
+<h1>📚 仕様書 <a href="home.html">🏠 入口へ</a></h1>
+<div class="q"><input id="q" type="search" placeholder="品番・記号でさがす（例：PAC-112・PL-ZRP80）" enterkeyhint="search" autocomplete="off"></div>
+<div id="main"></div>
+<input id="fileIn" type="file" accept="application/pdf,.pdf" hidden>
+<div id="pg" hidden><div class="top"><button class="btn" id="pgX">← 戻る</button><b id="pgT" class="grow" style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></b><button class="btn" id="pgP">‹</button><button class="btn" id="pgN">›</button><button class="btn" id="pgZ">🔍＋</button></div><div class="view" id="pgV"><div class="wrap" id="pgW"></div></div></div>
+<script>
+const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function loadJs(src){ return new Promise((ok, ng) => { const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = () => ng(new Error('読み込めませんでした（電波を確かめてください）')); document.head.appendChild(sc); }); }
+/* ---- 端末の中（IndexedDB「shiyou」） ---- */
+let DBP = null; const db = () => DBP || (DBP = new Promise((ok, ng) => { const o = indexedDB.open('shiyou', 1); o.onupgradeneeded = () => { const d = o.result; for (const s of ['docs', 'pages', 'files']) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s); }; o.onsuccess = () => ok(o.result); o.onerror = () => ng(o.error); }));
+const tx = async (st, mode, f) => { const d = await db(); return new Promise((ok, ng) => { const t = d.transaction(st, mode), s = t.objectStore(st); let r; const q = f(s); if (q) q.onsuccess = () => r = q.result; t.oncomplete = () => ok(r); t.onerror = t.onabort = () => ng(t.error); }); };
+const dget = (st, k) => tx(st, 'readonly', s => s.get(k)), dput = (st, k, v) => tx(st, 'readwrite', s => s.put(v, k)), ddel = (st, k) => tx(st, 'readwrite', s => s.delete(k));
+const dall = st => tx(st, 'readonly', s => s.getAll());
+async function dkeys(st, pre){ const d = await db(); return new Promise(ok => { const out = [], r = d.transaction(st).objectStore(st).openCursor(IDBKeyRange.bound(pre, pre + '￿')); r.onsuccess = () => { const c = r.result; if (!c) return ok(out); out.push(c.key); c.continue(); }; }); }
+/* ---- 読み違いを同じ物に（O/0・I/L/1・G/C・W/M・S/5・B/8・Z/2、空白・ハイフン・長音は無視） ---- */
+const canon = s => String(s).normalize('NFKC').toUpperCase().replace(/[\s\-‐－−—_・.,'"`|ー〜~:;()（）［］\[\]<>〈〉]/g, '').replace(/[OQD]/g, '0').replace(/[IL!]/g, '1').replace(/G/g, 'C').replace(/W/g, 'M').replace(/S/g, '5').replace(/B/g, '8').replace(/Z/g, '2');
+/* ---- 一覧表の行 → 記号ごとの組 ---- */
+const KINDS = [['室外機', /外機|室外/], ['室内機', /室内機|内機|カセット|ビルトイン|天吊|埋込|壁掛|床置/], ['リモコン', /リモ|PAR-/], ['接続用', /NET|インタ|SL0?5|SLO5/], ['パネル', /パネル|プレート|SK6/], ['フィルター', /フィルタ|KF5/], ['ドレンアップ', /ドレン/], ['セット', /ヒート|スリム|空冷/]];
+/* 品番の頭で種類（三菱・ダイキンなど。読み違いも少し入れる） */
+function kindOf(m){ const c = m.replace(/-/g, ''); if (/^(PU[ZHM]|PUZ|PUHY|PUMY|RZ|RXY|RQY|RZY|RUXY)|K[A4]\d{0,2}$|SKA\d*$/.test(c)) return '室外機'; if (/^(PLZX?|PDZ|PEZ|PCZ|PKZ|PSZ|PMZ|SZ)-/.test(m) || /^(PLZX|PDZ|PEZ|PCZ|PKZ|PSZ|PMZ)Z/.test(c)) return 'セット'; if (/^(PAR|BRC|RC)/.test(c)) return 'リモコン'; if (/^PA[CG](SL|SF|IF)/.test(c)) return '接続用'; if (/^PA[CG]SK/.test(c)) return 'パネル'; if (/^PA[CG]K[FE]/.test(c)) return 'フィルター'; if (/^PA[CG](SJ|KM)/.test(c)) return 'ドレンアップ'; if (/^GE[MP]/.test(c)) return '室内機'; if (/^(PL|PE|PD|PC|PK|PM|PS|PEF|PLF|FH|FX|FC|FA|FB|FD|MS)[A-Z0-9]/.test(c)) return '室内機'; return null; }
+function parseGroups(lines){ const out = []; let cur = null;
+  for (const L of lines){ const s = L.t.normalize('NFKC').toUpperCase(), head = s.slice(0, 18), m = /^[^A-Z0-9]*(\d{0,3})\s*[^A-Z0-9\s]{0,2}([A-Z0-9]{2,4})\s*[-ー‐－]\s*(\d{1,3}|[A-Z]\d{1,2}|N[A-Z0-9])(?![A-Z0-9])/.exec(head);   // 「OAC-n1」・番号がくっついた「10A6-nm」（1＋0AC）も
+    if (/見積|作成|課長|担当/.test(s)){ cur = null; continue; }
+    if (m && /[A-Z]/.test(m[2])){ let p = m[2].replace(/^PA[GCOQ0D6]$/, 'PAC').replace(/^[0O]A[CG6]$/, 'OAC').replace(/^A[CG6]$/, /[0O]$/.test(m[1]) ? 'OAC' : 'AC'); cur = {sym:p + '-' + m[3], items:[]}; out.push(cur); }
+    if (!cur) continue;
+    const toks = (s.match(/[A-Z][A-Z0-9]{1,5}(?:[-ー‐－][A-Z0-9]{2,}){1,2}|[A-Z]{2,4}[0-9][A-Z0-9]{4,}/g) || []).map(x => x.replace(/[ー‐－]/g, '-')).filter(x => /\d/.test(x) && x.replace(/-/g, '').length >= 6 && x !== cur.sym && canon(x) !== canon(cur.sym)); if (!toks.length) continue;
+    const md = toks.sort((a, b) => b.length - a.length)[0], after = s.slice(s.indexOf(md) + md.length), q = /(?:^|\s|\|)(\d{1,2})(?=\s|\||$)/.exec(after), kd = kindOf(md) || (KINDS.find(k => k[1].test(L.t.normalize('NFKC').replace(/\s/g, ''))) || ['ほか'])[0];
+    cur.items.push({kind:kd, model:md, qty:q ? +q[1] : null, t:L.t.trim()}); }
+  return out.filter(g => g.items.length); }
+/* ---- 読み取り（tesseract.js） ---- */
+let OCR = null;
+async function ocrWorker(){ if (OCR) return OCR; await loadJs('https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js');
+  OCR = await Tesseract.createWorker('jpn', 1, {workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js', corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0', langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/jpn@1.0.0/4.0.0_best_int'}); return OCR; }
+async function pdfLib(){ if (!window.pdfjsLib){ await loadJs('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js'); pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js'; } return pdfjsLib; }
+/* 表の線を消して白黒に（赤い字も黒に：いちばん暗い色で） */
+function clean(cv){ const g = cv.getContext('2d'), w = cv.width, h = cv.height, im = g.getImageData(0, 0, w, h), d = im.data, b = new Uint8Array(w*h);
+  for (let i = 0, j = 0; j < w*h; i += 4, j++) b[j] = Math.min(d[i], d[i+1], d[i+2]) < 150 ? 1 : 0;
+  const o = b.slice(), LN = Math.round(w*0.03);
+  for (let y = 0; y < h; y++){ let x = 0; while (x < w){ if (b[y*w + x]){ const s = x; while (x < w && b[y*w + x]) x++; if (x - s > LN) o.fill(0, y*w + s, y*w + x); } else x++; } }
+  for (let x = 0; x < w; x++){ let y = 0; while (y < h){ if (b[y*w + x]){ const s = y; while (y < h && b[y*w + x]) y++; if (y - s > LN) for (let k = s; k < y; k++) o[k*w + x] = 0; } else y++; } }
+  for (let i = 0, j = 0; j < w*h; i += 4, j++){ const v = o[j] ? 0 : 255; d[i] = d[i+1] = d[i+2] = v; d[i+3] = 255; } g.putImageData(im, 0, 0); return cv; }
+const RUN = {}; let QUIT = false, QP = Promise.resolve();
+function readDoc(id){ if (RUN[id]) return; RUN[id] = 1; QP = QP.then(() => readDoc0(id)); }   // 1冊ずつ順に（重くしない）
+async function readDoc0(id){ try {
+  const doc = await dget('docs', id), file = await dget('files', id); if (!doc || !file) return; const lib = await pdfLib(), pdf = await lib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+  for (let n = 1; n <= doc.n && !QUIT; n++){ const k = id + ':' + n, have = await dget('pages', k); if (have && have.lines) continue;
+    const pg = await pdf.getPage(n), v0 = pg.getViewport({scale:1}), sc = 2000/v0.width, vp = pg.getViewport({scale:sc}), cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+    const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); await pg.render({canvasContext:g, viewport:vp}).promise;
+    const sm = document.createElement('canvas'), k2 = 1400/cv.width; sm.width = 1400; sm.height = Math.round(cv.height*k2); sm.getContext('2d').drawImage(cv, 0, 0, sm.width, sm.height); const img = await new Promise(ok => sm.toBlob(ok, 'image/jpeg', 0.72)); sm.width = sm.height = 1;
+    let lines = []; try { const w = await ocrWorker(), r = await w.recognize(clean(cv), {}, {blocks:true, text:true}); lines = (r.data.blocks || []).flatMap(b => b.paragraphs.flatMap(p => p.lines)).map(l => ({t:l.text.replace(/\n/g, ' ').trim(), b:[l.bbox.x0, l.bbox.y0, l.bbox.x1, l.bbox.y1].map(v => Math.round(v*k2))})).filter(l => l.t); } catch(e){ console.warn('ocr', e); }
+    cv.width = cv.height = 1; pg.cleanup();
+    await dput('pages', k, {img, w:1400, h:Math.round(v0.height*sc*k2), lines});
+    const d2 = await dget('docs', id); if (!d2) break; d2.done = (d2.done || 0) + 1; const gs = parseGroups(lines); if (gs.length){ d2.groups = (d2.groups || []).filter(x => !gs.some(y => y.sym === x.sym)).concat(gs.map(x => ({...x, p:n}))); }
+    await dput('docs', id, d2); if (VIEW.k === 'home' || (VIEW.k === 'doc' && VIEW.id === id)) render(); }
+  await pdf.destroy(); } catch(e){ console.warn(e); toast('読み取りが止まりました（' + (e.message || e) + '）。開き直すと続きから読みます'); } finally { delete RUN[id]; } }
+/* ---- 画面 ---- */
+let VIEW = {k:'home'}; const ST = [];
+function go(v){ ST.push(VIEW); VIEW = v; render(); scrollTo(0, 0); }
+function back(){ VIEW = ST.pop() || {k:'home'}; render(); }
+function toast(m){ let t = $('#toast'); if (!t){ t = document.createElement('div'); t.id = 'toast'; t.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);background:#0f172a;color:#fff;border-radius:12px;padding:12px;font-weight:700;z-index:50;text-align:center'; document.body.appendChild(t); } t.textContent = m; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 3500); }
+const mb = n => (n/1048576).toFixed(1) + 'MB';
+async function render(){ const M = $('#main'), docs = (await dall('docs')).sort((a, b) => b.t - a.t);
+  if (VIEW.k === 'home'){ const q = $('#q').value.trim(); if (q) return renderHits(q, docs);
+    M.innerHTML = `<button class="btn pri" id="add" style="width:100%;height:52px;margin:6px 0">＋ 仕様書（PDF）を入れる</button><div class="note">1回だけ読み込みます（ページの軽い絵と文字の読み取りをこの端末に残す）。次からは重いPDFを開かずに、品番・記号ですぐ探せます。読み取りの間もそのまま使えます。</div>`
+      + (docs.length ? '<h2>仕様書の一覧</h2>' : '') + docs.map(d => `<div class="card"><div class="row"><div class="grow"><b style="font-size:16px">${esc(d.name)}</b><div class="sub">${d.n} ページ・${mb(d.size)}${(d.groups || []).length ? `・記号 ${d.groups.length}` : ''}</div>${(d.done || 0) < d.n ? `<div class="sub">読み取り中 ${d.done || 0}/${d.n}（${RUN[d.id] ? '読んでいます' : '開くと続きから'}）</div><div class="bar"><i style="width:${Math.round((d.done || 0)/d.n*100)}%"></i></div>` : ''}</div><button class="btn pri" data-open="${d.id}">開く</button></div></div>`).join('');
+    M.querySelector('#add').onclick = () => $('#fileIn').click();
+    M.onclick = e => { const b = e.target.closest('[data-open]'); if (b) go({k:'doc', id:b.dataset.open}); }; return; }
+  if (VIEW.k === 'doc'){ const d = docs.find(x => x.id === VIEW.id); if (!d){ back(); return; } if ((d.done || 0) < d.n) readDoc(d.id);
+    const G = (d.groups || []).slice().sort((a, b) => a.sym.localeCompare(b.sym, 'ja', {numeric:true}));
+    M.innerHTML = `<div class="row"><button class="btn" id="bk">← 一覧</button><b class="grow" style="font-size:16px">${esc(d.name)}</b></div>`
+      + ((d.done || 0) < d.n ? `<div class="sub" style="margin-top:6px">読み取り中 ${d.done || 0}/${d.n}（読めた所から使えます）</div><div class="bar"><i style="width:${Math.round((d.done || 0)/d.n*100)}%"></i></div>` : '')
+      + `<h2>記号（押すと品番が出ます）</h2>${G.length ? `<div class="grp">${G.map((g, i) => `<button class="chip" data-g="${i}">${esc(g.sym)}</button>`).join('')}</div>` : '<div class="note">一覧表のページが読めると、ここに記号（PAC-112 など）が並びます。</div>'}
+      <h2>ページ</h2><div class="grp">${Array.from({length:d.n}, (_, i) => `<button class="chip" data-p="${i + 1}" style="min-width:52px">${i + 1}</button>`).join('')}</div>
+      <div class="row" style="margin-top:22px"><button class="btn del" id="del">この仕様書を消す</button></div>`;
+    M.querySelector('#bk').onclick = back;
+    M.querySelector('#del').onclick = async () => { if (!confirm('「' + d.name + '」をこの端末から消しますか？')) return; for (const k of await dkeys('pages', d.id + ':')) await ddel('pages', k); await ddel('files', d.id); await ddel('docs', d.id); back(); };
+    M.onclick = e => { const g = e.target.closest('[data-g]'), p = e.target.closest('[data-p]'); if (g) go({k:'grp', id:d.id, g:G[+g.dataset.g]}); else if (p) openPage(d.id, +p.dataset.p, null); }; return; }
+  if (VIEW.k === 'grp'){ const g = VIEW.g, d = docs.find(x => x.id === VIEW.id), ord = KINDS.map(k => k[0]).concat(['ほか']), its = g.items.slice().sort((a, b) => ord.indexOf(a.kind) - ord.indexOf(b.kind));
+    M.innerHTML = `<div class="row"><button class="btn" id="bk">← もどる</button><b class="grow" style="font-size:20px">${esc(g.sym)}</b></div><div class="card">${its.map((it, i) => `<div class="kind"><span class="k">${esc(it.kind)}</span><span class="m" data-m="${i}">${esc(it.model)}</span><span>${it.qty ? '×' + it.qty : ''}</span></div>`).join('')}</div>
+      <button class="btn" id="src" style="width:100%">📄 一覧表のページを見る（${g.p} ページ）</button><div class="note">品番を押すと、仕様書の中からその品番のページを探します（外形図・仕様など）。読み取りの目安なので、ちがう時はページの絵で確かめてください。</div>`;
+    M.querySelector('#bk').onclick = back; M.querySelector('#src').onclick = () => openPage(d.id, g.p, g.sym);
+    M.onclick = e => { const m = e.target.closest('[data-m]'); if (m){ $('#q').value = its[+m.dataset.m].model; VIEW = {k:'home'}; ST.length = 0; render(); } }; return; } }
+/* 探す：行ごとに（読み違いは同じ物・見つからない時は1〜2文字ちがいまで） */
+async function renderHits(q, docs){ const M = $('#main'), c = canon(q); if (c.length < 2){ M.innerHTML = '<div class="note">2文字以上入れてください</div>'; return; }
+  const hits = [], fz = (a) => { if (a.length < c.length) return false; const lim = c.length >= 10 ? 2 : c.length >= 6 ? 1 : 0; if (!lim) return false; for (let i = 0; i + c.length <= a.length; i++){ let n = 0; for (let j = 0; j < c.length && n <= lim; j++) if (a[i + j] !== c[j]) n++; if (n <= lim) return true; } return false; };
+  for (const d of docs) for (let n = 1; n <= d.n; n++){ const p = LC[d.id + ':' + n] || await dget('pages', d.id + ':' + n); if (!p || !p.lines) continue; LC[d.id + ':' + n] = {lines:p.lines}; for (const L of p.lines){ const a = canon(L.t); if (a.includes(c)) hits.push({d, n, L, ex:1}); else if (fz(a)) hits.push({d, n, L, ex:0}); } }
+  hits.sort((a, b) => b.ex - a.ex); const grp = {}; for (const g of docs.flatMap(d => (d.groups || []).map(x => ({...x, d})))) if (canon(g.sym) === c) grp[g.sym] = g;
+  M.innerHTML = Object.values(grp).map(g => `<button class="hit" data-gs="${esc(g.sym)}" data-gd="${g.d.id}">📋 <b>${esc(g.sym)}</b> の品番を見る <span class="sub">${esc(g.d.name)}</span></button>`).join('')
+    + `<div class="sub" style="margin:6px 2px">${hits.length ? hits.length + ' か所' + (hits.some(h => !h.ex) ? '（1〜2文字ちがいも入れています）' : '') : 'まだ見つかりません。読み取り中の仕様書は、読めた所だけ探します。'}</div>`
+    + hits.slice(0, 200).map((h, i) => `<button class="hit" data-h="${i}"><span class="sub">${esc(h.d.name)}・${h.n} ページ${h.ex ? '' : '（似ている）'}</span><br>${esc(h.L.t)}</button>`).join('');
+  M.onclick = e => { const b = e.target.closest('[data-h]'), gb = e.target.closest('[data-gs]'); if (gb){ const d = docs.find(x => x.id === gb.dataset.gd); go({k:'grp', id:d.id, g:d.groups.find(x => x.sym === gb.dataset.gs)}); return; } if (b){ const h = hits[+b.dataset.h]; openPage(h.d.id, h.n, $('#q').value.trim(), h.L); } }; }
+/* ページを見る：軽い絵（読み取り前はPDFからそのページだけ描く）・探した言葉の行を黄色く */
+let PG = null; const LC = {};   // 探す時の文字（ページの絵は持たない）
+async function openPage(id, n, q, L0){ const d = await dget('docs', id); if (!d) return; PG = {id, n, q, z:1}; $('#pg').hidden = false; $('#pgT').textContent = `${d.name}・${n}/${d.n} ページ`; const W = $('#pgW'); W.innerHTML = '<div class="note" style="padding:20px">開いています…</div>'; W.style.width = '100%';
+  let p = await dget('pages', id + ':' + n), src;
+  if (p && p.img) src = URL.createObjectURL(p.img);
+  else { const f = await dget('files', id), lib = await pdfLib(), pdf = await lib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise, pg = await pdf.getPage(n), v0 = pg.getViewport({scale:1}), vp = pg.getViewport({scale:1400/v0.width}), cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height; const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); await pg.render({canvasContext:g, viewport:vp}).promise; src = cv.toDataURL('image/jpeg', 0.75); await pdf.destroy(); p = {w:cv.width, h:cv.height, lines:[]}; }
+  if (!PG || PG.id !== id || PG.n !== n) return;
+  const c = q ? canon(q) : null, hb = c ? (p.lines || []).filter(L => canon(L.t).includes(c)) : []; if (!hb.length && L0 && L0.b) hb.push(L0);   // 似ている行も光らせる
+  W.innerHTML = `<img src="${src}" alt="">` + hb.map(L => `<div class="hb" style="left:${L.b[0]/p.w*100}%;top:${L.b[1]/p.h*100}%;width:${(L.b[2] - L.b[0])/p.w*100}%;height:${(L.b[3] - L.b[1])/p.h*100}%"></div>`).join('');
+  if (hb.length){ const V = $('#pgV'); setTimeout(() => { V.scrollTop = hb[0].b[1]/p.h*W.offsetHeight - V.clientHeight/3; }, 60); } }
+$('#pgX').onclick = () => { $('#pg').hidden = true; $('#pgW').innerHTML = ''; PG = null; };
+$('#pgP').onclick = () => { if (PG && PG.n > 1) openPage(PG.id, PG.n - 1, PG.q); };
+$('#pgN').onclick = async () => { const d = PG && await dget('docs', PG.id); if (d && PG.n < d.n) openPage(PG.id, PG.n + 1, PG.q); };
+$('#pgZ').onclick = () => { if (!PG) return; PG.z = PG.z >= 3 ? 1 : PG.z + 1; $('#pgW').style.width = PG.z*100 + '%'; $('#pgZ').textContent = PG.z >= 3 ? '🔍－' : '🔍＋'; };
+/* 入れる */
+$('#fileIn').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; toast('読み込んでいます…');
+  try { const lib = await pdfLib(), pdf = await lib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise, n = pdf.numPages; await pdf.destroy(); const id = 'd' + Date.now().toString(36);
+    await dput('files', id, f); await dput('docs', id, {id, name:f.name.replace(/\.pdf$/i, ''), n, done:0, size:f.size, t:Date.now(), groups:[]}); render(); toast(`${n} ページ。読み取りを始めます（1ページ数秒〜十数秒・そのまま使えます）`); readDoc(id); }
+  catch(err){ toast('開けませんでした（' + (err.message || err) + '）'); } };
+let qT = null; $('#q').oninput = () => { clearTimeout(qT); qT = setTimeout(() => { VIEW = {k:'home'}; ST.length = 0; render(); }, 250); };
+render(); dall('docs').then(ds => { for (const d of ds) if ((d.done || 0) < d.n) readDoc(d.id); });   // 読みかけは続きから
+</script>
+</body>
+</html>

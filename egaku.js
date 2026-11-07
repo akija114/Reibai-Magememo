@@ -151,7 +151,7 @@ function rot(){if(EG.segs.length<2){toast("2本以上描くと、曲げの向き
  EG.undo.push(JSON.stringify(EG.segs));for(const s of EG.segs.slice(1)){const v=D3[s.d],c=cr(ax,v),w=[c[0]+ax[0]*dot(ax,v),c[1]+ax[1]*dot(ax,v),c[2]+ax[2]*dot(ax,v)];s.d=D3.findIndex(q=>q[0]===Math.round(w[0])&&q[1]===Math.round(w[1])&&q[2]===Math.round(w[2]))}EG.O=null;draw();list()}
 /* 📱 スマホを配管に沿って動かして曲げの向きを決める（2026-11-07 ユーザー：傾けるのではなく、スマホを自分に向けてまっすぐ持ち、配管のルートに沿って動かしたい）
    devicemotion の重さを除いた加速（acceleration・スマホの向きの x＝右・y＝上・z＝自分の方）を、動き始め（1.2m/s² 超え）から止まるまで足して速さにし、
-   いちばん速かった時の向き＝動かした向き（いちばん大きい軸）。止まった後 0.4秒は次の動きにしない（止める時のゆれ）。寸法は取れないのであとで欄に。
+   いちばん速かった時の向き＝動かした向き（いちばん大きい軸）。iPhone（`IOS`）では加速の向きが逆に出るので符号を逆にする（ほかのスマホはそのまま）（2026-11-07 ユーザー：全部逆）。止まった後 0.4秒は次の動きにしない（止める時のゆれ）。寸法は取れないのであとで欄に。
    向き：右＝−z（右奥）・左＝+z・上＝+y・下＝−y・向こう（スマホの後ろへ押す）＝−x（左奥）・手前＝+x（絵は配管のうしろから見る形・行の右＝d×u と合う） */
 const MO={on:false,el:null,h:null,st:0,v:[0,0,0],pk:[0,0,0],t0:0,tq:0,cool:0,last:0,g:null,pause:false};
 const MDN={5:"➡️ 右へ",4:"⬅️ 左へ",2:"⤴️ 上へ",3:"⤵️ 下へ",1:"⬆️ 向こうへ（奥）",0:"⬇️ 手前へ"};
@@ -180,7 +180,7 @@ function motEv(e){MO.got=1;if(MO.pause)return;const now=performance.now(),dt=MO.
  if(MO.st===0){if(now<MO.cool||m<1.2)return;MO.st=1;MO.v=[0,0,0];MO.pk=[0,0,0];MO.t0=now;MO.still=0}
  MO.v=MO.v.map((z,j)=>z+a[j]*dt);if(Math.hypot(...MO.v)>Math.hypot(...MO.pk))MO.pk=MO.v.slice();
  if(m<0.4)MO.still+=dt;else MO.still=0;
- if(MO.still>0.2||now-MO.t0>2500){MO.st=0;MO.cool=now+400;const dur=(now-MO.t0)/1000;if(Math.hypot(...MO.pk)<0.12||dur<0.15)return;motAdd(motAxis(MO.pk))}}
+ if(MO.still>0.2||now-MO.t0>2500){MO.st=0;MO.cool=now+400;const dur=(now-MO.t0)/1000;if(Math.hypot(...MO.pk)<0.12||dur<0.15)return;motAdd(motAxis(IOS?MO.pk.map(z=>-z):MO.pk))}}
 function motAdd(k){const L=EG.segs[EG.segs.length-1];
  if(L&&k===OPP[L.d]){motUi("（戻した動きは入れません）");return}
  EG.undo.push(JSON.stringify(EG.segs));if(L&&L.d===k)L.n++;else EG.segs.push({d:k,n:3,l:0});EG.O=null;list();draw();motUi(MDN[k]+(L&&L.d===k?"（のばす）":""));try{navigator.vibrate&&navigator.vibrate(40)}catch(e){}}

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja" data-app="katachi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>図面の形の登録 - 冷媒配管の曲げ共有</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="曲げ共有 v1.00">
+<!-- 🏷 図面の形の登録（2026-11-10 ユーザー：3Dにする時の図面の形を登録するアプリが欲しい・何を基準に3Dにしているか知りたい）。
+     登録の中身は図面編集（cad/index.html）の「🏷 これは何？」と同じ localStorage「zumen-shapes」（同じサイトなので同じ物）：
+     {id, kind（SHPK）, mdl（室内機の機種）, W, H（mm）, aw, ah, aL, lg, off, pts（点の並び）, ln（線の絵）, t}。
+     ここでは一覧・種類を変える・消す・ほかの端末へ移す（書き出す・読み込む）。新しく登録するのは図面編集を ?shp=1 で開く（最後の図面・形を選ぶ所から）。 -->
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--panel:#e2e8f0;--danger:#dc2626;--paper:#fff;--or:#ea580c}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171;--paper:#0f1a26}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171;--paper:#0f1a26}
+*,*:before,*:after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 24px)}
+h1{font-size:19px;margin:4px 2px 10px;display:flex;align-items:center;gap:8px}
+h1 a{font-size:14px;font-weight:800;color:var(--acc);text-decoration:none;margin-left:auto}
+h2{font-size:15px;margin:18px 2px 6px;display:flex;align-items:center;gap:6px}
+h2 .ct{font-size:12px;background:var(--panel);border-radius:999px;padding:2px 8px;color:var(--sub)}
+.btn{height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:15px;padding:0 12px;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}.btn.del{color:var(--danger)}.btn.sel{border-color:var(--acc);background:var(--panel)}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}
+.row{display:flex;align-items:center;gap:10px}
+.grow{flex:1;min-width:0}
+.sub{color:var(--sub);font-size:13px}
+.note{color:var(--sub);font-size:13px;line-height:1.55;margin:6px 2px}
+.it{display:flex;align-items:center;gap:10px;width:100%;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:8px;margin:6px 0;color:var(--ink);font:inherit;text-align:left}
+.it b{font-size:15px}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+.kgrid .btn{height:46px}
+details{background:var(--card);border:1.5px solid var(--line);border-radius:14px;margin:10px 0}
+details>summary{padding:12px;font-weight:800;font-size:15px;cursor:pointer;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details>summary:before{content:"▶ ";color:var(--acc)}details[open]>summary:before{content:"▼ "}
+details .body{padding:0 12px 12px;font-size:14px;line-height:1.65}
+details .body dt{font-weight:800;margin-top:10px}details .body dd{margin:2px 0 0 0}
+#sh[hidden]{display:none}
+#sh{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:20;display:flex;align-items:flex-end}
+#sh .in{background:var(--bg);width:100%;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:14px 12px calc(env(safe-area-inset-bottom,0px) + 18px)}
+select{width:100%;height:46px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font-size:15px;padding:0 8px}
+#toast{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);background:#0f172a;color:#fff;border-radius:12px;padding:12px;font-weight:700;z-index:50;text-align:center}
+</style>
+</head>
+<body>
+<h1>🏷 図面の形の登録 <a href="home.html">🏠 入口へ</a></h1>
+<a class="btn pri" href="cad/index.html?shp=1" style="width:100%;height:54px;margin:4px 0">＋ 図面から形を登録する</a>
+<div class="note">図面編集で最後に開いた図面が出ます。登録したい形（室内機・扉・家具など）の線をタップで選んで「OK →」、種類を選ぶと登録します。ちがう図面の時は、先に図面編集でその図面を開いてください。</div>
+<div id="list"></div>
+<details id="how"><summary>🧊 3Dは何を見て作っているの？</summary><div class="body">
+<p style="margin:0 0 6px">図面の線と文字を見て、下の決まりで自動で読んでいます。<b>登録した形はいちばん先に使います</b>（同じ形が図面のどこにあっても、回したり裏返したりしていても見つけます）。</p>
+<dl>
+<dt>🧱 壁</dt><dd>建築の線で、5〜32cm はなれて並ぶ2本の線。2本の間に斜線・網の線が多い物ははっきり壁。2m より短くて斜線の少ない物（家具・クローゼット・階段）は壁にしません。高さは天井まで。</dd>
+<dt>🚪 扉</dt><dd>開き戸の印（4分の1の円＋扉の線）。近くに「AW」の文字があれば窓なので扉にしません。高さは近くの「2000」などの数字。上は垂れ壁にします。</dd>
+<dt>🛁 ユニットバス</dt><dd>「UB1216」のような文字から、まわりの線にいちばん合う四角。</dd>
+<dt>❄️ 室内機</dt><dd>名前に「機器」が入るレイヤーの線のかたまり。大きい物は室内機、斜線の入った四角は点検口、小さい四角は吹出口。機種は図面の品番の文字、無い時は形ごとに聞きます。配管の口の向きは、短い線が多い面か、吹出しの反対。</dd>
+<dt>📏 天井の高さ</dt><dd>近くの「CH2400」などの文字。無い時は 2400。</dd>
+<dt>🔧 冷媒・ドレンの配管</dt><dd>レイヤーの名前（冷媒・ドレン）。PDF の図面は色と「12.7A」「VP」などの文字で決めます。高さは「FL+」の文字。</dd>
+<dt>🏨 天井の配管図・🏠 外壁の図</dt><dd>「FL+」がたくさんある天井の図、「東・西・南・北立面図」と「▽1FL」がある外壁の図は、それぞれ専用の読み方になります。</dd>
+<dt>🏷 登録した形</dt><dd>
+・🧱 壁・🏛 柱 → 壁として足す（自動で読んだ壁とほとんど重なる時は足さない）<br>
+・🚪 扉 → 扉として足す（自動で読んだ扉と重なる時は自動の方）<br>
+・🪟 窓 → 重なる壁を切って、下は腰壁（床から85cm）・上は2m から上<br>
+・❄️ 室内機 → 選んだ機種の模型で出す<br>
+・🔲 点検口・💨 吹出口 → 天井に出す<br>
+・🪜 階段・🛏 ベッド → その形で出す<br>
+・🪑 家具など → 3Dに出さない（そこで読んだ壁・機器・扉を消す）</dd>
+</dl>
+<p class="note" style="margin:8px 0 0">うまく読めない物は、その形を1回登録すると次から同じ形をぜんぶ同じように読みます。間違って壁や室内機になる物は「🪑 家具など」で登録すると消えます。</p>
+</div></details>
+<details id="mv"><summary>📤 ほかのスマホへ移す</summary><div class="body">
+<div class="note" style="margin:0 0 8px">登録はこのスマホだけに残っています。書き出したファイルを LINE などで送って、ほかのスマホで「読み込む」と同じ登録が使えます。</div>
+<div class="row"><button class="btn" id="exp" style="flex:1">📤 書き出す</button><button class="btn" id="imp" style="flex:1">📥 読み込む</button></div>
+<input id="impF" type="file" accept=".json,application/json" hidden>
+</div></details>
+<div id="sh" hidden><div class="in" id="shIn"></div></div>
+<script src="models.js?v=308"></script>
+<script>
+const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* 図面編集（cad/index.html）の SHPK・shpList・shpSave・shpSvg と同じ（変えたら両方） */
+const SHPK = {wall:'🧱 壁', door:'🚪 扉', unit:'❄️ 室内機', insp:'🔲 点検口', out:'💨 吹出口・吸込口', col:'🏛 柱', win:'🪟 窓', stair:'🪜 階段', bed:'🛏 ベッド', ign:'🪑 家具など（3Dに出さない）'};
+function shpList(){ try { const a = JSON.parse(localStorage.getItem('zumen-shapes') || '[]'); return Array.isArray(a) ? a : []; } catch(e){ return []; } }
+function shpSave(a){ try { localStorage.setItem('zumen-shapes', JSON.stringify(a)); return true; } catch(e){ toast('この端末に保存できませんでした'); return false; } }
+function shpSvg(r, w, h){ const xs = [], ys = []; (r.ln || []).forEach(l => { xs.push(l[0], l[2]); ys.push(l[1], l[3]); }); (r.pts || []).forEach(p => { xs.push(p[0]); ys.push(p[1]); }); if (!xs.length) return `<svg width="${w}" height="${h}"></svg>`;
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), k = Math.min((w - 12)/((x1 - x0) || 1), (h - 12)/((y1 - y0) || 1)), X = x => (6 + (x - x0)*k + ((w - 12) - (x1 - x0)*k)/2).toFixed(1), Y = y => (6 + (y1 - y)*k + ((h - 12) - (y1 - y0)*k)/2).toFixed(1);
+  const body = r.ln && r.ln.length ? `<path d="${r.ln.map(l => `M${X(l[0])} ${Y(l[1])}L${X(l[2])} ${Y(l[3])}`).join('')}" stroke="#ea580c" stroke-width="${w > 200 ? 1.4 : 1}" fill="none" stroke-linecap="round"/>` : r.pts.map(p => `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="${w > 200 ? 2.5 : 1.5}" fill="#ea580c"/>`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="background:var(--paper);border:1px solid var(--line);border-radius:8px;flex:none;max-width:100%">${body}</svg>`; }
+const mdlName = k => k && typeof CAS2M !== 'undefined' && CAS2M[k] ? CAS2M[k].n : '';
+const day = t => t ? new Date(t).toLocaleDateString('ja-JP') : '';
+function toast(m){ let t = $('#toast'); if (!t){ t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); } t.textContent = m; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, 3200); }
+/* 一覧：種類ごと */
+function render(){ const L = shpList(), M = $('#list');
+  if (!L.length){ M.innerHTML = '<div class="card"><b>まだ登録がありません</b><div class="note" style="margin:6px 0 0">上の「＋ 図面から形を登録する」から登録できます。登録しなくても、3Dは下の「3Dは何を見て作っているの？」の決まりで自動で読みます。</div></div>'; return; }
+  M.innerHTML = Object.keys(SHPK).concat(L.map(r => r.kind).filter(k => !SHPK[k])).filter((k, i, a) => a.indexOf(k) === i).map(k => { const g = L.filter(r => r.kind === k); if (!g.length) return '';
+    return `<h2>${SHPK[k] || esc(k)}<span class="ct">${g.length}</span></h2>` + g.map(r => `<button class="it" data-id="${esc(r.id)}">${shpSvg(r, 96, 70)}<div class="grow"><b>${esc(mdlName(r.mdl) || (SHPK[k] || k).replace(/^\S+\s/, ''))}</b><div class="sub">約 ${r.W}×${r.H}mm・${day(r.t)} に登録</div></div><span class="sub">›</span></button>`).join(''); }).join('')
+    + '<div class="note">押すと大きく見る・種類を変える・消すができます。</div>'; }
+$('#list').onclick = e => { const b = e.target.closest('[data-id]'); if (b) openOne(b.dataset.id); };
+/* 1つの登録：大きい絵・種類を変える・機種・消す */
+function openOne(id){ const r = shpList().find(x => x.id === id); if (!r) return; let kind = r.kind, mdl = r.mdl || ''; const S = $('#sh'), I = $('#shIn'); S.hidden = false;
+  const draw = () => { I.innerHTML = `<div class="row"><button class="btn" data-a="x">← もどる</button><b class="grow" style="font-size:16px">${SHPK[r.kind] || esc(r.kind)}</b></div>
+    <div style="display:flex;justify-content:center;margin:10px 0">${shpSvg(r, Math.min(360, innerWidth - 40), 260)}</div>
+    <div class="note">約 ${r.W}×${r.H}mm・${day(r.t)} に登録${r.mdl ? '・機種 ' + esc(mdlName(r.mdl)) : ''}</div>
+    <h2>種類を変える</h2><div class="kgrid">${Object.keys(SHPK).map(k => `<button class="btn ${kind === k ? 'sel' : ''}" data-k="${k}">${SHPK[k]}</button>`).join('')}</div>
+    ${kind === 'unit' ? `<select id="mdl"><option value="">機種：わからない（箱で出す）</option>${(typeof CAS2_ORDER !== 'undefined' ? CAS2_ORDER : []).filter(k => CAS2M[k]).map(k => `<option value="${k}" ${k === mdl ? 'selected' : ''}>${esc(CAS2M[k].n)}（${esc(CAS2M[k].kind)}）</option>`).join('')}</select>` : ''}
+    <div class="row" style="margin-top:12px"><button class="btn del" data-a="del" style="flex:1">この登録を消す</button><button class="btn pri" data-a="ok" style="flex:1.3" ${kind === r.kind && mdl === (r.mdl || '') ? 'disabled' : ''}>変えて保存</button></div>`; };
+  draw();
+  I.onchange = e => { if (e.target.id === 'mdl'){ mdl = e.target.value; draw(); } };
+  I.onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.k){ kind = b.dataset.k; if (kind !== 'unit') mdl = ''; draw(); return; }
+    const a = b.dataset.a; if (a === 'x'){ S.hidden = true; return; }
+    if (a === 'del'){ if (!confirm('この登録を消しますか？（3Dは自動の読み方にもどります）')) return; if (shpSave(shpList().filter(x => x.id !== id))){ S.hidden = true; render(); toast('登録を消しました'); } return; }
+    if (a === 'ok'){ const L = shpList(), q = L.find(x => x.id === id); if (!q) return; q.kind = kind; if (kind === 'unit') q.mdl = mdl; else delete q.mdl; if (shpSave(L)){ S.hidden = true; render(); toast(`${SHPK[kind]}にしました。次に3Dを開いた時から変わります`); } } }; }
+$('#sh').onclick = e => { if (e.target.id === 'sh') $('#sh').hidden = true; };
+/* ほかのスマホへ：ファイルで書き出す・読み込む（同じ登録は2つにしない） */
+$('#exp').onclick = async () => { const L = shpList(); if (!L.length){ toast('まだ登録がありません'); return; }
+  const f = new File([JSON.stringify({app:'zumen-shapes', v:1, t:Date.now(), shapes:L})], '図面の形の登録_' + new Date().toISOString().slice(0, 10) + '.json', {type:'application/json'});
+  try { if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f], title:'図面の形の登録'}); return; } } catch(e){ if (e && e.name === 'AbortError') return; }
+  const u = URL.createObjectURL(f), a = document.createElement('a'); a.href = u; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 3000); toast('ファイルを保存しました'); };
+$('#imp').onclick = () => $('#impF').click();
+$('#impF').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { const j = JSON.parse(await f.text()), A = Array.isArray(j) ? j : j && j.shapes; if (!Array.isArray(A)) throw new Error('形の登録のファイルではありません');
+    const L = shpList(), ok = A.filter(r => r && r.id && r.kind && Array.isArray(r.pts) && r.W && r.H), add = ok.filter(r => !L.some(q => q.id === r.id));
+    if (shpSave(L.concat(add))){ render(); toast(add.length ? `${add.length}個の登録を足しました` + (ok.length > add.length ? `（${ok.length - add.length}個は前からあります）` : '') : 'ぜんぶ前からある登録でした'); } }
+  catch(err){ toast('読み込めませんでした（' + (err.message || err) + '）'); } };
+render(); addEventListener('pageshow', render);   // 図面編集で登録して戻った時も新しく
+</script>
+<script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js",{scope:"./"}).catch(()=>{})}catch(e){}})}</script>
+</body>
+</html>

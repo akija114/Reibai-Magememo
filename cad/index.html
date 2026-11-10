@@ -5789,6 +5789,8 @@ updateUi();
   } catch(e){}
   if (!opened){ const t = await loadSample().catch(() => null); if (t) opened = await openText(t, SAMPLE_NAME, {fileId:'sample'}); }
   if (!opened){ $('#loading').hidden = true; openStartSheet(); }
+  if (new URLSearchParams(location.search).get('shp')){ try { history.replaceState(null, '', location.pathname); } catch(e){} // 🏷 形の登録の画面から：すぐ形を選ぶ所へ（2026-11-10 ユーザー）
+    if (opened && G){ S.pick = {cands:[], i:0, parts:[], pi:0, sel:new Set(), multi:true}; shpSelStart(); toast('登録したい形の線をタップで選んで「OK →」（⬚ 囲む でまとめて選べます）'); } else toast('先に図面を開いてください'); }
   const jq = new URLSearchParams(location.search).get('join');
   if (jq){ try { history.replaceState(null, '', location.pathname); } catch(e){} openShareSheet(jq.toUpperCase()); }
 })();

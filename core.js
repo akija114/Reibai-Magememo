@@ -3277,7 +3277,7 @@ function planMeta(p){
 }
 function renderPlans(){
  const box=$("#planList");
- if(!plans.length){box.innerHTML='<div class="pempty">保存した現場はまだありません</div>';return}
+ if(!plans.length){box.innerHTML='<div class="pempty">保存した曲げはまだありません</div>';return}
  box.innerHTML="";
  plans.forEach(p=>{
   const el=document.createElement("div");el.className="pcard";
@@ -3324,9 +3324,13 @@ function noCloud(){
 }
 function initLocal(){
  LOCAL=true;
- $("#cloudTitle").textContent="💾 現場の保存";
+ $("#cloudTitle").textContent="💾 曲げの保存";
+ /* 上の段に 💾（送る画面の奥にしまってあって見つからないため・2026-11-11 ユーザー） */
+ if(APP==="bend"){const cb=$("#cloudBtn");cb.textContent="💾";cb.setAttribute("aria-label","曲げを保存");cb.style.display="";cb.style.fontSize="22px"}
+ /* 名前と保存を一覧の上に */
+ {const sr=$("#cloudOv .saverow"),pl=$("#planList");if(sr&&pl){$("#cloudOv .shead").after(sr);sr.after(pl);pl.style.flex="none";sr.style.marginTop="0";pl.style.marginTop="8px"}}
  $("#cloudNote").textContent="💾 この端末の中だけに保存されます（他の人には見えません）。Safariの履歴・データを消すと消えるので、大事な現場は 📤 で送っておくと安心です。";
- $("#planTitle").placeholder="現場名（例：A様邸 室外機）";
+ $("#planTitle").placeholder="名前（例：A様邸 室外機）";
  const m=$("#shMore");m.style.display="";m.textContent="💾 現場を保存・保存した現場を開く";m.style.background="#2563eb";m.style.color="#fff";
  plans=loadSites();renderPlans();
  if(!isStandalone())$("#cloudNote").innerHTML+='<br><b style="color:#b45309">⚠️ ホーム画面に追加していないと、しばらく開かないだけで消えることがあります。</b>Safariの共有ボタン →「ホーム画面に追加」から開くと消えにくくなります。';
@@ -3344,7 +3348,7 @@ function addBackupUI(){
   '<div class="note">保存した現場と設定（ベンダー・単位など）を1つのファイルにします。「ファイル」アプリやLINEに保存しておけば、機種変更やデータが消えた時に戻せます。</div>'+
   '<button class="sharebtn" id="fbBtn" style="width:100%;margin:6px 0 4px;background:#fef3c7;color:#92400e">💬 感想・不具合を送る</button>'+
   '<div class="note" style="font-size:11px">※ 計算結果・3D表示は目安です。実際の曲げ・施工の前に、必ず寸法を確認してください。この表示による材料のロスや施工の不具合について、作者は責任を負いかねます。</div>';
- sr.after(box);
+ sr.parentNode.appendChild(box);
  $("#bkOut").onclick=exportBackup;
  $("#bkIn").onclick=()=>$("#bkFile").click();
  $("#bkFile").onchange=e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(f)importBackup(f)};

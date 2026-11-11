@@ -5707,9 +5707,9 @@ function shStatus(){
   return `共有中${off ? '・圏外（つながったら送ります）' : SH.pend ? '・送信中' : ''} ・ ほか${on}人オンライン`;
 }
 function shareCode(code){ return code.slice(0, 3) + '-' + code.slice(3); }
-async function sendCode(code, gname){
-  const url = location.origin + location.pathname + '?join=' + code;
-  const text = `CAD図面編集の共有「${gname || ''}」に入ってください。合言葉：${shareCode(code)}\n${url}`;
+async function sendCode(code, gname, fid, dname){
+  const url = location.origin + location.pathname + '?join=' + code + (fid ? '&d=' + fid : '');
+  const text = fid ? `図面「${dname || ''}」を送ります。リンクをタップするとそのまま開きます（書き込んだ寸法・メモも一緒に見られます）。\n${url}` : `CAD図面編集の共有「${gname || ''}」に入ってください。合言葉：${shareCode(code)}\n${url}`;
   try { if (navigator.share){ await navigator.share({text}); return; } } catch(e){ if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(text); toast('合言葉と案内をコピーしました'); } catch(e){ toast('合言葉：' + shareCode(code)); }
 }
@@ -5721,7 +5721,8 @@ function openShareSheet(prefill){
   openSheet('仲間と共有', body => {
     sheet.share = true;
     const js = joinedLS();
-    let h = `<div class="field"><label for="shNick">自分の名前（ニックネーム）</label><input id="shNick" value="${esc(nickLS())}" placeholder="空のままだと A・B・C… の順で名前が付きます" enterkeyhint="done"></div>`;
+    let h = G ? `<button class="bigbtn pri" data-a="link" style="flex:none;min-height:52px">🔗 この図面をリンクで送る</button>` : '';
+    h += `<div class="field"><label for="shNick">自分の名前（ニックネーム）</label><input id="shNick" value="${esc(nickLS())}" placeholder="空のままだと A・B・C… の順で名前が付きます" enterkeyhint="done"></div>`;
     if (SH.on){
       const ms = Object.entries(SH.members).sort((a, b) => (a[1].joined || 0) - (b[1].joined || 0));
       h += `<div class="grp">共有中の図面</div><div class="row"><i class="lk sh">共</i><div class="grow"><div class="nm">${esc(SH.name)}</div><div class="sub">${esc(SH.gname)} ・ 合言葉 <b>${shareCode(SH.code)}</b>${navigator.onLine === false ? ' ・ 圏外（つながったら送ります）' : SH.pend ? ' ・ 送信中…' : ' ・ 最新'}</div></div><button class="btn" data-a="send">合言葉を送る</button></div>`;
@@ -5746,6 +5747,7 @@ function openShareSheet(prefill){
       const b = e.target.closest('[data-a],[data-share],[data-grp]'); if (!b) return;
       const busy = async (fn) => { b.disabled = true; try { await fn(); } catch(err){ toast(err && err.message === 'nf' ? 'その合言葉のグループが見つかりません' : shErrMsg(err)); } finally { b.disabled = false; } };
       if (b.dataset.a === 'send') sendCode(SH.code, SH.gname);
+      else if (b.dataset.a === 'link') shLinkSend(b);
       else if (b.dataset.a === 'trash') openTrashSheet();
       else if (b.dataset.a === 'leave'){ if (!b.dataset.ok){ b.dataset.ok = '1'; b.textContent = '本当に終える（仲間の図面はそのまま）'; return; } shStop(); S.fileId = hashText(S.text); autosave(false); closeSheet(); toast('この端末での共有を終えました'); }
       else if (b.dataset.a === 'join') busy(async () => { const code = (body.querySelector('#shCode').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (code.length !== 6){ toast('合言葉は6文字です'); return; } await shEnsureMember(code); openGroupSheet(code); });
@@ -5754,6 +5756,16 @@ function openShareSheet(prefill){
       else if (b.dataset.grp) busy(async () => { openGroupSheet(b.dataset.grp); });
     };
   });
+}
+/* 🔗 リンクで送る（2026-11-11 ユーザー：図面修正でもリンクを送れるように）：まだ共有していない図面は、図面の名前でグループを作って共有してからリンク（?join=合言葉&d=図面）。開いた人はそのまま図面が開く */
+async function shLinkSend(b){
+  if (!SH.on){ if (!G) return; b.disabled = true; b.textContent = '図面を送る準備をしています…';
+    try { const code = await shCreateGroup(S.name || '図面'); await shEnsureMember(code); closeSheet(); await shShareCurrent(code); }
+    catch(err){ b.disabled = false; b.textContent = '🔗 この図面をリンクで送る'; toast(shErrMsg(err)); return; } }
+  openSheet('リンクで送る', body => { body.innerHTML = `<div class="note">図面「${esc(SH.name)}」の準備ができました。下のボタンでLINEなどに送ってください。リンクを開いた人は、この図面がそのまま開きます（直した所はおたがいに自動で届きます）。</div><button class="bigbtn pri" data-a="go">📤 LINEなどで送る</button><button class="bigbtn sec" data-a="cp">📋 リンクをコピー</button>`;
+    body.onclick = async e => { const x = e.target.closest('[data-a]'); if (!x) return; const url = location.origin + location.pathname + '?join=' + SH.code + '&d=' + SH.fid;
+      if (x.dataset.a === 'go') sendCode(SH.code, SH.gname, SH.fid, SH.name);
+      else { try { await navigator.clipboard.writeText(url); toast('リンクをコピーしました'); } catch(err){ toast('コピーできませんでした'); } } }; });
 }
 function openGroupSheet(code){
   const g0 = joinedLS().find(x => x.code === code) || {code, name:''};
@@ -5864,7 +5876,9 @@ updateUi();
   if (new URLSearchParams(location.search).get('shp')){ try { history.replaceState(null, '', location.pathname); } catch(e){} // 🏷 形の登録の画面から：すぐ形を選ぶ所へ（2026-11-10 ユーザー）
     if (opened && G){ S.pick = {cands:[], i:0, parts:[], pi:0, sel:new Set(), multi:true}; shpSelStart(); toast('登録したい形の線をタップで選んで「OK →」（⬚ 囲む でまとめて選べます）'); } else toast('先に図面を開いてください'); }
   const jq = new URLSearchParams(location.search).get('join');
-  if (jq){ try { history.replaceState(null, '', location.pathname); } catch(e){} openShareSheet(jq.toUpperCase()); }
+  const jd = new URLSearchParams(location.search).get('d');
+  if (jq && jd){ try { history.replaceState(null, '', location.pathname); } catch(e){} shOpen(jq.toUpperCase().replace(/[^A-Z0-9]/g, ''), jd.replace(/[^\w-]/g, '')).catch(err => { toast(err && err.message === 'nf' ? 'その図面の共有が見つかりません' : shErrMsg(err)); openShareSheet(jq.toUpperCase()); }); } // リンクで送られた図面はそのまま開く
+  else if (jq){ try { history.replaceState(null, '', location.pathname); } catch(e){} openShareSheet(jq.toUpperCase()); }
 })();
 $('#bShare').onclick = () => openShareSheet();
 </script>

@@ -543,7 +543,7 @@ if(/[?&]from=cad3d/.test(location.search)){(function(){const m=new Map();try{for
 <script>const APP="zumen";</script>
 <script src="models.js?v=309"></script>
 <script src="core.js?v=350"></script>
-<script src="drain.js?v=269"></script>
+<script src="drain.js?v=270"></script>
 <script src="jwc.js?v=3"></script><script src="dxf.js?v=328"></script><script src="zumen.js?v=339"></script><script src="shita.js?v=251"></script><script src="yomi.js?v=250"></script>
 <script src="kabe.js?v=228"></script>
 <script src="sumi.js?v=228"></script>
@@ -555,19 +555,18 @@ if(/[?&]from=cad3d/.test(location.search)){(function(){const m=new Map();try{for
 (function(){
  const d=document.createElement("div");d.id="zdock";
  d.innerHTML=`<button class="main" data-z="plan">📄 図面（PDF・DXF・写真）を読み込む・なぞる</button>
+<button class="main" data-z="sum" style="background:#b45309;border-color:#b45309">🧾 材料拾い・見積り<br><small>冷媒・ドレンの長さ → 材料 → 見積り</small></button>
 <button class="main" data-z="more" id="zMore" style="background:#fff;color:#0f172a;border:2px dashed #94a3b8;min-height:52px"></button>
 <button data-z="bld">🧱 柱・壁・梁・<br>室内機を置く</button><button data-z="route">🧭 ルート<br>おまかせ</button>
 <button data-z="scan">📡 部屋の<br>スキャン</button><button data-z="new">🆕 新しく作る<br><small>（模型・機械から）</small></button>
 <button data-z="floor" id="zFloor" style="font-size:13.5px"></button><button data-z="floorop" id="zFloorOp" style="font-size:13.5px"></button>
 <button data-z="floor2" style="font-size:13.5px">🚽 下の図面（衛生など）<br><small>床に映す・今の図面は天井へ</small></button>
 <button class="main" data-z="photo" style="background:#0f766e;border-color:#0f766e">📷 写真で測る（壁の真ん中・照明の間・天井高）</button>
-<button class="main" data-z="mt" style="background:#b45309;border-color:#b45309">🧾 材料拾い・見積もり・単価表</button>
-<button class="main" data-z="sum" style="background:#0f766e;border-color:#0f766e">📋 冷媒＋ドレン まとめ</button>
 <button class="zgo" data-z="go">🔧 曲げ共有で長さ・曲げを見る ▶</button>`;
  $("#legbar").before(d);
  /* ふだんは「図面を読み込む」だけ。ほかの機能は「▼ ほかの機能」で開く（開け閉めはこの端末に覚える） */
- const cs=document.createElement("style");cs.textContent='#zdock.less button:not([data-z="plan"]):not([data-z="more"]){display:none}';document.head.appendChild(cs);
- const mOn=()=>{try{return localStorage.getItem("pbm_zmore")==="1"}catch(e){return false}},upMore=()=>{d.classList.toggle("less",!mOn());$("#zMore").textContent=mOn()?"▲ ほかの機能をしまう":"▼ ほかの機能（ルートおまかせ・柱や壁・材料拾い など）"};upMore();
+ const cs=document.createElement("style");cs.textContent='#zdock.less button:not([data-z="plan"]):not([data-z="more"]):not([data-z="sum"]){display:none}';document.head.appendChild(cs);
+ const mOn=()=>{try{return localStorage.getItem("pbm_zmore")==="1"}catch(e){return false}},upMore=()=>{d.classList.toggle("less",!mOn());$("#zMore").textContent=mOn()?"▲ ほかの機能をしまう":"▼ ほかの機能（ルートおまかせ・柱や壁 など）"};upMore();
  /* 🗺 地面に図面を映す：表示のON/OFFと濃さ（図面を読み込んだ後に使える） */
  const PL=()=>(typeof PLAN!=="undefined"&&PLAN)?PLAN:null,PLok=P=>!!(P&&P.img&&P.mmpp&&P.org);
  const fl=()=>{const P=PL(),w=P&&P.atCeil?"天井":"地面";return(P&&P.show)?"🙈 "+w+"の図面を隠す":"🗺 "+w+"に図面を映す"};

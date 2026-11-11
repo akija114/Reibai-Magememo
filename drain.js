@@ -342,14 +342,14 @@ function drGap(){const b=$("#drGapBox");if(!b)return;let SP=[];try{SP=drSupports
    return`<div style="border-top:1px solid var(--line);padding:6px 0;font-size:14px"><b>💧${nmR(r)}</b> ${kd[r.k]}（${fmt(Math.round(r.L))}mm・支持${r.ss.length}か所）<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:4px;font-weight:800">${g.map((v,k)=>`<span style="padding:2px 7px;border-radius:8px;background:${k===0||k===g.length-1?"#f1f5f9":"#ffedd5"};color:${k===0||k===g.length-1?"#475569":"#9a3412"}">${fmt(v)}</span>`).join('<span style="color:#7c3aed">●</span>')}</div></div>`}).join("")}
 /* 📋 まとめ：冷媒とドレンを1つの画面で */
 function drSumOpen(){const sh=$("#drSumSh");if(!sh)return;
- let h=`<div style="display:flex;align-items:center;justify-content:space-between"><h3 style="margin:0">📋 冷媒＋ドレン まとめ</h3><button id="drSumX" style="width:40px;height:40px;border-radius:20px;font-size:18px;background:var(--bg)">✕</button></div>`;
+ let h=`<div style="display:flex;align-items:center;justify-content:space-between"><h3 style="margin:0">🧾 材料拾い・見積り</h3><button id="drSumX" style="width:40px;height:40px;border-radius:20px;font-size:18px;background:var(--bg)">✕</button></div>`;
  h+=`<div class="drc" style="margin-top:10px"><h4>🔧 冷媒配管</h4>`;
  legIds().forEach(g=>{const c=calc(g),rows=legRows(g),bends=rows.filter(r=>r.a>0),by={};bends.forEach(r=>by[r.a]=(by[r.a]||0)+1);
   const ps=legPS(g);
   h+=`<div style="padding:6px 0;border-top:1px solid var(--line)"><b>${legName(g)}</b>　${SIZES[legSize(g)][0]}${SIZES[ps]?"／"+SIZES[ps][0]:""}<br>長さ <b>${fmt(c.tot)}</b> mm・曲げ <b>${bends.length}</b> か所${Object.keys(by).length?"（"+Object.keys(by).map(a=>a+"°×"+by[a]).join("・")+"）":""}
    <div style="font-size:13px;color:var(--sub);margin-top:2px">${rows.map((r,i)=>(i+1)+"："+fmt(r.l)+(r.a?"→"+r.a+"°":"")).join("　")}</div></div>`});
  h+=`</div>`;
- h=h.replace(`</div>`,`</div><button id="drSumMt" style="width:100%;min-height:48px;border-radius:12px;background:#b45309;color:#fff;font-weight:800;font-size:15.5px;border:0;margin:10px 0 4px">🧾 材料拾い・見積もり・単価表</button>`);
+ h=h.replace(`</div>`,`</div><button id="drSumMt" style="width:100%;min-height:48px;border-radius:12px;background:#b45309;color:#fff;font-weight:800;font-size:15.5px;border:0;margin:10px 0 4px">💴 材料の一覧と見積りを作る（単価表）</button>`);
  const D=DRN();h+=`<div class="drc">${D.rows.length?drSumHtml():"<h4>💧 ドレン配管</h4><div style='color:var(--sub)'>まだ入力されていません（「💧 ドレン」で入力）</div>"}</div>`;
  h+=`<div class="drc"><h4>3Dに表示</h4><div class="drseg"><button id="drSV1" class="${HID.size?"":"on"}">🔧 冷媒</button><button id="drSV2" class="${D.show?"on":""}">💧 ドレン</button></div></div>`;
  sh.innerHTML=h;$("#drSumOv").classList.add("on");

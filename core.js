@@ -3273,7 +3273,8 @@ let DB=null,plans=[];
 function sizeLabel(i){return SIZES[i]?SIZES[i][0]:"?"}
 function planMeta(p){
  const total=(p.rows||[]).reduce((s,r)=>s+(r.l||0),0);
- return `${p.dateLabel||""}　${sizeLabel(p.s)}　全長${fmt(total)}mm`;
+ const d=p.savedAt?new Date(p.savedAt):null,dl=d?(d.getMonth()+1)+"/"+d.getDate()+"（"+"日月火水木金土"[d.getDay()]+"）"+d.getHours()+":"+String(d.getMinutes()).padStart(2,"0"):(p.dateLabel||"");   // 保存した日付と時間（2026-11-12 ユーザー）
+ return `${dl}　${sizeLabel(p.s)}　全長${fmt(total)}mm${p.gps?"　📍":""}`;
 }
 function renderPlans(){
  const box=$("#planList");
@@ -3281,11 +3282,12 @@ function renderPlans(){
  box.innerHTML="";
  plans.forEach(p=>{
   const el=document.createElement("div");el.className="pcard";
-  el.innerHTML=`<button class="pmain"><b></b><span></span></button><button class="pdel" aria-label="削除">🗑️</button>`;
+  el.innerHTML=`<button class="pmain"><b></b><span></span></button>${p.gps?'<button class="pdel pgps" aria-label="保存した場所を地図で">🗺️</button>':""}<button class="pdel" aria-label="削除">🗑️</button>`;
   el.querySelector(".pmain b").textContent=p.title||"無題プラン";
   el.querySelector(".pmain span").textContent=planMeta(p);
   el.querySelector(".pmain").onclick=()=>openPlan(p);
-  el.querySelector(".pdel").onclick=(ev)=>{ev.stopPropagation();deletePlan(p)};
+  el.querySelector(".pdel:not(.pgps)").onclick=(ev)=>{ev.stopPropagation();deletePlan(p)};
+  if(p.gps)el.querySelector(".pgps").onclick=ev=>{ev.stopPropagation();const [la,lo]=p.gps,ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);window.open(ios?`https://maps.apple.com/?q=${encodeURIComponent(p.title||"保存した場所")}&ll=${la},${lo}`:`https://www.google.com/maps?q=${la},${lo}`,"_blank")};
   box.appendChild(el);
  });
 }
@@ -3308,6 +3310,8 @@ function openPlan(p){
  $("#sz").value=st.s;render();if(T)fitT();
  closeCloud();toast("「"+(p.title||"無題プラン")+"」を開きました");
 }
+/* 📍 保存した場所（GPS）：保存した後にスマホの位置を聞いて、その曲げに足す（どこの現場か分かる・2026-11-12 ユーザー）。取れない時は場所なしのまま */
+function gpsAdd(id){try{if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(pos=>{const a=loadSites(),x=a.find(q=>q.id===id);if(!x)return;x.gps=[+pos.coords.latitude.toFixed(6),+pos.coords.longitude.toFixed(6),Math.round(pos.coords.accuracy||0)];try{storeSites(a)}catch(e){return}plans=a;renderPlans();toast("📍 保存した場所も記録しました（🗺️ で地図）")},()=>toast("📍 場所は記録できませんでした（位置情報がオフ・電波が弱い）"),{enableHighAccuracy:true,timeout:12000,maximumAge:60000})}catch(e){}}
 function deletePlan(p){
  if(LOCAL){
   if(!confirm((p.title||"無題")+" を削除しますか？"))return;
@@ -3417,7 +3421,7 @@ $("#savePlan").onclick=async ()=>{
   const item={id:same?same.id:String(Date.now()),title,dateLabel,savedAt:Date.now(),s:st.s,rows:st.rows,data:JSON.stringify(st)};
   a=[item,...a.filter(x=>x!==same)];
   try{storeSites(a)}catch(e){toast("保存できませんでした（容量がいっぱいです。古い現場を消してください）");return}
-  $("#planTitle").value="";plans=a;renderPlans();toast("保存しました");return;
+  $("#planTitle").value="";plans=a;renderPlans();toast("保存しました");gpsAdd(item.id);return;
  }
  if(!DB){toast("保存機能が使えません");return}
  const title=($("#planTitle").value||"").trim()||st.info.site||"無題プラン";

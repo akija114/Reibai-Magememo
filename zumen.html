@@ -266,7 +266,7 @@ input[type=range]{accent-color:var(--acc)}
 html[data-app="bend"] #planBtn,html[data-app="bend"] #arBtn,html[data-app="bend"] #genBtn,html[data-app="bend"] #newModel,html[data-app="bend"] #newMachine{display:none!important}
 html[data-app="zumen"] #arBtn,html[data-app="zumen"] #genBtn,html[data-app="zumen"] #legbar,html[data-app="zumen"] #rows,html[data-app="zumen"] .dock{display:none!important}
 html[data-app="zumen"] .stage{flex:1 1 auto}
-#zdock{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 0 calc(env(safe-area-inset-bottom,0px) + 8px)}
+#zdock{flex:0 1 auto;min-height:0;max-height:52vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 0 calc(env(safe-area-inset-bottom,0px) + 8px)}
 #zdock button{min-height:54px;border-radius:14px;background:var(--card);border:1.5px solid var(--line);font-weight:800;font-size:14.5px;line-height:1.25;padding:6px 8px}
 #zdock button.main{grid-column:1/-1;background:var(--acc);color:#fff;border-color:var(--acc);font-size:16px}
 #zdock .zgo{grid-column:1/-1;min-height:46px;background:none;border-style:dashed;color:var(--acc)}
@@ -542,9 +542,9 @@ if(/[?&]from=cad3d/.test(location.search)){(function(){const m=new Map();try{for
  try{const op=indexedDB.open.bind(indexedDB);indexedDB.open=(n,v)=>op(n==="pbmShare"?n:"cad3d_"+n,v)}catch(e){}window.CAD3D_MODE=true;document.documentElement.classList.add("cad3d")})()}</script>
 <script>const APP="zumen";</script>
 <script src="models.js?v=309"></script>
-<script src="core.js?v=350"></script>
+<script src="core.js?v=351"></script>
 <script src="drain.js?v=270"></script>
-<script src="jwc.js?v=3"></script><script src="dxf.js?v=328"></script><script src="zumen.js?v=339"></script><script src="shita.js?v=251"></script><script src="yomi.js?v=250"></script>
+<script src="jwc.js?v=3"></script><script src="dxf.js?v=328"></script><script src="zumen.js?v=340"></script><script src="shita.js?v=251"></script><script src="yomi.js?v=250"></script>
 <script src="kabe.js?v=228"></script>
 <script src="sumi.js?v=228"></script>
 <script src="kozo.js?v=228"></script>

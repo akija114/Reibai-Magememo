@@ -722,6 +722,48 @@ function plSavePage(n,join){try{plDB("readwrite",o=>{const g=o.get("last");g.ons
 async function plResume(){let r=null;try{r=await plDB("readonly",o=>o.get("last"))}catch(e){}if(!r||!r.blob){toast("前の図面が見つかりませんでした。もう一度ファイルから開いてください");return}
  const f=new File([r.blob],r.name,{type:r.type||"application/pdf"});W.resume=true;W.resumePage=r.page||1;W.resumeJoin=Array.isArray(r.join)&&r.join.length>1?r.join:null;await planLoad(f,true)}
 plLastInfo();
+
+/* 💾 図面の保存（曲げ共有の保存とは別・2026-11-12 ユーザー：図面の3Dを保存・保存した日時・図面の名前（変えられる）・メモ（書かなくてよい））
+   一覧は localStorage pbm_zsave＝[{id,nm,memo,t,fn}]、中身は IndexedDB pbmPlanDB の "zs:id"＝{st（文字）・plan（"last" と同じ形＝図面のファイル）・f2（下の図面）・mk・mem（縮尺・原点 pbmPlanMem）}。
+   開く：st を戻す（restoreSt）→ 縮尺・原点・図面のファイルを戻して plResume（前の図面の続きと同じ開き方） */
+function zsList(){try{const a=JSON.parse(localStorage.getItem("pbm_zsave")||"[]");return Array.isArray(a)?a:[]}catch(e){return[]}}
+function zsStore(a){localStorage.setItem("pbm_zsave",JSON.stringify(a))}
+const zsDate=t=>{const d=new Date(t);return d.getFullYear()+"年"+(d.getMonth()+1)+"月"+d.getDate()+"日（"+"日月火水木金土"[d.getDay()]+"）"+d.getHours()+":"+String(d.getMinutes()).padStart(2,"0")};
+const zsEsc=t=>String(t==null?"":t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+let zsOv=null;
+function zsOpen(){if(!zsOv){zsOv=document.createElement("div");zsOv.style.cssText="position:fixed;inset:0;z-index:90;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center";zsOv.addEventListener("click",e=>{if(e.target===zsOv)zsClose()});document.body.appendChild(zsOv)}zsOv.style.display="flex";zsRender()}
+function zsClose(){if(zsOv)zsOv.style.display="none"}
+function zsRender(){const L=zsList(),P=PLAN,fn=P&&P.fkey?String(P.fkey).split("|")[0]:"",def=(fn.replace(/\.[^.]+$/,"")||(st.info&&st.info.site)||"");
+ zsOv.innerHTML=`<div style="background:var(--card,#fff);color:var(--ink,#0f172a);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 16px)">
+  <div style="display:flex;align-items:center;justify-content:space-between"><h3 style="margin:0">💾 図面の保存</h3><button id="zsX" style="width:40px;height:40px;border-radius:20px;font-size:18px;background:var(--bg,#f1f5f9)">✕</button></div>
+  <div style="font-size:12.5px;color:#64748b;margin:4px 0 10px">今の図面と3D（置いた室内機・壁・配管・縮尺）をこの端末に保存します。曲げ共有の 💾 とは別です。</div>
+  <label style="font-weight:800;font-size:13px">図面の名前</label><input id="zsNm" maxlength="40" value="${zsEsc(def)}" placeholder="例：○○ビル 3階" style="width:100%;box-sizing:border-box;height:46px;border-radius:12px;border:1.5px solid #cbd5e1;padding:0 10px;font-size:16px;margin:2px 0 8px">
+  <label style="font-weight:800;font-size:13px">メモ <span style="font-weight:400;color:#64748b">（書かなくてもOK）</span></label><textarea id="zsMemo" rows="2" placeholder="例：天井高2600・梁下に注意" style="width:100%;box-sizing:border-box;border-radius:12px;border:1.5px solid #cbd5e1;padding:8px 10px;font-size:16px;margin:2px 0 8px"></textarea>
+  <button id="zsSave" style="width:100%;min-height:50px;border-radius:12px;background:#2563eb;color:#fff;font-weight:800;font-size:16px;border:0">💾 今の図面と3Dを保存</button>
+  <div style="font-weight:800;margin:16px 2px 6px">📂 保存した図面（${L.length}）</div>
+  <div id="zsL">${L.length?L.map((q,i)=>`<div style="border:1.5px solid #cbd5e1;border-radius:14px;padding:10px;margin-bottom:8px">
+   <div style="font-weight:800;font-size:16px">${zsEsc(q.nm||"無題")}</div><div style="font-size:12.5px;color:#64748b">🕘 ${zsDate(q.t)}${q.fn?"　📄 "+zsEsc(q.fn):""}</div>${q.memo?`<div style="font-size:13.5px;margin-top:4px;white-space:pre-wrap">📝 ${zsEsc(q.memo)}</div>`:""}
+   <div style="display:flex;gap:6px;margin-top:8px"><button data-op="${i}" style="flex:1.4;height:42px;border-radius:10px;background:#0f766e;color:#fff;font-weight:800;border:0">📂 開く</button><button data-ed="${i}" style="flex:1;height:42px;border-radius:10px;border:1.5px solid #cbd5e1;font-weight:800;background:#fff">✏️ 名前・メモ</button><button data-del="${i}" style="width:46px;height:42px;border-radius:10px;border:1.5px solid #cbd5e1;background:#fff">🗑️</button></div></div>`).join(""):'<div style="color:#94a3b8;font-size:13.5px;padding:6px">まだありません</div>'}</div></div>`;
+ zsOv.querySelector("#zsX").onclick=zsClose;zsOv.querySelector("#zsSave").onclick=zsSave;
+ zsOv.querySelectorAll("[data-op]").forEach(b=>b.onclick=()=>zsLoad(L[+b.dataset.op]));
+ zsOv.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>{const q=L[+b.dataset.ed],nm=prompt("図面の名前",q.nm||"");if(nm===null)return;const mm=prompt("メモ（書かなくてもOK）",q.memo||"");if(mm===null)return;q.nm=nm.trim()||q.nm;q.memo=mm.trim();try{zsStore(L)}catch(e){}zsRender()});
+ zsOv.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{const q=L[+b.dataset.del];if(!confirm("「"+(q.nm||"無題")+"」を消しますか？"))return;zsStore(L.filter(x=>x!==q));plDB("readwrite",o=>o.delete("zs:"+q.id)).catch(()=>{});zsRender();toast("消しました")})}
+async function zsSave(){const nm=(zsOv.querySelector("#zsNm").value||"").trim()||"無題",memo=(zsOv.querySelector("#zsMemo").value||"").trim();let L=zsList();const same=L.find(x=>x.nm===nm);
+ if(same&&!confirm("「"+nm+"」はもうあります。上書きしますか？"))return;
+ try{save()}catch(e){}const id=same?same.id:String(Date.now());let plan=null,f2=null;try{plan=await plDB("readonly",o=>o.get("last"))}catch(e){}try{f2=await plDB("readonly",o=>o.get("f2"))}catch(e){}
+ if(!(PLAN&&PLAN.fkey))plan=null;   // 図面を開いていない時（模型・機械から作った3Dだけ）はファイルを入れない
+ const mk=PLAN?wzKey():"",mem=mk?wzMem()[mk]||null:null;
+ try{await plDB("readwrite",o=>o.put({st:JSON.stringify(st),plan,f2:plan?f2:null,mk,mem},"zs:"+id))}catch(e){toast("保存できませんでした（容量がいっぱいかもしれません）");return}
+ const it={id,nm,memo,t:Date.now(),fn:plan&&plan.name||""};L=[it,...L.filter(x=>x!==same)];try{zsStore(L)}catch(e){toast("保存できませんでした");return}
+ zsRender();toast("💾 「"+nm+"」を保存しました")}
+async function zsLoad(q){if(!confirm("今の図面を閉じて「"+(q.nm||"無題")+"」を開きますか？（今の図面は、保存していなければ残りません）"))return;let r=null;try{r=await plDB("readonly",o=>o.get("zs:"+q.id))}catch(e){}
+ let o=null;try{o=r&&JSON.parse(r.st)}catch(e){}if(!o){toast("読み込めませんでした");return}
+ zsClose();
+ if(r.mk&&r.mem){const m=wzMem();m[r.mk]=r.mem;try{localStorage.setItem("pbmPlanMem",JSON.stringify(m))}catch(e){}}
+ restoreSt(o);
+ if(r.plan&&r.plan.blob){try{await plDB("readwrite",x=>x.put(r.plan,"last"))}catch(e){}try{await plDB("readwrite",x=>r.f2?x.put(r.f2,"f2"):x.delete("f2"))}catch(e){}await plLastInfo();await plResume()}
+ toast("📂 「"+(q.nm||"無題")+"」を開きました")}
+(()=>{const cb=$("#cloudBtn");if(!cb)return;cb.textContent="💾";cb.setAttribute("aria-label","図面を保存");cb.style.display="";cb.style.fontSize="22px";cb.onclick=zsOpen})();
 /* ===== ほかのアプリ（図面修正アプリなど）から図面を受け取る =====
    ・zumen.html?from=fix … 同じサイト（akija114.github.io）の IndexedDB「pbmShare」の「f」→ キー「dxf」に入れた {blob, name, hide} を開く
    ・zumen.html?dxf=<URL> … その URL の DXF / PDF を開く（相手のサイトが読み出しを許可している時）

@@ -292,9 +292,9 @@ function renderLegBar(){
   const b=document.createElement("button");b.className="legundo";b.id=id;b.textContent=ic;b.setAttribute("aria-label",lab);b.onclick=()=>histGo(d);box.appendChild(b);
  });
  updUndoUI();
- if(!brOn()){
+ if(!brOn()){if(APP!=="bend"){   // 曲げ共有は1本の曲げだけ（分岐管を追加は出さない・2026-11-11 ユーザー。前に作った分岐のデータは今までどおり出す）
   const b=document.createElement("button");b.className="legadd";b.innerHTML=BRI()+"分岐管を追加（メイン → 枝A・枝B）";
-  b.onclick=addBranch;box.appendChild(b);
+  b.onclick=addBranch;box.appendChild(b);}
  }else{
   const wrap=document.createElement("div");wrap.className="legtabs";box.appendChild(wrap);
   let act=null;

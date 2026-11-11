@@ -542,8 +542,8 @@ if(/[?&]from=cad3d/.test(location.search)){(function(){const m=new Map();try{for
  try{const op=indexedDB.open.bind(indexedDB);indexedDB.open=(n,v)=>op(n==="pbmShare"?n:"cad3d_"+n,v)}catch(e){}window.CAD3D_MODE=true;document.documentElement.classList.add("cad3d")})()}</script>
 <script>const APP="zumen";</script>
 <script src="models.js?v=308"></script>
-<script src="core.js?v=349"></script>
-<script src="drain.js?v=268"></script>
+<script src="core.js?v=350"></script>
+<script src="drain.js?v=269"></script>
 <script src="jwc.js?v=3"></script><script src="dxf.js?v=328"></script><script src="zumen.js?v=339"></script><script src="shita.js?v=251"></script><script src="yomi.js?v=250"></script>
 <script src="kabe.js?v=228"></script>
 <script src="sumi.js?v=228"></script>
@@ -562,6 +562,7 @@ if(/[?&]from=cad3d/.test(location.search)){(function(){const m=new Map();try{for
 <button data-z="floor2" style="font-size:13.5px">🚽 下の図面（衛生など）<br><small>床に映す・今の図面は天井へ</small></button>
 <button class="main" data-z="photo" style="background:#0f766e;border-color:#0f766e">📷 写真で測る（壁の真ん中・照明の間・天井高）</button>
 <button class="main" data-z="mt" style="background:#b45309;border-color:#b45309">🧾 材料拾い・見積もり・単価表</button>
+<button class="main" data-z="sum" style="background:#0f766e;border-color:#0f766e">📋 冷媒＋ドレン まとめ</button>
 <button class="zgo" data-z="go">🔧 曲げ共有で長さ・曲げを見る ▶</button>`;
  $("#legbar").before(d);
  /* ふだんは「図面を読み込む」だけ。ほかの機能は「▼ ほかの機能」で開く（開け閉めはこの端末に覚える） */
@@ -580,7 +581,7 @@ if(/[?&]from=cad3d/.test(location.search)){(function(){const m=new Map();try{for
    try{save()}catch(err){}if(typeof build3D==="function"&&T){build3D();T.dirty=true}upFl();return}
   if(z==="more"){try{localStorage.setItem("pbm_zmore",mOn()?"0":"1")}catch(err){}upMore();setTimeout(sizeT,30);return}
   if(z==="floor2"){if(typeof shitaMenu==="function")shitaMenu();return}
-  if(z==="plan")openDraw();else if(z==="route")openRoute();else if(z==="scan")openScan();else if(z==="new")openNew();else if(z==="photo")openShashin();else if(z==="mt"){if(typeof mtOpen==="function")mtOpen()}
+  if(z==="plan")openDraw();else if(z==="route")openRoute();else if(z==="scan")openScan();else if(z==="new")openNew();else if(z==="photo")openShashin();else if(z==="mt"){if(typeof mtOpen==="function")mtOpen()}else if(z==="sum"){if(typeof drSumZ==="function")drSumZ()}
   else if(z==="go")location.href="index.html";
   else if(z==="bld"){const[x,y]=mid();placeMenu(`<div class="pt pt2">🧱 3Dに置く</div><div class="pr"><button class="pm" data-a="col">🏛 柱</button><button class="pm" data-a="wall">🧱 壁</button></div><div class="pr"><button class="pm" data-a="beam">🟫 梁</button><button class="pm" data-a="box">📦 障害物</button></div><button class="pm" data-a="ind">❄️ 室内機（複数置けます）</button><button class="pm" data-a="hole">🕳 穴</button>${st.bld&&st.bld.length?`<button class="pm${st.bldHide?"":" red"}" data-a="bhide">${st.bldHide?"👁 建物を表示":"🙈 建物を隠す"}（${st.bld.length}）</button>`:""}`,x,y,a=>{if(a==="bhide"){st.bldHide=!st.bldHide;save();unitRefresh()}else bldAddAt(a)})}
  };

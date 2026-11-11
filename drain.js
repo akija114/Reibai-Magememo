@@ -224,7 +224,7 @@ body.drmode #drPanel{display:block}
 #drSumOv.on{display:flex}
 #drSumOv .sh{background:var(--card);color:var(--ink);width:100%;max-width:560px;max-height:88vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 16px)}`;
  document.head.appendChild(css);
- const tg=document.createElement("div");tg.id="mtog";tg.innerHTML='<button data-m="ref" class="on">🔧 冷媒</button><button data-m="dr">💧 ドレン</button><button data-m="sum">📋 まとめ</button>';
+ const tg=document.createElement("div");tg.id="mtog";tg.innerHTML='<button data-m="ref" class="on">🔧 冷媒</button><button data-m="dr">💧 ドレン</button>'+(APP==="bend"?"":'<button data-m="sum">📋 まとめ</button>');   // 曲げ共有は冷媒・ドレンだけ（まとめは図面で・2026-11-11 ユーザー）
  $("#legbar").before(tg);
  const pn=document.createElement("div");pn.id="drPanel";$("#rows").after(pn);
  const ov=document.createElement("div");ov.id="drSumOv";ov.innerHTML='<div class="sh" id="drSumSh"></div>';document.body.appendChild(ov);
@@ -303,7 +303,7 @@ function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700;margin-top:10px"><input type="checkbox" data-k="co" ${D.co?"checked":""} style="width:22px;height:22px">最後に掃除口を付ける</label></div>
  <div class="drc" id="drGapBox"></div>
  <div class="drc" id="drSumBox"></div>
- <button class="drbig" data-k="sum" style="background:#0f766e;color:#fff">📋 冷媒＋ドレン まとめを見る</button>`;
+ ${APP==="bend"?"":'<button class="drbig" data-k="sum" style="background:#0f766e;color:#fff">📋 冷媒＋ドレン まとめを見る</button>'}`;
  $("#drPanel").innerHTML=h;drSum();drLvRender()}
 function drLvRender(){const b=$("#drLvBox");if(!b)return;const Lv=drLevel(),D=DRN();if(!Lv){b.innerHTML="";return}
  let h=`<table class="drsum" style="width:100%;border-collapse:collapse;margin-top:6px"><tr><td>落差</td><td><b>${fmt(Lv.drop)}</b> mm（${fmt(Lv.L)}${Lv.auto?"（区間の横引き）":""} × 1/${D.slope}）</td></tr>
@@ -356,7 +356,16 @@ function drSumOpen(){const sh=$("#drSumSh");if(!sh)return;
  const mb=$("#drSumMt");if(mb)mb.onclick=()=>{$("#drSumOv").classList.remove("on");if(typeof mtOpen==="function")mtOpen()};
  $("#drSumX").onclick=()=>$("#drSumOv").classList.remove("on");
  $("#drSV1").onclick=()=>{setAllHid(!HID.size);drSumOpen()};
- $("#drSV2").onclick=()=>{D.show=!D.show;save();drRedraw&&drRedraw();drSumOpen()}}
+ $("#drSV2").onclick=()=>{D.show=!D.show;save();if(window.drRedraw)drRedraw();else if(typeof T!=="undefined"&&T){build3D();T.dirty=true}drSumOpen()}}
+/* 📋 まとめを図面の画面から開く（曲げ共有のまとめのタブはやめて図面へ・2026-11-11 ユーザー）。図面には上の切り替えが無いので、まとめの画面と見た目だけ作る */
+function drSumZ(){if(!$("#drSumOv")){const css=document.createElement("style");css.textContent=`#drSumOv{position:fixed;inset:0;z-index:80;background:#0f172a99;display:none;align-items:flex-end;justify-content:center}#drSumOv.on{display:flex}
+#drSumOv .sh{background:var(--card);color:var(--ink);width:100%;max-width:560px;max-height:88vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 16px)}
+.drc{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:8px}.drc h4{margin:0 0 6px;font-size:14px}
+.drseg{display:flex;gap:6px;margin:4px 0 8px}.drseg button{flex:1;min-height:40px;border-radius:10px;border:1.5px solid var(--line);font-weight:800;font-size:13.5px;background:var(--card)}.drseg button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.drnote{font-size:12.5px;line-height:1.55;background:#fff7ed;color:#9a3412;border-radius:10px;padding:8px 10px;margin:4px 0 8px}
+.drsum td{padding:5px 2px;border-top:1px solid var(--line);font-size:14px;vertical-align:top}.drsum td:first-child{color:var(--sub);white-space:nowrap;width:1%;padding-right:8px}.drsum b{font-size:16px}`;document.head.appendChild(css);
+ const ov=document.createElement("div");ov.id="drSumOv";ov.innerHTML='<div class="sh" id="drSumSh"></div>';document.body.appendChild(ov);ov.addEventListener("click",e=>{if(e.target===ov)ov.classList.remove("on")})}
+ drSumOpen()}
 /* ===== 3Dのドレンをタップ → その区間を選ぶ（冷媒と同じく黄色にして、下の欄をその区間に） ===== */
 let DR_SEL=-1;
 function drPick(cx,cy){if(!T||!T.drSegs||!T.drSegs.length||!T.w)return null;const cv=$("#cv"),r=cv.getBoundingClientRect(),px=cx-r.left,py=cy-r.top;T.cam.updateMatrixWorld();

@@ -40,34 +40,41 @@ a.doc{color:var(--acc);font-weight:700}
 <nav class="apps"><a href="home.html" style="flex:0 0 38px" aria-label="入口">🏠</a><a href="index.html">🔧 曲げ共有</a><a href="zumen.html">📐 図面</a><a href="genchou.html">📹 現調</a><a href="kiki.html" class="on">🔩 機器</a><a href="genba.html">📋 現場</a></nav>
 <div style="display:flex;gap:6px;margin:0 0 8px"><input id="q" placeholder="品番を入れる（例 PL-ZRP80HA5）" autocomplete="off" autocapitalize="characters" style="flex:1;min-width:0;height:44px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:16px;padding:0 10px"><button id="qb" style="height:44px;border-radius:10px;border:0;background:var(--acc);color:#fff;font:inherit;font-weight:800;padding:0 14px">さがす</button></div>
 <div id="qr"></div>
-<select id="m" aria-label="機種"></select>
+<select id="mk" aria-label="メーカー" style="margin-bottom:8px"></select>
+<select id="m" aria-label="機種" hidden></select>
 <div id="out"></div>
-<script src="models.js?v=308"></script>
+<script src="models.js?v=309"></script>
 <script src="kiso.js?v=17"></script>
 <script>
 /* 🔩 機器：仕込み用の寸法を見るページ（模型は three.js をこのページだけで読む・core.js は読まない）
    配管口・ドレンの位置は「全ねじ（吊りボルト）の芯」から測る。開口寸法は現場で変わるので、全ねじ基準なら誰でも使える */
 const $=s=>document.querySelector(s),f=n=>Math.round(n).toLocaleString("ja-JP");
-const sel=$("#m");
-CAS2_MAKERS.forEach(([mk,mn])=>{const g=document.createElement("optgroup");g.label=mn;
- CAS2_ORDER.filter(k=>CAS2M[k]&&CAS2M[k].mk===mk).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=CAS2M[k].n+"（"+CAS2M[k].kind+"）";g.appendChild(o)});sel.appendChild(g)});
-{const g=document.createElement("optgroup");g.label="換気（ロスナイ・三菱電機）";VENT_ORDER.forEach(x=>{const o=document.createElement("option");o.value=x;o.textContent=VENTM[x].n+"（ロスナイ）";g.appendChild(o)});sel.appendChild(g)}
+const sel=$("#m"),mkS=$("#mk");
+/* はじめはメーカーだけ → 選ぶとそのメーカーの品番が種類ごとに出る（2026-11-11 ユーザー：三菱だけですごい数になる） */
+mkS.innerHTML='<option value="">メーカーを選ぶ</option>'+CAS2_MAKERS.map(([mk,mn])=>`<option value="${mk}">${mn}</option>`).join("")+'<option value="vent">換気（ロスナイ・三菱電機）</option>';
+const AL=k=>CAS2M[k]&&CAS2M[k].al||k,mkOf=k=>VENTM[k]?"vent":CAS2M[k]?CAS2M[k].mk:"";
+function fillM(mk){sel.innerHTML='<option value="">品番を選ぶ</option>';sel.hidden=!mk;if(!mk)return;
+ if(mk==="vent"){VENT_ORDER.forEach(x=>{const o=document.createElement("option");o.value=x;o.textContent=VENTM[x].n+"（ロスナイ）";sel.appendChild(o)});return}
+ const ks=CAS2_ORDER.filter(k=>CAS2M[k]&&CAS2M[k].mk===mk&&!CAS2M[k].al),kinds=[...new Set(ks.map(k=>CAS2M[k].kind))];
+ kinds.forEach(kd=>{const g=document.createElement("optgroup");g.label=kd;ks.filter(k=>CAS2M[k].kind===kd).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=CAS2M[k].n;g.appendChild(o)});sel.appendChild(g)})}
 const OK=k=>!!(CAS2M[k]||VENTM[k]);
+function setCur(k){k=AL(k);cur=k;mkS.value=mkOf(k);fillM(mkS.value);sel.value=k;try{localStorage.setItem("pbm_kiki",k)}catch(e){}draw()}
 let cur=new URLSearchParams(location.search).get("m");
 if(!OK(cur)){try{cur=localStorage.getItem("pbm_kiki")}catch(e){}}
 if(!OK(cur)){try{const j=JSON.parse(localStorage.getItem("pbm1"));cur=j&&j.units&&j.units.ms}catch(e){}}
-if(!OK(cur))cur=CAS2_ORDER[0];
-sel.value=cur;sel.onchange=()=>{cur=sel.value;try{localStorage.setItem("pbm_kiki",cur)}catch(e){}draw()};
-/* 品番でさがす：ハイフン・空白・全角・大文字小文字はちがっても同じ。品番の一部でも出す。無い時は「調べてほしい品番」に残す */
+if(OK(cur)){cur=AL(cur);mkS.value=mkOf(cur);fillM(mkS.value);sel.value=cur}else{cur="";fillM("")}
+mkS.onchange=()=>{fillM(mkS.value);cur="";$("#out").innerHTML=""};
+sel.onchange=()=>{if(sel.value)setCur(sel.value)};
 const QN=s=>String(s||"").normalize("NFKC").toUpperCase().replace(/[\s\-－‐ー_/・.]/g,"");
 const ALLM=()=>Object.keys(CAS2M).map(k=>[k,CAS2M[k].n,CAS2M[k].kind]).concat(VENT_ORDER.map(k=>[k,VENTM[k].n,"ロスナイ"]));
-function qFind(t){const q=QN(t);if(!q)return[];const L=ALLM(),ex=L.filter(([,n])=>QN(n)===q);if(ex.length)return ex;
+function qFind(t){const r=qFind0(t),u=new Set();return r.map(([k,n,kd])=>{const a=AL(k);return a===k?[k,n,kd]:[a,CAS2M[a].n,CAS2M[a].kind]}).filter(([k])=>!u.has(k)&&u.add(k))}   // 45・50 などまとめた品番は1つに
+function qFind0(t){const q=QN(t);if(!q)return[];const L=ALLM(),ex=L.filter(([,n])=>QN(n)===q);if(ex.length)return ex;
  return L.filter(([,n])=>{const m=QN(n);return m.includes(q)||q.includes(m)||(q.length>=6&&m.startsWith(q.slice(0,Math.max(6,q.length-3))))})}
 function qReq(){try{return JSON.parse(localStorage.getItem("pbm_kiki_req")||"[]")}catch(e){return[]}}
 function qGo(){const t=$("#q").value.trim(),r=$("#qr");if(!t){r.innerHTML="";return}const hit=qFind(t);
- if(hit.length===1){cur=hit[0][0];sel.value=cur;try{localStorage.setItem("pbm_kiki",cur)}catch(e){}r.innerHTML=`<div class="note" style="margin:0 2px 8px">✅ ${hit[0][1]}（${hit[0][2]}）を出しました</div>`;draw();return}
+ if(hit.length===1){setCur(hit[0][0]);r.innerHTML=`<div class="note" style="margin:0 2px 8px">✅ ${hit[0][1]}（${hit[0][2]}）を出しました</div>`;return}
  if(hit.length>1){r.innerHTML=`<div class="card" style="margin-top:0"><div class="sub">近い品番が ${hit.length} 個あります。押して選んでください</div>${hit.map(([k,n,kd])=>`<button data-k="${k}" style="display:block;width:100%;text-align:left;margin-top:6px;height:42px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;padding:0 10px">${n}（${kd}）</button>`).join("")}</div>`;
-  r.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{cur=b.dataset.k;sel.value=cur;try{localStorage.setItem("pbm_kiki",cur)}catch(e){}r.innerHTML="";draw()});return}
+  r.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{r.innerHTML="";setCur(b.dataset.k)});return}
  {const q=QN(t),wc=(typeof WALLM!=="undefined"?WALL_MORDER.map(k=>[WALLM[k],"壁掛け"]).concat(CEIL_MORDER.map(k=>[CEILM[k],CEILM[k].kind||"天吊"])):[]).find(([m])=>m.n.split(" / ").some(n=>{const x=QN(n);return x===q||(q.length>=6&&x.includes(q))||(q.length>=8&&q.includes(x.slice(0,8)))}));   // 壁掛け・天吊は模型の欄が無いので大きさだけ
   if(wc){const [m,kd]=wc,E=x=>String(x).replace(/[<>&"]/g,"");r.innerHTML=`<div class="card" style="margin-top:0"><b>✅ ${E(m.n)}（${E(kd)}）</b><div class="note">本体 ${m.W}×${m.H}×${m.D}／ガスφ${m.g}・液φ${m.l}<br>${E(m.spec)}<br>（${E(m.src)}）<br>曲げ共有の「機器の模型」で${kd==="壁掛け"?"壁掛け":"天吊"}を選ぶと、「${kd==="壁掛け"?"壁掛け":"天吊"}の機種」でこの大きさの模型を出せます。</div></div>`;return}}
  const req=qReq();if(!req.some(x=>QN(x)===QN(t))){req.push(t.normalize("NFKC").toUpperCase());try{localStorage.setItem("pbm_kiki_req",JSON.stringify(req.slice(-50)))}catch(e){}}
@@ -276,7 +283,7 @@ async function draw3(m,VV){const box=$("#m3");if(!box)return;try{await load3()}c
   const up=e=>{P2.delete(e.pointerId);last=null};cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
   cv.addEventListener("wheel",e=>{e.preventDefault();t.dist=Math.max(300,Math.min(60000,t.dist*(e.deltaY>0?1.1:0.9)));T3.put()},{passive:false});
   addEventListener("resize",()=>T3.put&&T3.put())}}
-draw();
+if(cur)draw();
 </script>
 </body>
 </html>

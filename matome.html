@@ -374,7 +374,7 @@ function editItem(it){G={sel:it};draw();G=null;if(it.k==="u"){unitEdit(it);retur
  document.body.appendChild(ov);ov.onclick=e=>{const b=e.target.closest("button");if(e.target===ov||(b&&b.dataset.a==="ok")){ov.remove();draw();return}if(!b)return;
   if(b.dataset.c){it.c=b.dataset.c;save();ov.remove();draw();return}if(b.dataset.a==="del"){E.items=E.items.filter(x=>x!==it);save();ov.remove();draw()}}}
 /* 機器の模型を置く：models.js の室外機（OUTM）・天井カセット（CAS2M）・壁掛け（WALLM）・天吊（CEILM）の大きさ。品番で探す・大きさを入れる */
-async function unitSheet(pos){if(typeof OUTM==="undefined"){try{await loadJs("models.js?v=307")}catch(e){}}
+async function unitSheet(pos){if(typeof OUTM==="undefined"){try{await loadJs("models.js?v=309")}catch(e){}}
  const L=[];if(typeof OUTM!=="undefined")for(const k in OUTM){const m=OUTM[k];L.push({n:m.n+(m.sub?"（"+m.sub+"）":""),w:m.w,d:m.d,ki:"out",nf:m.f==="top"?(m.nf||1):1,g:"室外機"})}
  if(typeof CAS2M!=="undefined")for(const k in CAS2M){const m=CAS2M[k];L.push({n:m.n,w:m.pa||m.L,d:m.pb||m.W,ki:"in",g:"室内機（天井）"})}
  if(typeof WALLM!=="undefined")for(const k in WALLM){const m=WALLM[k];L.push({n:m.n,w:m.W,d:m.D,ki:"in",g:"壁掛け"})}

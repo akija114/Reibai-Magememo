@@ -2094,6 +2094,8 @@ $("#tutPrev").onclick=()=>{if(tutI>0){tutI--;renderTut()}};
 $("#tutSkip").onclick=()=>closeTut(EZ);
 if($("#tutNever"))$("#tutNever").onclick=()=>{closeTut();toast("次からは出しません。上の ❓ でいつでも見られます")};
 $("#helpBtn").onclick=openTut;
+/* 曲げ共有は上の段の寸法計算・かんたんを ❓ の中へ（2026-11-12 ユーザー：描いて曲げが楽なので要らないかも・ボタンが多い） */
+if(APP==="bend")$("#helpBtn").onclick=()=>{if(EZ){openTut();return}sheetMsg('<b style="font-size:17px">❓ 使い方・そのほか</b>',[["❓ 使い方を見る",openTut,"#2563eb","#fff"],["🧮 寸法計算（45°・30°など）",()=>$("#calcBtn").click()],["🔰 かんたん表示にする",()=>$("#modeBtn").click()],["✕ 閉じる",null]])};
 (function(){let sx=null,sy=0;const el=$("#tutCard");
  el.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
  el.addEventListener("touchend",e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;sx=null;
@@ -2373,7 +2375,7 @@ if(APP==="bend"){
   if(EZ&&document.body.classList.contains("drmode")){const b=document.querySelector('#mtog [data-m="ref"]');if(b)b.click()}   // 表示だけ冷媒に戻す
   document.documentElement.dataset.mode=EZ?"easy":"pro";moveSz();render();
  };
- $("#modeBtn").onclick=()=>{setMode(EZ?"pro":"easy");toast(EZ?"かんたん表示にしました（入れた曲げはそのまま）":"くわしい表示にしました。上の「🔰 かんたん」でいつでも戻せます")};
+ $("#modeBtn").onclick=()=>{setMode(EZ?"pro":"easy");toast(EZ?"かんたん表示にしました（入れた曲げはそのまま）":"くわしい表示にしました。上の「❓」の中の「🔰 かんたん表示にする」でいつでも戻せます")};
  $("#ezNext").onclick=()=>{
   if(!DV)return;const n=DV.ez||1,r=LR()[DV.i];
   if(n===1&&!(r.l>0)){toast("長さを入れてください");$("#dirL1").focus();return}
@@ -2400,7 +2402,7 @@ if(APP==="bend"){
  };
  $("#ezGuide").onclick=()=>openGuide();
  $("#ezSave").onclick=()=>{openCloud();toast("名前を付けて「💾 保存」を押してください")};
- $("#ezPro").onclick=()=>{setMode("pro");toast("くわしい表示にしました。上の「🔰 かんたん」でいつでも戻せます")};
+ $("#ezPro").onclick=()=>{setMode("pro");toast("くわしい表示にしました。上の「❓」の中の「🔰 かんたん表示にする」でいつでも戻せます")};
  /* iPhoneのキーボード：出ている間は、入力の欄と「次へ」をキーボードの上に出す */
  if(window.visualViewport){const kb=()=>{const v=visualViewport;document.documentElement.style.setProperty("--kb",Math.max(0,Math.round(innerHeight-v.height-v.offsetTop))+"px")};visualViewport.addEventListener("resize",kb);visualViewport.addEventListener("scroll",kb)}
  if(IN())document.documentElement.classList.add("inch");
@@ -3276,13 +3278,22 @@ function planMeta(p){
  const d=p.savedAt?new Date(p.savedAt):null,dl=d?(d.getMonth()+1)+"/"+d.getDate()+"（"+"日月火水木金土"[d.getDay()]+"）"+d.getHours()+":"+String(d.getMinutes()).padStart(2,"0"):(p.dateLabel||"");   // 保存した日付と時間（2026-11-12 ユーザー）
  return `${dl}　${sizeLabel(p.s)}　全長${fmt(total)}mm${p.gps?"　📍":""}`;
 }
+/* 保存の一覧に形の小さな絵・同じ形の保存は違う長さを強調（2026-11-12 ユーザー：何が保存されているか分からない） */
+function planSig(R){return(R||[]).map((r,i)=>i<R.length-1?Math.round(r.a||0)+"/"+Math.round(effT(i,R)||0):"e").join(",")}
+function planThumb(R,dif){let P;try{P=mjFK(R).P}catch(e){return""}if(!P||P.length<2)return"";
+ const q=P.map(v=>[v[0]+v[2]*.55,-v[1]-v[2]*.4]),xs=q.map(v=>v[0]),ys=q.map(v=>v[1]),x0=Math.min(...xs),y0=Math.min(...ys),W=Math.max(...xs)-x0||1,H=Math.max(...ys)-y0||1,k=Math.min(60/W,46/H),ox=(68-W*k)/2,oy=(54-H*k)/2,f=v=>((v[0]-x0)*k+ox).toFixed(1)+","+((v[1]-y0)*k+oy).toFixed(1);
+ let g="";for(let i=1;i<q.length;i++){const d=dif&&dif.has(i-1);g+=`<line x1="${f(q[i-1]).split(",")[0]}" y1="${f(q[i-1]).split(",")[1]}" x2="${f(q[i]).split(",")[0]}" y2="${f(q[i]).split(",")[1]}" stroke="${d?"#ea580c":"#0f766e"}" stroke-width="${d?4.5:3}" stroke-linecap="round"/>`}
+ const s0=f(q[0]).split(",");return `<svg class="pthumb" viewBox="0 0 68 54" width="68" height="54">${g}<circle cx="${s0[0]}" cy="${s0[1]}" r="3.5" fill="#2563eb"/></svg>`}
 function renderPlans(){
  const box=$("#planList");
  if(!plans.length){box.innerHTML='<div class="pempty">保存した曲げはまだありません</div>';return}
  box.innerHTML="";
+ const grp={};plans.forEach(p=>{const k=planSig(p.rows);(grp[k]=grp[k]||[]).push(p)});
  plans.forEach(p=>{
   const el=document.createElement("div");el.className="pcard";
-  el.innerHTML=`<button class="pmain"><b></b><span></span></button>${p.gps?'<button class="pdel pgps" aria-label="保存した場所を地図で">🗺️</button>':""}<button class="pdel" aria-label="削除">🗑️</button>`;
+  const R=p.rows||[],G=grp[planSig(R)],dif=new Set();if(G.length>1)R.forEach((r,i)=>{if(G.some(o=>o!==p&&Math.round((o.rows[i]||{}).l||0)!==Math.round(r.l||0)))dif.add(i)});
+  const ln=R.length>1?R.map((r,i)=>dif.has(i)?`<em>${fmt(r.l||0)}</em>`:fmt(r.l||0)).join("・"):"";
+  el.innerHTML=`<button class="pmain"><b></b><span></span>${ln?`<i class="plen">${G.length>1?"同じ形あり　":""}長さ ${ln}</i>`:""}</button>${planThumb(R,G.length>1?dif:null)}${p.gps?'<button class="pdel pgps" aria-label="保存した場所を地図で">🗺️</button>':""}<button class="pdel" aria-label="削除">🗑️</button>`;
   el.querySelector(".pmain b").textContent=p.title||"無題プラン";
   el.querySelector(".pmain span").textContent=planMeta(p);
   el.querySelector(".pmain").onclick=()=>openPlan(p);

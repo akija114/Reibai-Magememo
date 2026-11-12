@@ -4406,7 +4406,7 @@ function ceilAna(){
   if (!Object.values(kOf).includes('ref') || !Object.values(kOf).includes('drn')){ const V = {ref:{}, drn:{}}, LS = []; for (let i = 0; i < sg.length; i += SS){ const l = G.L[sg[i+4]]; if (!l || l.deleted || !l.on || /網|斜線|文字/.test(l.name)) continue; const s = [sg[i]*u, sg[i+1]*u, sg[i+2]*u, sg[i+3]*u, sg[i+4]]; if (Math.hypot(s[2] - s[0], s[3] - s[1]) >= 100) LS.push(s); }
     for (const t of T){ const k = t.s === 'R' ? 'ref' : t.s === 'D' ? 'drn' : null; if (!k || Object.values(kOf).includes(k)) continue; let best = null, bd = 500; for (const s of LS){ if (Math.abs((s[0] + s[2])/2 - t.x) > 3000 || Math.abs((s[1] + s[3])/2 - t.y) > 3000) continue; const d = dseg([t.x, t.y], s); if (d < bd){ bd = d; best = s; } } if (best) V[k][best[4]] = (V[k][best[4]] || 0) + 1; }
     for (const k in V){ const e = Object.entries(V[k]).sort((a, b) => b[1] - a[1]); if (e.length && e[0][1] >= 3 && !kOf[e[0][0]]) kOf[e[0][0]] = k; } }
-  const out = {ref:[], drn:[]}, br = [], brg = [], mks = [], dmk = [], outs = [], oe = [], cos = [], GR = {};
+  const out = {ref:[], drn:[]}, br = [], brg = [], mks = [], lmk = [], dmk = [], outs = [], oe = [], cos = [], GR = {};
   /* 円弧のかけらを端の点（1mm）でまとめる → [{pts, al, md, A, B}] */
   const arcCl = AR => { const par = AR.map((_, i) => i), fd = i => { while (par[i] !== i){ par[i] = par[par[i]]; i = par[i]; } return i; }, km = new Map(), key = (p, dx, dy) => (Math.round(p[0]) + dx) + ',' + (Math.round(p[1]) + dy);
     AR.forEach((e, i) => { for (const p of [e.a, e.b]){ for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++){ const j = km.get(key(p, dx, dy)); if (j != null) par[fd(i)] = fd(j); } km.set(key(p, 0, 0), i); } });
@@ -4438,7 +4438,7 @@ function ceilAna(){
         for (const e of CS){ if (Math.abs(e.d[0]*cd[0] + e.d[1]*cd[1]) > 0.3 || Math.abs(c.md - e.cw) > e.cw*0.35) continue; const t = (m[0] - e.a[0])*e.d[0] + (m[1] - e.a[1])*e.d[1], dp = Math.abs(-(m[0] - e.a[0])*e.d[1] + (m[1] - e.a[1])*e.d[0]); if (dp > 8 || t < 10 || t > e.L - 10) continue;
           const p = [e.a[0] + e.d[0]*t, e.a[1] + e.d[1]*t], e2 = {...e, a:[p[0] + e.d[0]*4, p[1] + e.d[1]*4], L:e.L - t - 4}; e.b = [p[0] - e.d[0]*4, p[1] - e.d[1]*4]; e.L = t - 4; E.push(e2); CS.push(e2); mks.push({p, a:e, b:e2}); break; }
         if (!mks.length || mks[mks.length - 1].p !== m){ /* 真ん中の線が印の所で切れている時：その端を少し引いて、両側を別にする */ const at2 = CS.filter(e => Math.abs(e.d[0]*cd[0] + e.d[1]*cd[1]) < 0.3 && Math.abs(c.md - e.cw) <= e.cw*0.35 && [e.a, e.b].some(q => Math.hypot(q[0] - m[0], q[1] - m[1]) < 6));
-          if (at2.length === 2){ for (const e of at2){ const fa = Math.hypot(e.a[0] - m[0], e.a[1] - m[1]) < 6; if (fa){ e.a = [e.a[0] + e.d[0]*4, e.a[1] + e.d[1]*4]; } else e.b = [e.b[0] - e.d[0]*4, e.b[1] - e.d[1]*4]; e.L -= 4; } mks.push({p:m, a:at2[0], b:at2[1]}); } } } }
+          if (at2.length === 2){ for (const e of at2){ const fa = Math.hypot(e.a[0] - m[0], e.a[1] - m[1]) < 6; if (fa){ e.a = [e.a[0] + e.d[0]*4, e.a[1] + e.d[1]*4]; } else e.b = [e.b[0] - e.d[0]*4, e.b[1] - e.d[1]*4]; e.L -= 4; } mks.push({p:m, a:at2[0], b:at2[1]}); } else if (at2.length === 1) lmk.push({p:m, e:at2[0]}); } } }
     /* ドレンの曲がり角で真ん中の線が十字に重なって描いてある所（2026-11-05 ユーザー：エルボになっていない）：2本が両方の端の近く（120mm）で交わる時は交わる所までにする */
     if (k === 'drn'){ const CS = E.filter(e => e.cw && !e.arc); for (let i = 0; i < CS.length; i++) for (let j = i + 1; j < CS.length; j++){ const p = CS[i], q = CS[j], cr = p.d[0]*q.d[1] - p.d[1]*q.d[0]; if (Math.abs(cr) < 0.5 || p.L < 200 || q.L < 200) continue;   /* 短い線（チーズの胴）は角にしない */
         const t = ((q.a[0] - p.a[0])*q.d[1] - (q.a[1] - p.a[1])*q.d[0])/cr, v = ((q.a[0] - p.a[0])*p.d[1] - (q.a[1] - p.a[1])*p.d[0])/cr; if (t < -1 || t > p.L + 1 || v < -1 || v > q.L + 1) continue; const ne = (e, x) => x < 120 ? 'a' : x > e.L - 120 ? 'b' : null, ep = ne(p, t), eq = ne(q, v); if (!ep || !eq) continue;
@@ -4474,6 +4474,10 @@ function ceilAna(){
       const cand = e => { const f = ends.filter(x => x.e.c === e.c && !used.has(x)).map(x => [x.p, x.n]); return f.length ? f : [[e.a, e.na], [e.b, e.nb]]; };   // 空いた端があればそれを
       let best = null; for (const [pa, na] of cand(sa)) for (const [pb, nb] of cand(sb)){ const d = Math.hypot(pa[0] - pb[0], pa[1] - pb[1]); if (!best || d < best.d) best = {d, pa, pb, na, nb}; }
       for (const x of ends) if (x.n === best.na || x.n === best.nb) used.add(x); brg.push({k, a:best.pa, b:best.pb, ea:sa, eb:sb, na:best.na, nb:best.nb, man:1}); }
+    /* ∩ の印の片側にしか真ん中の線が無い時（2026-11-12 ユーザー：「R」の文字の所で管が切れていて、そのすぐ先が ∩ の印）：つないだ所の印の側で高さを分ける（印でたて管・高さは印をこえない） */
+    for (const g of brg){ if (g.k !== k || g.lm) continue; const at = (e, p) => lmk.some(q => q.e === e && Math.hypot(q.p[0] - p[0], q.p[1] - p[1]) < 12); let sw = false;
+      if (at(g.ea, g.a) && !at(g.eb, g.b)) sw = true; else if (!at(g.eb, g.b)) continue;
+      if (sw){ [g.a, g.b] = [g.b, g.a]; [g.ea, g.eb] = [g.eb, g.ea]; [g.na, g.nb] = [g.nb, g.na]; } g.lm = 1; mks.push({p:[g.b[0], g.b[1]], a:g.ea, b:g.eb, lm:1}); }
     for (const a of ends){ if (used.has(a)) continue; let best = null, bd = 1e9; for (const s of S){ if (s.c === a.e.c || s.arc) continue; const tg = Math.abs(a.d[0]*s.d[0] + a.d[1]*s.d[1]) > 0.5;   /* 曲がって本管に沿って入る枝（分岐管）は本管の真ん中の線の上（15mm）に端がある時だけ */ const t = (a.p[0] - s.a[0])*s.d[0] + (a.p[1] - s.a[1])*s.d[1], dp = -(a.p[0] - s.a[0])*s.d[1] + (a.p[1] - s.a[1])*s.d[0]; if (t < -20 || t > s.L + 20) continue; if (tg && Math.abs(dp) > 15 && Math.abs(Math.abs(dp) - s.w) > s.w*0.08) continue;   /* 分岐管の中で本管にぴったり並んで（管の幅だけ横に）始まる枝も分岐（2026-11-12） */ if (Math.abs(dp) > s.w/2 + 45 || (dp*(-a.d[0]*s.d[1] + a.d[1]*s.d[0]) > 0 && Math.abs(dp) > s.w/2 + 35)) continue;   /* 少し突き抜けて描いてある枝も分岐 */ if (Math.abs(dp) < bd){ bd = Math.abs(dp); best = {s, t, p:[s.a[0] + s.d[0]*t, s.a[1] + s.d[1]*t]}; } } if (best){ used.add(a); const ends2 = !best.s.nbr0 && (best.t < 70 && P[best.s.na].e.filter(i => E[i].c != null).length === 1 || best.t > best.s.L - 70 && P[best.s.nb].e.filter(i => E[i].c != null).length === 1); if (ends2) brg.push({k, a:a.p, b:best.p, ea:a.e, eb:best.s, na:a.n, nb:best.t < 70 ? best.s.na : best.s.nb, corner:1}); else br.push({k, e:a.p, p:best.p, from:a.e, to:best.s, n:a.n, t:best.t}); } }   /* 相手の管の空いた端の近く＝曲がり角（エルボ）。途中＝分岐 */
     P.forEach((n, ni) => { const es = n.e.map(i => E[i]).filter(e => e.c != null); if (es.length < 2 || new Set(es.map(e => e.c)).size < 2) return; const od = es.map(e => e.na === ni ? e.d : [-e.d[0], -e.d[1]]); let ok = es.length >= 3;
       if (es.length === 2 && od[0][0]*od[1][0] + od[0][1]*od[1][1] < -0.9){ brg.push({k, a:n.p, b:n.p, ea:es[0], eb:es[1], na:ni, nb:ni}); return; }   /* 分岐管の箱の線が重なって切れた真ん中の線（まっすぐ続く2本）はつなぐ（2026-11-12） */ for (let i = 0; i < od.length && !ok; i++) for (let j = i + 1; j < od.length; j++) if (od[i][0]*od[j][0] + od[i][1]*od[j][1] > 0.9) ok = true;
@@ -4484,7 +4488,7 @@ function ceilAna(){
     for (const b of br) if (b.k === k && !b.node && b.n != null){ const e = b.from; if (Math.hypot(b.e[0] - b.p[0], b.e[1] - b.p[1]) > 1){ if (b.n === e.na) e.a = [b.p[0], b.p[1]]; else e.b = [b.p[0], b.p[1]]; e.L = Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]); b.e = [b.p[0], b.p[1]]; } }   /* 本管を突き抜けて（手前で止まって）描いてある枝は本管の真ん中まで */
     // つながり（同じ点・つないだ所・分岐）
     S.forEach(e => e.nbr = []); for (const e of S) for (const n of [e.na, e.nb]) for (const i of P[n].e){ const q = E[i]; if (q !== e && q.c != null) e.nbr.push(q); }
-    for (const g of brg.filter(g => g.k === k)){ g.ea.nbr.push(g.eb); g.eb.nbr.push(g.ea); } for (const b of br.filter(b => b.k === k)){ b.from.nbr.push(b.to); b.to.nbr.push(b.from); }
+    for (const g of brg.filter(g => g.k === k && !g.lm)){ g.ea.nbr.push(g.eb); g.eb.nbr.push(g.ea); } for (const b of br.filter(b => b.k === k)){ b.from.nbr.push(b.to); b.to.nbr.push(b.from); }
     for (const q of mks) if (q.corner && q.a.nbr && q.b.nbr){ q.a.nbr = q.a.nbr.filter(x => x !== q.b); q.b.nbr = q.b.nbr.filter(x => x !== q.a); }
     GR[k] = {P, S, E, ends, used};
     /* 室外機（2026-11-05 ユーザー：室外機の置き場所・冷媒がつながるように）：冷媒の空いた端のまわりの空調機器の線のかたまりで、細長い四角（短い辺 180〜420・長い辺 550〜1300） */
@@ -4544,7 +4548,7 @@ function ceilAna(){
       for (const e of D.S){ e.ha = H.has(e.na) ? H.get(e.na) : e.h; e.hb = H.has(e.nb) ? H.get(e.nb) : e.h; }
       for (const g of brg) if (g.k === 'drn'){ g.ha = H.has(g.na) ? H.get(g.na) : g.ea.h; g.hb = H.has(g.nb) ? H.get(g.nb) : g.eb.h; }
       for (const b of br) if (b.k === 'drn'){ const q = b.to; b.hm = b.node ? (H.get(b.n) ?? q.h) : (q.ha ?? q.h) + ((q.hb ?? q.h) - (q.ha ?? q.h))*Math.max(0, Math.min(1, b.t/q.L)); b.he = b.node ? b.hm : (H.has(b.n) ? H.get(b.n) : b.from.h); } } }
-  for (const e of out.ref){ e.ha = e.hb = e.h; } for (const b of brg) if (b.k === 'ref'){ b.ha = b.ea.h; b.hb = b.eb.h; } for (const b of br) if (b.k === 'ref'){ b.hm = b.to.h; b.he = b.from.h; }
+  for (const e of out.ref){ e.ha = e.hb = e.h; } for (const b of brg) if (b.k === 'ref'){ b.ha = b.ea.h; b.hb = b.lm ? b.ea.h : b.eb.h; } for (const b of br) if (b.k === 'ref'){ b.hm = b.to.h; b.he = b.from.h; }
   // 梁の貫通（梁が隠してあっても文字から）
   const slv = []; for (const t of T){ const m = SLV.exec(t.s); if (!m) continue; slv.push({p:[t.x - t.dy*t.h*1.2, t.y + t.dx*t.h*1.2], d:[t.dx, t.dy], h:+m[2], w:+m[3], lo:+m[4], s:t.s.replace(/\s+/g, '')}); }
   const nOf = k => new Set(out[k].map(e => e.c)).size;

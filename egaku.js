@@ -172,6 +172,16 @@ const MO={on:false,el:null,h:null,st:0,v:[0,0,0],pk:[0,0,0],t0:0,tq:0,cool:0,las
 const MDN={5:"➡️ 右へ",4:"⬅️ 左へ",2:"⤴️ 上へ",3:"⤵️ 下へ",1:"⬆️ 向こうへ（奥）",0:"⬇️ 手前へ"};
 /* 向きを逆に読むか：初めは iPhone だけ逆（iPhone は加速の向きが逆に出る）。「🔄 向きが逆に出る時」で入れかえてこの端末で覚える（pbm_motrev・2026-11-07 ユーザー：ほかのスマホでは逆かも） */
 function motRev(){try{const v=localStorage.getItem("pbm_motrev");if(v==="1"||v==="0")return v==="1"}catch(e){}return IOS}
+/* 感度（2026-11-12 ユーザー：感度が悪い時がある・変えたい）：pbm_motsen の段 → 動き始め・止まり・小さすぎる動きのしきい値にかける数。斜め45°（pbm_motdg）：斜めに動かした時に45°の線を入れる */
+const MSEN=[["とても敏感",0.5],["敏感",0.75],["ふつう",1],["にぶい",1.5]];
+function motSen(){try{const v=+localStorage.getItem("pbm_motsen");if(MSEN[v])return v}catch(e){}return 2}
+function motDg(){try{return localStorage.getItem("pbm_motdg")!=="0"}catch(e){return true}}
+function motSet(){const cur=motSen(),dg=motDg(),go=(k,v)=>()=>{try{localStorage.setItem(k,String(v))}catch(e){}motUi("");toast(k==="pbm_motsen"?"感度を「"+MSEN[v][0]+"」にしました":v?"斜めに動かすと45°が入ります":"斜めは入れません（たて・横・奥だけ）")};
+ sheetMsg(`<b style="font-size:17px">🎚 動きの感度</b><div style="margin-top:4px">入らない時は「敏感」へ、勝手に入る時は「にぶい」へ。今：<b>${MSEN[cur][0]}</b><br>↗ 斜めに動かすと45°の線（前の線から斜めに上がる・ずれる）：今 <b>${dg?"入れる":"入れない"}</b></div>`,
+  MSEN.map(([n],i)=>[(i===cur?"✓ ":"")+n,go("pbm_motsen",i),i===cur?"#2563eb":"",i===cur?"#fff":""]).concat([[dg?"↗ 斜め45°を入れない":"↗ 斜め45°を入れる",go("pbm_motdg",dg?0:1)],["とじる",null]]))}
+/* 斜め：大きい2つの向きが近い（小さい方が大きい方の0.6倍以上＝約31〜59°）時、前の線がそのどちらかなら、もう片方へ45°（s.k）。ほかはいちばん大きい向き */
+function motPick(v){const ax=i=>i===0?(v[0]>0?5:4):i===1?(v[1]>0?2:3):(v[2]<0?1:0),a=v.map(Math.abs),o=[0,1,2].sort((x,y)=>a[y]-a[x]),d1=ax(o[0]),d2=ax(o[1]),L=EG.segs[EG.segs.length-1];
+ if(motDg()&&L&&!L.k&&a[o[1]]>=a[o[0]]*0.6){if(L.d===d1)return{d:d2,k:45};if(L.d===d2)return{d:d1,k:45}}return{d:d1}}
 function motAxis(v){const a=v.map(Math.abs),i=a.indexOf(Math.max(...a));return i===0?(v[0]>0?5:4):i===1?(v[1]>0?2:3):(v[2]<0?1:0)}
 async function motOpen(){
  try{if(typeof DeviceMotionEvent!=="undefined"&&typeof DeviceMotionEvent.requestPermission==="function"){const p=await DeviceMotionEvent.requestPermission();if(p!=="granted"){toast("動きのセンサーが許可されませんでした");return}}}catch(e){toast("動きのセンサーが使えませんでした");return}
@@ -179,11 +189,11 @@ async function motOpen(){
  if(EG.segs.length){if(!confirm("今の絵を消して、スマホを動かして描き直しますか？"))return;EG.undo.push(JSON.stringify(EG.segs));EG.segs=[];EG.O=null;list();draw()}
  Object.assign(MO,{on:true,st:0,cool:0,last:0,g:null,pause:false,got:0});
  const el=document.createElement("div");el.id="egMo";el.style.cssText="position:absolute;left:8px;right:8px;top:8px;z-index:5;background:#0f172add;color:#fff;border-radius:14px;padding:10px;font-weight:800";
- el.innerHTML=`<div id="egMoT" style="font-size:13px;line-height:1.4"></div><div style="display:flex;align-items:center;gap:6px;margin:4px 0 6px"><div id="egMoD" style="flex:1;font-size:20px;text-align:center">-</div><button id="egMoR" style="flex:none;border:1px solid #94a3b8;border-radius:10px;background:transparent;color:#e2e8f0;font-size:12px;font-weight:800;padding:5px 8px;line-height:1.2">🔄 逆に<br>出る時</button></div>
+ el.innerHTML=`<div id="egMoT" style="font-size:13px;line-height:1.4"></div><div style="display:flex;align-items:center;gap:6px;margin:4px 0 6px"><div id="egMoD" style="flex:1;font-size:20px;text-align:center">-</div><button id="egMoR" style="flex:none;border:1px solid #94a3b8;border-radius:10px;background:transparent;color:#e2e8f0;font-size:12px;font-weight:800;padding:5px 8px;line-height:1.2">🔄 逆に<br>出る時</button><button id="egMoS" style="flex:none;border:1px solid #94a3b8;border-radius:10px;background:transparent;color:#e2e8f0;font-size:12px;font-weight:800;padding:5px 8px;line-height:1.2">🎚<br>感度</button></div>
   <div style="display:flex;gap:6px"><button id="egMoX" style="flex:1;min-height:44px;border:0;border-radius:12px;background:#16a34a;color:#fff;font-weight:800;font-size:15px">✅ おわり</button><button id="egMoU" style="flex:1;min-height:44px;border:0;border-radius:12px;background:#475569;color:#fff;font-weight:800;font-size:15px">↩ 1本戻す</button><button id="egMoP" style="flex:1;min-height:44px;border:0;border-radius:12px;background:#64748b;color:#fff;font-weight:800;font-size:15px">⏸ 止める</button></div>`;
  cv.parentElement.appendChild(el);MO.el=el;
  {const lw=ov.querySelector("#egList").parentElement;lw.style.display="none";EG.O=null;setTimeout(draw,30)}   // 動かす間は下の欄をしまって絵を大きく（おわりで出す）
- el.querySelector("#egMoX").onclick=motClose;
+ el.querySelector("#egMoX").onclick=motClose;el.querySelector("#egMoS").onclick=motSet;
  el.querySelector("#egMoR").onclick=()=>{const r=!motRev();try{localStorage.setItem("pbm_motrev",r?"1":"0")}catch(e){}   // 逆にする（この端末で覚える）・今まで入れた線も逆に
   if(EG.segs.length){EG.undo.push(JSON.stringify(EG.segs));EG.segs.forEach(q=>q.d=OPP[q.d]);EG.O=null;list();draw()}motUi("🔄 向きを逆にしました");toast("向きを逆にしました（この端末で覚えます）。今まで入れた線も逆にしました")};
  el.querySelector("#egMoU").onclick=()=>{if(EG.segs.length){EG.undo.push(JSON.stringify(EG.segs));EG.segs.pop();EG.O=null;list();draw()}MO.cool=performance.now()+600;motUi("")};
@@ -191,19 +201,22 @@ async function motOpen(){
  MO.h=motEv;addEventListener("devicemotion",MO.h);
  motUi("");toast("右・左・上・下・向こう（前へ押す）・手前。寸法はあとで下の欄に・45°は「90° ▸45°」");setTimeout(()=>{if(MO.on&&!MO.got)toast("動きのセンサーが動いていません（パソコンでは使えません）")},2500)}
 function motUi(msg){if(!MO.el)return;const t=MO.el.querySelector("#egMoT"),d=MO.el.querySelector("#egMoD");
- t.innerHTML=MO.pause?"⏸ 止めています（動かしても入りません）":`📱 スマホを<b>自分に向けて</b>持ち、<b>配管の通りに動かす</b>（1本ごとに止める）・線 ${EG.segs.length}本`;
+ t.innerHTML=MO.pause?"⏸ 止めています（動かしても入りません）":`📱 スマホを<b>自分に向けて</b>持ち、<b>配管の通りに動かす</b>（1本ごとに止める${motDg()?"・斜めに動かすと45°":""}）・線 ${EG.segs.length}本・感度 ${MSEN[motSen()][0]}`;
  if(msg!=null)d.textContent=msg||"…"}
 function motEv(e){MO.got=1;if(MO.pause)return;const now=performance.now(),dt=MO.tq?Math.min(0.1,(now-MO.tq)/1000):0.016;MO.tq=now;
  let a=e.acceleration&&e.acceleration.x!=null?[e.acceleration.x,e.acceleration.y,e.acceleration.z]:null;
  if(!a){const g=e.accelerationIncludingGravity;if(!g||g.x==null)return;const G=[g.x,g.y,g.z];MO.g=MO.g?MO.g.map((z,j)=>z*0.9+G[j]*0.1):G;a=G.map((z,j)=>z-MO.g[j])}   // 重さを除いた加速が無い時は、ゆっくり変わる分を重さとして引く
  const m=Math.hypot(...a);
- if(MO.st===0){if(now<MO.cool||m<1.2)return;MO.st=1;MO.v=[0,0,0];MO.pk=[0,0,0];MO.t0=now;MO.still=0}
+ const f=MSEN[motSen()][1];
+ if(MO.st===0){if(now<MO.cool||m<1.2*f)return;MO.st=1;MO.v=[0,0,0];MO.pk=[0,0,0];MO.t0=now;MO.still=0}
  MO.v=MO.v.map((z,j)=>z+a[j]*dt);if(Math.hypot(...MO.v)>Math.hypot(...MO.pk))MO.pk=MO.v.slice();
- if(m<0.4)MO.still+=dt;else MO.still=0;
- if(MO.still>0.2||now-MO.t0>2500){MO.st=0;MO.cool=now+400;const dur=(now-MO.t0)/1000;if(Math.hypot(...MO.pk)<0.12||dur<0.15)return;motAdd(motAxis(motRev()?MO.pk.map(z=>-z):MO.pk))}}
-function motAdd(k){const L=EG.segs[EG.segs.length-1];
+ if(m<0.4*Math.max(0.6,f))MO.still+=dt;else MO.still=0;
+ if(MO.still>0.2||now-MO.t0>2500){MO.st=0;MO.cool=now+400;const dur=(now-MO.t0)/1000;if(Math.hypot(...MO.pk)<0.12*f||dur<0.15)return;motAdd(motPick(motRev()?MO.pk.map(z=>-z):MO.pk))}}
+function motAdd(o){if(typeof o==="number")o={d:o};const k=o.d,L=EG.segs[EG.segs.length-1],same=L&&L.d===k&&(L.k||0)===(o.k||0);
  if(L&&k===OPP[L.d]){motUi("↩ 戻す動き（入れない）");return}
- EG.undo.push(JSON.stringify(EG.segs));if(L&&L.d===k)L.n++;else EG.segs.push({d:k,n:3,l:0});EG.O=null;list();draw();motUi(MDN[k]+(L&&L.d===k?"（のばす）":""));try{navigator.vibrate&&navigator.vibrate(40)}catch(e){}}
+ if(L&&L.k&&L.d===k&&!o.k){EG.undo.push(JSON.stringify(EG.segs));EG.segs.push({d:k,n:3,l:0});}   // 斜めの後に同じ向きのまっすぐ（斜めをのばさない）
+ else{EG.undo.push(JSON.stringify(EG.segs));if(same)L.n++;else{const q={d:k,n:3,l:0};if(o.k)q.k=o.k;EG.segs.push(q)}}
+ EG.O=null;list();draw();motUi((o.k?"↗ 45° ":"")+MDN[k]+(same?"（のばす）":""));try{navigator.vibrate&&navigator.vibrate(40)}catch(e){}}
 function motClose(){MO.on=false;if(MO.h)removeEventListener("devicemotion",MO.h);MO.h=null;if(MO.el)MO.el.remove();MO.el=null;try{ov.querySelector("#egList").parentElement.style.display="";EG.O=null;setTimeout(draw,30)}catch(e){}
  if(EG.segs.length>1)toast("向きが決まりました。下の欄に寸法を入れてください（✍️ 書く・🎙 でも）。45°にする線は「90° ▸45°」")}
 /* 📷 写真：選ぶ → たての線・横の線・奥へ行く横の線をなぞる → その3つの向きに吸い付いて描ける（長さは自分で入れる。写真1枚では奥行きが分からない） */

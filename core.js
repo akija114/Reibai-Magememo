@@ -1737,7 +1737,7 @@ function showGuideStep(){
  build3D();
  const G=GUIDE.geo||{R:50,Tn:0,D:10,a:90,prev:null},R=G.R;
  T.custom=null;T.tg.set(-G.Tn*0.5,-R*0.3,R*0.6*(dieR()?-1:1));T.th=dieR()?-1.95:-1.2;T.ph=0.95;T.dist=R*45;
- T.cam.near=Math.max(1,R*0.03);T.cam.far=Math.max(T.ext*60,R*400);T.cam.updateProjectionMatrix();T.dirty=true;
+ T.cam.near=Math.max(1,R*0.03);T.cam.far=Math.max(T.ext*60,R*400);T.cam.updateProjectionMatrix();T.dirty=true;gdCam();gdCtl();gdAng(-1);
  const rows=LR(),i=GUIDE.i,c=calc(GUIDE.g).out[i],N=GUIDE.steps.length;
  $("#gdTop").innerHTML=`<img alt="" src="${icoSrc("bender")}" style="width:22px;height:22px;vertical-align:-5px;margin-right:4px">曲げ手順 ${GUIDE.k+1}／${N}：${brOn()?legName(GUIDE.g)+" の ":""}${nm(i)} の曲げ`;
  $("#gdLeg").textContent=(benOn(SIZES[legSize(GUIDE.g)][1])&&BENDERS[benFor(SIZES[legSize(GUIDE.g)][1])].lev)?"赤い輪＝印をつける所（ここをマーク／ラインに合わせる）、うすいオレンジ＝曲げた後の形":(dieR()?"シューが右・ガイドが左・ハンドルが左端":"シューが左・ガイドが右・ハンドルが右端")+"（台が水平）。赤い輪＝赤いライン（シューの0）、うすいオレンジ＝曲げた後の形";
@@ -1809,6 +1809,19 @@ function drawGuideFront(){
  h+=`<circle cx="${cx}" cy="${cy}" r="9" fill="#e08a3c" stroke="#7a3a0e" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="4" fill="#3b1a06"/>`;
  $("#gdFront").innerHTML=h;
 }
+/* 曲げ手順の見る向き・速さ（2026-11-13 ユーザー：正面から角度を見たい・玄人はアニメーションがいらない・2秒くらい）
+   見る向き GD_VIEW：0 斜め／1 正面（管の手前から）／2 真上（正面を下にして角度が見える）。速さ GD_SPD：0 ふつう／1 はやい（約2秒）／2 とばす */
+let GD_VIEW=0,GD_SPD=0;try{GD_VIEW=+localStorage.getItem("pbm_gdview")||0;GD_SPD=+localStorage.getItem("pbm_gdspd")||0}catch(e){}
+const GDV=["👀 斜め","👀 正面","👀 真上"],GDS=["▶ ふつう","⏩ はやい","⏭ とばす"];
+function gdCam(){if(!GUIDE||!GD_VIEW)return;T.custom=null;T.th=-Math.PI/2;T.ph=GD_VIEW===1?1.3:0.06;T.dirty=true}
+function gdCtl(){let e=$("#gdCtl");if(!e){e=document.createElement("div");e.id="gdCtl";e.style.cssText="position:absolute;right:8px;top:150px;z-index:7;display:flex;flex-direction:column;gap:6px";$("#stage").appendChild(e)}
+ if(!GUIDE){e.style.display="none";return}e.style.display="flex";
+ const bs="min-height:44px;padding:0 10px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fffffff0;color:#0f172a;font-weight:800;font-size:14px;box-shadow:0 2px 6px #0002";
+ e.innerHTML=`<button id="gdVw" style="${bs}">${GDV[GD_VIEW]}</button><button id="gdSp" style="${bs}">${GDS[GD_SPD]}</button>`;
+ e.querySelector("#gdVw").onclick=()=>{GD_VIEW=(GD_VIEW+1)%3;try{localStorage.setItem("pbm_gdview",GD_VIEW)}catch(x){}if(GD_VIEW)gdCam();else if(!gdBusy){showGuideStep();return}gdCtl();toast(["斜めから見ます","正面（配管の手前）から見ます","真上から見ます（下が正面・曲げの角度が見えます）"][GD_VIEW])};
+ e.querySelector("#gdSp").onclick=()=>{GD_SPD=(GD_SPD+1)%3;try{localStorage.setItem("pbm_gdspd",GD_SPD)}catch(x){}gdCtl();toast(["ふつうの速さで曲げを見せます","はやい：曲げの動きを約2秒で見せます","とばす：動きなしで次の曲げへ進みます"][GD_SPD])}}
+function gdAng(a){let e=$("#gdAng");if(!e){e=document.createElement("div");e.id="gdAng";e.style.cssText="position:absolute;left:8px;top:150px;z-index:7;background:#0f172ae6;color:#facc15;border-radius:12px;padding:6px 12px;font-weight:900;font-size:22px";$("#stage").appendChild(e)}
+ if(a<0||!GUIDE){e.style.display="none";return}e.style.display="";e.textContent=a+"°"}
 function setGdMini(m){$("#gdBot").classList.toggle("mini",m);const o=$("#gdOv");if(o)o.classList.toggle("gdexp",!m)}
 (function(){const g=$("#gdGrab"),bot=$("#gdBot");let sy=null;
  g.addEventListener("pointerdown",e=>{sy=e.clientY});
@@ -1817,7 +1830,7 @@ function setGdMini(m){$("#gdBot").classList.toggle("mini",m);const o=$("#gdOv");
  bot.addEventListener("touchend",e=>{if(bot._y==null)return;const dy=e.changedTouches[0].clientY-bot._y;bot._y=null;if(dy>60)setGdMini(true);else if(dy<-60)setGdMini(false)},{passive:true});
 })();
 function closeGuide(){
- if(!GUIDE)return;try{gdTip("")}catch(e){}{const hb=$("#gdHit");if(hb)hb.style.display="none"}const c=GUIDE.cam,wf=GUIDE.wasFull;GUIDE=null;gdBusy=false;["#gdPrev","#gdNext"].forEach(q=>{const b=$(q);if(b)b.disabled=false});
+ if(!GUIDE)return;try{gdTip("")}catch(e){}{const hb=$("#gdHit");if(hb)hb.style.display="none"}const c=GUIDE.cam,wf=GUIDE.wasFull;GUIDE=null;gdBusy=false;gdCtl();gdAng(-1);["#gdPrev","#gdNext"].forEach(q=>{const b=$(q);if(b)b.disabled=false});
  $("#gdOv").classList.remove("on");$("#stage").classList.remove("guidemode");
  build3D();T.th=c.th;T.ph=c.ph;T.dist=c.dist;T.tg.copy(c.tg);fitT(true);
  if(!wf)setFull(false);render();
@@ -1843,18 +1856,20 @@ function animGuideNext(){
  if(!GUIDE||gdBusy)return;gdBusy=true;
  const btns=[$("#gdPrev"),$("#gdNext")];btns.forEach(b=>b.disabled=true);
  const last=GUIDE.k>=GUIDE.steps.length-1;
+ if(GD_SPD===2){gdBusy=false;btns.forEach(b=>b.disabled=false);if(last){GUIDE.prog=0;closeGuide()}else{GUIDE.prog=0;GUIDE.k++;showGuideStep()}return}
  const ease=k=>k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
- const Dg0=SIZES[legSize(GUIDE.g)][1],TA=benFor(Dg0)==="ta515";
+ const Dg0=SIZES[legSize(GUIDE.g)][1],TA=benFor(Dg0)==="ta515",F=GD_SPD===1?0.55:1,setTimeout=(f,ms)=>window.setTimeout(f,ms*F);
  /* 1つの動き：ms かけて f(k) を呼ぶ */
- const run=(ms,f,next)=>{const t0=performance.now(),st2=()=>{if(!GUIDE){gdBusy=false;gdTip("");return}const k=Math.min(1,(performance.now()-t0)/ms);f(ease(k));build3D();T.dirty=true;if(k<1)requestAnimationFrame(st2);else setTimeout(next,350)};requestAnimationFrame(st2)};
- const bend=()=>run(TA?1800:1400,k=>{GUIDE.prog=Math.max(0.001,k)},after);
+ const run=(ms,f,next)=>{ms*=F;const t0=performance.now(),st2=()=>{if(!GUIDE){gdBusy=false;gdTip("");return}const k=Math.min(1,(performance.now()-t0)/ms);f(ease(k));build3D();T.dirty=true;if(k<1)requestAnimationFrame(st2);else setTimeout(next,350)};requestAnimationFrame(st2)};
+ const bend=()=>run(TA?1800:1400,k=>{GUIDE.prog=Math.max(0.001,k);gdAng(Math.round(ri.a*k))},after);
  function after(){if(!GUIDE){gdBusy=false;return}
   const fin=()=>{gdTip("");GUIDE.cl=0;GUIDE.tw=0;GUIDE.sl=0;GUIDE.hk=1;GUIDE.mk2=1;afterBend()};
-  if(TA){gdTip(TA_TIP(7,to));run(1000,k=>{GUIDE.cl=k;if(!trv)GUIDE.hk=1-k;GUIDE.prog=1-0.03*k},()=>setTimeout(fin,700))}else fin()}
+  if(TA&&F===1){gdTip(TA_TIP(7,to));run(1000,k=>{GUIDE.cl=k;if(!trv)GUIDE.hk=1-k;GUIDE.prog=1-0.03*k},()=>setTimeout(fin,700))}else fin()}
  const ri=LR()[GUIDE.i]||{l:0,a:90},trv=!!(GUIDE.rev&&GUIDE.rev[GUIDE.i]),to={l:ri.l,a:ri.a,bk:bR(Dg0)*ri.a/90},wait=(ms,next)=>run(ms,()=>{},next);
  /* ⑤ガイド → ⑥締付け → ⑦曲げ */
  const setG=()=>{gdTip(TA_TIP(4,to));run(1300,k=>{GUIDE.cl=1-k},()=>{gdTip(TA_TIP(5,to));run(1300,k=>{GUIDE.tw=k},()=>{gdTip(TA_TIP(6,to));bend()})})};
- if(TA&&!trv){GUIDE.cl=1;GUIDE.tw=0;GUIDE.hk=0;GUIDE.mk2=0;const sl0=-(to.bk+bR(Dg0)*0.9);GUIDE.sl=sl0;   /* ①黒い印 → ②バックしたオレンジの印 → ③0に合わせる → ④留め金具 */
+ if(TA&&F<1){GUIDE.cl=0;GUIDE.tw=1;GUIDE.hk=1;GUIDE.mk2=1;GUIDE.sl=0;bend()}   /* はやい：準備の説明はとばして曲げだけ */
+ else if(TA&&!trv){GUIDE.cl=1;GUIDE.tw=0;GUIDE.hk=0;GUIDE.mk2=0;const sl0=-(to.bk+bR(Dg0)*0.9);GUIDE.sl=sl0;   /* ①黒い印 → ②バックしたオレンジの印 → ③0に合わせる → ④留め金具 */
   gdTip(TA_TIP(0,to));wait(1700,()=>{GUIDE.mk2=1;gdTip(TA_TIP(1,to));wait(1900,()=>{gdTip(TA_TIP(2,to));run(1600,k=>{GUIDE.sl=sl0*(1-k)},()=>{gdTip(TA_TIP(3,to));run(1000,k=>{GUIDE.hk=k},setG)})})})}
  else if(TA){GUIDE.cl=1;GUIDE.tw=0;setG()}
  else bend();
@@ -1866,7 +1881,7 @@ function animGuideNext(){
   GUIDE.prog=0;GUIDE.k++;showGuideStep();
   const q1=T.grp.quaternion.clone(),p1=T.grp.position.clone(),t0=performance.now();
   T.grp.quaternion.copy(q0);T.grp.position.copy(p0);
-  const turn=()=>{if(!GUIDE){gdBusy=false;return}const k2=Math.min(1,(performance.now()-t0)/900),q=ease(k2);
+  const turn=()=>{if(!GUIDE){gdBusy=false;return}const k2=Math.min(1,(performance.now()-t0)/(900*F)),q=ease(k2);
    T.grp.quaternion.copy(q0).slerp(q1,q);T.grp.position.copy(p0).lerp(p1,q);T.dirty=true;
    if(k2<1)requestAnimationFrame(turn);else{gdBusy=false;$("#gdPrev").disabled=GUIDE.k===0;$("#gdNext").disabled=false}};
   setTimeout(()=>requestAnimationFrame(turn),250);

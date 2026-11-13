@@ -2127,21 +2127,27 @@ function ezInf(o,r,i){
    i＝短い真ん中の行。前の行の90°と、i の行の反対向きの90°の組だけ。終わりの位置はそのまま（前と後のまっすぐを 進み÷2 ずつ短くする） */
 function cvCrankR(R,i){const p=R[i-1],r=R[i];return i>0&&p&&r&&R[i+1]&&p.a===90&&r.a===90&&normT(effT(i,R))===normT(effT(i-1,R)+180)}
 function cvCrank(i,g){return cvCrankR(legRows(g||leg),i)}
-function cvPlanR(R,i,deg,D){
+/* m：縮める所（2026-11-13 ユーザー：③の数字を残して45°・③だけ直して45°・芯と芯も大事）0＝両側を半分ずつ・1＝前だけ・2＝後だけ */
+function cvPlanR(R,i,deg,D,m){
  const H=R[i].l,th=deg*Math.PI/180,run=H/Math.tan(th),L=H/Math.sin(th),bk=bR(D)*deg/90;
- let a=R[i-1].l-run/2,b=R[i+1].l-run/2;if(a<0){b+=a;a=0}if(b<0){a+=b;b=0}
+ let a=R[i-1].l-run/2,b=R[i+1].l-run/2;if(m===1){a=R[i-1].l-run;b=R[i+1].l}else if(m===2){a=R[i-1].l;b=R[i+1].l-run}else{if(a<0){b+=a;a=0}if(b<0){a+=b;b=0}}
  return{deg,L:Math.round(L),a:Math.round(a),b:Math.round(b),ok:a>=0&&b>=0&&L-bk>=0&&a-(R[i-1].a?bk:0)>=-0.01};
 }
-function cvPlan(i,deg,g){g=g||leg;return cvPlanR(legRows(g),i,deg,cur(g).D)}
+function cvPlan(i,deg,g,m){g=g||leg;return cvPlanR(legRows(g),i,deg,cur(g).D,m)}
 function cvSet(R,i,q){R[i-1].l=q.a;R[i-1].a=q.deg;R[i].l=q.L;R[i].a=q.deg;R[i+1].l=q.b}
 function cvBest(i,g){for(const d of[45,30,15]){const q=cvPlan(i,d,g);if(q.ok)return q}return null}
 /* 短すぎる時（シューが負）と、選んだ行がクランクの真ん中の時に出す（2026-11-04 ユーザー：曲げられる長さでもベンダーで90°が無理な時は45°・45°で） */
 function cvBtn(i,o){if(!cvCrank(i)||!(o.shoe<0||i===sel))return"";const q=cvBest(i);return q?`<button class="cv45" data-cv="${i}">↗ ${o.shoe<0?q.deg+"°に変える":"45°・30°で曲げる"}</button>`:""}
 function cvAsk(i){
- const R=LR();if(!cvCrank(i))return;const U=ezU(),sh=calc().out[i].shoe<0,Q=[45,30,15].map(d=>cvPlan(i,d)).filter(q=>q.ok).slice(0,2);if(!Q.length){toast("45°・30°でも短すぎて曲げられません");return}
- const ln=q=>`<div style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#f1f5f9"><b>${q.deg}°</b>：${nm(i-1)} ${fmt(R[i-1].l)} → <b>${fmt(q.a)}</b>・${nm(i)} 斜め <b style="color:#dc2626">${fmt(q.L)}</b>・${nm(i+1)} ${fmt(R[i+1].l)} → <b>${fmt(q.b)}</b>${U}</div>`;
- sheetMsg(`<b style="font-size:17px">↗ ${nm(i)} の差 ${fmt(R[i].l)}${U} を${sh?"、90°では短すぎて曲げられません":" 90°のかわりに"}</b><div>45°（または30°）2回で曲げますか？（${nm(i-1)}〜${nm(i+1)}）</div>${Q.map(ln).join("")}<div style="font-size:12.5px;color:#64748b;margin-top:6px">曲げの向き（回す角度）はそのまま・終わりの位置は同じです</div>`,
-  [...Q.map(q=>[`↗ ${q.deg}°・${q.deg}°に変える`,()=>{cvSet(R,i,q);sel=i;save();render();if(T){build3D();T.dirty=true}toast(`${nm(i-1)}〜${nm(i+1)} を ${q.deg}° に変えました（↩️で元に戻せます）`)},"#f97316","#fff"]),["やめる",null]]);
+ const R=LR();if(!cvCrank(i))return;const U=ezU(),sh=calc().out[i].shoe<0,QQ=m=>[45,30,15].map(d=>cvPlan(i,d,undefined,m)).filter(q=>q.ok).slice(0,2);if(!QQ(0).length&&!QQ(1).length&&!QQ(2).length){toast("45°・30°でも短すぎて曲げられません");return}
+ const P=nm(i-1),N=nm(i+1),M=[["↔ 両側を半分ずつ（芯と芯）",`${P}と${N}を同じだけ縮める`],[`${N} はそのまま`,`${P}だけ縮める`],[`${P} はそのまま`,`${N}だけ縮める`]],
+  ln=(q,m)=>`<div style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#f1f5f9"><b>${q.deg}°</b>：${P} ${fmt(R[i-1].l)} → <b style="${m===2?"":"color:#ea580c"}">${fmt(q.a)}</b>・${nm(i)} 斜め <b style="color:#dc2626">${fmt(q.L)}</b>・${N} ${fmt(R[i+1].l)} → <b style="${m===1?"":"color:#ea580c"}">${fmt(q.b)}</b>${U}</div>`;
+ const ov=sheetMsg(`<b style="font-size:17px">↗ ${nm(i)} の差 ${fmt(R[i].l)}${U} を${sh?"、90°では短すぎて曲げられません":" 90°のかわりに"}</b><div>45°（または30°）2回で曲げますか？（${P}〜${N}）</div><div style="font-weight:800;margin-top:8px">どこを縮める？</div><div id="cvM" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div><div id="cvQ"></div><div style="font-size:12.5px;color:#64748b;margin-top:6px">曲げの向き（回す角度）はそのまま・終わりの位置は同じです</div>`,[["やめる",null]]);
+ const draw=m=>{ov.querySelector("#cvM").innerHTML=M.map((t,k)=>`<button data-m="${k}" style="min-height:46px;border-radius:12px;text-align:left;padding:6px 12px;font-size:14.5px;border:2px solid ${k===m?"#f97316":"#cbd5e1"};background:${k===m?"#fff7ed":"#fff"};color:#0f172a"><b>${k===m?"● ":"○ "}${t[0]}</b><small style="display:block;color:#64748b">${t[1]}</small></button>`).join("");
+  const Q=QQ(m);ov.querySelector("#cvQ").innerHTML=Q.length?Q.map(q=>ln(q,m)).join("")+`<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">${Q.map(q=>`<button data-d="${q.deg}" style="min-height:48px;border-radius:12px;font-weight:800;font-size:15px;border:0;background:#f97316;color:#fff">↗ ${q.deg}°・${q.deg}°に変える</button>`).join("")}</div>`:`<div style="margin-top:8px;color:#dc2626;font-weight:700">⚠️ この縮め方だと短すぎて曲げられません。ほかの縮め方を選んでください</div>`;
+  ov.querySelectorAll("#cvM [data-m]").forEach(b=>b.onclick=()=>draw(+b.dataset.m));
+  ov.querySelectorAll("#cvQ [data-d]").forEach(b=>b.onclick=()=>{const q=Q.find(x=>x.deg===+b.dataset.d);ov.remove();cvSet(R,i,q);sel=i;save();render();if(T){build3D();T.dirty=true}toast(`${P}〜${N} を ${q.deg}° に変えました（↩️で元に戻せます）`)})};
+ draw(0);
 }
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".cv45[data-cv]");if(!b)return;e.stopPropagation();e.preventDefault();cvAsk(+b.dataset.cv)},true);
 /* 45°・30°・15°の曲げの後の行：上がる高さ（差）と前へ進む長さ（2026-11-03 ユーザー：45°の時の高さを出したい） */

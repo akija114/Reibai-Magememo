@@ -441,7 +441,7 @@ function flatten(doc){
       if (o[67] !== undefined && parseInt(o[67]) === 1) continue;
       let ln = (o[8] || '0').trim();
       if (ln === '0' && inhL != null) ln = inhL;
-      if (skipDim && (ln === DIM_LAYER || ln.startsWith(DIM_LAYER + '_') || ln === NOTE_LAYER || ln === KIKI_LAYER || ln === SIN_LAYER || ln === NP_LAYER)){ if (T === 'POLYLINE') while (k+1 < ents.length && ents[k+1].type !== 'SEQEND') k++; continue; }
+      if (skipDim && (ln === DIM_LAYER || ln.startsWith(DIM_LAYER + '_') || ln === NOTE_LAYER || ln === KIKI_LAYER || ln === SIN_LAYER || ln === NP_LAYER || WIRE_LN.includes(ln))){ if (T === 'POLYLINE') while (k+1 < ents.length && ents[k+1].type !== 'SEQEND') k++; continue; }
       const li = lay(ln);
       if (depth === 0){ curEid = k; const TN = {LINE:'線', ARC:'円弧', CIRCLE:'円', ELLIPSE:'だ円', LWPOLYLINE:'ポリライン', POLYLINE:'ポリライン', TEXT:'文字', MTEXT:'文字', HATCH:'塗り', SOLID:'塗り', SPLINE:'曲線', DIMENSION:'寸法'};
         parts[k] = {name: T === 'INSERT' ? (o[2] || '').trim() : (T === 'TEXT' || T === 'MTEXT') ? '文字「' + cleanMtext(o[1] || '').slice(0, 14) + '」' : (TN[T] || T), h:o[5] ? o[5].trim() : null, inv: parseInt(o[60]) === 1, li}; }
@@ -943,7 +943,7 @@ function drawOverlay(){
   drawPick(octx); drawMvg(octx); drawNp(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
-  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawSins(octx);
+  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawSins(octx); drawWires(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
   drawSame(octx);
@@ -1180,7 +1180,7 @@ function cmdNote(op, n, newText){
     undo(){ if (op === 'add') S.notes = S.notes.filter(x => x !== n); else if (op === 'del') S.notes.push(n); else n.text = old; }};
 }
 function openLaySheet(eids){ // 選んだ部品を別のレイヤーへ（今あるレイヤー・新しいレイヤー）
-  const cur = new Set(eids.map(e => G.parts[e] && G.parts[e].li).filter(x => x != null)), Ls = G.L.filter(l => !l.deleted && ![DIM_LAYER, NOTE_LAYER, GHOST_LAYER, KIKI_LAYER, NP_LAYER, SIN_LAYER].includes(l.name) && !l.name.startsWith(DIM_LAYER + '_'));
+  const cur = new Set(eids.map(e => G.parts[e] && G.parts[e].li).filter(x => x != null)), Ls = G.L.filter(l => !l.deleted && ![DIM_LAYER, NOTE_LAYER, GHOST_LAYER, KIKI_LAYER, NP_LAYER, SIN_LAYER, ...WIRE_LN].includes(l.name) && !l.name.startsWith(DIM_LAYER + '_'));
   openSheet('レイヤーを変える', body => {
     body.innerHTML = `<div class="note">${eids.length === 1 ? esc(partName(eids[0])) : eids.length + '個の部品'}を、選んだレイヤーへ移します（↶で戻せます）</div>
       <div class="frow"><input id="layNew" placeholder="新しいレイヤーの名前" style="flex:1;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 10px;font:16px var(--font-ui);color:var(--ink)"><button class="btn pri" data-a="new" style="height:44px">作って移す</button></div>
@@ -1310,6 +1310,23 @@ const isKiki = e => e >= KB;
 const isCl = e => e >= KB3 && e < KB2, clOf = e => S.clines.find(l => KB3 + l.no === e);
 function cmdCl(l){ const L = Math.hypot(l.x2 - l.x1, l.y2 - l.y1); return {kind:'obj', label:'芯線を引く', log:{label:'芯線を引く', detail:`${l.what || '芯'}から ${fmt(L)}`, eids:[KB3 + l.no], box:[Math.min(l.x1, l.x2), Math.min(l.y1, l.y2), Math.max(l.x1, l.x2), Math.max(l.y1, l.y2)]}, do(){ S.clines.push(l); }, undo(){ S.clines = S.clines.filter(x => x !== l); }}; }
 const isNp = e => e >= KB2 && e < KB, npOf = e => S.np.find(p => KB2 + p.no === e);
+/* 電線のルートのメモ（2026-11-13 ユーザー：リモコン線・集中線・内外線のルートもメモしたい・配管じゃないと分かるように）：S.np の k が rc／cc／io。レイヤーは種類ごと、斜めでもよい（縦横にそろえない）、図面は点線、3Dは細い点線（管にしない）。貫通部・曲げ共有・室内機ぜんぶ引くには入れない */
+const WIRE = {rc:{n:'リモコン線', L:'リモコン線', ck:'a8', col:'#475569', hx:0x475569, ic:'🎛', d:[10, 5]}, cc:{n:'集中線', L:'集中線（伝送線）', ck:'a190', col:'#7c3aed', hx:0x7c3aed, ic:'📡', d:[14, 4, 3, 4]}, io:{n:'内外線', L:'内外線（連絡線）', ck:'a30', col:'#ea580c', hx:0xea580c, ic:'🔌', d:[16, 4, 3, 4, 3, 4]}}, WIRE_LN = Object.values(WIRE).map(w => w.L), isW = k => !!WIRE[k];
+const npKn = k => WIRE[k] ? WIRE[k].n : k === 'dr' ? 'ドレン配管' : '冷媒配管';
+function wLayer(k){ const nm = WIRE[k].L; let i = G.L.findIndex(l => l.name === nm); if (i < 0){ i = G.L.length; G.L.push({name:nm, ck:WIRE[k].ck, on:true, deleted:false, count:0, idx:i, g:'ac'}); G.textsBy[i] = []; } return i; }
+function npFree(raw){ // 電線：なぞった線をまっすぐな線の並びに（斜めのまま）。始まり・終わりは機器・線の端にくっつける
+  const eps = 18/view.s, rdp = (P, a, b, out) => { let m = -1, md = 0; for (let i = a + 1; i < b; i++){ const c = closestOnSeg(P[i][0], P[i][1], P[a][0], P[a][1], P[b][0], P[b][1]), d = Math.hypot(c[0] - P[i][0], c[1] - P[i][1]); if (d > md){ md = d; m = i; } } if (md > eps){ rdp(P, a, m, out); rdp(P, m, b, out); } else out.push(b); };
+  const idx = [0]; rdp(raw, 0, raw.length - 1, idx); const P = idx.map(i => raw[i].slice()); if (P.length < 2) return null; P[0] = npSnap(P[0]); P[P.length - 1] = npSnap(P[P.length - 1]); return P.filter((q, i) => !i || Math.hypot(q[0] - P[i-1][0], q[1] - P[i-1][1]) > 1e-6); }
+function drawWires(c){ // 電線のルート：白いふち＋種類ごとの点線（配管でないと分かるように）・名前と長さ
+  if (!G || !S.np.some(p => isW(p.k))) return; c.save(); c.lineCap = 'butt'; c.lineJoin = 'round'; c.font = `700 11px ${FONT}`; c.textBaseline = 'middle';
+  for (const p of S.np){ const w = WIRE[p.k]; if (!w || gone(KB2 + p.no)) continue; const l = G.L.find(x => x.name === w.L); if (l && (!l.on || l.deleted)) continue; const Q = p.pts.map(q => w2s(q[0], q[1]));
+    const path = () => { c.beginPath(); Q.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); };
+    path(); c.setLineDash([]); c.strokeStyle = tok.paper; c.lineWidth = 6; c.stroke(); path(); c.setLineDash(w.d); c.strokeStyle = w.col; c.lineWidth = 2.6; c.stroke(); c.setLineDash([]);
+    for (const q of [Q[0], Q[Q.length - 1]]){ c.fillStyle = w.col; c.beginPath(); c.arc(q[0], q[1], 4, 0, Math.PI*2); c.fill(); }
+    let bi = 1; for (let i = 2; i < Q.length; i++) if (Math.hypot(Q[i][0] - Q[i-1][0], Q[i][1] - Q[i-1][1]) > Math.hypot(Q[bi][0] - Q[bi-1][0], Q[bi][1] - Q[bi-1][1])) bi = i;
+    const a = Q[bi-1], b = Q[bi]; if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 40) continue; const t = `${w.ic} ${w.n} ${fmtM(npLen(p.pts))}`, tw = c.measureText(t).width + 10, mx = (a[0] + b[0])/2, my = (a[1] + b[1])/2 - 12;
+    c.fillStyle = w.col; c.fillRect(mx - tw/2, my - 9, tw, 18); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(t, mx, my); }
+  c.restore(); }
 const npLen = pts => pts.reduce((a, p, i) => i ? a + Math.hypot(p[0] - pts[i-1][0], p[1] - pts[i-1][1]) : 0, 0);
 const fmtM = v => (v*unitMM()/1000).toFixed(2) + 'm';
 function npHdef(){ try { const o = JSON.parse(localStorage.getItem('zumen-np') || '{}'); return isFinite(o.h) ? o.h : 2500; } catch(e){ return 2500; } }
@@ -1343,36 +1360,36 @@ function npStraight(raw, a45, rnd){ // なぞった線 → 縦横（45°）の�
     return npBuild(A, segs.filter(s => s.L > 1e-6)); }
   return pts;
 }
-function npFromPts(A, B, flip){ const C = flip ? [A[0], B[1]] : [B[0], A[1]], p = [A, C, B].filter((q, i, a) => !i || Math.hypot(q[0] - a[i-1][0], q[1] - a[i-1][1]) > 1e-6); return p.length < 2 ? null : p; }
+function npFromPts(A, B, flip){ if (S.npe && isW(S.npe.k) && A && B) return [A.slice(), B.slice()]; /* 電線はまっすぐ1本（斜めでよい） */ const C = flip ? [A[0], B[1]] : [B[0], A[1]], p = [A, C, B].filter((q, i, a) => !i || Math.hypot(q[0] - a[i-1][0], q[1] - a[i-1][1]) > 1e-6); return p.length < 2 ? null : p; }
 function npStart(item){ S.mode = 'np'; S.pick = null; S.selDim = null; S.mvg = null; routeReset(); let o = {}; try { o = JSON.parse(localStorage.getItem('zumen-np') || '{}'); } catch(e){}
-  S.npe = {tool:['pts', 'hole'].includes(o.tool) ? o.tool : 'trace', k:item ? (item.k || 'rf') : o.k === 'dr' ? 'dr' : 'rf', rnd:[10, 50, 100].includes(o.rnd) ? o.rnd : 50, a45:!!o.a45, flip:false, pts:item ? item.pts.map(p => p.slice()) : null, h:item ? npH(item, item.pts.length - 1) : null, raw:null, A:null, B:null, edit:item || null};
+  S.npe = {tool:['pts', 'hole'].includes(o.tool) ? o.tool : 'trace', k:item ? (item.k || 'rf') : o.k === 'dr' || isW(o.k) ? o.k : 'rf', rnd:[10, 50, 100].includes(o.rnd) ? o.rnd : 50, a45:!!o.a45, flip:false, pts:item ? item.pts.map(p => p.slice()) : null, h:item ? npH(item, item.pts.length - 1) : null, raw:null, A:null, B:null, edit:item || null};
   updatePickBar(); updateUi(); updateNpPanel(); drawOverlay(); loadModels().then(() => askUnitModels()).then(() => { try { if (S.npe) S.npe.units = npUnitsCalc(); } catch(err){} drawOverlay(); }); }
 function npPref(h){ const e = S.npe; try { localStorage.setItem('zumen-np', JSON.stringify({tool:e.tool, k:e.k, rnd:e.rnd, a45:e.a45, h:h != null ? h : npHdef()})); } catch(err){} }
 function npEnd(){ S.npe = null; S.mode = 'pan'; $('#npPanel').hidden = true; updateUi(); drawOverlay(); }
 function npHandleAt(p){ const e = S.npe; if (!e) return null; for (const k of ['B', 'A']) if (e[k]){ const q = w2s(...e[k]); if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 30) return k; } return null; }
 function npTap(w){ const e = S.npe; if (e.tool === 'hole'){ const o = {id:'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), no:S.holes.length + 1, x:w[0], y:w[1], h:npHdef(), d:100}; exec(cmdHole(o, null)); updateNpPanel(); drawOverlay(); return; } if (e.tool !== 'pts') return; const q = npSnap(w, true); if (!e.A || e.B){ e.A = q; e.B = null; e.pts = null; } else { e.B = q; e.pts = npFromPts(e.A, e.B, e.flip); } updateNpPanel(); drawOverlay(); updateUi(); }
-function npTraceEnd(raw){ const e = S.npe; if (raw.length < 2){ e.raw = null; drawOverlay(); return; } e.raw = raw; e.pts = npStraight(raw, e.a45, e.rnd); updateNpPanel(); drawOverlay(); }
+function npTraceEnd(raw){ const e = S.npe; if (raw.length < 2){ e.raw = null; drawOverlay(); return; } e.raw = raw; e.pts = isW(e.k) ? npFree(raw) : npStraight(raw, e.a45, e.rnd); updateNpPanel(); drawOverlay(); }
 function updateNpPanel(){
   const p = $('#npPanel'), e = S.npe; if (!e || S.mode !== 'np'){ p.hidden = true; return; } p.hidden = false;
   if (e.pts && !e.h){ const su = npUnitAt(e.pts[0]); if (su) e.h = [su.ph]; } // 室内機から始める時は、配管の口の高さから
   if (e.pts) e.h = npH({h:e.h}, e.pts.length - 1);
-  const segs = e.pts ? npSegs(e.pts) : [], ar = u => { const a = Math.round(Math.atan2(u[1], u[0])*180/Math.PI); return ({0:'→', 90:'↑', 180:'←', '-180':'←', '-90':'↓', 45:'↗', 135:'↖', '-45':'↘', '-135':'↙'})[a] || '・'; };
+  const wr = WIRE[e.k], segs = e.pts ? npSegs(e.pts) : [], ar = u => { const a = Math.round(Math.atan2(u[1], u[0])*180/Math.PI); return ({0:'→', 90:'↑', 180:'←', '-180':'←', '-90':'↓', 45:'↗', 135:'↖', '-45':'↘', '-135':'↙'})[a] || '・'; };
   p.innerHTML = `<div class="seg2"><button class="btn ${e.tool === 'trace' ? 'sel' : ''}" data-t="trace">✍ なぞる</button><button class="btn ${e.tool === 'pts' ? 'sel' : ''}" data-t="pts">📍 始点→終点</button>${e.edit ? '' : `<button class="btn ${e.tool === 'hole' ? 'sel' : ''}" data-t="hole">🕳 貫通部</button>`}</div>
-    ${e.edit || e.tool === 'hole' ? '' : `<div class="seg2"><button class="btn ${e.k !== 'dr' ? 'sel' : ''}" data-k="rf">❄️ 冷媒配管</button><button class="btn ${e.k === 'dr' ? 'sel' : ''}" data-k="dr">💧 ドレン配管</button></div>`}
+    ${e.edit || e.tool === 'hole' ? '' : `<div class="seg2"><button class="btn ${e.k === 'rf' ? 'sel' : ''}" data-k="rf">❄️ 冷媒配管</button><button class="btn ${e.k === 'dr' ? 'sel' : ''}" data-k="dr">💧 ドレン配管</button></div><div class="seg2" style="margin-top:-2px">${Object.keys(WIRE).map(k => `<button class="btn ${e.k === k ? 'sel' : ''}" data-k="${k}" style="font-size:13px;padding:0 4px">${WIRE[k].ic} ${WIRE[k].n}</button>`).join('')}</div>`}
     ${e.tool === 'hole' ? `<div class="note">壁の配管を通す所をタップしてください（何か所でも）。高さ（床から）と穴の大きさは下で直せます</div><div style="max-height:26vh;overflow:auto">${S.holes.map((o, i) => `<div class="frow" style="align-items:center;gap:6px"><span style="font-weight:800;width:34px">🕳${i + 1}</span><span style="font-size:12px">FL</span><input data-wh="${o.id}" type="number" inputmode="numeric" value="${o.h}" style="flex:1;min-width:0;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 6px;font:16px var(--font-ui);color:var(--ink)"><span style="font-size:12px">φ</span><input data-wd="${o.id}" type="number" inputmode="numeric" value="${o.d || 100}" style="width:64px;flex:none;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 6px;font:16px var(--font-ui);color:var(--ink)"><button class="btn" data-wx="${o.id}" style="flex:none">消す</button></div>`).join('') || '<div class="note">まだ貫通部がありません</div>'}</div>` : ''}
-    ${!e.edit && !e.pts && S.holes.length && e.units && e.units.length ? `<div class="frow"><button class="btn pri" data-a="auto" style="flex:1">🧭 室内機ぜんぶ引く（冷媒＋ドレン・${e.units.length}台）</button></div><div class="note" style="margin-top:-4px">室内機ごとに、いちばん近い貫通部を通して冷媒配管とドレン配管を引きます（もう引いてある室内機はとばします・↶で戻せます）</div>` : ''}
+    ${!e.edit && !e.pts && !wr && S.holes.length && e.units && e.units.length ? `<div class="frow"><button class="btn pri" data-a="auto" style="flex:1">🧭 室内機ぜんぶ引く（冷媒＋ドレン・${e.units.length}台）</button></div><div class="note" style="margin-top:-4px">室内機ごとに、いちばん近い貫通部を通して冷媒配管とドレン配管を引きます（もう引いてある室内機はとばします・↶で戻せます）</div>` : ''}
     ${e.tool === 'hole' ? '<div class="frow"><button class="btn" data-a="no" style="flex:1">閉じる</button></div>' : ''}
-    ${e.tool === 'hole' ? '' : !e.pts ? `<div class="note">${e.tool === 'trace' ? '室内機から図面の上を1本指でなぞってください（2本指で動かす・拡大）。離すと縦横のまっすぐな線にそろえ、始まりは室内機の配管の口になります' : e.A ? '終点をタップしてください（緑の丸は指でドラッグして動かせます）' : '始点をタップしてください（室内機をタップすると、その機種の配管の口から始まります）'}</div>` :
-    `<div style="max-height:30vh;overflow:auto">${segs.map((s, i) => `<div class="frow" style="align-items:center;gap:6px"><span style="width:26px;text-align:center;font-size:18px">${ar(s.u)}</span><input data-i="${i}" type="number" value="${Math.round(s.L*unitMM())}" style="flex:1;min-width:0;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 8px;font:16px var(--font-ui);color:var(--ink)"><span style="font-size:13px">mm</span><span style="font-size:12px;margin-left:4px">FL</span><input data-h="${i}" type="number" inputmode="numeric" value="${e.h[i]}" aria-label="高さ（床から）" style="width:76px;flex:none;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 6px;font:16px var(--font-ui);color:var(--ink)"></div>`).join('')}</div>
-     <div class="frow" style="align-items:center"><div class="grow" style="font-weight:800">合計 ${npTotTxt(e.pts, e.h)}・曲げ ${Math.max(0, segs.length - 1)}か所${e.h.some((v, i) => i && v !== e.h[i-1]) ? `・たて管 ${e.h.filter((v, i) => i && v !== e.h[i-1]).length}か所` : ''}</div>${e.tool === 'pts' ? '<button class="btn" data-a="flip">曲がりを反対に</button>' : ''}</div>`}
+    ${e.tool === 'hole' ? '' : !e.pts ? `<div class="note">${wr ? `${wr.n}のルートを${e.tool === 'trace' ? '図面の上を1本指でなぞってください（斜めのままでOK・2本指で動かす・拡大）' : '始点・終点の順にタップしてください（まっすぐ1本・斜めでOK）'}。配管ではないので、図面には点線で出ます` : e.tool === 'trace' ? '室内機から図面の上を1本指でなぞってください（2本指で動かす・拡大）。離すと縦横のまっすぐな線にそろえ、始まりは室内機の配管の口になります' : e.A ? '終点をタップしてください（緑の丸は指でドラッグして動かせます）' : '始点をタップしてください（室内機をタップすると、その機種の配管の口から始まります）'}</div>` :
+    `<div style="max-height:30vh;overflow:auto">${segs.map((s, i) => `<div class="frow" style="align-items:center;gap:6px"><span style="width:26px;text-align:center;font-size:18px">${ar(s.u)}</span><input data-i="${i}" type="number" value="${Math.round(s.L*unitMM())}" style="flex:1;min-width:0;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 8px;font:16px var(--font-ui);color:var(--ink)"><span style="font-size:13px">mm</span>${wr ? '' : `<span style="font-size:12px;margin-left:4px">FL</span><input data-h="${i}" type="number" inputmode="numeric" value="${e.h[i]}" aria-label="高さ（床から）" style="width:76px;flex:none;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 6px;font:16px var(--font-ui);color:var(--ink)">`}</div>`).join('')}</div>
+     <div class="frow" style="align-items:center"><div class="grow" style="font-weight:800">${wr ? `${wr.ic} ${wr.n} 合計 ${fmtM(npLen(e.pts))}` : `合計 ${npTotTxt(e.pts, e.h)}・曲げ ${Math.max(0, segs.length - 1)}か所`}${wr ? '' : ''}${!wr && e.h.some((v, i) => i && v !== e.h[i-1]) ? `・たて管 ${e.h.filter((v, i) => i && v !== e.h[i-1]).length}か所` : ''}</div>${e.tool === 'pts' && !wr ? '<button class="btn" data-a="flip">曲がりを反対に</button>' : ''}</div>`}
     ${e.tool === 'pts' && e.pts ? '<div class="note">始点（緑）・終点（紫）の丸は指でドラッグして動かせます。室内機の上で離すと配管の口にくっつきます</div>' : ''}
-    ${e.tool === 'trace' ? `<div class="frow" style="align-items:center"><span style="font-size:13px">丸め</span>${[10, 50, 100].map(v => `<button class="btn ${e.rnd === v ? 'sel' : ''}" data-r="${v}" style="flex:1">${v}</button>`).join('')}<button class="btn ${e.a45 ? 'sel' : ''}" data-a="a45" style="flex:1.2">${e.a45 ? '✓ ' : ''}45°も</button></div>` : ''}
+    ${e.tool === 'trace' && !wr ? `<div class="frow" style="align-items:center"><span style="font-size:13px">丸め</span>${[10, 50, 100].map(v => `<button class="btn ${e.rnd === v ? 'sel' : ''}" data-r="${v}" style="flex:1">${v}</button>`).join('')}<button class="btn ${e.a45 ? 'sel' : ''}" data-a="a45" style="flex:1.2">${e.a45 ? '✓ ' : ''}45°も</button></div>` : ''}
     ${e.tool === 'hole' ? '' : `<div class="frow"><button class="btn" data-a="no" style="flex:1">やめる</button>${e.pts ? '<button class="btn" data-a="redo" style="flex:1">やり直す</button>' : ''}<button class="btn pri" data-a="ok" style="flex:1.4" ${e.pts ? '' : 'disabled'}>${e.edit ? '直す' : 'できた'}</button></div>`}`;
   p.onchange = ev => { { const d = ev.target.dataset, id = d.wh || d.wd; if (id){ const o = S.holes.find(q => q.id === id), v = Math.round(+ev.target.value); if (o && isFinite(v) && ev.target.value !== '' && (d.wd ? v > 0 && v < 2000 : v > -5000 && v < 30000)) exec(cmdHole(o, d.wd ? {d:v} : {h:v})); updateNpPanel(); drawOverlay(); return; } } const hi = ev.target.dataset.h; if (hi != null && e.pts){ const v = Math.round(+ev.target.value); if (isFinite(v) && v > -5000 && v < 30000 && ev.target.value !== ''){ e.h[+hi] = v; npPref(v); } updateNpPanel(); drawOverlay(); return; } // 高さ（床から mm）
     const i = ev.target.dataset.i; if (i == null || !e.pts) return; const sg = npSegs(e.pts), v = +ev.target.value; if (!(v > 0)) { updateNpPanel(); return; } sg[+i].L = v/unitMM(); e.pts = npBuild(e.pts[0], sg); updateNpPanel(); drawOverlay(); };
   p.onclick = ev => { const b = ev.target.closest('button'); if (!b || b.disabled) return;
     if (b.dataset.wx){ const o = S.holes.find(q => q.id === b.dataset.wx); if (o) exec(cmdHole(o, 'del')); }
-    else if (b.dataset.k){ e.k = b.dataset.k; npPref(); }
+    else if (b.dataset.k){ const w0 = isW(e.k); e.k = b.dataset.k; npPref(); if (w0 !== isW(e.k)){ if (e.raw) e.pts = isW(e.k) ? npFree(e.raw) : npStraight(e.raw, e.a45, e.rnd); else if (e.A && e.B) e.pts = npFromPts(e.A, e.B, e.flip); } }
     else if (b.dataset.a === 'auto'){ npAutoAll(); return; }
     else if (b.dataset.t){ e.tool = b.dataset.t; e.pts = e.edit ? e.pts : null; e.raw = null; e.A = e.B = null; npPref(); }
     else if (b.dataset.r){ e.rnd = +b.dataset.r; npPref(); if (e.raw) e.pts = npStraight(e.raw, e.a45, e.rnd); }
@@ -1381,8 +1398,8 @@ function updateNpPanel(){
     else if (b.dataset.a === 'redo'){ e.pts = null; e.raw = null; e.A = e.B = null; }
     else if (b.dataset.a === 'no'){ npEnd(); return; }
     else if (b.dataset.a === 'ok' && e.pts){ const L = npLen(e.pts);
-      if (e.edit){ exec(cmdNpEdit(e.edit, e.pts.map(q => q.slice()), e.h.slice())); toast(`冷媒配管を直しました（合計 ${npTotTxt(e.pts, e.h)}）`); }
-      else { const it = {id:'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), no:1 + Math.floor(Math.random()*9e7), pts:e.pts.map(q => q.slice()), h:e.h.slice(), t:Date.now(), ...(e.k === 'dr' ? {k:'dr'} : {})}; { const su = npUnitAt(e.pts[0]); if (su) it.u = {k:su.k, c:su.c.slice()}; } const hs = npWallHoles([it]); exec(hs.length ? cmdMulti('配管を引く', [cmdNpAdd(it), ...hs.map(o => cmdHole(o, null))]) : cmdNpAdd(it)); toast(`${e.k === 'dr' ? 'ドレン' : '冷媒'}配管を引きました（合計 ${npTotTxt(e.pts, e.h)}${hs.length ? `・壁に当たる所に貫通部を${hs.length}か所置きました` : ''}・↶で戻せます）`); }
+      if (e.edit){ exec(cmdNpEdit(e.edit, e.pts.map(q => q.slice()), e.h.slice())); toast(`${npKn(e.k)}を直しました（合計 ${isW(e.k) ? fmtM(npLen(e.pts)) : npTotTxt(e.pts, e.h)}）`); }
+      else { const it = {id:'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), no:1 + Math.floor(Math.random()*9e7), pts:e.pts.map(q => q.slice()), h:e.h.slice(), t:Date.now(), ...(e.k !== 'rf' ? {k:e.k} : {})}; { const su = !isW(e.k) && npUnitAt(e.pts[0]); if (su) it.u = {k:su.k, c:su.c.slice()}; } const hs = npWallHoles([it]); exec(hs.length ? cmdMulti('配管を引く', [cmdNpAdd(it), ...hs.map(o => cmdHole(o, null))]) : cmdNpAdd(it)); toast(`${npKn(e.k)}を引きました（合計 ${isW(e.k) ? fmtM(npLen(e.pts)) : npTotTxt(e.pts, e.h)}${hs.length ? `・壁に当たる所に貫通部を${hs.length}か所置きました` : ''}・↶で戻せます）`); }
       npEnd(); return; }
     updateNpPanel(); drawOverlay(); updateUi(); };
 }
@@ -1409,7 +1426,7 @@ function npAutoAll(){ // 室内機ぜんぶ：配管の口 → いちばん近�
   const L = its.reduce((a, p) => a + npLen(p.pts), 0), lg = its.filter(p => p.k === 'dr' && npLen(p.pts)*u > 20000).length; toast(`室内機${its.length/2}台に冷媒配管とドレン配管を引きました（合計 ${fmtM(L)}・ドレンは下り勾配 1/100・↶で戻せます）${lg ? `。ドレンの横引きが20mを超える所が${lg}本あります（20m以下にする）` : ''}`); npEnd(); }
 /* 配管が壁を通る所（3Dの壁の四角を横切る所）に貫通部を置く（2026-10-28 ユーザー：壁に当たる所を貫通部に）。近く（200mm）に貫通部があれば置かない */
 function npWallHoles(list, have){ const u = unitMM(), out = [], all = (have || S.holes).slice(); let walls = []; try { walls = v3dAna().walls; } catch(e){}
-  for (const p of list){ const h = npH(p, p.pts.length - 1); let cu = 0;
+  for (const p of list){ if (isW(p.k)) continue; const h = npH(p, p.pts.length - 1); let cu = 0;
     for (let i = 1; i < p.pts.length; i++){ const a = [p.pts[i-1][0]*u, p.pts[i-1][1]*u], b = [p.pts[i][0]*u, p.pts[i][1]*u], d = [b[0] - a[0], b[1] - a[1]], L = Math.hypot(d[0], d[1]);
       for (const w of walls){ let t0 = 0, t1 = 1, ok = true; for (const [pp, q] of [[-d[0], a[0] - w[0]], [d[0], w[2] - a[0]], [-d[1], a[1] - w[1]], [d[1], w[3] - a[1]]]){ if (Math.abs(pp) < 1e-9){ if (q < 0){ ok = false; break; } continue; } const r = q/pp; if (pp < 0){ if (r > t1){ ok = false; break; } if (r > t0) t0 = r; } else { if (r < t0){ ok = false; break; } if (r < t1) t1 = r; } }
         if (!ok || (t1 - t0)*L < 20 || (t1 - t0)*L > 450) continue; const tm = (t0 + t1)/2, x = a[0] + d[0]*tm, y = a[1] + d[1]*tm; // 壁を横切る所（壁に沿って走る所は除く）
@@ -1418,12 +1435,12 @@ function npWallHoles(list, have){ const u = unitMM(), out = [], all = (have || S
       cu += L; } }
   return out; }
 const cmdMulti = (label, cs) => ({kind:'obj', label, log:cs[0].log, do(){ cs.forEach(c => c.do()); }, undo(){ cs.slice().reverse().forEach(c => c.undo()); }});
-function cmdNpAdd(it){ return {kind:'obj', label:'配管を引く', log:{label:'配管を引く', detail:`${it.k === 'dr' ? 'ドレン' : '冷媒'}配管 ${fmtM(npLen(it.pts))}`, eids:[KB2 + it.no], box:boxOf(it.pts)}, do(){ S.np.push(it); }, undo(){ S.np = S.np.filter(x => x !== it); }}; }
-function cmdNpEdit(it, pts, h){ const old = it.pts, oh = it.h; return {kind:'obj', label:'配管を直す', log:{label:'配管を直す', detail:`冷媒配管 ${fmtM(npLen(pts))}`, eids:[KB2 + it.no], box:boxOf(old.concat(pts)), npOld:old, npNew:pts}, do(){ it.pts = pts; if (h) it.h = h; }, undo(){ it.pts = old; if (oh) it.h = oh; else delete it.h; }}; }
+function cmdNpAdd(it){ return {kind:'obj', label:'配管を引く', log:{label:'配管を引く', detail:`${npKn(it.k)} ${fmtM(npLen(it.pts))}`, eids:[KB2 + it.no], box:boxOf(it.pts)}, do(){ S.np.push(it); }, undo(){ S.np = S.np.filter(x => x !== it); }}; }
+function cmdNpEdit(it, pts, h){ const old = it.pts, oh = it.h; return {kind:'obj', label:'配管を直す', log:{label:'配管を直す', detail:`${npKn(it.k)} ${fmtM(npLen(pts))}`, eids:[KB2 + it.no], box:boxOf(old.concat(pts)), npOld:old, npNew:pts}, do(){ it.pts = pts; if (h) it.h = h; }, undo(){ it.pts = old; if (oh) it.h = oh; else delete it.h; }}; }
 function drawNp(c){ // 引いている途中の配管：なぞった線（うすい）と、そろえた線・長さ
   const e = S.npe; if (!e || S.mode !== 'np') return; c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
   const line = (P, col, w, dash) => { if (!P || P.length < 2) return; c.strokeStyle = col; c.lineWidth = w; c.setLineDash(dash || []); c.beginPath(); P.forEach((q, i) => { const s = w2s(q[0], q[1]); i ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]); }); c.stroke(); c.setLineDash([]); };
-  line(e.raw, 'rgba(100,116,139,.6)', 3, [4, 4]); line(e.pts, '#c026d3', 4);
+  line(e.raw, 'rgba(100,116,139,.6)', 3, [4, 4]); line(e.pts, WIRE[e.k] ? WIRE[e.k].col : '#c026d3', 4, WIRE[e.k] ? WIRE[e.k].d : null);
   if (e.pts){ c.font = `700 12px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
     e.pts.forEach((q, i) => { const s = w2s(q[0], q[1]); c.fillStyle = i ? '#c026d3' : '#16a34a'; c.beginPath(); c.arc(s[0], s[1], i && i < e.pts.length - 1 ? 4 : 6, 0, Math.PI*2); c.fill(); });
     for (let i = 1; i < e.pts.length; i++){ const a = w2s(...e.pts[i-1]), b = w2s(...e.pts[i]), t = String(Math.round(Math.hypot(e.pts[i][0] - e.pts[i-1][0], e.pts[i][1] - e.pts[i-1][1])*unitMM())), w = c.measureText(t).width + 10, mx = (a[0] + b[0])/2, my = (a[1] + b[1])/2; c.fillStyle = '#c026d3'; c.fillRect(mx - w/2, my - 10, w, 20); c.fillStyle = '#fff'; c.fillText(t, mx, my); } }
@@ -1988,15 +2005,15 @@ function refreshGeom(){
     G.L[li].count = S.clines.length;
   }
   if (S.np.length){ // 1から引いた冷媒配管：折れ線と「冷媒 合計○m」。ふつうの部品と同じに選べる・寸法が取れる
-    const li = npLayer(); G.textsBy[li] = [];
+    const LS = new Set(), liOf = p => { const i = isW(p.k) ? wLayer(p.k) : npLayer(); if (!LS.has(i)){ LS.add(i); G.textsBy[i] = []; G.L[i].count = 0; } G.L[i].count++; return i; };
     for (const p of S.np){
-      const dr = p.k === 'dr', ck = dr ? 'a3' : 'a6', e = KB2 + p.no, f = p.pts.flat(), pl = {li, ck, a:f, sid:-1, eid:e}; ovPolys.push(pl); G.eidPolys.set(e, [pl]); const bx = boxOf(p.pts); G.pbox.set(e, [bx[0], bx[1], bx[2], bx[3], new Set([li])]); G.parts[e] = {name:dr ? '追加 ドレン配管' : '追加 冷媒配管', h:null, li}; // ドレン（k:'dr'）は緑
+      const li = liOf(p), wr = WIRE[p.k], dr = p.k === 'dr', ck = wr ? wr.ck : dr ? 'a3' : 'a6', e = KB2 + p.no, f = p.pts.flat(), pl = {li, ck, a:f, sid:-1, eid:e}; ovPolys.push(pl); G.eidPolys.set(e, [pl]); const bx = boxOf(p.pts); G.pbox.set(e, [bx[0], bx[1], bx[2], bx[3], new Set([li])]); G.parts[e] = {name:'追加 ' + npKn(p.k), h:null, li}; // ドレン（k:'dr'）は緑
       for (let q = 0; q + 3 < f.length; q += 2){ es.push(f[q], f[q+1], f[q+2], f[q+3], li, 0, -1, e); ep.push((f[q]+f[q+2])/2, (f[q+1]+f[q+3])/2, li, 1, -1, e); }
       for (let q = 0; q < f.length; q += 2) ep.push(f[q], f[q+1], li, 0, -1, e);
       let bi = 1; for (let i = 2; i < p.pts.length; i++) if (Math.hypot(p.pts[i][0] - p.pts[i-1][0], p.pts[i][1] - p.pts[i-1][1]) > Math.hypot(p.pts[bi][0] - p.pts[bi-1][0], p.pts[bi][1] - p.pts[bi-1][1])) bi = i;
+      if (wr) continue; // 電線の名前・長さは点線と一緒に描く（drawWires）
       const a = p.pts[bi-1], b = p.pts[bi], vert = Math.abs(b[0] - a[0]) < Math.abs(b[1] - a[1]); G.textsBy[li].push({eid:e, li, ck, x:(a[0] + b[0])/2 + (vert ? S.textH : 0)*(dr ? -1 : 1), y:(a[1] + b[1])/2 + (vert ? 0 : S.textH)*(dr ? -1 : 1), h:S.textH, a:vert ? Math.PI/2 : 0, wf:1, lines:[`${dr ? 'ドレン' : '冷媒'} ${fmtM(npLen(p.pts))}` + (Array.isArray(p.h) ? (hs => { const a = Math.min(...hs), b = Math.max(...hs); return `・FL${a === b ? a : a + '〜' + b}`; })(npH(p, p.pts.length - 1)) : '')], ha:1, va:'bottom'});
     }
-    G.L[li].count = S.np.length;
   }
   const s2 = new Float64Array(G.baseSegs.length + es.length); s2.set(G.baseSegs); s2.set(es, G.baseSegs.length);
   const p2 = new Float64Array(G.basePts.length + ep.length); p2.set(G.basePts); p2.set(ep, G.basePts.length);
@@ -2962,7 +2979,7 @@ function updateHint(){
     if (RS.step === 'pick'){ $('#bHint3').hidden = false; $('#bHint3').textContent = '＋ 1から引く'; }
     return;
   }
-  if (S.mode === 'np'){ h.hidden = false; $('#hintTxt').textContent = S.npe && S.npe.edit ? '配管を直す：なぞり直すか、長さを入れる' : S.npe && S.npe.tool === 'hole' ? '壁の貫通部（穴）を置く' : S.npe && S.npe.k === 'dr' ? 'ドレン配管を1から引く' : '冷媒配管を1から引く'; $('#bCancelPt').hidden = true; return; }
+  if (S.mode === 'np'){ h.hidden = false; $('#hintTxt').textContent = S.npe && S.npe.edit ? '配管を直す：なぞり直すか、長さを入れる' : S.npe && S.npe.tool === 'hole' ? '壁の貫通部（穴）を置く' : S.npe && isW(S.npe.k) ? WIRE[S.npe.k].n + 'のルートをメモ（点線）' : S.npe && S.npe.k === 'dr' ? 'ドレン配管を1から引く' : '冷媒配管を1から引く'; $('#bCancelPt').hidden = true; return; }
   $('#bCancelPt').textContent = '始点を取消';
   if (S.mode !== 'dim' || MS.dragging){ h.hidden = true; return; }
   h.hidden = false;
@@ -3496,7 +3513,7 @@ function openSaveSheet(){
 }
 function buildExport(name, opt = {}){
   const {codes, vals, n} = toPairs(S.text);
-  const del = new Set(G.L.filter(l => l.deleted).map(l => l.name)); del.add(DIM_LAYER); del.add(NOTE_LAYER); if (G.kkSkip){ del.add(KIKI_LAYER); del.add(SIN_LAYER); del.add(NP_LAYER); }
+  const del = new Set(G.L.filter(l => l.deleted).map(l => l.name)); del.add(DIM_LAYER); del.add(NOTE_LAYER); if (G.kkSkip){ del.add(KIKI_LAYER); del.add(SIN_LAYER); del.add(NP_LAYER); WIRE_LN.forEach(n => del.add(n)); }
   // pre-scan
   let seed = 0, layerTbl = null, msHandle = null, plotStyle = null, inTable = null, dimLayerExists = false; const exLayers = new Set();
   for (let i = 0; i < n; i++){
@@ -3579,14 +3596,14 @@ function buildExport(name, opt = {}){
       newEnts.push(ent('LWPOLYLINE', 'AcDbPolyline', [...P(90, 4), ...P(70, 1), ...[[x0, y0], [x1, y0], [x1, y1], [x0, y1]].flatMap(([x, y]) => [...P(10, num(x)), ...P(20, num(y))])], KIKI_LAYER));
       newEnts.push(text(k.x - (up ? kh*0.8 : 0), k.y + (up ? 0 : kh*0.8), kh, up ? 90 : 0, k.nm, 2), text(k.x + (up ? kh*0.8 : 0), k.y - (up ? 0 : kh*0.8), kh, up ? 90 : 0, `${fmt(k.w)}×${fmt(k.d)}`, 2));
     }
-    const nli = G.L.findIndex(l => l.name === NP_LAYER); if (nli >= 0 && !G.L[nli].deleted) for (const p of S.np){ if (S.delObj.has(KB2 + p.no)) continue; // 1から引いた冷媒配管：折れ線
-      newEnts.push(ent('LWPOLYLINE', 'AcDbPolyline', [...P(90, p.pts.length), ...P(70, 0), ...p.pts.flatMap(([x, y]) => [...P(10, num(x)), ...P(20, num(y))])], NP_LAYER)); }
+    for (const p of S.np){ if (S.delObj.has(KB2 + p.no)) continue; const LN = isW(p.k) ? WIRE[p.k].L : NP_LAYER, nl = G.L.find(l => l.name === LN); if (!nl || nl.deleted) continue; // 1から引いた冷媒配管・電線のルート：折れ線
+      newEnts.push(ent('LWPOLYLINE', 'AcDbPolyline', [...P(90, p.pts.length), ...P(70, 0), ...p.pts.flatMap(([x, y]) => [...P(10, num(x)), ...P(20, num(y))])], LN)); }
     DL = SIN_LAYER; const B = G.bounds; for (const l of S.clines) if (!S.delObj.has(KB3 + l.no)) newEnts.push(line(l.x1, l.y1, l.x2, l.y2)); // 芯線
     for (const s of S.sins){ newEnts.push(s.dir === 'v' ? line(s.c, B.y0, s.c, B.y1) : line(B.x0, s.c, B.x1, s.c)); newEnts.push(s.dir === 'v' ? text(s.c + th*0.8, B.y1 - th*2, th, 90, sinName(s), 2) : text(B.x0 + th*8, s.c + th*0.8, th, 0, sinName(s), 2)); } // 芯出し：図面の端から端までの線と「X2から右1500」
     DL = dl0; DX = dx0; }
   const needLayers = S.dimGroups.filter(g => S.dims.some(d => d.g === g.id)).map(g => [dgLayer(g), g.on === false ? -1 : 1]);
   for (const nm of new Set([...layH.values(), ...S.dups.map(d => d.lay).filter(Boolean)])) needLayers.push([nm, 7]);
-  if (S.dims.some(d => !dgOf(d))) needLayers.push([DIM_LAYER, 1]); if (S.ghosts.length) needLayers.push([GHOST_LAYER, 8]); if (S.notes.length) needLayers.push([NOTE_LAYER, 6]); if (kks.length) needLayers.push([KIKI_LAYER, 1]); if (S.sins.length || S.clines.length) needLayers.push([SIN_LAYER, 6]); if (S.np.length) needLayers.push([NP_LAYER, 6]);
+  if (S.dims.some(d => !dgOf(d))) needLayers.push([DIM_LAYER, 1]); if (S.ghosts.length) needLayers.push([GHOST_LAYER, 8]); if (S.notes.length) needLayers.push([NOTE_LAYER, 6]); if (kks.length) needLayers.push([KIKI_LAYER, 1]); if (S.sins.length || S.clines.length) needLayers.push([SIN_LAYER, 6]); if (S.np.some(p => !isW(p.k))) needLayers.push([NP_LAYER, 6]); for (const k in WIRE) if (S.np.some(p => p.k === k)) needLayers.push([WIRE[k].L, +WIRE[k].ck.slice(1)]);
   for (const [lname, lcol] of needLayers){
     if (exLayers.has(lname)) continue;
     let r = P(0, 'LAYER');
@@ -4728,7 +4745,11 @@ async function open3Dold(){
   for (let i = 0; i < sg.length; i += SS){ const li = sg[i+4], l = G.L[li]; if (!l || !l.on || l.deleted || li === npi || gone(sg[i+7])) continue; if (bl && (Math.max(sg[i], sg[i+2])*u < bl[0] || Math.min(sg[i], sg[i+2])*u > bl[2] || Math.max(sg[i+1], sg[i+3])*u < bl[1] || Math.min(sg[i+1], sg[i+3])*u > bl[3])) continue; const a = W(sg[i], sg[i+1]), b = W(sg[i+2], sg[i+3]); pos.push(a[0], 0, a[1], b[0], 0, b[1]); c.setStyle(colorCss(l.ck)); col.push(c.r, c.g, c.b, c.r, c.g, c.b); }
   const lg = new TH.BufferGeometry(); lg.setAttribute('position', new TH.Float32BufferAttribute(pos, 3)); lg.setAttribute('color', new TH.Float32BufferAttribute(col, 3)); sc.add(new TH.LineSegments(lg, new TH.LineBasicMaterial({vertexColors:true, transparent:true, opacity:.75})));
   // 1から引いた冷媒配管
-  const bb = new TH.Box3(), mat0 = new TH.MeshStandardMaterial({color:0xc8763a, metalness:.5, roughness:.4}), R = 14, nps = (npi >= 0 && G.L[npi].on && !G.L[npi].deleted) ? S.np.filter(p => !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no)) : [];
+  const bb = new TH.Box3(), mat0 = new TH.MeshStandardMaterial({color:0xc8763a, metalness:.5, roughness:.4}), R = 14, nps = (npi >= 0 && G.L[npi].on && !G.L[npi].deleted) ? S.np.filter(p => !isW(p.k) && !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no)) : [];
+  for (const p of S.np){ const wr = WIRE[p.k]; if (!wr || S.delObj.has(KB2 + p.no) || S.hideObj.has(KB2 + p.no)) continue; const l = G.L.find(x => x.name === wr.L); if (l && (!l.on || l.deleted)) continue; const h = npH(p, p.pts.length - 1), P = p.pts.map((q, i) => { const w = W(q[0], q[1]); return new TH.Vector3(w[0], h[Math.min(i, h.length - 1)] || 2400, w[1]); }); // 電線のルート：細い点線（管にしない・2026-11-13 ユーザー）
+    const g = new TH.BufferGeometry().setFromPoints(P), ln = new TH.Line(g, new TH.LineDashedMaterial({color:wr.hx, dashSize:120, gapSize:70})); ln.computeLineDistances(); sc.add(ln); P.forEach(q => bb.expandByPoint(q));
+    { const wm = new TH.MeshBasicMaterial({color:wr.hx}); for (let i = 1; i < P.length; i++){ const A0 = P[i-1], d = P[i].clone().sub(A0), L = d.length(); if (L < 1) continue; d.normalize(); const q = new TH.Quaternion().setFromUnitVectors(new TH.Vector3(0, 1, 0), d); for (let t = 0; t < L; t += 300){ const l2 = Math.min(180, L - t), m = new TH.Mesh(new TH.CylinderGeometry(22, 22, l2, 6), wm); m.position.copy(A0).addScaledVector(d, t + l2/2); m.quaternion.copy(q); sc.add(m); } } } // 点線を太く（短い細い線のつながり＝管ではない）
+    let bi = 1; for (let i = 2; i < P.length; i++) if (P[i].distanceTo(P[i-1]) > P[bi].distanceTo(P[bi-1])) bi = i; sc.add(v3dLabel(TH, `${wr.ic} ${wr.n} ${fmtM(npLen(p.pts))}`, P[bi-1].clone().add(P[bi]).multiplyScalar(.5).add(new TH.Vector3(0, 120, 0)), 0, wr.col)); }
   const dmat = new TH.MeshStandardMaterial({color:0x16a34a, roughness:.6});
   for (const p of nps){ const h = npH(p, p.pts.length - 1), P = [], mat = p.k === 'dr' ? dmat : mat0; // ドレンは緑
     if (p.sl){ let cu = 0; p.pts.forEach((q, i) => { if (i) cu += Math.hypot(q[0] - p.pts[i-1][0], q[1] - p.pts[i-1][1])*u; const w = W(q[0], q[1]); P.push(new TH.Vector3(w[0], h[0] - cu/p.sl, w[1])); }); } // 勾配（1/sl）で下げる
@@ -4838,7 +4859,7 @@ $('#b3D').onclick = open3D;
 async function sendPipes(){
   if (!G) return; await loadModels(); const u = unitMM(), A = v3dAna(), PO = v3dPoses(A, v3dMdOf);
   const units = PO.map(p => ({x:Math.round(p.cx), y:Math.round(p.cy), th:+p.th.toFixed(4), ch:p.m.ch, mk:p.k || '', w:Math.round(p.m.x1 - p.m.x0), d:Math.round(p.m.y1 - p.m.y0), port:p.port.map(Math.round), ph:p.ph}));
-  const pipes = S.np.filter(p => p.k !== 'dr' && !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no)).map((p, j) => { /* 曲げ共有へは冷媒配管だけ */ const h = npH(p, p.pts.length - 1), P = [];
+  const pipes = S.np.filter(p => p.k !== 'dr' && !isW(p.k) && !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no)).map((p, j) => { /* 曲げ共有へは冷媒配管だけ */ const h = npH(p, p.pts.length - 1), P = [];
     p.pts.forEach((q, i) => { const hs = []; if (i > 0) hs.push(h[i-1]); if (i < p.pts.length - 1) hs.push(h[i]); [...new Set(hs)].forEach(z => P.push([Math.round(q[0]*u), Math.round(q[1]*u), Math.round(z)])); });
     const ui = p.u ? PO.findIndex(o => Math.hypot(o.cx/u - p.u.c[0], o.cy/u - p.u.c[1]) < 1) : -1;
     return {nm:'配管' + (j + 1), P, ui}; }).filter(p => p.P.length > 1);
@@ -4862,7 +4883,7 @@ async function sendToMage(name){
     const text = buildExport(name, {dropHidden:true});
     const hide = G.L.filter(l => !l.on && !l.deleted).map(l => l.name);
     const u = unitMM(), A = v3dAna(); // 図面編集で足した物（1から引いた冷媒配管・読んだユニットバス、mm）も一緒に。曲げメモの3Dに出る
-    const np = S.np.filter(p => p.k !== 'dr' && !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no)).map(p => ({pts:p.pts.map(q => [Math.round(q[0]*u), Math.round(q[1]*u)]), h:npH(p, p.pts.length - 1)}));
+    const np = S.np.filter(p => p.k !== 'dr' && !isW(p.k) && !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no)).map(p => ({pts:p.pts.map(q => [Math.round(q[0]*u), Math.round(q[1]*u)]), h:npH(p, p.pts.length - 1)}));
     const rec = {blob: new Blob([text], {type:'application/dxf'}), name: name + '.dxf', hide, np, ubs:A.ubs.map(b => ({x0:Math.round(b.x0), y0:Math.round(b.y0), x1:Math.round(b.x1), y1:Math.round(b.y1), nm:b.nm, ch:b.ch}))};
     await new Promise((ok, ng) => {
       const o = indexedDB.open('pbmShare', 1);

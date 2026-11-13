@@ -1813,7 +1813,9 @@ function drawGuideFront(){
    見る向き GD_VIEW：0 斜め／1 正面（管の手前から）／2 真上（正面を下にして角度が見える）。速さ GD_SPD：0 ふつう／1 はやい（約2秒）／2 とばす */
 let GD_VIEW=0,GD_SPD=0;try{GD_VIEW=+localStorage.getItem("pbm_gdview")||0;GD_SPD=+localStorage.getItem("pbm_gdspd")||0}catch(e){}
 const GDV=["👀 斜め","👀 正面","👀 真上"],GDS=["▶ ふつう","⏩ はやい","⏭ とばす"];
-function gdCam(){if(!GUIDE||!GD_VIEW)return;T.custom=null;T.th=-Math.PI/2;T.ph=GD_VIEW===1?1.3:0.06;T.dirty=true}
+function gdCam(){if(!GUIDE||!GD_VIEW)return;T.custom=null;T.th=-Math.PI/2;T.ph=GD_VIEW===1?Math.PI/2:0.06;
+ if(GD_VIEW===1){const G=GUIDE.geo||{R:50},l=(LR()[GUIDE.i]||{l:0}).l||0;T.tg.set(0,0,0);T.dist=Math.max(G.R*45,l+500)}   /* 正面：曲げる所を真横（目の高さ）から・手前の管の先より外から（2026-11-14 ユーザー：真正面に見たい） */
+ T.dirty=true}
 function gdCtl(){let e=$("#gdCtl");if(!e){e=document.createElement("div");e.id="gdCtl";e.style.cssText="position:absolute;right:8px;top:150px;z-index:7;display:flex;flex-direction:column;gap:6px";$("#stage").appendChild(e)}
  if(!GUIDE){e.style.display="none";return}e.style.display="flex";
  const bs="min-height:44px;padding:0 10px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fffffff0;color:#0f172a;font-weight:800;font-size:14px;box-shadow:0 2px 6px #0002";

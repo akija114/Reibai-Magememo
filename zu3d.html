@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>図面 - 冷媒配管の曲げ共有</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="曲げ共有 v1.00">
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--panel:#e2e8f0;--danger:#dc2626;--line2:#06c755}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 40px)}
+.apps{display:flex;gap:4px;margin:0 0 10px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:3px}
+.apps a{flex:1;text-align:center;padding:7px 0;border-radius:9px;font-size:13px;font-weight:800;color:var(--sub);text-decoration:none;white-space:nowrap}
+.apps a.on{background:var(--acc);color:#fff}
+h1{font-size:20px;margin:6px 2px 2px}
+.note{font-size:13px;color:var(--sub);line-height:1.6;margin:4px 2px}
+.big{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:16px;margin-top:10px;text-decoration:none}
+.big.pri{background:var(--acc);border-color:var(--acc);color:#fff}.big.line{background:var(--line2);border-color:var(--line2);color:#fff}
+.grp{font-size:13px;font-weight:800;color:var(--sub);margin:18px 2px 4px}
+.row{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px;margin-top:8px}
+.row b{font-size:16px;word-break:break-all}.row .sub{color:var(--sub);font-size:12.5px;margin-top:3px}
+.row .bt{display:flex;gap:8px;margin-top:10px}
+.btn{flex:1;height:46px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:15px}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.empty{color:var(--sub);text-align:center;padding:24px 8px;font-size:14px;line-height:1.7}
+details{margin-top:22px}summary{font-size:14px;font-weight:800;color:var(--sub);padding:8px 2px}
+#busy{position:fixed;inset:0;z-index:50;background:rgba(15,23,42,.6);display:flex;align-items:center;justify-content:center;padding:24px}
+#busy[hidden]{display:none}
+#busy>div{background:var(--card);border-radius:16px;padding:20px;font-size:15px;font-weight:700;line-height:1.7;text-align:center;max-width:360px}
+#sheet{position:fixed;inset:0;z-index:40;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center}
+#sheet>div{background:var(--card);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:85vh;overflow:auto}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;max-width:90vw}
+</style>
+</head>
+<body>
+<nav class="apps"><a href="home.html" style="flex:0 0 38px" aria-label="入口">🏠</a><a href="index.html">🔧 曲げ共有</a><a href="zu3d.html" class="on">📐 図面</a><a href="genchou.html">📹 現調</a><a href="kiki.html">🔩 機器</a><a href="genba.html">📋 現場</a></nav>
+<h1>📐 図面の3D</h1>
+<div class="note">図面修正で直した図面を、3Dにして曲げ共有で開きます。配管を選ぶとその曲げになります。「📤 送る」で、ほかの人も同じ3Dを見られます（仕事の前の予習に）。</div>
+<a class="big" href="cad/">✏️ 図面修正で図面を読み込む・直す</a>
+<div class="grp">図面修正の図面</div>
+<div id="list"><div class="empty">読み込み中…</div></div>
+<details id="more"><summary>ほかの機能</summary>
+<a class="big" href="zumen.html">📐 前の図面の画面（読み込んで全部自動・材料拾い・見積り）</a>
+</details>
+<div id="busy" hidden><div id="busyT"></div></div>
+<script>
+/* 📐 図面（2026-11-14 ユーザー：図面は図面修正で読み込む。曲げ共有の図面は図面修正の3Dを開く所に・3Dをほかの人と共有して予習）
+   ・図面修正（cad/）の端末の保存（IndexedDB zumen-sunpo の projects・__last＝いま開いている図面）を並べる
+   ・3Dで開く：見えない cad/index.html?mk3d=番号 が3Dを作って pbmShare の "pipes" に入れる（z3Done）→ index.html?from=cadpipes（pipes.js）
+     作った3Dは "z3c:番号" に残す（図面・図面修正の設定 zumen-* が同じなら作り直さない・3つまで）
+   ・送る：3D（数の並びは2進のまま・gzip）を links/{番号} と links/{番号}x{i}（30万文字ずつ）に上げて zu3d.html?z3=番号 のリンク。開いた人はそれを受け取って曲げ共有へ（見るだけ・図面修正は要らない）
+     現場カードに付ける（genba の sites の z3）と、現場のLINEの文章にリンクが入る */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let toastT=0;function toast(m){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t)}t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,Math.min(6000,1800+m.length*40))}
+const busy=m=>{$("#busy").hidden=!m;if(m)$("#busyT").innerHTML=m};
+const hm=t=>{const d=new Date(t);return (d.getMonth()+1)+"/"+d.getDate()+" "+d.getHours()+":"+String(d.getMinutes()).padStart(2,"0")};
+const IDB=(nm,up)=>new Promise((ok,ng)=>{const o=indexedDB.open(nm,1);o.onupgradeneeded=()=>up(o.result);o.onsuccess=()=>ok(o.result);o.onerror=()=>ng(o.error)});
+const zdb=()=>IDB("zumen-sunpo",d=>{if(!d.objectStoreNames.contains("files"))d.createObjectStore("files",{keyPath:"id"});if(!d.objectStoreNames.contains("projects"))d.createObjectStore("projects",{keyPath:"id"})}); // 図面修正と同じ作り
+const sdb=()=>IDB("pbmShare",d=>{if(!d.objectStoreNames.contains("f"))d.createObjectStore("f")});
+const gdb=()=>IDB("genba",d=>{if(!d.objectStoreNames.contains("sites"))d.createObjectStore("sites",{keyPath:"id"});if(!d.objectStoreNames.contains("photos"))d.createObjectStore("photos",{keyPath:"id"})});
+async function op(dbf,st,mode,f){const d=await dbf();return new Promise((ok,ng)=>{const t=d.transaction(st,mode),r=f(t.objectStore(st));t.oncomplete=()=>{d.close();ok(r&&r.result)};t.onerror=t.onabort=()=>{d.close();ng(t.error)}})}
+const sget=k=>op(sdb,"f","readonly",s=>s.get(k)),sput=(k,v)=>op(sdb,"f","readwrite",s=>s.put(v,k)),sdel=k=>op(sdb,"f","readwrite",s=>s.delete(k));
+/* 図面修正の設定（機種・高さ・系統の名前など zumen-*）が変わったら作り直す */
+function lsSig(){let h=2166136261;try{const ks=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/^zumen-/.test(k))ks.push(k)}ks.sort().forEach(k=>{const v=k+"="+localStorage.getItem(k);for(let i=0;i<v.length;i++){h^=v.charCodeAt(i);h=Math.imul(h,16777619)}})}catch(e){}return (h>>>0).toString(36)}
+let PR=[];
+async function render(){let all=[];try{all=(await op(zdb,"projects","readonly",s=>s.getAll()))||[]}catch(e){}
+ const last=all.find(p=>p.id==="__last"),saved=all.filter(p=>p.id!=="__last").sort((a,b)=>b.updated-a.updated);PR=all;
+ const row=(p,lb)=>`<div class="row"><b>${esc(p.name||p.srcName||"図面")}</b>${lb?` <span style="font-size:12px;font-weight:800;color:var(--acc)">${lb}</span>`:""}<div class="sub">${p.updated?hm(p.updated):""}${p.srcName&&p.srcName!==p.name?" ・ "+esc(p.srcName):""}</div><div class="bt"><button class="btn pri" data-o="${esc(p.id)}">🧊 3Dで開く</button><button class="btn" data-s="${esc(p.id)}">📤 送る</button></div></div>`;
+ $("#list").innerHTML=(last&&last.fileId?row(last,"図面修正でいま開いている"):"")+saved.map(p=>row(p)).join("")||`<div class="empty">まだありません。上の「✏️ 図面修正で図面を読み込む・直す」で図面を開いてください。</div>`}
+/* 見えない図面修正で3Dを作る */
+let FR=null;
+async function build(id){const p=PR.find(x=>x.id===id);if(!p)throw new Error("図面が見つかりません");const sig=(p.updated||0)+"|"+lsSig(),ck="z3c:"+id;
+ try{const c=await sget(ck);if(c&&c.sig===sig&&c.rec)return c.rec}catch(e){}
+ busy(`🧊 「${esc(p.name||"図面")}」の3Dを作っています…<br><span style="font-size:13px;font-weight:500">大きい図面は1分くらいかかります。画面を閉じずにお待ちください</span>`);
+ try{const r=await new Promise(ok=>{window.z3Done=ok;if(FR)FR.remove();FR=document.createElement("iframe");FR.setAttribute("aria-hidden","true");FR.tabIndex=-1;FR.style.cssText="position:fixed;left:-10000px;top:0;width:390px;height:700px;border:0;visibility:hidden";FR.src="cad/index.html?mk3d="+encodeURIComponent(id)+"&t="+Date.now();document.body.appendChild(FR);setTimeout(()=>ok({err:"時間切れ"}),240000)});
+  window.z3Done=null;if(FR){FR.src="about:blank";FR.remove();FR=null}
+  if(!r||r.err)throw new Error((r&&r.err)||"作れませんでした");
+  const rec=await sget("pipes");if(!rec||!rec.sc)throw new Error("3Dを受け取れませんでした");
+  try{await sput(ck,{sig,rec,t:Date.now()});const ks=(await op(sdb,"f","readonly",s=>s.getAllKeys())).filter(k=>/^z3c:/.test(k)&&k!==ck);if(ks.length>2){const ts=[];for(const k of ks){const v=await sget(k);ts.push([k,v&&v.t||0])}ts.sort((a,b)=>a[1]-b[1]).slice(0,ks.length-2).forEach(([k])=>sdel(k))}}catch(e){}
+  return rec}finally{busy("")}}
+async function openRec(rec){await sput("pipes",{...rec,t:Date.now()});location.href="index.html?from=cadpipes"}
+/* ---------- 送る（Firebase：匿名・links に 30万文字ずつ） ---------- */
+const FB_CFG={"apiKey":"AIzaSyCnvx6kB7rR9L6QHYrjzS3mEBaqtL7LJnI","authDomain":"setubi-zumen.firebaseapp.com","projectId":"setubi-zumen","storageBucket":"setubi-zumen.firebasestorage.app","messagingSenderId":"337675527486","appId":"1:337675527486:web:3c4d16c3d838b66185386f"},FB_V="https://www.gstatic.com/firebasejs/10.14.1/";
+let FXP=null;
+function fx(){if(window.__FXMOCK)return Promise.resolve(window.__FXMOCK());if(!FXP)FXP=(async()=>{const [A,Au,F]=await Promise.all([import(FB_V+"firebase-app.js"),import(FB_V+"firebase-auth.js"),import(FB_V+"firebase-firestore.js")]);
+ const app=A.initializeApp(FB_CFG,"z3"),db=F.getFirestore(app),auth=Au.getAuth(app);
+ await new Promise((res,rej)=>{let tried=false;const off=Au.onAuthStateChanged(auth,x=>{if(x){off();res(x)}else if(!tried){tried=true;Au.signInAnonymously(auth).catch(e=>{off();rej(e)})}},rej)});
+ return{get:async p=>{const s=await F.getDoc(F.doc(db,p));return s.exists()?s.data():null},set:(p,d)=>F.setDoc(F.doc(db,p),d)}})().catch(e=>{FXP=null;throw e});return FXP}
+const rid=n=>{const a="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789",r=new Uint8Array(n);crypto.getRandomValues(r);return [...r].map(x=>a[x%a.length]).join("")};
+const b64=u=>{let s="";for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s)};
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const gz=async(u,d)=>new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(d?new DecompressionStream("gzip"):new CompressionStream("gzip"))).arrayBuffer());
+/* 3D → 文字（数の並びは2進のまま後ろにつなぐ） */
+async function pack(rec){const bins=[];let off=0;const j=JSON.stringify(rec,(k,v)=>{if(ArrayBuffer.isView(v)){const u=new Uint8Array(v.buffer,v.byteOffset,v.byteLength);bins.push(u);const o={$t:v.constructor.name,$o:off,$n:u.length};off+=u.length;return o}return v});
+ const jb=new TextEncoder().encode(j),all=new Uint8Array(4+jb.length+off),dv=new DataView(all.buffer);dv.setUint32(0,jb.length);all.set(jb,4);let p=4+jb.length;for(const u of bins){all.set(u,p);p+=u.length}return b64(await gz(all))}
+async function unpack(s){const all=await gz(unb64(s),1),n=new DataView(all.buffer).getUint32(0),base=4+n;
+ return JSON.parse(new TextDecoder().decode(all.subarray(4,base)),(k,v)=>v&&typeof v==="object"&&v.$t&&self[v.$t]?new self[v.$t](all.slice(base+v.$o,base+v.$o+v.$n).buffer):v)}
+const CH=290000;
+async function upload(rec){const f=await fx(),s=await pack(rec),n=Math.ceil(s.length/CH),id=rid(12);
+ for(let i=0;i<n;i+=4){busy(`📤 3Dを送る準備をしています… ${Math.min(n,i+4)}/${n}`);await Promise.all([...Array(Math.min(4,n-i)).keys()].map(k=>f.set("links/"+id+"x"+(i+k),{z:s.slice((i+k)*CH,(i+k+1)*CH),at:Date.now()})))}
+ await f.set("links/"+id,{z:"z3:"+JSON.stringify({n,name:rec.name||"図面",t:Date.now()}),at:Date.now()});
+ return location.origin+location.pathname.replace(/[^/]*$/,"")+"zu3d.html?z3="+id}
+async function sendRec(rec){let url;try{url=await upload(rec)}catch(e){busy("");toast("送れませんでした（"+((e&&(e.code||e.message))||e)+"）。電波を確かめてください");return}busy("");
+ const nm=rec.name||"図面",txt=`🧊 図面の3D「${nm}」\n仕事の前に見ておいてください（開くと曲げ共有の3Dで見られます）\n${url}`;
+ sheet(`<b style="font-size:17px">📤 3Dを送る準備ができました</b><div class="note">「${esc(nm)}」。リンクを開いた人は、同じ3Dを曲げ共有で見られます。</div>
+  <button class="big line" data-a="go">📤 LINEなどで送る</button><button class="big" data-a="cp">📋 リンクをコピー</button><button class="big" data-a="gb">📋 現場カードに付ける</button><button class="big" data-a="x">閉じる</button>`,async a=>{
+  if(a==="go"){if(navigator.share){try{await navigator.share({text:txt});return}catch(e){if(e&&e.name==="AbortError")return}}location.href="https://line.me/R/msg/text/?"+encodeURIComponent(txt)}
+  else if(a==="cp"){try{await navigator.clipboard.writeText(txt);toast("コピーしました。LINEに貼り付けてください")}catch(e){toast("コピーできませんでした")}}
+  else if(a==="gb")pickSite(url,nm);else closeSheet()})}
+/* 現場カードに付ける（現場の「LINEに送る文章」にリンクが入る） */
+async function pickSite(u,nm){let ss=[];try{ss=(await op(gdb,"sites","readonly",s=>s.getAll()))||[]}catch(e){}
+ const td=new Date(Date.now()-864e5*7).toISOString().slice(0,10);ss=ss.filter(s=>!s.date||s.date>=td).sort((a,b)=>(a.date||"9").localeCompare(b.date||"9")).slice(0,20);
+ if(!ss.length){toast("これからの現場カードがありません");return}
+ sheet(`<b style="font-size:17px">どの現場カードに付けますか？</b>`+ss.map(s=>`<button class="big" data-a="s:${esc(s.id)}">${esc((s.date?s.date.slice(5).replace("-","/")+" ":"")+(s.name||"（名前なし）"))}</button>`).join("")+`<button class="big" data-a="x">やめる</button>`,async a=>{if(a==="x"){closeSheet();return}
+  const id=a.slice(2),s=await op(gdb,"sites","readonly",st=>st.get(id));if(!s)return;s.z3={u,nm,t:Date.now()};s.updated=Date.now();await op(gdb,"sites","readwrite",st=>st.put(s));closeSheet();toast(`「${s.name||"現場"}」に付けました。現場の「LINEに送る」の文章に入ります`)})}
+function sheet(h,on){closeSheet();const d=document.createElement("div");d.id="sheet";d.innerHTML=`<div>${h}</div>`;d.onclick=e=>{if(e.target===d){closeSheet();return}const b=e.target.closest("[data-a]");if(b)on(b.dataset.a)};document.body.appendChild(d)}
+function closeSheet(){const d=$("#sheet");if(d)d.remove()}
+$("#list").onclick=async e=>{const o=e.target.closest("[data-o]"),s=e.target.closest("[data-s]");if(!o&&!s)return;
+ try{const rec=await build((o||s).dataset[o?"o":"s"]);if(o)await openRec(rec);else await sendRec(rec)}catch(err){busy("");toast("できませんでした（"+(err.message||err)+"）")}};
+/* 受け取る（?z3=番号）・曲げ共有から送る（?send=1：いま曲げ共有にある3D） */
+(async()=>{const q=new URLSearchParams(location.search),z=q.get("z3"),sd=q.get("send");
+ if(z||sd)try{history.replaceState(null,"",location.pathname)}catch(e){}
+ if(sd){try{const r=await sget("pipes");if(!r||!r.sc)throw new Error("曲げ共有に図面の3Dがありません");await sendRec(r)}catch(e){busy("");toast(e.message||String(e))}}
+ if(z){const id=z.replace(/[^\w]/g,"");busy("🧊 図面の3Dを受け取っています…");
+  try{const f=await fx(),m=await f.get("links/"+id);if(!m||!/^z3:/.test(m.z))throw new Error("3Dが見つかりません");const M=JSON.parse(m.z.slice(3));let s="";
+   for(let i=0;i<M.n;i+=4){busy(`🧊 図面の3D「${esc(M.name)}」を受け取っています… ${Math.min(M.n,i+4)}/${M.n}`);const cs=await Promise.all([...Array(Math.min(4,M.n-i)).keys()].map(k=>f.get("links/"+id+"x"+(i+k))));if(cs.some(c=>!c))throw new Error("3Dの一部が見つかりません");s+=cs.map(c=>c.z).join("")}
+   await openRec(await unpack(s));return}catch(e){busy("");toast("受け取れませんでした（"+((e&&(e.code||e.message))||e)+"）")}}
+ render()})();
+</script>
+<script>if("serviceWorker"in navigator&&/^https?:/.test(location.protocol)){window.addEventListener("load",()=>{try{navigator.serviceWorker.register("sw.js",{scope:"./"}).catch(()=>{})}catch(e){}})}</script>
+</body>
+</html>

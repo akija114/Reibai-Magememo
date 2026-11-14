@@ -49,6 +49,7 @@ function lineText(s){
  if(L[L.length-1]==="")L.pop();L.push(SEP,"");
  const it=x=>/^[\s　]*(→|↑|※|・|＊|\*)/.test(x)?x.replace(/^[\s　]*(→|↑)/,"　$1").replace(/^[\s　]*\*/,"＊"):"＊"+x.trim(); // 1行ずつ＊。→・↑・※で始まる行はそのまま（前の行の続き）
  sec("🔧 作業内容",lines(s.work).map(it));
+ if(s.z3&&s.z3.u)sec("🧊 図面の3D（仕事の前に見てください）",[(s.z3.nm||"図面")+"："+s.z3.u]);   // 📐 図面の「📋 現場カードに付ける」（zu3d.html・2026-11-14）
  sec("🎒 持ち物・服装",[...lines(s.bring).map(it),...lines(s.provided).map(x=>/^[\s　]*※/.test(x)?x.trim():"※"+x.trim())]);
  sec("🔌 道具について",lines(s.borrow));
  sec("⏰ 当日の予定",lines(s.plan));

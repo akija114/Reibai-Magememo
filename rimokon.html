@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja" data-app="rimokon">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>リモコンの壁面図 - 冷媒配管の曲げ共有</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="曲げ共有 v1.00">
+<!-- 🎛 リモコンの壁面図（2026-11-14 ユーザー：壁につけるリモコンの配置の壁面図・すき間20や30・横幅や高さをぱっと見で）。
+     リモコンを並べる（PAR-47MA＝三菱 MAスマートリモコン 120×120×厚さ14.5・仕様書 WKF94D663、ほかは大きさを入れる）→ すき間・1段の数・段のすき間・床からの高さ → 壁面図（寸法の線）と寸法の表。
+     データはこのスマホの中（localStorage「pbm_rimo」＝{cur, list:[{id, nm, t, it:[{k, w, h, nm}], gap, cols, rgap, base:"b"|"c"|"t", fl, left}]}） -->
+<style>
+:root{--bg:#eef3f7;--card:#fff;--ink:#0f172a;--sub:#5b6b7e;--line:#c9d5e0;--acc:#0369a1;--panel:#e2e8f0;--danger:#dc2626;--dim:#c2410c}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171;--dim:#fb923c}}
+:root[data-theme="dark"]{--bg:#0d1620;--card:#16222f;--ink:#e8eef5;--sub:#93a5b8;--line:#2b3b4c;--acc:#38bdf8;--panel:#1e2b3a;--danger:#f87171;--dim:#fb923c}
+*,*:before,*:after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 24px)}
+.apps{display:flex;gap:4px;margin:0 0 10px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:3px}
+.apps a{flex:1;text-align:center;padding:7px 0;border-radius:9px;font-size:13px;font-weight:800;color:var(--sub);text-decoration:none;white-space:nowrap}
+h1{font-size:19px;margin:4px 2px 8px}
+h2{font-size:14px;color:var(--sub);margin:16px 2px 6px}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:10px}
+.btn{height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:15px;padding:0 12px;white-space:nowrap}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}.btn.del{color:var(--danger)}.btn.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.row+.row{margin-top:8px}
+.row .lb{font-size:14px;font-weight:800;min-width:5.5em}
+input,select{height:44px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px;padding:0 8px;min-width:0}
+input.n{width:84px;text-align:right;font-weight:800}
+.it{display:flex;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.it:last-child{border-bottom:0}
+.it .no{width:26px;height:26px;border-radius:50%;background:var(--acc);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;font-size:14px}
+.it .nm{flex:1;min-width:0}
+.it .sz{font-size:13px;color:var(--sub);white-space:nowrap}
+.chip{border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:0 12px;height:38px;font:inherit;font-size:15px;font-weight:800}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.sum{font-size:17px;font-weight:800;line-height:1.6}
+.sum small{font-size:13px;color:var(--sub);font-weight:600}
+#fig{background:#fff;border:1.5px solid var(--line);border-radius:14px;overflow-x:auto;margin-top:8px}
+#fig svg{display:block}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+th,td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:right;white-space:nowrap}th{color:var(--sub);font-size:12px}td:nth-child(2),th:nth-child(2){text-align:left;white-space:normal}
+.note{font-size:12.5px;color:var(--sub);line-height:1.6;margin-top:6px}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:88vw;text-align:center;z-index:20}
+</style>
+</head>
+<body>
+<nav class="apps"><a href="home.html" style="flex:0 0 38px" aria-label="入口">🏠</a><a href="cad/">✏️ 図面編集</a><a href="kiki.html">🔩 機器</a></nav>
+<h1>🎛 リモコンの壁面図</h1>
+<div class="card"><div class="row"><input id="pnm" placeholder="名前（1A会議室 など）" style="flex:1"><select id="plist" style="flex:0 0 7.5em"></select></div>
+<div class="row"><button class="btn pri" id="bSave" style="flex:1">💾 保存</button><button class="btn" id="bNew" style="flex:1">＋ 新しく</button><button class="btn del" id="bDel">🗑</button></div></div>
+<h2>① リモコン（左から順）</h2>
+<div class="card"><div id="items"></div>
+<div class="row" style="margin-top:8px"><button class="btn pri" data-add="par47" style="flex:1">＋ PAR-47MA</button><button class="btn" data-add="cus" style="flex:1">＋ 大きさを入れる</button></div>
+<div class="note">PAR-47MA＝三菱 MAスマートリモコン（120×120・厚さ14.5、仕様書の値）。ロスナイ用など、ほかのリモコンは「大きさを入れる」で幅×高さを入れてください。</div></div>
+<h2>② 並べ方</h2>
+<div class="card">
+<div class="row"><span class="lb">すき間</span><span id="gapC"></span><input class="n" id="gap" type="number" inputmode="numeric"><span>mm</span></div>
+<div class="row"><span class="lb">1段に</span><input class="n" id="cols" type="number" inputmode="numeric" style="width:64px"><span>個まで（多い時は下の段へ）</span></div>
+<div class="row" id="rgRow"><span class="lb">段のすき間</span><span id="rgapC"></span><input class="n" id="rgap" type="number" inputmode="numeric"><span>mm</span></div>
+<div class="row"><span class="lb">床から</span><span id="baseC"></span><span>FL+</span><input class="n" id="fl" type="number" inputmode="numeric"><span>mm</span></div>
+<div class="row"><span class="lb">左の基準から</span><input class="n" id="left" type="number" inputmode="numeric" placeholder="なし"><span>mm（柱・枠の角などから左端まで）</span></div>
+</div>
+<h2>③ 壁面図</h2>
+<div class="card"><div class="sum" id="sum"></div><div id="fig"></div>
+<div class="row" style="margin-top:8px"><button class="btn pri" id="bShare" style="flex:1">📤 絵で送る・保存</button></div>
+<table id="tbl"></table></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let toastT=0;function toast(m){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t)}t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
+/* リモコンの種類（大きさは mm・メーカーの外形図の値だけ） */
+const KIND={par47:{n:"PAR-47MA",w:120,h:120,d:14.5,face:"par"},cus:{n:"リモコン",w:120,h:120}};
+const BASE={b:"下端",c:"中心",t:"上端"};
+const newPlan=()=>({id:"r"+Date.now().toString(36),nm:"",t:Date.now(),it:[{k:"par47",w:120,h:120,nm:""},{k:"par47",w:120,h:120,nm:""}],gap:20,cols:0,rgap:30,base:"b",fl:1200,left:""});
+let D;try{D=JSON.parse(localStorage.getItem("pbm_rimo")||"null")}catch(e){D=null}
+if(!D||!D.list||!D.list.length){const p=newPlan();D={cur:p.id,list:[p]}}
+const P=()=>D.list.find(p=>p.id===D.cur)||D.list[0];
+const store=()=>{try{localStorage.setItem("pbm_rimo",JSON.stringify(D))}catch(e){}};
+const num=(v,d)=>{const n=+String(v).replace(/[^\d.\-]/g,"");return isFinite(n)&&String(v).trim()!==""?n:d};
+/* 並べた位置（mm）：左上が原点・下向きが＋ */
+function layout(p){const n=p.it.length,cols=p.cols>0?p.cols:n,rows=[];for(let i=0;i<n;i+=cols)rows.push(p.it.slice(i,i+cols).map((q,j)=>({q,i:i+j})));
+ let y=0;const out=[];rows.forEach((r,ri)=>{let x=0;const rh=Math.max(...r.map(o=>o.q.h));r.forEach((o,k)=>{out.push({...o,x,y,w:o.q.w,h:o.q.h,r:ri});x+=o.q.w+(k<r.length-1?p.gap:0)});out.rowW=out.rowW||[];out.rowW[ri]=x;out.rowY=out.rowY||[];out.rowY[ri]=[y,rh];y+=rh+(ri<rows.length-1?p.rgap:0)});
+ out.W=Math.max(0,...(out.rowW||[0]));out.H=y;out.rows=rows.length;return out}
+const fmt=v=>(Math.round(v*10)/10).toLocaleString("ja-JP");
+function heights(p,L){const b=p.base==="b"?p.fl:p.base==="c"?p.fl-L.H/2:p.fl-L.H;return {bot:b,ctr:b+L.H/2,top:b+L.H}} // 床から（全体の下端・中心・上端）
+/* ===== 画面 ===== */
+function chips(el,vals,cur,fn,lbl){el.innerHTML=vals.map(v=>`<button class="chip ${String(v)===String(cur)?"on":""}" data-v="${v}">${lbl?lbl(v):v}</button>`).join(" ");el.onclick=e=>{const b=e.target.closest("[data-v]");if(b)fn(b.dataset.v)}}
+function render(){const p=P();
+ $("#plist").innerHTML=D.list.map(q=>`<option value="${q.id}" ${q.id===p.id?"selected":""}>${esc(q.nm||"（名前なし）")}</option>`).join("");$("#pnm").value=p.nm;
+ $("#items").innerHTML=p.it.map((q,i)=>`<div class="it"><span class="no">${i+1}</span><input class="nm" data-nm="${i}" value="${esc(q.nm)}" placeholder="${q.k==="par47"?"PAR-47MA":"ロスナイ など"}">${q.k==="par47"?`<span class="sz">120×120</span>`:`<input class="n" data-w="${i}" type="number" inputmode="numeric" value="${q.w}" style="width:62px">×<input class="n" data-h="${i}" type="number" inputmode="numeric" value="${q.h}" style="width:62px">`}<button class="btn" data-up="${i}" style="padding:0 8px" aria-label="左へ" ${i?"":"disabled"}>◀</button><button class="btn del" data-x="${i}" style="padding:0 10px" aria-label="消す">✕</button></div>`).join("")||`<div class="note">まだリモコンがありません。下のボタンで足してください。</div>`;
+ chips($("#gapC"),[0,10,20,30,50],p.gap,v=>{p.gap=+v;upd()});$("#gap").value=p.gap;
+ $("#cols").value=p.cols||"";$("#cols").placeholder=String(p.it.length||1);
+ $("#rgRow").hidden=!(p.cols>0&&p.cols<p.it.length);chips($("#rgapC"),[20,30,50],p.rgap,v=>{p.rgap=+v;upd()});$("#rgap").value=p.rgap;
+ chips($("#baseC"),["b","c","t"],p.base,v=>{p.base=v;upd()},v=>BASE[v]);$("#fl").value=p.fl;$("#left").value=p.left;
+ draw()}
+function upd(){P().t=Date.now();store();render()}
+$("#items").oninput=e=>{const p=P(),d=e.target.dataset;if(d.nm!=null){p.it[+d.nm].nm=e.target.value;store();draw()}};
+$("#items").onchange=e=>{const p=P(),d=e.target.dataset;if(d.w!=null)p.it[+d.w].w=Math.max(20,num(e.target.value,120));if(d.h!=null)p.it[+d.h].h=Math.max(20,num(e.target.value,120));if(d.w!=null||d.h!=null)upd()};
+$("#items").onclick=e=>{const b=e.target.closest("button");if(!b)return;const p=P();if(b.dataset.x!=null){p.it.splice(+b.dataset.x,1);upd()}else if(b.dataset.up!=null){const i=+b.dataset.up;[p.it[i-1],p.it[i]]=[p.it[i],p.it[i-1]];upd()}};
+document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{const k=b.dataset.add,p=P(),last=[...p.it].reverse().find(q=>q.k===k);p.it.push({k,w:last?last.w:KIND[k].w,h:last?last.h:KIND[k].h,nm:""});upd()});
+for(const [id,f,def] of [["gap","gap",0],["cols","cols",0],["rgap","rgap",30],["fl","fl",1200]])$("#"+id).onchange=e=>{P()[f]=Math.max(0,Math.round(num(e.target.value,def)));upd()};
+$("#left").onchange=e=>{const v=e.target.value.trim();P().left=v===""?"":Math.round(num(v,0));upd()};
+$("#pnm").oninput=e=>{P().nm=e.target.value;store()};
+$("#plist").onchange=e=>{D.cur=e.target.value;store();render()};
+$("#bSave").onclick=()=>{const p=P();if(!p.nm.trim()){toast("名前を入れてください（1A会議室 など）");$("#pnm").focus();return}p.t=Date.now();store();render();toast("保存しました（このスマホの中）")};
+$("#bNew").onclick=()=>{const p=newPlan(),o=P();Object.assign(p,{gap:o.gap,cols:o.cols,rgap:o.rgap,base:o.base,fl:o.fl});D.list.unshift(p);D.cur=p.id;store();render();$("#pnm").focus()};
+$("#bDel").onclick=()=>{const p=P();if(!confirm(`「${p.nm||"名前なし"}」を消しますか？`))return;D.list=D.list.filter(q=>q!==p);if(!D.list.length)D.list.push(newPlan());D.cur=D.list[0].id;store();render()};
+/* ===== 壁面図（SVG・画面の px で描く） ===== */
+function svgOf(p,wpx){const L=layout(p),Hh=heights(p,L),n=p.it.length;if(!n)return {svg:"",L,Hh};
+ const lf=p.left!==""&&p.left!=null&&p.left!==undefined,ML=lf?100:70,MR=L.rows>1?96:56,MT=80,ext=46+26*L.rows,MB=ext+40,s=Math.min(2.4,Math.max(0.2,(wpx-ML-MR)/Math.max(L.W,1))),W=Math.round(ML+MR+L.W*s),H=Math.round(MT+MB+L.H*s+60);
+ const X=x=>ML+x*s,Y=y=>MT+y*s,C="#c2410c",K="#0f172a",G="#94a3b8";let o="";
+ const T=(x,y,t,a="middle",sz=13,col=C,rot)=>`<text x="${x}" y="${y}" font-size="${sz}" font-weight="700" fill="${col}" text-anchor="${a}" ${rot?`transform="rotate(-90 ${x} ${y})"`:""} font-family="-apple-system,Hiragino Sans,sans-serif">${esc(t)}</text>`;
+ const arr=(x1,y1,x2,y2)=>{const a=Math.atan2(y2-y1,x2-x1),h=6,f=(x,y,b)=>`<path d="M${x} ${y} L${x+h*Math.cos(b+.4)} ${y+h*Math.sin(b+.4)} L${x+h*Math.cos(b-.4)} ${y+h*Math.sin(b-.4)}Z" fill="${C}"/>`;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C}" stroke-width="1.3"/>`+f(x1,y1,a)+f(x2,y2,a+Math.PI)};
+ const hd=(x1,x2,y,t)=>arr(x1,y,x2,y)+T((x1+x2)/2,y-5,t,"middle",x2-x1<26?11:13),vd=(x,y1,y2,t)=>arr(x,y1,x,y2)+T(x+(y2-y1<30?-6:-6),(y1+y2)/2,t,"middle",y2-y1<26?11:13,C,1);
+ const ex=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${G}" stroke-width="1" stroke-dasharray="3 3"/>`;
+ // リモコン
+ for(const r of L){const x=X(r.x),y=Y(r.y),w=r.w*s,h=r.h*s;o+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${3*s}" fill="#f8fafc" stroke="${K}" stroke-width="1.6"/>`;
+  if(r.q.k==="par47"){const u=v=>v*s;o+=`<rect x="${x+u(22)}" y="${y+u(20)}" width="${u(76)}" height="${u(50)}" rx="${u(2)}" fill="#e2e8f0" stroke="${K}" stroke-width="1"/>`;for(let k=0;k<4;k++)o+=`<rect x="${x+u(22+k*19)}" y="${y+u(72)}" width="${u(18)}" height="${u(8)}" fill="none" stroke="${K}" stroke-width=".8"/>`;for(let k=0;k<3;k++)o+=`<rect x="${x+u(17+k*14)}" y="${y+u(88)}" width="${u(13)}" height="${u(13)}" rx="${u(1.5)}" fill="none" stroke="${K}" stroke-width=".8"/>`;o+=`<circle cx="${x+u(91)}" cy="${y+u(95)}" r="${u(10)}" fill="none" stroke="${K}" stroke-width=".8"/>`}
+  o+=`<circle cx="${x+w/2}" cy="${y+h/2}" r="11" fill="#0369a1"/>`+T(x+w/2,y+h/2+4.5,String(r.i+1),"middle",13,"#fff");
+  const nm=r.q.nm||(r.q.k==="par47"?"PAR-47MA":"");if(nm){const t=nm.length>8?nm.slice(0,8)+"…":nm,lw=[...t].reduce((a,c)=>a+(c.charCodeAt(0)<256?.74:1.1),0),fs=Math.max(7,Math.min(11.5,(w+p.gap*s-8)/lw));o+=T(x+w/2,y+h+14,t,"middle",fs,K)}}
+ // 上：全体の幅
+ o+=ex(X(0),Y(0)-4,X(0),MT-34)+ex(X(L.W),Y(0)-4,X(L.W),MT-34)+hd(X(0),X(L.W),MT-30,`全体の幅 ${fmt(L.W)}`);
+ // 下：段ごとに 幅とすき間
+ const yb=Y(L.H);L.rowW.forEach((rw,ri)=>{const yy=yb+46+ri*26,R=L.filter(r=>r.r===ri);R.forEach((r,k)=>{o+=ex(X(r.x),Y(r.y+r.h)+2,X(r.x),yy+4)+ex(X(r.x+r.w),Y(r.y+r.h)+2,X(r.x+r.w),yy+4)+hd(X(r.x),X(r.x+r.w),yy,fmt(r.w));const nx=R[k+1];if(nx&&nx.x>r.x+r.w)o+=hd(X(r.x+r.w),X(nx.x),yy,fmt(nx.x-r.x-r.w))});if(L.rows>1)o+=T(X(0)-6,yy+4,`${ri+1}段`,"end",11,K)});
+ // 右：高さ（段ごと）と全体の高さ
+ const xr=X(L.W);L.rowY.forEach(([y0,rh],ri)=>{o+=ex(xr+2,Y(y0),xr+30,Y(y0))+ex(xr+2,Y(y0+rh),xr+30,Y(y0+rh))+vd(xr+26,Y(y0),Y(y0+rh),fmt(rh));const nx=L.rowY[ri+1];if(nx)o+=vd(xr+26,Y(y0+rh),Y(nx[0]),fmt(nx[0]-y0-rh))});
+ if(L.rows>1)o+=ex(xr+30,Y(0),xr+60,Y(0))+ex(xr+30,Y(L.H),xr+60,Y(L.H))+vd(xr+56,Y(0),Y(L.H),`全体の高さ ${fmt(L.H)}`);
+ // 左：床からの高さ（床は省いて描く）
+ const xf=ML-30,yf=yb+ext+22;o+=`<line x1="${ML-60}" y1="${yf}" x2="${W-10}" y2="${yf}" stroke="${K}" stroke-width="2"/>`+T(W-12,yf+15,"床（FL）","end",12,K);
+ o+=ex(X(0)-2,yb,xf-4,yb)+ex(X(0)-2,Y(0),xf-4,Y(0))+arr(xf,yb,xf,yf)+`<path d="M${xf-7} ${(yb+yf)/2-6} l14 -5 M${xf-7} ${(yb+yf)/2+2} l14 -5" stroke="${C}" stroke-width="1.3" fill="#fff"/>`+T(xf-6,(yb+yf)/2,`FL+${fmt(Hh.bot)}`,"middle",12.5,C,1);
+ o+=T(xf-6,(Y(0)+yb)/2,`上端 FL+${fmt(Hh.top)}`,"middle",11,K,1);
+ // 左の基準
+ if(lf){const xl=X(0)-Math.min(60,Math.max(30,p.left*s));o+=`<line x1="${xl}" y1="${MT-40}" x2="${xl}" y2="${yf}" stroke="${K}" stroke-width="2"/>`+ex(xl,Y(L.H/2),X(0),Y(L.H/2))+hd(xl,X(0),Y(0)-10,`${fmt(p.left)}`).replace(/font-size="\d+"/,'font-size="11"')+T(xl-3,MT-44,"基準","middle",11,K)}
+ o+=T(8,16,`${p.nm||"リモコンの壁面図"}　すき間 ${fmt(p.gap)}${L.rows>1?`・段のすき間 ${fmt(p.rgap)}`:""}（mm）`,"start",13,K);
+ return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/>${o}</svg>`,L,Hh,W,H}}
+function draw(){const p=P(),wpx=Math.max(300,$("#fig").clientWidth||360),{svg,L,Hh}=svgOf(p,wpx);$("#fig").innerHTML=svg;
+ if(!p.it.length){$("#sum").innerHTML="";$("#tbl").innerHTML="";return}
+ $("#sum").innerHTML=`全体 幅 ${fmt(L.W)} × 高さ ${fmt(L.H)} mm<br><small>下端 FL+${fmt(Hh.bot)}・中心 FL+${fmt(Hh.ctr)}・上端 FL+${fmt(Hh.top)}${p.left!==""&&p.left!=null?`・左端は基準から ${fmt(p.left)}`:""}</small>`;
+ const lx=p.left!==""&&p.left!=null?+p.left:0,lb=p.left!==""&&p.left!=null?"基準から":"左端から";
+ $("#tbl").innerHTML=`<tr><th>番</th><th>名前・大きさ</th><th>左の端<br>（${lb}）</th><th>真ん中<br>（${lb}）</th><th>下端<br>FL+</th><th>中心<br>FL+</th></tr>`+L.map(r=>{const yb=Hh.top-(r.y+r.h);return `<tr><td>${r.i+1}</td><td>${esc(r.q.nm||(r.q.k==="par47"?"PAR-47MA":"リモコン"))}<br><small>${fmt(r.w)}×${fmt(r.h)}</small></td><td>${fmt(lx+r.x)}</td><td>${fmt(lx+r.x+r.w/2)}</td><td>${fmt(yb)}</td><td>${fmt(yb+r.h/2)}</td></tr>`}).join("")}
+addEventListener("resize",()=>draw());
+/* 絵で送る・保存（PNG） */
+$("#bShare").onclick=async()=>{const p=P();if(!p.it.length)return;const {svg,W,H}=svgOf(p,1000),im=new Image(),k=2;im.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);try{await im.decode()}catch(e){toast("絵を作れませんでした");return}
+ const c=document.createElement("canvas");c.width=W*k;c.height=H*k;const g=c.getContext("2d");g.scale(k,k);g.drawImage(im,0,0);const b=await new Promise(ok=>c.toBlob(ok,"image/png")),nm=(p.nm||"リモコン壁面図")+".png",f=new File([b],nm,{type:"image/png"});
+ if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:nm})}catch(e){}return}
+ const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=nm;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)};
+render();
+</script>
+</body>
+</html>

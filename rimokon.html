@@ -42,6 +42,7 @@ input.n{width:84px;text-align:right;font-weight:800}
 #fig svg{display:block}
 table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
 th,td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:right;white-space:nowrap}th{color:var(--sub);font-size:12px}td:nth-child(2),th:nth-child(2){text-align:left;white-space:normal}
+#tblH td,#tblH th{text-align:right}#tblH .l{text-align:left;white-space:normal}
 .note{font-size:12.5px;color:var(--sub);line-height:1.6;margin-top:6px}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 30px);transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:88vw;text-align:center;z-index:20}
 </style>
@@ -67,12 +68,19 @@ th,td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:right;white
 <div class="card"><div class="sum" id="sum"></div><div id="fig"></div>
 <div class="row" style="margin-top:8px"><button class="btn pri" id="bShare" style="flex:1">📤 絵で送る・保存</button></div>
 <table id="tbl"></table></div>
+<div id="holeBox" hidden><h2>④ 穴あけ・取り付けねじ</h2>
+<div class="card"><div class="note" style="margin-top:0"><b style="color:#dc2626">● 赤＝配線の穴（壁に穴をあける所）</b>　<b style="color:#16a34a">● 緑＝取り付けねじ</b>。横は表の左と同じ所から、高さは床から。</div>
+<div style="overflow-x:auto"><table id="tblH"></table></div>
+<div id="figH" style="background:#fff;border:1.5px solid var(--line);border-radius:14px;overflow-x:auto;margin-top:8px"></div>
+<div class="note">ねじは仕様書の寸法（横の間46・たての間83.5・真ん中から左右23）。配線の穴の高さは仕様書に数字が無いので図から読んだ目安（上から約32）です。あける前に本物のリモコンの裏で確かめてください。</div></div></div>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let toastT=0;function toast(m){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";document.body.appendChild(t)}t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
 /* リモコンの種類（大きさは mm・メーカーの外形図の値だけ） */
 const KIND={par47:{n:"PAR-47MA",w:120,h:120,d:14.5,face:"par"},cus:{n:"リモコン",w:120,h:120}};
+/* 穴あけ・取り付けねじ（リモコンの左上から mm・仕様書の外形図の向き）。w＝配線の穴（仕様書に寸法が無いので図から読んだ目安 est）、s＝取り付けねじ（横46・たて83.5・真ん中から左右23） */
+const HOLE={par47:{w:{x:60,y:32,est:1},s:[{x:37,y:18.25},{x:83,y:101.75}]}};
 const BASE={b:"下端",c:"中心",t:"上端"};
 const newPlan=()=>({id:"r"+Date.now().toString(36),nm:"",t:Date.now(),it:[{k:"par47",w:120,h:120,nm:""},{k:"par47",w:120,h:120,nm:""}],gap:20,cols:0,rgap:30,base:"b",fl:1200,left:""});
 let D;try{D=JSON.parse(localStorage.getItem("pbm_rimo")||"null")}catch(e){D=null}
@@ -84,7 +92,7 @@ const num=(v,d)=>{const n=+String(v).replace(/[^\d.\-]/g,"");return isFinite(n)&
 function layout(p){const n=p.it.length,cols=p.cols>0?p.cols:n,rows=[];for(let i=0;i<n;i+=cols)rows.push(p.it.slice(i,i+cols).map((q,j)=>({q,i:i+j})));
  let y=0;const out=[];rows.forEach((r,ri)=>{let x=0;const rh=Math.max(...r.map(o=>o.q.h));r.forEach((o,k)=>{out.push({...o,x,y,w:o.q.w,h:o.q.h,r:ri});x+=o.q.w+(k<r.length-1?p.gap:0)});out.rowW=out.rowW||[];out.rowW[ri]=x;out.rowY=out.rowY||[];out.rowY[ri]=[y,rh];y+=rh+(ri<rows.length-1?p.rgap:0)});
  out.W=Math.max(0,...(out.rowW||[0]));out.H=y;out.rows=rows.length;return out}
-const fmt=v=>(Math.round(v*10)/10).toLocaleString("ja-JP");
+const fmt=v=>(Math.round(v*100)/100).toLocaleString("ja-JP");
 function heights(p,L){const b=p.base==="b"?p.fl:p.base==="c"?p.fl-L.H/2:p.fl-L.H;return {bot:b,ctr:b+L.H/2,top:b+L.H}} // 床から（全体の下端・中心・上端）
 /* ===== 画面 ===== */
 function chips(el,vals,cur,fn,lbl){el.innerHTML=vals.map(v=>`<button class="chip ${String(v)===String(cur)?"on":""}" data-v="${v}">${lbl?lbl(v):v}</button>`).join(" ");el.onclick=e=>{const b=e.target.closest("[data-v]");if(b)fn(b.dataset.v)}}
@@ -110,8 +118,8 @@ $("#bNew").onclick=()=>{const p=newPlan(),o=P();Object.assign(p,{gap:o.gap,cols:
 $("#bDel").onclick=()=>{const p=P();if(!confirm(`「${p.nm||"名前なし"}」を消しますか？`))return;D.list=D.list.filter(q=>q!==p);if(!D.list.length)D.list.push(newPlan());D.cur=D.list[0].id;store();render()};
 /* ===== 壁面図（SVG・画面の px で描く） ===== */
 function svgOf(p,wpx){const L=layout(p),Hh=heights(p,L),n=p.it.length;if(!n)return {svg:"",L,Hh};
- const lf=p.left!==""&&p.left!=null&&p.left!==undefined,ML=lf?100:70,MR=L.rows>1?96:56,MT=80,ext=46+26*L.rows,MB=ext+40,s=Math.min(2.4,Math.max(0.2,(wpx-ML-MR)/Math.max(L.W,1))),W=Math.round(ML+MR+L.W*s),H=Math.round(MT+MB+L.H*s+60);
- const X=x=>ML+x*s,Y=y=>MT+y*s,C="#c2410c",K="#0f172a",G="#94a3b8";let o="";
+ const lf=p.left!==""&&p.left!=null&&p.left!==undefined,ML=lf?100:70,MR=L.rows>1?96:56,MT=80,hasH=L.some(r=>HOLE[r.q.k]),ext=46+26*L.rows*(hasH?2:1),MB=ext+40,s=Math.min(2.4,Math.max(0.2,(wpx-ML-MR)/Math.max(L.W,1))),W=Math.round(ML+MR+L.W*s),H=Math.round(MT+MB+L.H*s+60);
+ const X=x=>ML+x*s,Y=y=>MT+y*s;let C="#c2410c";const K="#0f172a",G="#94a3b8";let o="";
  const T=(x,y,t,a="middle",sz=13,col=C,rot)=>`<text x="${x}" y="${y}" font-size="${sz}" font-weight="700" fill="${col}" text-anchor="${a}" ${rot?`transform="rotate(-90 ${x} ${y})"`:""} font-family="-apple-system,Hiragino Sans,sans-serif">${esc(t)}</text>`;
  const arr=(x1,y1,x2,y2)=>{const a=Math.atan2(y2-y1,x2-x1),h=6,f=(x,y,b)=>`<path d="M${x} ${y} L${x+h*Math.cos(b+.4)} ${y+h*Math.sin(b+.4)} L${x+h*Math.cos(b-.4)} ${y+h*Math.sin(b-.4)}Z" fill="${C}"/>`;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C}" stroke-width="1.3"/>`+f(x1,y1,a)+f(x2,y2,a+Math.PI)};
  const hd=(x1,x2,y,t)=>arr(x1,y,x2,y)+T((x1+x2)/2,y-5,t,"middle",x2-x1<26?11:13),vd=(x,y1,y2,t)=>arr(x,y1,x,y2)+T(x+(y2-y1<30?-6:-6),(y1+y2)/2,t,"middle",y2-y1<26?11:13,C,1);
@@ -119,12 +127,15 @@ function svgOf(p,wpx){const L=layout(p),Hh=heights(p,L),n=p.it.length;if(!n)retu
  // リモコン
  for(const r of L){const x=X(r.x),y=Y(r.y),w=r.w*s,h=r.h*s;o+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${3*s}" fill="#f8fafc" stroke="${K}" stroke-width="1.6"/>`;
   if(r.q.k==="par47"){const u=v=>v*s;o+=`<rect x="${x+u(22)}" y="${y+u(20)}" width="${u(76)}" height="${u(50)}" rx="${u(2)}" fill="#e2e8f0" stroke="${K}" stroke-width="1"/>`;for(let k=0;k<4;k++)o+=`<rect x="${x+u(22+k*19)}" y="${y+u(72)}" width="${u(18)}" height="${u(8)}" fill="none" stroke="${K}" stroke-width=".8"/>`;for(let k=0;k<3;k++)o+=`<rect x="${x+u(17+k*14)}" y="${y+u(88)}" width="${u(13)}" height="${u(13)}" rx="${u(1.5)}" fill="none" stroke="${K}" stroke-width=".8"/>`;o+=`<circle cx="${x+u(91)}" cy="${y+u(95)}" r="${u(10)}" fill="none" stroke="${K}" stroke-width=".8"/>`}
-  o+=`<circle cx="${x+w/2}" cy="${y+h/2}" r="11" fill="#0369a1"/>`+T(x+w/2,y+h/2+4.5,String(r.i+1),"middle",13,"#fff");
+  const ho=HOLE[r.q.k];if(ho){const hr=Math.max(4,8*s);o+=`<circle cx="${x+ho.w.x*s}" cy="${y+ho.w.y*s}" r="${hr}" fill="rgba(220,38,38,.18)" stroke="#dc2626" stroke-width="2"/><path d="M${x+ho.w.x*s-hr-3} ${y+ho.w.y*s}h${2*hr+6}M${x+ho.w.x*s} ${y+ho.w.y*s-hr-3}v${2*hr+6}" stroke="#dc2626" stroke-width="1"/>`;for(const q of ho.s)o+=`<circle cx="${x+q.x*s}" cy="${y+q.y*s}" r="${Math.max(3,3*s)}" fill="#16a34a" stroke="#fff" stroke-width="1"/>`}
+  o+=`<circle cx="${x+w/2}" cy="${y+h/2+(ho?10*s:0)}" r="11" fill="#0369a1"/>`+T(x+w/2,y+h/2+(ho?10*s:0)+4.5,String(r.i+1),"middle",13,"#fff");
   const nm=r.q.nm||(r.q.k==="par47"?"PAR-47MA":"");if(nm){const t=nm.length>8?nm.slice(0,8)+"…":nm,lw=[...t].reduce((a,c)=>a+(c.charCodeAt(0)<256?.74:1.1),0),fs=Math.max(7,Math.min(11.5,(w+p.gap*s-8)/lw));o+=T(x+w/2,y+h+14,t,"middle",fs,K)}}
  // 上：全体の幅
  o+=ex(X(0),Y(0)-4,X(0),MT-34)+ex(X(L.W),Y(0)-4,X(L.W),MT-34)+hd(X(0),X(L.W),MT-30,`全体の幅 ${fmt(L.W)}`);
  // 下：段ごとに 幅とすき間
  const yb=Y(L.H);L.rowW.forEach((rw,ri)=>{const yy=yb+46+ri*26,R=L.filter(r=>r.r===ri);R.forEach((r,k)=>{o+=ex(X(r.x),Y(r.y+r.h)+2,X(r.x),yy+4)+ex(X(r.x+r.w),Y(r.y+r.h)+2,X(r.x+r.w),yy+4)+hd(X(r.x),X(r.x+r.w),yy,fmt(r.w));const nx=R[k+1];if(nx&&nx.x>r.x+r.w)o+=hd(X(r.x+r.w),X(nx.x),yy,fmt(nx.x-r.x-r.w))});if(L.rows>1)o+=T(X(0)-6,yy+4,`${ri+1}段`,"end",11,K)});
+ // 下：段ごとに 配線の穴の間（赤）
+ if(hasH){C="#dc2626";L.rowW.forEach((rw,ri)=>{const yy=yb+46+(L.rows+ri)*26,R=L.filter(r=>r.r===ri&&HOLE[r.q.k]);if(!R.length)return;const R0=L.filter(r=>r.r===ri)[0];let px=R0.x;o+=ex(X(px),yb+2,X(px),yy+4);for(const r of R){const hx=r.x+HOLE[r.q.k].w.x;o+=ex(X(hx),Y(r.y+HOLE[r.q.k].w.y),X(hx),yy+4)+hd(X(px),X(hx),yy,fmt(hx-px));px=hx}o+=T(X(0)-6,yy+4,L.rows>1?`穴${ri+1}`:"穴","end",11,C)});C="#c2410c"}
  // 右：高さ（段ごと）と全体の高さ
  const xr=X(L.W);L.rowY.forEach(([y0,rh],ri)=>{o+=ex(xr+2,Y(y0),xr+30,Y(y0))+ex(xr+2,Y(y0+rh),xr+30,Y(y0+rh))+vd(xr+26,Y(y0),Y(y0+rh),fmt(rh));const nx=L.rowY[ri+1];if(nx)o+=vd(xr+26,Y(y0+rh),Y(nx[0]),fmt(nx[0]-y0-rh))});
  if(L.rows>1)o+=ex(xr+30,Y(0),xr+60,Y(0))+ex(xr+30,Y(L.H),xr+60,Y(L.H))+vd(xr+56,Y(0),Y(L.H),`全体の高さ ${fmt(L.H)}`);
@@ -140,7 +151,31 @@ function draw(){const p=P(),wpx=Math.max(300,$("#fig").clientWidth||360),{svg,L,
  if(!p.it.length){$("#sum").innerHTML="";$("#tbl").innerHTML="";return}
  $("#sum").innerHTML=`全体 幅 ${fmt(L.W)} × 高さ ${fmt(L.H)} mm<br><small>下端 FL+${fmt(Hh.bot)}・中心 FL+${fmt(Hh.ctr)}・上端 FL+${fmt(Hh.top)}${p.left!==""&&p.left!=null?`・左端は基準から ${fmt(p.left)}`:""}</small>`;
  const lx=p.left!==""&&p.left!=null?+p.left:0,lb=p.left!==""&&p.left!=null?"基準から":"左端から";
- $("#tbl").innerHTML=`<tr><th>番</th><th>名前・大きさ</th><th>左の端<br>（${lb}）</th><th>真ん中<br>（${lb}）</th><th>下端<br>FL+</th><th>中心<br>FL+</th></tr>`+L.map(r=>{const yb=Hh.top-(r.y+r.h);return `<tr><td>${r.i+1}</td><td>${esc(r.q.nm||(r.q.k==="par47"?"PAR-47MA":"リモコン"))}<br><small>${fmt(r.w)}×${fmt(r.h)}</small></td><td>${fmt(lx+r.x)}</td><td>${fmt(lx+r.x+r.w/2)}</td><td>${fmt(yb)}</td><td>${fmt(yb+r.h/2)}</td></tr>`}).join("")}
+ $("#tbl").innerHTML=`<tr><th>番</th><th>名前・大きさ</th><th>左の端<br>（${lb}）</th><th>真ん中<br>（${lb}）</th><th>下端<br>FL+</th><th>中心<br>FL+</th></tr>`+L.map(r=>{const yb=Hh.top-(r.y+r.h);return `<tr><td>${r.i+1}</td><td>${esc(r.q.nm||(r.q.k==="par47"?"PAR-47MA":"リモコン"))}<br><small>${fmt(r.w)}×${fmt(r.h)}</small></td><td>${fmt(lx+r.x)}</td><td>${fmt(lx+r.x+r.w/2)}</td><td>${fmt(yb)}</td><td>${fmt(yb+r.h/2)}</td></tr>`}).join("");
+ const LH=L.filter(r=>HOLE[r.q.k]);$("#holeBox").hidden=!LH.length;if(!LH.length)return;
+ const pt=(r,q,t,c)=>`<td class="l" style="color:${c};font-weight:800">${t}</td><td>${fmt(lx+r.x+q.x)}</td><td>${fmt(Hh.top-(r.y+q.y))}</td>`;
+ $("#tblH").innerHTML=`<tr><th>番</th><th class="l">名前</th><th class="l">所</th><th>横<br>（${lb}）</th><th>高さ<br>FL+</th></tr>`+LH.map(r=>{const ho=HOLE[r.q.k],nm=`<td rowspan="3" style="vertical-align:top">${r.i+1}</td><td rowspan="3" class="l" style="vertical-align:top">${esc(r.q.nm||KIND[r.q.k].n)}</td>`;return `<tr>${nm}${pt(r,ho.w,"● 配線の穴","#dc2626")}</tr><tr>${pt(r,ho.s[0],"● ねじ（上）","#16a34a")}</tr><tr>${pt(r,ho.s[1],"● ねじ（下）","#16a34a")}</tr>`}).join("");
+ $("#figH").innerHTML=detOf("par47",Math.max(300,$("#figH").clientWidth||360))}
+/* 1台の穴とねじの寸法（PAR-47MA） */
+function detOf(k,wpx){const kd=KIND[k],ho=HOLE[k],ML=60,MT=96,s=Math.min(2.4,(wpx-ML-70)/kd.w),W=Math.round(ML+kd.w*s+66),H=Math.round(MT+kd.h*s+40),X=x=>ML+x*s,Y=y=>MT+y*s;let C="#c2410c",o="";const K="#0f172a",G="#94a3b8";
+ const T=(x,y,t,a="middle",sz=12,col=C,rot)=>`<text x="${x}" y="${y}" font-size="${sz}" font-weight="700" fill="${col}" text-anchor="${a}" ${rot?`transform="rotate(-90 ${x} ${y})"`:""} font-family="-apple-system,Hiragino Sans,sans-serif">${esc(t)}</text>`;
+ const arr=(x1,y1,x2,y2)=>{const a=Math.atan2(y2-y1,x2-x1),h=5,f=(x,y,b)=>`<path d="M${x} ${y} L${x+h*Math.cos(b+.4)} ${y+h*Math.sin(b+.4)} L${x+h*Math.cos(b-.4)} ${y+h*Math.sin(b-.4)}Z" fill="${C}"/>`;return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${C}" stroke-width="1.2"/>`+f(x1,y1,a)+f(x2,y2,a+Math.PI)};
+ const hd=(x1,x2,y,t)=>arr(x1,y,x2,y)+T((x1+x2)/2,y-4,t),vd=(x,y1,y2,t)=>arr(x,y1,x,y2)+T(x-5,(y1+y2)/2,t,"middle",12,C,1);
+ const ex=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${G}" stroke-width="1" stroke-dasharray="3 3"/>`;
+ const [a,b]=ho.s,w=ho.w;o+=`<rect x="${X(0)}" y="${Y(0)}" width="${kd.w*s}" height="${kd.h*s}" rx="6" fill="#f8fafc" stroke="${K}" stroke-width="1.6"/>`;
+ o+=`<circle cx="${X(w.x)}" cy="${Y(w.y)}" r="${8*s}" fill="rgba(220,38,38,.18)" stroke="#dc2626" stroke-width="2"/><path d="M${X(w.x)-8*s-5} ${Y(w.y)}h${16*s+10}M${X(w.x)} ${Y(w.y)-8*s-5}v${16*s+10}" stroke="#dc2626" stroke-width="1"/>`;
+ for(const q of ho.s)o+=`<circle cx="${X(q.x)}" cy="${Y(q.y)}" r="5" fill="#16a34a" stroke="#fff" stroke-width="1"/>`;
+ o+=T(X(w.x)+8*s+4,Y(w.y)+4,"配線の穴","start",11,"#dc2626")+T(X(a.x)-8,Y(a.y)+4,"ねじ","end",11,"#16a34a")+T(X(b.x)+8,Y(b.y)+4,"ねじ","start",11,"#16a34a");
+ // 上：左から（ねじ・穴・ねじ）
+ const yt=MT-22;o+=[0,a.x,w.x,b.x,kd.w].map(v=>ex(X(v),v===0||v===kd.w?Y(0)-2:Y(v===w.x?w.y:v===a.x?a.y:b.y),X(v),yt-4)).join("");
+ o+=hd(X(0),X(a.x),yt,fmt(a.x))+hd(X(a.x),X(w.x),yt,fmt(w.x-a.x))+hd(X(w.x),X(b.x),yt,fmt(b.x-w.x))+hd(X(b.x),X(kd.w),yt,fmt(kd.w-b.x));
+ C="#16a34a";o+=hd(X(a.x),X(b.x),yt-22,`ねじの間 ${fmt(b.x-a.x)}`)+ex(X(a.x),yt-4,X(a.x),yt-26)+ex(X(b.x),yt-4,X(b.x),yt-26);C="#c2410c";
+ // 右：上から（ねじ・ねじの間・下から）
+ const xr=X(kd.w)+34;o+=[0,a.y,b.y,kd.h].map(v=>ex(v===a.y?X(a.x)+6:X(kd.w)+2,Y(v),xr+4,Y(v))).join("")+vd(xr,Y(0),Y(a.y),fmt(a.y))+vd(xr,Y(a.y),Y(b.y),fmt(b.y-a.y))+vd(xr,Y(b.y),Y(kd.h),fmt(kd.h-b.y));
+ // 左：上から配線の穴（目安）
+ C="#dc2626";const xl=X(0)-22;o+=ex(X(0)-2,Y(0),xl-4,Y(0))+ex(X(w.x)-8*s,Y(w.y),xl-4,Y(w.y))+vd(xl,Y(0),Y(w.y),(w.est?"約":"")+fmt(w.y));
+ o+=T(8,16,`${kd.n}　穴とねじの位置（mm）`,"start",13,K)+T(8,H-10,"正面から見た所（仕様書の外形図の向き）","start",11,"#64748b");
+ return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/>${o}</svg>`}
 addEventListener("resize",()=>draw());
 /* 絵で送る・保存（PNG） */
 $("#bShare").onclick=async()=>{const p=P();if(!p.it.length)return;const {svg,W,H}=svgOf(p,1000),im=new Image(),k=2;im.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);try{await im.decode()}catch(e){toast("絵を作れませんでした");return}

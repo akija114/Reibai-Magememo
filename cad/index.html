@@ -3706,7 +3706,7 @@ function openSaveSheet(){
     };
     body.querySelector('#sv1')?.addEventListener('click', () => save(false));
     body.querySelector('#sv2').addEventListener('click', () => save(true));
-    body.querySelector('#svMage').addEventListener('click', () => sendToMage(nm()));
+    body.querySelector('#svMage').addEventListener('click', async () => { let c = null; try { c = ON_MAGE_SITE && (elevIs() || ceilAna()); } catch(e){} if (!c) return sendToMage(nm()); /* 天井の配管図・立面図は曲げメモの図面画面では読めないので、図面編集の3Dをそのまま渡す（2026-11-14 ユーザー） */ S.name = nm(); updateUi(); closeSheet(); await open3D(); if (!$('#v3d').hidden && V3.sc) send3DMage(null); });
     body.querySelector('#svPdf').addEventListener('click', () => { S.name = nm(); updateUi(); openPdfSheet(); });
     body.querySelector('#sv3').addEventListener('click', async () => { const name = nm(); S.name = name; updateUi(); const out = buildExport(name); await offerFile(name + '.dxf', out); S.dirty = false; });
   });
@@ -4857,8 +4857,10 @@ function ceilSelect(CE, q){ const TH = V3.TH, HL = V3.ceilHL || (V3.ceilHL = new
       const OV = ceilSysMap(), segs = c === 'ren' ? o.segs : CE.ref.filter(e => e.c === q.seg.c); for (const e of segs) OV[ceilKey(e)] = v; ceilSysSet(OV); V3.keepCam = {tg:V3.tg.clone(), dist:V3.dist, th:V3.th, ph:V3.ph, sel:null}; toast(`「${v}」にしました`); open3D(); return; }
     if (c === 'mage') ceilToMage(CE, o); }; }
 /* 選んだ系統を曲げ共有へ（2026-11-05 ユーザー：曲げアプリに移動できる？）：まっすぐの管を端から順にたどって点の並び（角は2本の線の交わる所・高さの変わる所はたて管）。分岐のある系統はまだ送れない */
-async function ceilToMage(CE, o){ if (CE.br.some(b => b.k === 'ref' && CE.sysOf.get(b.from) === o.key)){ toast('分岐のある系統はまだ曲げ共有へ送れません（分岐までの1本ずつは今後）'); return; }
-  const SG = o.segs.filter(e => !e.arc && e.L >= 30); if (!SG.length) return; const near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]), others = (e, p) => SG.some(f => f !== e && Math.min(near(p, f.a), near(p, f.b)) < 450);
+async function ceilToMage(CE, o){ return send3DMage(o.key); }   /* 選んだ系統を起点に、3Dを丸ごと曲げ共有へ（2026-11-14） */
+/* 系統の点の並び [x, y, 高さ]（mm・図面の座標）。分岐のある系統は null */
+function ceilPathP(CE, o){ if (CE.br.some(b => b.k === 'ref' && CE.sysOf.get(b.from) === o.key)) return null;
+  const SG = o.segs.filter(e => !e.arc && e.L >= 30); if (!SG.length) return null; const near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]), others = (e, p) => SG.some(f => f !== e && Math.min(near(p, f.a), near(p, f.b)) < 450);
   let cur = SG.find(e => !others(e, e.a) || !others(e, e.b)) || SG[0], end = others(cur, cur.a) ? cur.a : cur.b; const seq = [], used = new Set();
   for (;;){ used.add(cur); const st = near(end, cur.a) < 1 ? cur.a : cur.b, en = st === cur.a ? cur.b : cur.a; seq.push({e:cur, st, en}); let nx = null, nd = 1500; for (const f of SG){ if (used.has(f)) continue; for (const p of [f.a, f.b]){ const d = near(p, en); if (d < nd){ nd = d; nx = {f, p}; } } } if (!nx) break; cur = nx.f; end = nx.p; }
   const P = [], push = (p, h) => { const l = P[P.length - 1]; if (l && Math.hypot(l[0] - p[0], l[1] - p[1]) < 25) p = [l[0], l[1]]; if (l && Math.hypot(l[0] - p[0], l[1] - p[1]) < 1 && Math.abs(l[2] - h) < 1) return; P.push([Math.round(p[0]), Math.round(p[1]), Math.round(h)]); };
@@ -4867,11 +4869,7 @@ async function ceilToMage(CE, o){ if (CE.br.some(b => b.k === 'ref' && CE.sysOf.
     if (Math.abs(cr) > 0.3){ const t = ((b.st[0] - a.st[0])*db[1] - (b.st[1] - a.st[1])*db[0])/cr; const X2 = [a.st[0] + da[0]*t, a.st[1] + da[1]*t]; push(X2, a.e.h); push(X2, b.e.h); }
     else { push(a.en, a.e.h); push(b.st, b.e.h); } }
   const z = seq[seq.length - 1]; push(z.en, z.e.h); const oeB = CE.oe.find(q => q.e === z.e && near(q.p, z.en) < 300); if (oeB) push(z.en, CE.OUT_H);
-  if (P.length < 2){ toast('この系統は送れませんでした'); return; }
-  const rec = {v:1, name:(S.name || S.srcName || '図面') + '・' + o.nm, t:Date.now(), ch:2700, walls:[], ubs:[], units:[], pipes:[{nm:o.nm, P, ui:-1}]};
-  try { await new Promise((ok, ng) => { const q = indexedDB.open('pbmShare', 1); q.onupgradeneeded = () => { if (!q.result.objectStoreNames.contains('f')) q.result.createObjectStore('f'); }; q.onerror = () => ng(q.error);
-      q.onsuccess = () => { try { const db = q.result, tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(rec, 'pipes'); tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = tx.onabort = () => ng(tx.error); } catch(e){ ng(e); } }; });
-    autosave(false); toast(`「${o.nm}」を曲げ共有で開いています…`); setTimeout(() => { location.href = '../index.html?from=cadpipes'; }, 900); } catch(e){ toast('渡せませんでした（' + ((e && e.message) || e) + '）'); } }
+  return P; }
 function ceilMat(CE){ const SY = ceilSys(CE).map(o => o.len);
   const nm = z => { const t = CE.tab[z]; return t ? `${z}（${ceilBun(t[0])}・${ceilBun(t[1])}）` : z === '?' ? '記号なし' : z; };
   const tot = {}; SY.forEach(o => { if (o) for (const z in o) tot[z] = (tot[z] || 0) + o[z]; }); const m = v => (v/1000).toFixed(1) + ' m', ks = o => Object.keys(o).sort();
@@ -4963,9 +4961,9 @@ async function open3Dold(){
   for (const p of nps){ const h = npH(p, p.pts.length - 1), P = [], mat = p.k === 'dr' ? dmat : mat0; // ドレンは緑
     if (p.sl){ let cu = 0; p.pts.forEach((q, i) => { if (i) cu += Math.hypot(q[0] - p.pts[i-1][0], q[1] - p.pts[i-1][1])*u; const w = W(q[0], q[1]); P.push(new TH.Vector3(w[0], h[0] - cu/p.sl, w[1])); }); } // 勾配（1/sl）で下げる
     else p.pts.forEach((q, i) => { const w = W(q[0], q[1]), hs = []; if (i > 0) hs.push(h[i-1]); if (i < p.pts.length - 1) hs.push(h[i]); [...new Set(hs)].forEach(z => P.push(new TH.Vector3(w[0], z, w[1]))); }); // 高さの変わる所はたて管
-    for (let i = 1; i < P.length; i++){ const a = P[i-1], b = P[i], L = a.distanceTo(b); if (L < 1) continue; const m = new TH.Mesh(new TH.CylinderGeometry(R, R, L, 12), mat); m.position.copy(a).add(b).multiplyScalar(.5); m.quaternion.setFromUnitVectors(new TH.Vector3(0, 1, 0), b.clone().sub(a).normalize()); sc.add(m);
+    for (let i = 1; i < P.length; i++){ const a = P[i-1], b = P[i], L = a.distanceTo(b); if (L < 1) continue; const m = new TH.Mesh(new TH.CylinderGeometry(R, R, L, 12), mat); m.position.copy(a).add(b).multiplyScalar(.5); m.quaternion.setFromUnitVectors(new TH.Vector3(0, 1, 0), b.clone().sub(a).normalize()); m.userData.np = p.no; sc.add(m);
       const vt = !p.sl && Math.abs(a.y - b.y) > 1; sc.add(v3dLabel(TH, vt ? `たて ${Math.round(L)}` : p.sl ? `${Math.round(L)}・1/${p.sl}・FL${Math.round(b.y)}` : `${Math.round(L)}・FL${Math.round(a.y)}`, a.clone().add(b).multiplyScalar(.5).add(new TH.Vector3(0, 120, 0)))); }
-    P.forEach(q => { const k = new TH.Mesh(new TH.SphereGeometry(R, 12, 8), mat); k.position.copy(q); sc.add(k); bb.expandByPoint(q); });
+    P.forEach(q => { const k = new TH.Mesh(new TH.SphereGeometry(R, 12, 8), mat); k.position.copy(q); k.userData.np = p.no; sc.add(k); bb.expandByPoint(q); });
     for (const q of p.pts){ const w = W(q[0], q[1]); const g = new TH.BufferGeometry().setFromPoints([new TH.Vector3(w[0], 0, w[1]), new TH.Vector3(w[0], Math.min(...h), w[1])]); sc.add(new TH.Line(g, new TH.LineDashedMaterial({color:0xc8763a, dashSize:80, gapSize:60})).computeLineDistances()); } } // 床からの点線（位置が分かるように）
   { const hm = new TH.MeshStandardMaterial({color:0xea580c}); for (const o of S.holes || []){ const w = W(o.x, o.y), p = nps.find(q => q.w === o.id), r = (o.d || 100)/2, m = new TH.Mesh(new TH.TorusGeometry(r, 12, 8, 24), hm); m.position.set(w[0], o.h, w[1]); // 貫通部：オレンジの輪（通る配管の向きに）
     if (p){ const i = p.pts.length - 2, a = W(...p.pts[i]), b = W(...p.pts[i+1]); m.lookAt(new TH.Vector3(w[0] + b[0] - a[0], o.h, w[1] + b[1] - a[1])); } else m.rotation.y = Math.PI/2; sc.add(m); sc.add(v3dLabel(TH, `貫通 φ${o.d || 100}`, new TH.Vector3(w[0], o.h + r + 120, w[1]))); bb.expandByPoint(m.position); } }
@@ -5024,7 +5022,7 @@ async function open3Dold(){
   if (kli < 0 || (G.L[kli].on && !G.L[kli].deleted)) for (const k of S.kiki){ if (gone(KB + k.no)) continue; const w = W(k.x, k.y), hh = 300; const m = new TH.Mesh(new TH.BoxGeometry(k.w*u, hh, k.d*u), km); m.position.set(w[0], CH - hh/2, w[1]); sc.add(m); bb.expandByPoint(m.position); }
   const M2 = A.units.concat(A.ubs); if (bb.isEmpty() && (M2.length || A.bld)){ const r = M2.length ? [Math.min(...M2.map(c => c.x0)) - 1500, Math.min(...M2.map(c => c.y0)) - 1500, Math.max(...M2.map(c => c.x1)) + 1500, Math.max(...M2.map(c => c.y1)) + 1500] : A.bld, a = W(r[0]/u, r[1]/u), b = W(r[2]/u, r[3]/u); /* 最初に見る所：室内機・ユニットバスのある所 */ bb.expandByPoint(new TH.Vector3(a[0], 0, a[1])); bb.expandByPoint(new TH.Vector3(b[0], A.wallH, b[1])); }
   if (bb.isEmpty()){ bb.expandByPoint(new TH.Vector3((B.x0*u - cx), 0, -(B.y0*u - cy))); bb.expandByPoint(new TH.Vector3((B.x1*u - cx), 0, -(B.y1*u - cy))); }
-  V3.sc = sc; V3.bb = bb; V3.TH = TH; lg.userData.k = 'plan'; for (const o of sc.children) if (o.userData.k) o.visible = V3.on[o.userData.k] !== false;
+  V3.sc = sc; V3.bb = bb; V3.TH = TH; V3.cx = cx; V3.cy = cy; lg.userData.k = 'plan'; for (const o of sc.children) if (o.userData.k) o.visible = V3.on[o.userData.k] !== false;
   $('#v3dN').textContent = (MG ? `曲げメモと同じ読み方：室内機 ${mg.ind || 'なし'}・壁 ${mg.walls.length}・ユニットバス ${A.ubs.length}` + (V3.mgN.duct ? '・ダクト' : '') + (V3.mgN.eisei ? '・衛生' : '') + '。' : `壁 ${A.walls.length}${A.doors && A.doors.length ? `・扉 ${A.doors.length}` : ''}・ユニットバス ${A.ubs.length}・室内機 ${A.units.length}・吹出口など ${A.outs.length}・点検口 ${A.insp.length}（図面から自動で読んだ目安・機器は天井の上）。` + (A.walls.length < 12 && S.pdfInfo ? `⚠️ 壁が少ししか読めていません。PDFの縮尺がずれているかもしれません（今 ${S.pdfInfo.scale ? niceScaleText(S.pdfInfo.scale) : '?'}${S.pdfInfo.from ? '・' + S.pdfInfo.from : ''}）。通り芯と通り芯など長さの分かる寸法を1本測って合わせ直してください。` : '')) + (nps.length ? `冷媒配管 ${nps.filter(p => p.k !== 'dr').length}本${nps.some(p => p.k === 'dr') ? `・ドレン配管 ${nps.filter(p => p.k === 'dr').length}本` : ''}${S.holes.length ? `・貫通部 ${S.holes.length}か所` : ''}（数字は長さmm・FLは床からの高さ）。1本指で回す・2本指で動かす／ひろげる` : '1本指で回す・2本指で動かす／ひろげる');
   if (CE) $('#v3dN').textContent = `天井の中（図面の文字から読んだ目安）：冷媒 ${CE.n.ref}本・ドレン ${CE.n.drn}本・分岐 ${CE.br.filter(b => b.k === 'ref').length}・梁の貫通 ${CE.slv.length}（「梁の貫通」で出す）。サイズ・高さは図面の「R C FL+」「D 25A FL+」から。` + $('#v3dN').textContent;
   V3.onTap = (x, y) => { if (v3dUnitTap(x, y)) return; if (CE) ceilTap(CE, x, y); }; /* 室内機をタップ → 向き・高さ（2026-11-10） */ V3.ceilCE = CE; V3.ceilQ = null; { const c = $('#ceilSel'); if (c) c.remove(); }
@@ -5072,15 +5070,33 @@ async function sendPipes(){
   const pipes = S.np.filter(p => p.k !== 'dr' && !isW(p.k) && !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no)).map((p, j) => { /* 曲げ共有へは冷媒配管だけ */ const h = npH(p, p.pts.length - 1), P = [];
     p.pts.forEach((q, i) => { const hs = []; if (i > 0) hs.push(h[i-1]); if (i < p.pts.length - 1) hs.push(h[i]); [...new Set(hs)].forEach(z => P.push([Math.round(q[0]*u), Math.round(q[1]*u), Math.round(z)])); });
     const ui = p.u ? PO.findIndex(o => Math.hypot(o.cx/u - p.u.c[0], o.cy/u - p.u.c[1]) < 1) : -1;
-    return {nm:'配管' + (j + 1), P, ui}; }).filter(p => p.P.length > 1);
+    return {nm:'配管' + (j + 1), P, ui, np:p.no}; }).filter(p => p.P.length > 1);
   if (!pipes.length){ toast('冷媒配管がありません。「ルート」→「＋ 1から引く」で室内機から引いてください'); return; }
   const rec = {v:1, name:S.name || S.srcName || '図面', t:Date.now(), ch:A.CH0, walls:A.walls.filter(w => w.length < 5).map(w => w.map(Math.round)), ubs:A.ubs.map(b => ({x0:Math.round(b.x0), y0:Math.round(b.y0), x1:Math.round(b.x1), y1:Math.round(b.y1), nm:b.nm, ch:b.ch})), units, pipes};
+  return mageSend(rec); }
+/* 図面編集の3Dをそのまま曲げ共有へ（2026-11-14 ユーザー：図面修正の3Dをそのまま曲げアプリで開けるように）。
+   今の3Dの形（見えている物・ライトは除く）を JSON（sc）で一緒に渡す。3D の x＝mm−cx・z＝−(mm−cy)・y＝床からの高さ。
+   冷媒の管には系統 sy・1から引いた配管には np（曲げ共有で、今の配管は隠し、ほかはタップで選べる） */
+function v3dSceneJSON(CE){ if (!V3.sc) return null; const all = V3.sc.children.slice(), bk = [];
+  try { V3.sc.children = all.filter(o => !o.isLight && o.visible !== false);
+    const GC = new Map(); V3.sc.traverse(x => { const d = x.userData || {}, n = {}; bk.push([x, x.userData, x.material, x.geometry]); if (d.m0) x.material = d.m0; const g = x.geometry; if (g && /^(Edges|Wireframe)Geometry$/.test(g.type)){ if (!GC.has(g)) GC.set(g, new V3.TH.BufferGeometry().copy(g)); x.geometry = GC.get(g); } /* 読み込む側（ObjectLoader）が知らない形は、ただの線に */ if (d.k) n.k = d.k; if (d.np != null) n.np = d.np; if (CE && d.ce === 'ref' && d.seg){ const k = CE.sysOf.get(d.seg); if (k != null) n.sy = String(k); } x.userData = n; });
+    const j = V3.sc.toJSON(), ta = a => a && Array.isArray(a.array) && self[a.type] && (a.array = new self[a.type](a.array));   /* 数の並びは型付きの配列のまま渡す（文字にすると25MB・2026-11-14） */
+    for (const g of j.geometries || []){ const d = g.data; if (!d) continue; ta(d.index); for (const k in d.attributes || {}) ta(d.attributes[k]); }
+    return j; }
+  catch(e){ console.warn(e); return null; }
+  finally { for (const [x, d, m, g] of bk){ x.userData = d; x.material = m; if (g) x.geometry = g; } V3.sc.children = all; } }
+/* 3Dの「曲げ共有へ」：天井の配管図は分岐の無い系統を全部（選んだ系統 key が最初に開く）、立面図などは3Dだけ */
+async function send3DMage(key){ if (!V3.sc) return; const CE = V3.ceilCE, pipes = []; let cur = 0;
+  if (CE) for (const o of CE.sys || []){ const P = ceilPathP(CE, o); if (!P || P.length < 2) continue; if (o.key === key) cur = pipes.length; pipes.push({nm:o.nm, P, ui:-1, sy:String(o.key)}); }
+  if (key != null && CE && !pipes.some(p => p.sy === String(key))) toast('選んだ系統は分岐があるので曲げは出せません（3Dは全部送ります）');
+  return mageSend({v:1, name:S.name || S.srcName || '図面', t:Date.now(), ch:CE ? 2700 : 2400, walls:[], ubs:[], units:[], pipes, cur}); }
+async function mageSend(rec){ toast('3Dをまとめています…'); await new Promise(r => setTimeout(r, 30)); const j = v3dSceneJSON(V3.ceilCE); if (j){ rec.sc = j; rec.cx = V3.cx; rec.cy = V3.cy; }
   try { await new Promise((ok, ng) => { const o = indexedDB.open('pbmShare', 1); o.onupgradeneeded = () => { if (!o.result.objectStoreNames.contains('f')) o.result.createObjectStore('f'); }; o.onerror = () => ng(o.error);
       o.onsuccess = () => { try { const db = o.result, tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(rec, 'pipes'); tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = tx.onabort = () => ng(tx.error); } catch(e){ ng(e); } }; });
     autosave(false); toast('曲げ共有を開いています…'); setTimeout(() => { location.href = '../index.html?from=cadpipes'; }, 900); // 端末への保存（0.8秒後）が済んでから
   } catch(e){ toast('渡せませんでした（' + ((e && e.message) || e) + '）'); }
 }
-$('#v3dMg').onclick = () => { if (V3.onTap && V3.ceilCE){ const q = V3.ceilQ, o = q && q.sys && V3.ceilCE.sys.find(x => x.key === q.sys); if (o) ceilToMage(V3.ceilCE, o); else toast('天井の配管図は、3Dで冷媒の管をタップして系統を選んでから「曲げ共有へ」を押してください'); return; }   /* 天井の配管図は系統ごとに曲げ共有へ（2026-11-06 ユーザー：開けなかった） */ if (!S.np.some(p => !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no))) return sendToMage(S.name || (S.srcName || '図面').replace(/\.[^.]+$/, '')); sendPipes(); }; // 1から引いた配管が無い時は、図面ごと曲げメモへ（3Dと同じ読み方）
+$('#v3dMg').onclick = () => { if (V3.onTap && V3.ceilCE){ const q = V3.ceilQ; send3DMage(q && q.sys != null ? q.sys : null); return; } if (elevIs()) return send3DMage(null);   /* 天井の配管図・立面図は3Dをそのまま（選んだ系統から開く・2026-11-14 ユーザー） */   /* 天井の配管図は系統ごとに曲げ共有へ（2026-11-06 ユーザー：開けなかった） */ if (!S.np.some(p => !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no))) return sendToMage(S.name || (S.srcName || '図面').replace(/\.[^.]+$/, '')); sendPipes(); }; // 1から引いた配管が無い時は、図面ごと曲げメモへ（3Dと同じ読み方）
 $('#v3dMB').onclick = async () => { $('#v3dX').onclick(); await loadModels(); await askUnitModels(true); open3D(); }; // 機種を選び直す（3Dを閉じて聞いてから作り直す）
 $('#v3dM').onchange = e => { try { localStorage.setItem('zumen-3dunit', e.target.value); localStorage.setItem('zumen-3dunitF', S.srcName || ''); } catch(err){} open3D(); }; // 室内機の機種を変えたら作り直す
 $('#v3d').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) v3dView(b.dataset.v); const t = e.target.closest('[data-t3]'); if (t && V3.sc){ const k = t.dataset.t3; V3.on[k] = V3.on[k] === false; t.classList.toggle('sel', V3.on[k] !== false); for (const o of V3.sc.children) if (o.userData.k === k) o.visible = V3.on[k] !== false; v3dDraw(); } }); // 壁・ユニットバス・機器・図面の線を出す／消す

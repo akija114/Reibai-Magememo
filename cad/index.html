@@ -1006,6 +1006,7 @@ ov.addEventListener('pointerdown', e => {
     else if (S.mode === 'box'){ gest = {type:'box', start:p, cur:p}; }
     else if (S.mode === 'np' && S.npe && S.npe.tool === 'trace'){ gest = {type:'np', raw:[s2w(p[0], p[1])]}; }
     else if (S.mode === 'np' && S.npe && S.npe.k === 'rc' && wRAt(p)){ gest = {type:'rcR', ...S.npe._rk}; } // リモコン（□R）を指で動かす
+    else if (S.mode === 'np' && S.npe && S.npe.k === 'rc' && S.npe.multi && wMvAt(p)){ gest = {type:'rcV', ...S.npe._mv, p0:p.slice()}; } // リモコン線をつかんで通る所を足す・動かす（2026-11-14 ユーザー：集中線みたいに）
     else if (S.mode === 'np' && S.npe && S.npe.tool === 'pts' && (npHandleAt(p) || npCurveIns(p))){ const k = npHandleAt(p), s0 = w2s(...npKget(S.npe, k)); gest = {type:'nph', k, d:[s0[0] - p[0], s0[1] - p[1]], p0:p.slice(), ins:!!S.npe._pre, pre:S.npe._pre || wSnapOf(S.npe)}; S.npe._pre = null; } // 始点・終点の丸をドラッグで動かす
     else {
       gest = {type:'pan', start:p, v0:{...view}, t:performance.now(), moved:false};
@@ -1027,6 +1028,7 @@ ov.addEventListener('pointermove', e => {
   const p = evPos(e); ptrs.set(e.pointerId, p);
   if (!gest) return;
   if (gest.type === 'box'){ gest.cur = p; drawOverlay(); return; }
+  if (gest.type === 'rcV'){ const e = S.npe; if (Math.hypot(p[0] - gest.p0[0], p[1] - gest.p0[1]) > 6) gest.moved = true; e.mV[gest.key][gest.j] = s2w(p[0], p[1]); wBuild(); drawOverlay(); return; }
   if (gest.type === 'rcR'){ const w = s2w(p[0], p[1]), e = S.npe; if (gest.live){ e.R = w; wBuild(); } else for (const it of gest.its) it.pts[it.pts.length - 1] = w.slice(); drawOverlay(); return; }
   if (gest.type === 'nph'){ const e = S.npe; if (gest.p0 && Math.hypot(p[0] - gest.p0[0], p[1] - gest.p0[1]) > 6) gest.moved = true; npKset(e, gest.k, s2w(p[0] + gest.d[0], p[1] + gest.d[1])); if (e.A && e.B) e.pts = npFromPts(e.A, e.B, e.flip); drawOverlay(); return; }
   if (gest.type === 'np'){ const w = s2w(p[0], p[1]), q = gest.raw[gest.raw.length - 1]; if (Math.hypot(w[0] - q[0], w[1] - q[1])*view.s > 3) gest.raw.push(w); S.npe.raw = gest.raw; S.npe.pts = null; drawOverlay(); return; }
@@ -1058,6 +1060,8 @@ function endPtr(e, cancel){
     RS.dragging = false; RS.finger = null;
     if (!cancel && RS.cur) routePlace(RS.cur); else { RS.cur = null; updateRouteUi(); }
     gest = null;
+  } else if (gest.type === 'rcV' && ptrs.size === 0){
+    const g0 = gest, e = S.npe; gest = null; if (e && e.mV){ if (!g0.moved && g0.ins) wSnapSet(e, g0.pre); else { (e.Vh = e.Vh || []).push(g0.pre); if (!g0.moved){ const V = e.mV[g0.key]; V.splice(g0.j, 1); if (!V.length) delete e.mV[g0.key]; toast('通る所を消しました（↩ 1つもどす で戻せます）'); } } wBuild(); updateNpPanel(); } drawOverlay();
   } else if (gest.type === 'rcR' && ptrs.size === 0){
     const g0 = gest; gest = null; if (g0.live) updateNpPanel(); else { const R1 = g0.its[0].pts[g0.its[0].pts.length - 1].slice(), R0 = g0.R0; exec({kind:'obj', label:'リモコンを動かす', log:{label:'リモコンを動かす', detail:`リモコン線 ${g0.its.length}本`, eids:g0.its.map(q => KB2 + q.no), box:boxOf([R0, R1])}, do(){ g0.its.forEach(it => { it.pts[it.pts.length - 1] = R1.slice(); }); }, undo(){ g0.its.forEach(it => { it.pts[it.pts.length - 1] = R0.slice(); }); }}); } drawOverlay();
   } else if (gest.type === 'nph' && ptrs.size === 0){
@@ -1358,12 +1362,20 @@ function wRAt(p){ const e = S.npe; if (!e) return false; const nr = q => { const
   if (e.multi && e.R && nr(e.R)){ e._rk = {live:1}; return true; } if (e.pts || e.multi) return false;
   const it = S.np.find(q => q.k === 'rc' && q.rcR && !gone(KB2 + q.no) && nr(q.pts[q.pts.length - 1])); if (!it) return false; const R0 = it.pts[it.pts.length - 1].slice();
   e._rk = {its:S.np.filter(q => q.k === 'rc' && q.rcR && wSame(q.pts[q.pts.length - 1], R0)), R0}; return true; }
-function wSnapOf(e){ return {A:e.A && e.A.slice(), B:e.B && e.B.slice(), V:e.V ? e.V.map(q => q.slice()) : null, Vauto:e.Vauto}; }
-function wSnapSet(e, o){ e.A = o.A; e.B = o.B; e.V = o.V; e.Vauto = o.Vauto; if (e.A && e.B) e.pts = npFromPts(e.A, e.B); }
+function wSnapOf(e){ return {A:e.A && e.A.slice(), B:e.B && e.B.slice(), V:e.V ? e.V.map(q => q.slice()) : null, Vauto:e.Vauto, M:e.mV ? JSON.parse(JSON.stringify(e.mV)) : null}; }
+function wSnapSet(e, o){ e.A = o.A; e.B = o.B; e.V = o.V; e.Vauto = o.Vauto; e.mV = o.M || null; if (e.A && e.B) e.pts = npFromPts(e.A, e.B); if (e.multi) wBuild(); }
+/* リモコン線（何本も）の通る所（2026-11-14 ユーザー：リモコン線も集中線みたいに）：e.mV＝{室内機の点の key: [通る点]}・無い線は弓形。オレンジの丸＝動かす（タップで消す）・線の途中＝通る点を足す */
+const wMk = q => q[0] + ',' + q[1];
+function wMvAt(p){ const e = S.npe, sl = e.sel || [], pre = wSnapOf(e), near = (q, r) => { const a = w2s(...q); return Math.hypot(a[0] - p[0], a[1] - p[1]) < r; }; e.mV = e.mV || {};
+  for (const q of sl){ const V = e.mV[wMk(q)]; if (V) for (let j = V.length - 1; j >= 0; j--) if (near(V[j], 30)){ e._mv = {key:wMk(q), j, pre}; return true; } }
+  if (sl.some(q => near(q, 30)) || (e.R && near(e.R, 30))) return false; let bi = -1, bk = -1, bd = 28;
+  e.multi.forEach((P, k) => { const C = wCurve(P); for (let i = 1; i < C.length; i++){ const a = w2s(...C[i-1]), b = w2s(...C[i]), q = closestOnSeg(p[0], p[1], a[0], a[1], b[0], b[1]), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd){ bd = d; bi = i; bk = k; } } });
+  if (bk < 0) return false; const key = wMk(sl[bk]), w = s2w(p[0], p[1]); let j = 0; if (!e.mV[key]) e.mV[key] = [w]; else { j = wCurve(e.multi[bk]).I[bi]; e.mV[key].splice(j, 0, w); }
+  e._mv = {key, j, pre, ins:true}; wBuild(); return true; }
 /* 集中線の数（2026-11-14 ユーザー）：つないだ室内機・室外機（上の階・下の階へ・ただ通る所は数えない）＋ メモの「ロスナイ」 */
 const wUk = p => p.uk ? p.uk.filter(Boolean).length : (p.us || []).filter((q, i) => !(p.ul && p.ul[i])).length;
 function wCcCount(e){ const sv = S.np.filter(p => p.k === 'cc' && p !== (e && e.edit) && !gone(KB2 + p.no)).reduce((a, p) => a + wUk(p), 0), cur = e ? (e.selK || []).filter(Boolean).length : 0, rn = (S.notes || []).filter(n => /ロスナイ|LGH/i.test(n.text || '')).length, rr = S.np.filter(p => p.k === 'rc' && p.lb && !gone(KB2 + p.no)).length + (e && e.k === 'rc' && e.multi ? (e.selL || []).filter((t, i) => t && i < e.multi.length).length : 0), ro = rn + rr; return {u:sv + cur, ro, rn, rr, t:sv + cur + ro}; } // リモコン線で書き込んだロスナイも数える（2026-11-14 ユーザー）
-function wReset(e){ e.selK = []; e.Vh = []; e.selL = []; e.sel = []; e.R = null; e.rcPick = false; e.multi = null; e.pts = null; e.A = e.B = e.V = null; e.raw = null; e.note = ''; e.cv = e.k !== 'io'; }
+function wReset(e){ e.selK = []; e.Vh = []; e.selL = []; e.sel = []; e.R = null; e.rcPick = false; e.multi = null; e.mV = null; e.pts = null; e.A = e.B = e.V = null; e.raw = null; e.note = ''; e.cv = e.k !== 'io'; }
 function wTap(w){ const e = S.npe; if (e.pts || e.multi) return; const sel = e.sel || (e.sel = []);
   if (e.k === 'rc' && e.rcPick){ const ex = S.np.find(q => q.k === 'rc' && q.rcR && !gone(KB2 + q.no) && (s2 => { const a = w2s(w[0], w[1]); return Math.hypot(s2[0] - a[0], s2[1] - a[1]) < 30; })(w2s(...q.pts[q.pts.length - 1]))); e.R = ex ? ex.pts[ex.pts.length - 1].slice() : w.slice(); /* 前に置いたリモコンの近くはそこへ */ e.rcPick = false; wBuild(); updateNpPanel(); drawOverlay(); updateUi(); return; }
   const q = wUnitAt(w), pt = q ? q.c.slice() : npSnap(w).slice();
@@ -1393,7 +1405,7 @@ function wFloorAsk(pt){ const e = S.npe; openSheet('ここは？（集中線）'
     body.onclick = ev => { const b = ev.target.closest('[data-f]'); if (!b) return; let t = b.dataset.f; if (t === '__in'){ t = (body.querySelector('#wfl').value || '').trim().slice(0, 20); if (!t){ toast('文字を入れてください（12階へ など）'); return; } } closeSheet(); e.sel.push(pt); (e.selL || (e.selL = [])).length = e.sel.length - 1; e.selL.push(t || null); (e.selK || (e.selK = [])).length = e.sel.length - 1; e.selK.push(0); updateNpPanel(); drawOverlay(); }; }); }
 function wBalloon(c, s, t, col){ c.save(); c.font = `800 13px ${FONT}`; const w = c.measureText(t).width + 16, h = 24, x = s[0] - w/2, y = s[1] - 20 - h; c.fillStyle = '#fff'; c.strokeStyle = col; c.lineWidth = 2.5; c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, 8) : c.rect(x, y, w, h); c.fill(); c.stroke(); c.beginPath(); c.moveTo(s[0] - 6, y + h); c.lineTo(s[0], s[1] - 12); c.lineTo(s[0] + 6, y + h); c.closePath(); c.fillStyle = col; c.fill(); c.fillStyle = col; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(t, s[0], y + h/2 + 1); c.restore(); } // 吹き出し（下の階へ など）
 function wBuild(){ const e = S.npe, sl = e.sel || []; e.note = '';
-  if (e.k === 'rc'){ if (e.R && sl.length) e.multi = sl.map(q => [q.slice(), wBow(q, e.R), e.R.slice()]); return; }
+  if (e.k === 'rc'){ if (e.R && sl.length) e.multi = sl.map(q => [q.slice(), ...((e.mV && e.mV[wMk(q)]) || [wBow(q, e.R)]).map(v => v.slice()), e.R.slice()]); return; }
   if (sl.length < 2) return;
   if (e.k === 'io'){ const r = wPipeRoute(sl); e.pts = r.pts; e.cv = false; e.note = r.miss ? `冷媒配管が見つからない所が ${r.miss} か所あり、そこはまっすぐにしました` : '冷媒配管に沿わせました'; return; }
   const P = [sl[0].slice()]; for (let i = 1; i < sl.length; i++) P.push(wBow(sl[i-1], sl[i]), sl[i].slice()); e.cv = true; e.A = P[0]; e.B = P[P.length - 1]; e.V = P.slice(1, -1); e.Vauto = sl.length === 2 ? 1 : 0; e.pts = P; }
@@ -1465,7 +1477,7 @@ function wSave(){ const e = S.npe, mk = (pts, x) => ({id:'p' + Date.now().toStri
   exec(its.length > 1 ? cmdMulti(W0.n + 'を引く', its.map(cmdNpAdd)) : cmdNpAdd(its[0])); toast(`${W0.n}を引きました（${its.length > 1 ? its.length + '本・' : ''}合計 ${fmtM(its.reduce((a, p) => a + npLen(wPts(p)), 0))}・↶で戻せます）`); npEnd(); }
 function wHtml(e){ const wr = WIRE[e.k], sl = e.sel || [], B = 'style="flex:1"';
   let h = e.edit ? '' : `<div class="seg2"><button class="btn" data-k="rf">❄️ 冷媒配管</button><button class="btn" data-k="dr">💧 ドレン配管</button></div><div class="seg2" style="margin-top:-2px">${Object.keys(WIRE).map(k => `<button class="btn ${e.k === k ? 'sel' : ''}" data-k="${k}" style="font-size:13px;padding:0 4px;${e.k === k ? `border-color:${WIRE[k].col};color:${WIRE[k].col}` : ''}">${WIRE[k].ic} ${WIRE[k].n}</button>`).join('')}</div>`;
-  if (e.multi){ const L = e.multi.reduce((a, P) => a + npLen(wCurve(P)), 0); h += `<div style="font-weight:800;color:${wr.col}">${wr.ic} ${wr.n} ${e.multi.length}本・合計 ${fmtM(L)}</div><div class="note">選んだ室内機からリモコン（□R）へ。□R は指でつかんで動かせます</div>`; }
+  if (e.multi){ const L = e.multi.reduce((a, P) => a + npLen(wCurve(P)), 0); h += `<div style="font-weight:800;color:${wr.col}">${wr.ic} ${wr.n} ${e.multi.length}本・合計 ${fmtM(L)}</div><div class="note">選んだ室内機からリモコン（□R）へ。□R は指でつかんで動かせます。線をつかんで動かすと、そこを通ります（何か所でも）。オレンジの丸をタップで消す</div><div class="frow"><button class="btn" data-a="wvu" ${B} ${(e.Vh || []).length ? '' : 'disabled'}>↩ 1つもどす</button><button class="btn" data-a="wbow" ${B}>↺ 弓形にもどす</button></div>`; }
   else if (e.pts){ h += `<div style="font-weight:800;color:${wr.col}">${wr.ic} ${wr.n} 合計 ${fmtM(npLen(e.cv ? wCurve(e.pts) : e.pts))}${sl.length > 1 && e.k !== 'rc' ? `・${sl.length}か所を順に` : ''}</div>${e.note ? `<div class="note">${e.note}</div>` : ''}${e.cv ? `<div class="note">線をつかんで動かすと、そこを通ります（何か所でも）。オレンジの丸をタップで消す・選んだ室内機は動きません</div><div class="frow"><button class="btn" data-a="wvu" ${B} ${(e.Vh || []).length ? '' : 'disabled'}>↩ 1つもどす</button><button class="btn" data-a="wbow" ${B}>↺ 弓形にもどす</button>${sl.length <= 2 ? `<button class="btn" data-a="wflip" ${B}>⇅ 反対にふくらます</button>` : ''}</div>` : ''}`; }
   else if (e.k === 'rc') h += `<div class="note">${e.rcPick ? '<b>リモコンの位置をタップしてください（□R）</b>' : 'リモコンにつなぐ室内機をタップ（何台でも・もう1回タップで外す）。絵が無いロスナイなどは何も無い所をタップ → 書き込み。→「📍 リモコンの位置」。□R は指でつかんで動かせます'}</div><div style="font-weight:800">選んだ室内機 ${sl.length}台</div><div class="frow"><button class="btn" data-a="wall" ${B}>☑ 室内機を全部選ぶ${e.units ? `（${e.units.length}台）` : ''}</button><button class="btn" data-a="wnone" ${B} ${sl.length ? '' : 'disabled'}>全部外す</button></div><div class="frow"><button class="btn ${e.rcPick ? 'sel' : 'pri'}" data-a="wR" ${B} ${sl.length ? '' : 'disabled'}>📍 リモコンの位置をタップ</button></div>`;
   else h += `<div class="note">${e.k === 'io' ? `室外機 → 室内機の順にタップしてください（1・2・3…・四角の印が室外機${e.outs && e.outs.length ? '・' + e.outs.length + '台' : ''}）。冷媒配管に沿って一筆書きで引きます` : '線を通す順に室内機か室外機（点線の四角）をタップしてください（1・2・3…・1つの系統に1か所）。何も無い所をタップすると「下の階へ」「上の階へ」の吹き出し'}</div><div style="font-weight:800">選んだ ${sl.length}か所</div><div class="frow"><button class="btn" data-a="wundo" ${B} ${sl.length ? '' : 'disabled'}>↩ 1つもどす</button><button class="btn pri" data-a="wgo" ${B} ${sl.length >= 2 ? '' : 'disabled'}>線を引く →</button></div>`;
@@ -1485,6 +1497,7 @@ function wClick(ev){ const b = ev.target.closest('button'); if (!b || b.disabled
   else if (a === 'wall'){ e.sel = (e.units || []).map(q => q.c.slice()); e.selL = []; if (!e.sel.length) toast('図面から室内機が見つかりません。室内機を1台ずつタップしてください'); }
   else if (a === 'wnone'){ e.sel = []; e.selL = []; }
   else if (a === 'wR') e.rcPick = !e.rcPick;
+  else if (a === 'wbow' && e.multi){ (e.Vh = e.Vh || []).push(wSnapOf(e)); e.mV = null; wBuild(); }
   else if (a === 'wbow'){ if (e.k === 'rc' || (e.sel || []).length <= 2){ e.V = null; if (e.A && e.B) e.pts = npFromPts(e.A, e.B); } else { e.pts = null; wBuild(); } }
   else if (a === 'wflip' && e.A && e.B && e.V){ const A = e.A, d = [e.B[0] - A[0], e.B[1] - A[1]], L2 = d[0]*d[0] + d[1]*d[1] || 1; e.V = e.V.map(q => { const t = ((q[0] - A[0])*d[0] + (q[1] - A[1])*d[1])/L2, f = [A[0] + d[0]*t, A[1] + d[1]*t]; return [2*f[0] - q[0], 2*f[1] - q[1]]; }); e.pts = npFromPts(e.A, e.B); }
   updateNpPanel(); drawOverlay(); updateUi(); }
@@ -1624,6 +1637,7 @@ function drawNp(c){ // 引いている途中の配管：なぞった線（うす
     c.font = `800 13px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; (e.sel || []).forEach((q, i) => { const s2 = w2s(...q); c.fillStyle = W0.col; c.beginPath(); c.arc(s2[0], s2[1], 13, 0, Math.PI*2); c.fill(); c.fillStyle = '#fff'; c.fillText(e.k === 'rc' ? '✓' : String(i + 1), s2[0], s2[1] + 1); if (e.selL && e.selL[i]) wBalloon(c, s2, e.selL[i], W0.col); c.font = `800 13px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; });
     if (e.R) wRmark(c, w2s(...e.R), W0.col); }
   if (WIRE[e.k] && e.V && e.pts && e.cv) for (const q of e.V){ if ((e.sel || []).some(x => wSame(x, q))) continue; const s2 = w2s(...q); c.fillStyle = '#f97316'; c.globalAlpha = .25; c.beginPath(); c.arc(s2[0], s2[1], 18, 0, Math.PI*2); c.fill(); c.globalAlpha = 1; c.strokeStyle = '#f97316'; c.lineWidth = 3; c.beginPath(); c.arc(s2[0], s2[1], 18, 0, Math.PI*2); c.stroke(); } // 通る所（オレンジの丸・指で動かす）
+  if (e.k === 'rc' && e.multi && e.mV) for (const V of Object.values(e.mV)) for (const q of V){ const s2 = w2s(...q); c.fillStyle = '#f97316'; c.globalAlpha = .25; c.beginPath(); c.arc(s2[0], s2[1], 18, 0, Math.PI*2); c.fill(); c.globalAlpha = 1; c.strokeStyle = '#f97316'; c.lineWidth = 3; c.beginPath(); c.arc(s2[0], s2[1], 18, 0, Math.PI*2); c.stroke(); }
   if (e.pts && !WIRE[e.k]){ c.font = `700 12px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
     e.pts.forEach((q, i) => { const s = w2s(q[0], q[1]); c.fillStyle = i ? '#c026d3' : '#16a34a'; c.beginPath(); c.arc(s[0], s[1], i && i < e.pts.length - 1 ? 4 : 6, 0, Math.PI*2); c.fill(); });
     for (let i = 1; i < e.pts.length; i++){ const a = w2s(...e.pts[i-1]), b = w2s(...e.pts[i]), t = String(Math.round(Math.hypot(e.pts[i][0] - e.pts[i-1][0], e.pts[i][1] - e.pts[i-1][1])*unitMM())), w = c.measureText(t).width + 10, mx = (a[0] + b[0])/2, my = (a[1] + b[1])/2; c.fillStyle = '#c026d3'; c.fillRect(mx - w/2, my - 10, w, 20); c.fillStyle = '#fff'; c.fillText(t, mx, my); } }

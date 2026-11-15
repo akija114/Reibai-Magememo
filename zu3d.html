@@ -76,7 +76,7 @@ async function render(){let all=[];try{all=(await op(zdb,"projects","readonly",s
  $("#list").innerHTML=(last&&last.fileId?row(last,"図面修正でいま開いている"):"")+saved.map(p=>row(p)).join("")||`<div class="empty">まだありません。上の「✏️ 図面修正で図面を読み込む・直す」で図面を開いてください。</div>`}
 /* 見えない図面修正で3Dを作る */
 let FR=null;
-async function build(id){const p=PR.find(x=>x.id===id);if(!p)throw new Error("図面が見つかりません");const sig=(p.updated||0)+"|"+lsSig()+"|3",ck="z3c:"+id;   // |2：室内機の向き・模型を直した版（前に作った3Dは作り直す）
+async function build(id){const p=PR.find(x=>x.id===id);if(!p)throw new Error("図面が見つかりません");const sig=(p.updated||0)+"|"+lsSig()+"|4",ck="z3c:"+id;   // |2：室内機の向き・模型を直した版（前に作った3Dは作り直す）
  try{const c=await sget(ck);if(c&&c.sig===sig&&c.rec)return c.rec}catch(e){}
  busy(`🧊 「${esc(p.name||"図面")}」の3Dを作っています…<br><span style="font-size:13px;font-weight:500">大きい図面は1分くらいかかります。画面を閉じずにお待ちください</span>`);
  try{const r=await new Promise(ok=>{window.z3Done=ok;if(FR)FR.remove();FR=document.createElement("iframe");FR.setAttribute("aria-hidden","true");FR.tabIndex=-1;FR.style.cssText="position:fixed;left:-10000px;top:0;width:390px;height:700px;border:0;visibility:hidden";FR.src="cad/index.html?mk3d="+encodeURIComponent(id)+"&t="+Date.now();document.body.appendChild(FR);setTimeout(()=>ok({err:"時間切れ"}),240000)});

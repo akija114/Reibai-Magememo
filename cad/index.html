@@ -1139,6 +1139,7 @@ function tapSelect(p){
     const dd = Math.hypot(c[0]-p[0], c[1]-p[1]); if (dd < bd){ bd = dd; best = d; }
   }
   if (S.pick && S.pick.multi && pickScope === 'part'){ pickLayerAt(p); drawOverlay(); updatePickBar(); return; }
+  if (!best && S.mode === 'pan' && !(S.pick && S.pick.multi) && unitTap(p)) return; // 室内機を2回タップ：品番を選ぶ（2026-11-17 ユーザー）
   if (!best && S.mode === 'pan' && gridTap(p)) return; // 通り芯をタップ：1回目で選ぶ・2回目で墨を出す
   if (!best && S.mode === 'pan' && ceilColTap(p)) return; // 色を付けた冷媒：2回目のタップで系統の名前
   S.gsel = null;
@@ -4099,7 +4100,7 @@ function v3dAna(){
       for (let i = wallU.length - 1; i >= 0; i--){ const v = V2.get(gk(wallU[i])); if (v[0] + v[1] >= 3 && v[1] >= (v[0] + v[1])*0.6){ const q = wallU.splice(i, 1)[0]; oud.push({...q, n:q.n.map(z => -z)}); } }
       for (let i = oud.length - 1; i >= 0; i--){ const v = V2.get(gk(oud[i])); if (v[0] + v[1] >= 3 && v[0] >= (v[0] + v[1])*0.6){ const q = oud.splice(i, 1)[0], wn = acSide(q, q.hz, LL); wallU.push({...q, n:wn ? wn.n : (q.n ? q.n.map(z => -z) : [0, 1]), face:wn ? wn.face : (q.hz ? q.y1 : q.x1), t:wn ? wn.t : 150}); } } }
     un = keep; for (const q of wallU){ const cx = (q.x0 + q.x1)/2, cy = (q.y0 + q.y1)/2; let b = null, bd = 4500; for (const o of oud){ const ox = (o.x0 + o.x1)/2, oy = (o.y0 + o.y1)/2; if ((ox - cx)*q.n[0] + (oy - cy)*q.n[1] <= q.t*0.5) continue; const dd = Math.hypot(ox - cx, oy - cy); if (dd < bd && !wallU.some(z => z !== q && z.o === o)){ bd = dd; b = o; } } q.o = b; } } // 壁掛けごとに、壁の外のいちばん近い室外機
-  const outU = []; if (!window.V3ALL){ const NG = v3dUG() || {}; un = un.filter(m => { const k = NG[v3dUKey(m)]; if (m.mdl == null && k === '__out'){ outU.push(m); return false; } return m.mdl != null || k !== '__no'; });   /* 「🌀 室外機」にした形は床に箱（2026-11-05 ユーザー：機種を聞く画面に室外機が出る） */ for (let i = wallU.length - 1; i >= 0; i--) if (NG['W' + v3dUKey(wallU[i])] === '__no') wallU.splice(i, 1); }   // 「🚫 室内機ではない」にした形は出さない（2026-11-03 ユーザー）
+  const outU = []; if (!window.V3ALL){ const NG = v3dUG() || {}; const NP = v3dUP(); un = un.filter(m => { const pk = (NP[v3dUPk(m)] || {}).k; if (pk === '__no') return false; if (pk != null) return true; const k = NG[v3dUKey(m)]; if (m.mdl == null && k === '__out'){ outU.push(m); return false; } return m.mdl != null || k !== '__no'; });   /* 「🌀 室外機」にした形は床に箱（2026-11-05 ユーザー：機種を聞く画面に室外機が出る） */ for (let i = wallU.length - 1; i >= 0; i--){ const pk = (NP[v3dUPk(wallU[i])] || {}).k; if (pk === '__no' || (pk == null && NG['W' + v3dUKey(wallU[i])] === '__no')) wallU.splice(i, 1); } }   // 「🚫 室内機ではない」にした形は出さない（2026-11-03 ユーザー）
   if (!T.length) un.forEach(m => { m.noch = 1; }); return {walls, doors, reg:SH, ubs:ubs.filter(inB), units:un, outU, insp:insp.filter(inB), outs:outs.filter(inB), wallU, oud, bld, CH0, wallH:CH0}; // 壁は天井の高さまで（天井の上の機器が見えるように）
 }
 /* 細長い機械の記号の中の、短い辺の向きの線（短い辺の6割以上）の本数。壁掛けは格子（多い）、室外機は横じま（少ない） */
@@ -4128,7 +4129,7 @@ function v3dWallAC(TH, A, gM, grp, boxAt, W, u, bb, gW, wallM){ if (!(A.wallU ||
       const x1 = sg[i]*u, y1 = sg[i+1]*u, x2 = sg[i+2]*u, y2 = sg[i+3]*u; if (bl && (Math.max(x1, x2) < bl[0] || Math.min(x1, x2) > bl[2] || Math.max(y1, y2) < bl[1] || Math.min(y1, y2) > bl[3])) continue; const h = (A.CH0 || 2400) + (rf ? 200 : 120), a = P3(x1, y1, h), b = P3(x2, y2, h); pos.push(a.x, a.y, a.z, b.x, b.y, b.z); const c = rf ? [0.78, 0.46, 0.23] : [0.09, 0.64, 0.29]; cols.push(...c, ...c); }
     if (pos.length){ const lg = new TH.BufferGeometry(); lg.setAttribute('position', new TH.Float32BufferAttribute(pos, 3)); lg.setAttribute('color', new TH.Float32BufferAttribute(cols, 3)); g.add(new TH.LineSegments(lg, new TH.LineBasicMaterial({vertexColors:true}))); for (const b of document.querySelectorAll('#v3dT [data-t3="pipe"]')) b.hidden = false; } } }
 /* 壁掛けの機種：形ごとに決めた物（zumen-3dunitG の「W」＋大きさ）・無い時は奥行で（30cm未満は MSZ-GV2823・それ以上は MSZ-ZXV6323S） */
-function v3dWallKey(q){ const k = 'W' + v3dUKey(q), G0 = v3dUG() || {}; if (G0[k] != null && G0[k] !== '') return G0[k]; return Math.min(q.x1 - q.x0, q.y1 - q.y0) < 300 ? 'mi_gv' : 'mi_zxv63'; }
+function v3dWallKey(q){ const o = v3dUP()[v3dUPk(q)]; if (o && o.k != null && o.k !== '') return o.k; const t = v3dMdlNear(q, 1); if (t.k) return t.k; const k = 'W' + v3dUKey(q), G0 = v3dUG() || {}; if (G0[k] != null && G0[k] !== '') return G0[k]; return Math.min(q.x1 - q.x0, q.y1 - q.y0) < 300 ? 'mi_gv' : 'mi_zxv63'; }
 /* 壁掛けと室外機の組：同じ向きの細長い機械が、長い辺の向かい（25cm〜3m・横に1.5m以内）にある時、建物の真ん中（GC）に近い方が部屋の中。n＝相手（外）への向き */
 function acPair(c, hz, all, GC){ if (!GC) return null; const cx = (c.x0 + c.x1)/2, cy = (c.y0 + c.y1)/2; let best = null, bd = 1e18;
   for (const o of all){ if (o === c) continue; const w = o.x1 - o.x0, d = o.y1 - o.y0, L = Math.max(w, d), Sh = Math.min(w, d); if ((w >= d) !== hz || L < Sh*2 || L < 600 || L > 1150) continue;
@@ -4214,7 +4215,7 @@ function v3dBody(m, md){ if (!m.s || !md || !md.L || !md.W) return null; const S
 const v3dUKey = m => { const a = m.x1 - m.x0, b = m.y1 - m.y0; return Math.round(Math.max(a, b)/50)*50 + '×' + Math.round(Math.min(a, b)/50)*50; };
 function v3dUG(){ try { const o = JSON.parse(localStorage.getItem('zumen-3dunitG') || '{}'); return o[S.srcName || ''] || null; } catch(e){ return null; } }
 function v3dUGset(g){ try { const o = JSON.parse(localStorage.getItem('zumen-3dunitG') || '{}'); o[S.srcName || ''] = g; localStorage.setItem('zumen-3dunitG', JSON.stringify(o)); } catch(e){} }
-const v3dMdlKey = m => { if (m.mdl != null) return m.mdl; const g = v3dUG(), k = g && g[v3dUKey(m)]; return k != null ? k : v3dMdl(); };
+const v3dMdlKey = m => { const o = v3dUP()[v3dUPk(m)]; if (o && o.k != null) return o.k; if (m.mdl) return m.mdl; const t = v3dMdlNear(m); if (t.k) return t.k; if (m.mdl != null) return m.mdl; const g = v3dUG(), k = g && g[v3dUKey(m)]; return k != null ? k : v3dMdl(); }; // 1台ごとに選んだ → 形の登録 → 図面のまわりの品番 → 同じ形ごと → 図面ぜんぶ
 const v3dMdOf = m => { const k = v3dMdlKey(m); return (typeof CAS2M !== 'undefined' && CAS2M[k]) || v3dCeilMd(k); };
 /* 天吊（2026-11-12 ユーザー：天吊の続き）：models.js の CEILM を室内機の形（L＝奥行・W＝幅・配管口は裏＝+x）にして使う。高さ（ref）＝本体の上（天井の面）。必ず天井の下（天井の中に入れない）・下げる時は3Dの「📏 高さ」。天井の高さが図面に無い時は指定の高さ（zumen-noch） */
 const V3CL = {}; function v3dCeilMd(k){ if (typeof CEILM === 'undefined' || !k || !CEILM[k]) return null; if (V3CL[k]) return V3CL[k]; const c = CEILM[k], gy = -c.H/2 + c.pf[1];
@@ -4238,8 +4239,8 @@ function v3dCeilUnit(TH, md, up){ up = Math.max(0, up || 0); // up：天井か�
 function v3dGuess(m){ if (typeof CAS2M === 'undefined') return ''; let bk = '', be = 1e9; for (const k of CAS2_ORDER){ const b = CAS2M[k] && v3dBody(m, CAS2M[k]); if (b && b.e < be - 1e-6){ be = b.e; bk = k; } } return bk; } // 形から見た目安
 /* 機種を聞く画面：品番が図面に無くて、まだ決めていない時（force で選び直し） */
 function askUnitModels(force){ return new Promise(ok => { if (!G || typeof CAS2M === 'undefined' || MK3D){ ok(); return; } window.V3ALL = 1; let A; try { A = v3dAna(); } finally { window.V3ALL = 0; } if (!A.units.length){ ok(); return; }
-  const grp = new Map(); for (const m of A.wallU || []){ const k = 'W' + v3dUKey(m); const g = grp.get(k); if (g){ g.n++; g.all.push(m); } else grp.set(k, {k, n:1, m, all:[m], wall:1}); } // 壁掛け（形ごと）
-  for (const m of A.units){ if (m.mdl != null) continue; const k = v3dUKey(m); const g = grp.get(k); if (g){ g.n++; g.all.push(m); } else grp.set(k, {k, n:1, m, all:[m]}); }
+  const grp = new Map(); for (const m of A.wallU || []){ if (v3dUnitFix(m, 1)) continue; const k = 'W' + v3dUKey(m); const g = grp.get(k); if (g){ g.n++; g.all.push(m); } else grp.set(k, {k, n:1, m, all:[m], wall:1}); } // 壁掛け（形ごと）
+  for (const m of A.units){ if (m.mdl != null || v3dUnitFix(m)) continue; const k = v3dUKey(m); const g = grp.get(k); if (g){ g.n++; g.all.push(m); } else grp.set(k, {k, n:1, m, all:[m]}); }
   const G0 = v3dUG() || {}; if (!grp.size || (!force && ([...grp.keys()].every(k => k in G0) || v3dMdlTx()))){ ok(); return; }
   const L = [...grp.values()].sort((a, b) => b.n - a.n), sel = {}; L.forEach((g, i) => { const gs = g.wall ? (Math.min(g.m.x1 - g.m.x0, g.m.y1 - g.m.y0) < 300 ? 'mi_gv' : 'mi_zxv63') : v3dGuess(g.m); g.gs = gs; if (g.wall){ sel[g.k] = g.k in G0 ? G0[g.k] : gs; return; } sel[g.k] = g.k in G0 ? G0[g.k] : gs || (i === 0 ? v3dMdl() : ''); });
   let done = false; const fin = save => { if (done) return; done = true; if (save) v3dUGset({...G0, ...sel}); closeSheet(); ok(); };
@@ -4249,6 +4250,59 @@ function askUnitModels(force){ return new Promise(ok => { if (!G || typeof CAS2M
     body.onchange = e => { const k = e.target.dataset.g; if (k != null) sel[k] = e.target.value; };
     body.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.a === 'ok') fin(true); else if (b.dataset.z){ const g = grp.get(b.dataset.z), u = unitMM(); if (g) unitPeek(g, u); } }; });
   const rt = $('#sheetRoot'), mo = new MutationObserver(() => { if (!rt.innerHTML){ mo.disconnect(); fin(false); } }); mo.observe(rt, {childList:true}); }); }
+/* 室内機の品番（2026-11-17 ユーザー：図面に品番が書いてあればそのまま使う・無ければ室内機を2回タップで選ぶ・メーカーが分からなくても形（4方向・2方向・天吊など）だけで選べる・メーカーが分かれば品番まで）。
+   1台ごとに zumen-3dunitP の {k:機種, kf:1＝形だけで選んだ}（向き・高さと同じ所）。図面の文字は機械のまわり1.5mの品番（`v3dMdlNear`） */
+const MKN = {mitsu:'三菱', daikin:'ダイキン'};
+const v3dUPk = m => Math.round((m.x0 + m.x1)/200) + ',' + Math.round((m.y0 + m.y1)/200);
+const UKD = [['4方向', '4方向（天井カセット）'], ['2方向', '2方向（天井カセット）'], ['1方向', '1方向（天井カセット）'], ['ビルトイン', 'ビルトイン・ダクト（天井の中）'], ['天吊', '天吊（天井から吊る）'], ['壁掛け', '壁掛け']];
+const ukdOf = kind => /4方向/.test(kind) ? '4方向' : /2方向/.test(kind) ? '2方向' : /1方向/.test(kind) ? '1方向' : /ビルトイン|埋込/.test(kind) ? 'ビルトイン' : /天吊/.test(kind) ? '天吊' : /壁掛/.test(kind) ? '壁掛け' : '';
+function umOpts(wall){ const o = []; if (wall){ if (typeof WALLM !== 'undefined') for (const k of WALL_MORDER) if (WALLM[k]) o.push({k, n:WALLM[k].n, mk:WALLM[k].mk || '', kd:'壁掛け', sub:''}); return o; }
+  if (typeof CAS2M !== 'undefined') for (const k of CAS2_ORDER){ const c = CAS2M[k]; if (c && ukdOf(c.kind)) o.push({k, n:c.n, mk:c.mk || 'mitsu', kd:ukdOf(c.kind), sub:c.sub || c.kind}); }
+  if (typeof CEILM !== 'undefined') for (const k of CEIL_MORDER) if (CEILM[k]) o.push({k, n:CEILM[k].n, mk:CEILM[k].mk || '', kd:'天吊', sub:CEILM[k].kind}); return o; }
+const umNm = t => String(t).normalize('NFKC').toUpperCase().replace(/[\s\-‐ー－_]/g, '');
+function umVar(n){ const out = []; for (const p of String(n).split(/\s+\/\s+/)){ const z = umNm(p), r = /^(.*?)(\d+(?:\/\d+)+)(.*)$/.exec(z); if (r) for (const d of r[2].split('/')) out.push(r[1] + d + r[3]); else out.push(z.replace(/\//g, '')); } return out.filter(v => v.length >= 6); } // 「PL-RP45/50/56/63LA18」→ PLRP45LA18 …
+function v3dMdlNear(m, wall){ if (!G) return {k:'', raw:[]}; const c = V3.nearTx && V3.nearTx.G === G && V3.nearTx.last === S.undo[S.undo.length-1] ? V3.nearTx : (V3.nearTx = {G, last:S.undo[S.undo.length-1], m:new Map()}), ck = (wall ? 'W' : '') + v3dUPk(m); if (c.m.has(ck)) return c.m.get(ck);
+  const u = unitMM(), R = 1500, cx = (m.x0 + m.x1)/2, cy = (m.y0 + m.y1)/2, V = umOpts(wall).map(o => ({o, v:umVar(o.n)})); let best = null, bd = 1e18; const raw = [];
+  for (const l of G.L){ if (l.deleted) continue; for (const t of G.textsBy[l.idx] || []){ if (gone(t.eid)) continue; const x = t.x*u, y = t.y*u; if (x < m.x0 - R || x > m.x1 + R || y < m.y0 - R || y > m.y1 + R) continue;
+    const s = t.lines.join(' ').normalize('NFKC').trim(), z = umNm(s), d = Math.hypot(x - cx, y - cy); if (/[A-Z]{1,5}\d{2,4}[A-Z]{2,}\d*/.test(z) && !raw.includes(s) && raw.length < 4) raw.push(s);
+    const h = V.find(q => q.v.some(v => z.includes(v))); if (h && d < bd){ bd = d; best = {k:h.o.k, s}; } } }
+  const r = {k:best ? best.k : '', s:best ? best.s : '', raw}; c.m.set(ck, r); return r; }
+const v3dUnitFix = (m, wall) => { const o = v3dUP()[v3dUPk(m)]; return (o && o.k != null) || !!v3dMdlNear(m, wall).k; }; // 1台ごとに決めた・図面に品番がある
+/* 図面の室内機の一覧（2回タップで見つける） */
+function unitList(){ if (V3.uL && V3.uL.G === G && V3.uL.last === S.undo[S.undo.length-1]) return V3.uL; window.V3ALL = 1; let A; try { A = v3dAna(); } catch(e){ A = {units:[], wallU:[]}; } finally { window.V3ALL = 0; }
+  return V3.uL = {G, last:S.undo[S.undo.length-1], L:[...(A.units || []).map(m => ({m, wall:0})), ...(A.wallU || []).map(m => ({m, wall:1}))]}; }
+function unitTap(p){ if (!G || S.mode !== 'pan') return false; if (typeof CAS2M === 'undefined'){ loadModels().then(ok => { if (ok) unitTap(p); }); return false; }
+  const u = unitMM(), w = s2w(p[0], p[1]), x = w[0]*u, y = w[1]*u, pd = 10/view.s*u; let hit = null, ba = 1e18;
+  for (const q of unitList().L){ const m = q.m; if (x < m.x0 - pd || x > m.x1 + pd || y < m.y0 - pd || y > m.y1 + pd) continue; const a = (m.x1 - m.x0)*(m.y1 - m.y0); if (a < ba){ ba = a; hit = q; } }
+  if (!hit){ S.usel = null; return false; } const k = (hit.wall ? 'W' : '') + v3dUPk(hit.m);
+  if (S.usel !== k){ S.usel = k; toast('室内機です。もう1回タップで品番を選べます'); return false; } // 1回目はいつもの選ぶ（動かす・消す）もそのまま
+  S.usel = null; S.pick = null; S.selDim = null; updateDimPanel(); updatePickBar(); drawOverlay(); unitMdlSheet(hit.m, hit.wall); return true; }
+/* 品番を選ぶ画面：① 形 → ② メーカー（分からない＝形だけ）→ ③ 品番 */
+function unitMdlSheet(m, wall, after){ const ops = umOpts(wall), P0 = v3dUP(), key = v3dUPk(m), o0 = P0[key] || {}, nr = v3dMdlNear(m, wall), cur = wall ? v3dWallKey(m) : v3dMdlKey(m), cO = ops.find(q => q.k === cur);
+  const same = unitList().L.filter(q => q.wall === wall && v3dUKey(q.m) === v3dUKey(m)).length; let kd = cO ? cO.kd : wall ? '壁掛け' : '', mk = o0.kf ? '' : cO ? cO.mk : '', all = same > 1;
+  const kds = UKD.filter(([k]) => ops.some(q => q.kd === k)), B = 'flex:1 1 30%;min-width:0;height:46px;font-size:15px';
+  const fin = (k, kf) => { const P = v3dUP(), o = P[key] || {}; if (k == null){ delete o.k; delete o.kf; } else { o.k = k; if (kf) o.kf = 1; else delete o.kf; } if (Object.keys(o).length) P[key] = o; else delete P[key]; v3dUPset(P);
+    if (all && k != null && k !== '__no'){ const g = v3dUG() || {}; g[(wall ? 'W' : '') + v3dUKey(m)] = k; v3dUGset(g); }
+    V3.uL = null; closeSheet(); const nm = k == null ? '' : k === '' ? 'わからない（箱）' : k === '__no' ? '室内機ではない' : (ops.find(q => q.k === k) || {}).n || k; toast(k == null ? '図面・形からの決め方にもどしました' : `${kf ? kd + '（形だけ）' : nm} にしました${all && k !== '__no' ? `（同じ大きさ ${same}台）` : ''}`);
+    if (!$('#v3d').hidden){ V3.keepCam = V3.tg ? {tg:V3.tg.clone(), dist:V3.dist, th:V3.th, ph:V3.ph, sel:null} : null; open3D(); } if (after) after(); };
+  openSheet(wall ? '壁掛けの品番' : '室内機の品番', body => {
+    const draw = () => { const L = ops.filter(q => q.kd === kd), mks = [...new Set(L.map(q => q.mk).filter(Boolean))], L2 = mk ? L.filter(q => q.mk === mk) : [];
+      body.innerHTML = `<canvas id="umTh" style="display:block;width:100%;height:150px;border-radius:10px;border:1px solid var(--line);background:var(--panel2)"></canvas>
+        <div class="note" style="margin-top:6px">今：<b>${esc(o0.kf && cO ? cO.kd + '（メーカーは分からない）' : cO ? cO.n : cur === '' ? 'わからない（箱）' : cur || '—')}</b>${o0.k != null ? (o0.kf ? '（形だけで選んだ）' : '（この1台で選んだ）') : nr.k ? `（図面の文字「${esc(nr.s)}」）` : '（まだ決めていない）'}${!nr.k && nr.raw.length ? `<br>図面の文字：${nr.raw.map(esc).join('・')}（アプリにまだ形が無い品番は、形で選んでください）` : ''}</div>
+        <div class="grp">① 形</div><div class="frow" style="flex-wrap:wrap">${kds.map(([k, t]) => `<button class="btn ${k === kd ? 'sel' : ''}" data-kd="${k}" style="${B}">${esc(k)}</button>`).join('')}</div>
+        ${kd ? `<div style="font-size:12.5px;color:var(--sub);margin:2px 0 4px">${esc((UKD.find(q => q[0] === kd) || [])[1] || '')}</div><div class="grp">② メーカー</div><div class="frow" style="flex-wrap:wrap"><button class="btn ${!mk ? 'sel' : ''}" data-mk="" style="${B}">わからない</button>${mks.map(k => `<button class="btn ${k === mk ? 'sel' : ''}" data-mk="${k}" style="${B}">${esc(MKN[k] || k)}</button>`).join('')}</div>
+          ${mk ? `<div class="grp">③ 品番</div>${L2.map(q => `<button class="btn ${q.k === cur && !o0.kf ? 'sel' : ''}" data-k="${q.k}" style="display:block;width:100%;text-align:left;min-height:48px;margin:4px 0;font-size:15px"><b>${esc(q.n)}</b><div style="font-size:12px;color:var(--sub)">${esc(q.sub)}</div></button>`).join('')}` : `<div class="frow"><button class="btn pri" data-a="shape" style="flex:1;height:50px;font-size:16px">「${esc(kd)}」で決める（メーカーは分からない）</button></div><div style="font-size:12.5px;color:var(--sub)">大きさがいちばん合う${esc(kd)}の形で3Dに出します。</div>`}` : ''}
+        ${same > 1 ? `<label style="display:flex;gap:8px;align-items:center;margin:10px 0;font-size:15px"><input type="checkbox" id="umAll" ${all ? 'checked' : ''} style="width:22px;height:22px">同じ大きさの機械（${same}台）も同じにする</label>` : ''}
+        <div class="frow" style="flex-wrap:wrap"><button class="btn" data-a="unk" style="${B}">わからない（箱）</button><button class="btn" data-a="no" style="${B}">🚫 室内機ではない</button>${o0.k != null ? `<button class="btn" data-a="clr" style="${B}">↩ もとにもどす</button>` : ''}</div>`;
+      const c = body.querySelector('#umTh'); if (c) unitThumb(c, m); };
+    draw();
+    body.onchange = e => { if (e.target.id === 'umAll') all = e.target.checked; };
+    body.onclick = e => { const b = e.target.closest('button'); if (!b) return; const d = b.dataset;
+      if (d.kd != null){ kd = d.kd; mk = ''; draw(); return; } if (d.mk != null){ mk = d.mk; draw(); return; } if (d.k){ fin(d.k, 0); return; }
+      if (d.a === 'shape'){ const L = ops.filter(q => q.kd === kd); let bk = L[0] && L[0].k, be = 1e9; if (!wall) for (const q of L){ const md = v3dMdAny(q.k), bb = md && v3dBody(m, md); if (bb && bb.e < be){ be = bb.e; bk = q.k; } }
+        if (!wall && be > 1e8){ const a = Math.max(m.x1 - m.x0, m.y1 - m.y0), b2 = Math.min(m.x1 - m.x0, m.y1 - m.y0); for (const q of L){ const md = v3dMdAny(q.k); if (!md) continue; const e2 = Math.abs(Math.max(md.L, md.W) - a) + Math.abs(Math.min(md.L, md.W) - b2); if (e2 < be){ be = e2; bk = q.k; } } } // 図面の四角と外形の大きさの差がいちばん小さい物
+        if (bk) fin(bk, 1); return; }
+      if (d.a === 'unk'){ fin(wall ? (Math.min(m.x1 - m.x0, m.y1 - m.y0) < 300 ? 'mi_gv' : 'mi_zxv63') : '', 0); return; } if (d.a === 'no'){ all = false; fin('__no', 0); return; } if (d.a === 'clr'){ all = false; fin(null); return; } }; }); }
 /* 機種を決める画面：機械のまわり（1.5m）を小さな絵に。オレンジの四角＝その機械 */
 function unitThumb(c, m){ try { const u = unitMM(), r = c.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2.5), W = Math.max(200, r.width || 320), H = 170; c.width = Math.round(W*d); c.height = Math.round(H*d);
   const x = c.getContext('2d'), M = 1500, b = [(m.x0 - M)/u, (m.y0 - M)/u, (m.x1 + M)/u, (m.y1 + M)/u], s = Math.min(W/(b[2]-b[0]), H/(b[3]-b[1]))*d, tx = c.width/2 - (b[0]+b[2])/2*s, ty = c.height/2 + (b[1]+b[3])/2*s;
@@ -5291,13 +5345,13 @@ function v3dUnitTap(x, y){ if (!V3.uPO || !V3.uPO.length || !V3.gM) return false
   let best = null, bd = 1e9; for (const q of V3.uPO){ const d = Math.hypot(hit.point.x - q.c[0], hit.point.z - q.c[1]); if (d < bd){ bd = d; best = q; } } if (!best || bd > Math.max(best.md.L, best.md.W)/2 + 400) return false; v3dUnitBar(best); return true; }
 function v3dUnitBar(q){ let bar = $('#ceilSel'); if (!bar){ bar = document.createElement('div'); bar.id = 'ceilSel'; bar.style.cssText = 'position:absolute;left:8px;right:8px;top:8px;z-index:3;background:var(--panel);border:2px solid #2563eb;border-radius:12px;padding:8px 10px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.18)'; $('#v3dS').appendChild(bar); }
   const po = q.po, md = q.md, bi = !!md.bi, B = 'height:38px;padding:0 10px;font-size:14px', cl = !!md.cl, hs = cl ? `天吊・本体の上 FL+${Math.round(po.ref)}・本体の下 FL+${Math.round(po.ref - md.H)}` : bi ? `本体の下 FL+${Math.round(po.ref)}` : `天井の面 FL+${Math.round(po.ref)}（パネルは天井の下）`, src = po.src === 'man' ? '3Dで変えた高さ' + (cl && po.top ? `・天井 FL+${po.top}` : '') : po.src === 'noch' ? '図面に天井高が無いので指定の高さ' : po.src === 'tx' ? `図面の文字「${po.tx.s}」` : cl ? '天井の下に付けた' : '天井の高さに合わせた';
-  bar.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><b style="flex:1;font-size:16px">❄️ ${esc(md.n)}</b><button class="btn" data-u="x" style="${B}">✕</button></div><div style="margin:4px 0 6px">${hs}（${src}）</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" data-u="r2" style="${B}">⇄ 反対の向き</button><button class="btn" data-u="r1" style="${B}">↻ 90°回す</button><button class="btn" data-u="h" style="${B}">📏 ${cl ? '下げる高さ' : '高さを変える'}</button>${cl && !po.top ? `<button class="btn" data-u="nc" style="${B}">🏠 天井が無い時の高さ（${v3dNoCH()}）</button>` : ''}${v3dUP()[po.key] ? `<button class="btn" data-u="clr" style="${B}">↩ もとにもどす</button>` : ''}</div>`;
-  bar.onclick = ev => { const b = ev.target.closest('[data-u]'); if (!b) return; const c = b.dataset.u; if (c === 'x'){ bar.remove(); return; } const P = v3dUP(), o = P[po.key] || {};
+  bar.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><b style="flex:1;font-size:16px">❄️ ${esc(md.n)}</b><button class="btn" data-u="x" style="${B}">✕</button></div><div style="margin:4px 0 6px">${hs}（${src}）</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" data-u="r2" style="${B}">⇄ 反対の向き</button><button class="btn" data-u="r1" style="${B}">↻ 90°回す</button><button class="btn" data-u="mdl" style="${B}">🔩 品番</button><button class="btn" data-u="h" style="${B}">📏 ${cl ? '下げる高さ' : '高さを変える'}</button>${cl && !po.top ? `<button class="btn" data-u="nc" style="${B}">🏠 天井が無い時の高さ（${v3dNoCH()}）</button>` : ''}${(o => o.r != null || o.a != null || o.h != null)(v3dUP()[po.key] || {}) ? `<button class="btn" data-u="clr" style="${B}">↩ もとにもどす</button>` : ''}</div>`;
+  bar.onclick = ev => { const b = ev.target.closest('[data-u]'); if (!b) return; const c = b.dataset.u; if (c === 'x'){ bar.remove(); return; } if (c === 'mdl'){ const h = unitList().L.find(z => !z.wall && v3dUPk(z.m) === po.key); if (h) unitMdlSheet(h.m, 0); else toast('この室内機は図面から見つかりませんでした'); return; } const P = v3dUP(), o = P[po.key] || {};
     if (c === 'r2' || c === 'r1'){ o.a = ((Math.round(po.th/(Math.PI/2)) + (c === 'r2' ? 2 : 1)) % 4 + 4) % 4; delete o.r; }
     else if (c === 'nc'){ const v = prompt('この図面は天井の高さ（CH）が書いてありません。天吊の本体の上の高さ（床から mm）。この図面の天吊ぜんぶに使います', String(v3dNoCH())); if (v == null) return; const n = Math.round(+v.replace(/[^\d.]/g, '')); if (!(n >= 1500 && n <= 8000)){ toast('1500〜8000 の数字で入れてください'); return; } v3dNoCHset(n); V3.keepCam = {tg:V3.tg.clone(), dist:V3.dist, th:V3.th, ph:V3.ph, sel:null}; toast(`天井が無い時は FL+${n} にしました`); open3D(); return; }
     else if (c === 'h' && cl){ const v = prompt(`本体の上の高さ（床から mm）。天井から下げて付ける時に入れてください${po.top ? `（天井 FL+${po.top} より上にはできません）` : ''}`, String(Math.round(po.ref))); if (v == null) return; let n = Math.round(+v.replace(/[^\d.]/g, '')); if (!(n >= 300 && n <= 8000)){ toast('300〜8000 の数字で入れてください'); return; } if (po.top && n > po.top){ n = po.top; toast(`天井の中には入れられないので、天井の下 FL+${n} にしました`); } o.h = n; }
     else if (c === 'h'){ const v = prompt(bi ? '本体の下の高さ（床から mm・FL+）。変わった時に入れてください（図面の文字より先に使います）' : '天井の面の高さ（床から mm）。パネルは天井の下に出ます', String(Math.round(po.ref))); if (v == null) return; const n = Math.round(+v.replace(/[^\d.]/g, '')); if (!(n >= 300 && n <= 8000)){ toast('300〜8000 の数字で入れてください'); return; } o.h = n; }
-    else if (c === 'clr'){ delete P[po.key]; v3dUPset(P); V3.keepCam = {tg:V3.tg.clone(), dist:V3.dist, th:V3.th, ph:V3.ph, sel:null}; toast('もとの向き・高さにもどしました'); open3D(); return; }
+    else if (c === 'clr'){ const k0 = P[po.key] || {}; if (k0.k != null) P[po.key] = {k:k0.k, ...(k0.kf ? {kf:1} : {})}; else delete P[po.key]; v3dUPset(P); V3.keepCam = {tg:V3.tg.clone(), dist:V3.dist, th:V3.th, ph:V3.ph, sel:null}; toast('もとの向き・高さにもどしました'); open3D(); return; }
     P[po.key] = o; v3dUPset(P); V3.keepCam = {tg:V3.tg.clone(), dist:V3.dist, th:V3.th, ph:V3.ph, sel:null}; toast(c === 'h' ? `FL+${o.h} にしました（この図面で覚えます）` : '向きを変えました（配管の口も一緒に）'); open3D(); }; }
 function v3dLabel(TH, txt, at, wh, col){ /* wh：大きさ（mm）を決める時は、遠いと小さく見える */ const cv2 = document.createElement('canvas'), g = cv2.getContext('2d'), f = 40; g.font = `bold ${f}px ${FONT}`; cv2.width = Math.ceil(g.measureText(txt).width) + 24; cv2.height = f + 18;
   g.font = `bold ${f}px ${FONT}`; g.fillStyle = 'rgba(255,255,255,.92)'; g.fillRect(0, 0, cv2.width, cv2.height); if (col){ g.fillStyle = col; g.fillRect(0, 0, 10, cv2.height); } g.fillStyle = col || '#7a3e12'; g.textBaseline = 'middle'; g.fillText(txt, 14, cv2.height/2 + 2);   // col：系統の色（2026-11-10）

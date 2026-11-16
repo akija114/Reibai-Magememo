@@ -945,7 +945,7 @@ function drawOverlay(){
   drawPick(octx); drawMvg(octx); drawNp(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
-  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawSins(octx); drawWires(octx);
+  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawGridCol(octx); drawSins(octx); drawWires(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
   drawSame(octx);
@@ -1872,11 +1872,27 @@ const sinCs = (m, dir) => S.sins.filter(s => s.dir === dir).map(s => s.c).concat
 function sinGrids(P){ const g = grid4At(P), nm = (a, w) => a.map((x, i) => ({c:x.c, name:x.name || `${w}${i + 1}本目`})); return {v:nm([...g.C.l].reverse().concat(g.onX ? [g.onX] : [], g.C.r), '左から'), h:nm([...g.C.d].reverse().concat(g.onY ? [g.onY] : [], g.C.u), '下から')}; }
 const sinName = s => s.pt && !s.off ? (s.pt === 2 ? s.base : `${s.base}の真ん中`) : `${s.base}から${s.dir === 'v' ? (s.off >= 0 ? '右' : '左') : (s.off >= 0 ? '上' : '下')}${fmt(Math.abs(s.off))}`;
 function cmdSin(op, s){ const lab = op === 'add' ? '芯を出す' : '芯を消す'; return {kind:'note', label:lab, log:{label:lab, detail:sinName(s), sins:[{...s}], gone:op === 'del'}, do(){ if (op === 'add') S.sins.push(s); else S.sins = S.sins.filter(x => x !== s); }, undo(){ if (op === 'add') S.sins = S.sins.filter(x => x !== s); else S.sins.push(s); }}; }
-function drawSins(c){ // 通り芯から出した芯：点線（一点鎖線）と「X2から右1500」
-  if (!S.sins.length || !G) return; c.save(); c.strokeStyle = '#c026d3'; c.lineWidth = 1.6; c.setLineDash([12, 4, 2, 4]); c.font = `600 11px ${FONT}`; c.textBaseline = 'middle';
-  for (const s of S.sins){ const q = w2s(s.c, s.c); c.beginPath(); if (s.dir === 'v'){ c.moveTo(q[0], 0); c.lineTo(q[0], ch); } else { c.moveTo(0, q[1]); c.lineTo(cw, q[1]); } c.stroke(); }
+function gridColOn(){ try { return localStorage.getItem('zumen-gridcol') !== '0'; } catch(e){ return true; } }
+let GCC = null; // 通り芯の見つけた物（描くたびに探すと重いので覚える。図面・芯・レイヤーが変わったら探し直す）
+function gridColList(){ const k = [S.sins.filter(s => s.grid).map(s => s.id + s.c).join(), JSON.stringify(gridPref), S.units, S.textH, G.L.map(l => l.deleted ? 0 : l.count ? 1 : 2).join('')].join('|');
+  if (!GCC || GCC.G !== G || GCC.k !== k){ let v = {v:[], h:[]}; try { v = gridCands(); } catch(e){} GCC = {G, k, v}; } return GCC.v; }
+function drawGridCol(c){ // 通り芯を赤い一点鎖線と記号の札で目立たせる（図面の線の上に重ねる）
+  if (!G || !gridColOn()) return; const gc = gridColList(); if (!gc.v.length && !gc.h.length) return;
+  c.save(); c.strokeStyle = '#dc2626'; c.lineWidth = 2.4; c.globalAlpha = .85; c.setLineDash([18, 5, 3, 5]); c.beginPath();
+  const cl = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
+  for (const dir of ['v', 'h']) for (const g of gc[dir]) for (const [lo, hi] of g.iv){ const a = dir === 'v' ? w2s(g.c, lo) : w2s(lo, g.c), b = dir === 'v' ? w2s(g.c, hi) : w2s(hi, g.c);
+    if (dir === 'v'){ if (a[0] < -2 || a[0] > cw + 2) continue; c.moveTo(a[0], cl(a[1], -5, ch + 5)); c.lineTo(a[0], cl(b[1], -5, ch + 5)); } else { if (a[1] < -2 || a[1] > ch + 2) continue; c.moveTo(cl(a[0], -5, cw + 5), a[1]); c.lineTo(cl(b[0], -5, cw + 5), a[1]); } }
+  c.stroke(); c.setLineDash([]); c.globalAlpha = 1; c.font = `800 12px ${FONT}`; c.textBaseline = 'middle';
+  for (const dir of ['v', 'h']) for (const g of gc[dir]){ if (!g.name) continue; const q = w2s(g.c, g.c), w = c.measureText(g.name).width + 10, x = dir === 'v' ? q[0] - w/2 : 4, y = dir === 'v' ? ch - 40 : q[1];
+    if (dir === 'v' ? q[0] < 0 || q[0] > cw : q[1] < 0 || q[1] > ch) continue; c.fillStyle = '#dc2626'; c.fillRect(x, y - 9, w, 18); c.fillStyle = '#fff'; c.fillText(g.name, x + 5, y); }
+  c.restore();
+}
+const SUMI_C = '#2563eb'; // 通り芯から出した墨（地墨）の色：青の点線
+function drawSins(c){ // 通り芯から出した芯（墨）：青の点線と「墨 X2から右1000」。通り芯として登録した線は赤の一点鎖線
+  if (!S.sins.length || !G) return; c.save(); c.lineWidth = 2; c.font = `700 11px ${FONT}`; c.textBaseline = 'middle';
+  for (const s of S.sins){ const q = w2s(s.c, s.c); c.strokeStyle = s.grid ? '#dc2626' : SUMI_C; c.setLineDash(s.grid ? [18, 5, 3, 5] : [7, 6]); c.beginPath(); if (s.dir === 'v'){ c.moveTo(q[0], 0); c.lineTo(q[0], ch); } else { c.moveTo(0, q[1]); c.lineTo(cw, q[1]); } c.stroke(); }
   c.setLineDash([]);
-  for (const s of S.sins){ const q = w2s(s.c, s.c), t = '芯 ' + sinName(s), w = c.measureText(t).width + 10, x = s.dir === 'v' ? q[0] + 4 : 6, y = s.dir === 'v' ? 64 : q[1] - 12; c.fillStyle = '#c026d3'; c.fillRect(x, y - 9, w, 18); c.fillStyle = '#fff'; c.fillText(t, x + 5, y); }
+  for (const s of S.sins){ const q = w2s(s.c, s.c), t = (s.grid ? '通り芯 ' : '墨 ') + sinName(s), w = c.measureText(t).width + 10, x = s.dir === 'v' ? q[0] + 4 : 6, y = s.dir === 'v' ? 64 : q[1] - 12; c.fillStyle = s.grid ? '#dc2626' : SUMI_C; c.fillRect(x, y - 9, w, 18); c.fillStyle = '#fff'; c.fillText(t, x + 5, y); }
   c.restore();
 }
 function sinPickAt(p){ // 芯の基準をタップで選ぶ：壁・線（縦横の線の位置）／照明・器具（その真ん中）
@@ -1911,7 +1927,7 @@ function openSinSheet(m, pre){ // 通り芯・壁・照明などから ○mm の
     const draw = () => {
       const gs = gg[dir], lr = dir === 'v' ? '<option value="1">右へ</option><option value="-1">左へ</option>' : '<option value="1">上へ</option><option value="-1">下へ</option>';
       const btns = (m ? `<div class="frow" style="align-items:center"><span style="font-size:14px">機器の</span>${sl('sinMF', `<option value="c" ${mf === 'c' ? 'selected' : ''}>真ん中</option><option value="lo" ${mf === 'lo' ? 'selected' : ''}>左・下のツラ</option><option value="hi" ${mf === 'hi' ? 'selected' : ''}>右・上のツラ</option>`).replace('style="', 'style="flex:1;')}<span style="font-size:14px">を合わせる</span></div>` : '') + `<div class="frow"><button class="btn ${m ? '' : 'pri'}" data-a="add" style="flex:1;height:46px">芯を出す</button>${m ? '<button class="btn pri" data-a="addm" style="flex:1.4;height:46px;white-space:normal;line-height:1.2">芯を出して機器の真ん中を合わせる</button>' : ''}</div>`;
-      let h = `<div class="note">通り芯・壁・照明などから何mmの所に芯（点線）を出します。機器を「✥ 移動」する時、機器の真ん中が芯にくっつきます。</div>
+      let h = `<div class="note">通り芯・壁・照明などから何mmの所に墨（青の点線）を出します（現場の地墨・逃げ墨）。芯出しの「通り芯（上下左右）」「選んだ線」で、この墨から測れます。機器を「✥ 移動」する時、機器の真ん中が芯にくっつきます。</div>
         <div class="seg2"><button class="btn ${base === 'grid' ? 'sel' : ''}" data-b="grid">通り芯</button><button class="btn ${base === 'line' ? 'sel' : ''}" data-b="line">壁・線</button><button class="btn ${base === 'pt' ? 'sel' : ''}" data-b="pt">照明・器具</button></div>`;
       if (base === 'grid'){
         h += `<div class="seg2"><button class="btn ${dir === 'v' ? 'sel' : ''}" data-d="v">縦の芯（左右の位置）</button><button class="btn ${dir === 'h' ? 'sel' : ''}" data-d="h">横の芯（上下の位置）</button></div>`;
@@ -2542,6 +2558,7 @@ function autoDimAt(cur){
   if (A.to === 'line' && !A.line){
     const R = 26/view.s, s = G.segs; let best = null, bd = R;
     for (const id of query(IX.sg, IX.segMark, cur.x, cur.y, R)){ const k = id*SS; const c = closestOnSeg(cur.x, cur.y, s[k], s[k+1], s[k+2], s[k+3]); const d = Math.hypot(c[0]-cur.x, c[1]-cur.y); if (d < bd && s[k+5] === 0){ bd = d; best = [s[k], s[k+1], s[k+2], s[k+3]]; } }
+    for (const q of S.sins){ const d = Math.abs((q.dir === 'v' ? cur.x : cur.y) - q.c); if (d < bd){ bd = d; best = q.dir === 'v' ? [q.c, cur.y - 1000, q.c, cur.y + 1000] : [cur.x - 1000, q.c, cur.x + 1000, q.c]; } } // 墨（点線）も基準の線に
     if (!best){ toast('まっすぐな線の上で離してください'); MS.cur = null; drawOverlay(); return; }
     A.line = best; MS.cur = null; drawOverlay(); updateHint(); toast('基準の線を決めました。次は' + (A.from === 'part' ? '機器をタップ' : '位置を選ぶ') + '（何個でも続けられます）'); return;
   }
@@ -2706,8 +2723,9 @@ function openAutoDimSheet(){
       ${opt('point', 'wall', '選んだ位置 → 壁の面', 'ドラッグして離した位置から、近い壁の面まで')}
       ${opt('part', 'line', '機器の芯 → 選んだ線', '先に基準の線（壁の面・通り芯など）を選び、機器を次々タップ')}
       ${opt('point', 'line', '選んだ位置 → 選んだ線', '先に基準の線を選び、測りたい位置を次々選ぶ')}
+      <button class="bigbtn sec" data-a="sumi" style="flex-direction:column;height:auto;padding:12px;gap:2px"><span>📍 通り芯から墨を出す（右に1000など・青の点線）</span><span style="font-size:12px;font-weight:500;color:var(--muted)">現場の地墨（逃げ墨）を登録。上の「通り芯（上下左右）」「選んだ線」で墨から測れます（今 ${S.sins.filter(x => !x.grid).length}本）</span></button>
       <button class="btn" data-a="walls">壁として見るレイヤーを選ぶ</button><button class="btn" data-a="grids">通り芯として見るレイヤーを選ぶ</button>`;
-    body.onclick = e => { if (e.target.closest('[data-a="walls"]')){ openWallLayerSheet(); return; } if (e.target.closest('[data-a="grids"]')){ openGridLayerSheet(); return; } const b = e.target.closest('[data-f]'); if (!b) return; S.autoDim = {from:b.dataset.f, to:b.dataset.t, line:null}; MS.p1 = null; closeSheet(); updateHint(); drawOverlay(); };
+    body.onclick = e => { if (e.target.closest('[data-a="sumi"]')){ closeSheet(); setTimeout(() => openSinSheet(null), 50); return; } if (e.target.closest('[data-a="walls"]')){ openWallLayerSheet(); return; } if (e.target.closest('[data-a="grids"]')){ openGridLayerSheet(); return; } const b = e.target.closest('[data-f]'); if (!b) return; S.autoDim = {from:b.dataset.f, to:b.dataset.t, line:null}; MS.p1 = null; closeSheet(); updateHint(); drawOverlay(); };
   });
 }
 /* ---- 通り芯から上下左右：芯（機器の真ん中・吸着した点）から、上・下・左・右それぞれ一番近い通り芯までの寸法。見てから選んで確定 ----
@@ -2734,7 +2752,7 @@ function axisLines(set){ // そのレイヤーの縦・横の線を、同じ位�
   for (const o of col.values()){ const m = []; for (const v of o.iv.sort((a, b) => a[0] - b[0])){ const q = m[m.length-1]; if (q && v[0] <= q[1] + gapMax) q[1] = Math.max(q[1], v[1]); else m.push(v.slice()); } o.iv = m; o.len = Math.max(...m.map(v => v[1] - v[0])); }
   return [...col.values()];
 }
-function gridCands(){
+function gridCands(sumi){
   const B = G.bounds, size = Math.min(B.x1 - B.x0, B.y1 - B.y0), tol = 0.5/unitMM();
   const {set, by} = gridLayerSet(), out = {v:[], h:[], by};
   for (const a of axisLines(set)) if (a.len >= size*0.15) out[a.dir].push({c:a.c, name:'', iv:a.iv});
@@ -2748,6 +2766,7 @@ function gridCands(){
     for (const dir of ['v', 'h']) for (const g of gr[dir]){ const a = ax.find(a => a.dir === dir && Math.abs(a.c - g.c) <= tg && a.len >= size*0.25); if (a) out[dir].push({c:a.c, name:g.name, iv:a.iv}); }
   }
   for (const s of S.sins) if (s.grid) out[s.dir].push({c:s.c, name:s.base, iv:[[-1e15, 1e15]]}); // 自分で登録した通り芯（PDFなど）
+  if (sumi) for (const s of S.sins) if (!s.grid) out[s.dir].push({c:s.c, name:'墨 ' + sinName(s), iv:[[-1e15, 1e15]], sumi:1}); // 通り芯から出した墨（青の点線）も芯出しの基準に
   for (const dir of ['v', 'h']){ // 同じ通り芯（分かれた線・2つの見つけ方で重なった物）は1本に
     const m = [];
     for (const g of out[dir].sort((a, b) => a.c - b.c)){ const q = m[m.length-1]; if (q && g.c - q.c <= tol){ if (!q.name) q.name = g.name; q.iv = q.iv.concat(g.iv); } else m.push({...g}); }
@@ -2757,7 +2776,7 @@ function gridCands(){
 }
 const G4K = ['u', 'd', 'l', 'r'], G4N = {u:'上', d:'下', l:'左', r:'右'};
 function grid4At(P, what){
-  const gc = gridCands(), on = 0.5/unitMM(), mg = Math.max(S.textH*6, 300/unitMM());
+  const gc = gridCands(true), on = 0.5/unitMM(), mg = Math.max(S.textH*6, 300/unitMM());
   // 同じ平面図の通り芯だけ使う。1枚に図が並んでいると X1・X2・X1・X2 のように記号がくり返すので、そこで図を分け、芯のある（近い）図の通り芯にする
   const cov = (g, v) => g.iv.some(([lo, hi]) => v >= lo - mg && v <= hi + mg); // 線が芯の所まで引かれている
   const plan = (arr, v) => { const gs = [[]]; for (const g of arr){ const cur = gs[gs.length-1]; if (g.name && cur.some(x => x.name === g.name)) gs.push([g]); else cur.push(g); }
@@ -2782,6 +2801,7 @@ function grid4PickLine(cur){ // 選び直し：タップした縦（左右）・
   const g = S.autoDim.g4, k = g.pickDir, hz = k === 'u' || k === 'd', R = 26/view.s, s = G.segs; let best = null, bd = R;
   for (const id of query(IX.sg, IX.segMark, cur.x, cur.y, R)){ const q = id*SS, x1 = s[q], y1 = s[q+1], x2 = s[q+2], y2 = s[q+3], L = Math.hypot(x2-x1, y2-y1); if (!(L > 0) || s[q+5] !== 0) continue;
     if (hz ? Math.abs(y2-y1) > L*0.002 : Math.abs(x2-x1) > L*0.002) continue; const c = closestOnSeg(cur.x, cur.y, x1, y1, x2, y2), d = Math.hypot(c[0]-cur.x, c[1]-cur.y); if (d < bd){ bd = d; best = hz ? (y1+y2)/2 : (x1+x2)/2; } }
+  for (const s of S.sins) if (s.dir === (hz ? 'h' : 'v')){ const d = Math.abs((hz ? cur.y : cur.x) - s.c); if (d < bd){ bd = d; best = s.c; } } // 墨（点線）も選べる
   MS.cur = null; updatePill();
   if (best == null){ toast(hz ? '横にまっすぐな線の上で離してください' : '縦にまっすぐな線の上で離してください'); drawOverlay(); return; }
   const on = 0.5/unitMM(), P = hz ? g.P[1] : g.P[0], sg = k === 'u' || k === 'r' ? 1 : -1;
@@ -3297,7 +3317,7 @@ function openViewSheet(){
           <button class="btn ${isCur ? 'sel' : 'pri'}" data-open="${v.id}">${isCur ? '表示中' : '切り替え'}</button><span class="confirm"><button class="btn" data-more="${v.id}">…</button></span></div>`;
       }
     }
-    h += `<div class="grp">すぐ使える</div><div class="sh-tools"><button class="btn" data-a="allon">全部表示</button><button class="btn" data-a="archwall">🧱 建築は壁・扉・窓だけ</button><button class="btn ${pickHid() ? 'sel' : ''}" data-a="pickhid">${pickHid() ? '✓ 隠した線も選べる' : '👆 見えている線だけ選ぶ'}</button><button class="btn" data-a="idle">⏱ 触らない時に選択へ：${idleSec() ? idleSec() + '秒' : 'しない'}</button>${SH.on ? `<button class="btn ${shFollow() ? 'sel' : ''}" data-a="shfollow">${shFollow() ? '✓ 共有の人と同じ表示' : '👀 自分で1から見ている'}</button>` : ''}${S.hideObj.size ? '<button class="btn" data-a="objshow">隠した部品も全部表示</button>' : ''}</div>`;
+    h += `<div class="grp">すぐ使える</div><div class="sh-tools"><button class="btn" data-a="allon">全部表示</button><button class="btn" data-a="archwall">🧱 建築は壁・扉・窓だけ</button><button class="btn ${pickHid() ? 'sel' : ''}" data-a="pickhid">${pickHid() ? '✓ 隠した線も選べる' : '👆 見えている線だけ選ぶ'}</button><button class="btn ${gridColOn() ? 'sel' : ''}" data-a="gridcol">${gridColOn() ? '✓ 通り芯に色' : '🎯 通り芯に色をつけない'}</button><button class="btn" data-a="idle">⏱ 触らない時に選択へ：${idleSec() ? idleSec() + '秒' : 'しない'}</button>${SH.on ? `<button class="btn ${shFollow() ? 'sel' : ''}" data-a="shfollow">${shFollow() ? '✓ 共有の人と同じ表示' : '👀 自分で1から見ている'}</button>` : ''}${S.hideObj.size ? '<button class="btn" data-a="objshow">隠した部品も全部表示</button>' : ''}</div>`;
     body.innerHTML = h;
     const inp = body.querySelector('#viewName');
     body.onclick = e => {
@@ -3313,6 +3333,7 @@ function openViewSheet(){
       if (b.dataset.a === 'allon'){ exec(cmdVis(G.L.filter(l => !l.deleted).map(l => l.name), true)); return; }
       if (b.dataset.a === 'archwall'){ archWallOnly(); return; }
       if (b.dataset.a === 'idle'){ const i = IDLE_OPT.indexOf(idleSec()), v = IDLE_OPT[(i + 1) % IDLE_OPT.length]; try { localStorage.setItem('zumen-idle', String(v)); } catch(e){} toast(v ? `${v}秒さわらないと「選択」にもどします` : '自動で「選択」にもどすのをやめました'); refreshOpenSheet(); return; }
+      if (b.dataset.a === 'gridcol'){ try { localStorage.setItem('zumen-gridcol', gridColOn() ? '0' : '1'); } catch(e){} toast(gridColOn() ? '通り芯を赤くします' : '通り芯の色を図面のままにします'); drawOverlay(); refreshOpenSheet(); return; }
       if (b.dataset.a === 'pickhid'){ try { localStorage.setItem('zumen-pickhid', pickHid() ? '0' : '1'); } catch(e){} toast(pickHid() ? '隠したレイヤーの線も選べます' : '見えている線だけ選びます'); refreshOpenSheet(); return; }
       if (b.dataset.a === 'shfollow'){ const on = !shFollow(); try { localStorage.setItem('zumen-shfollow', on ? '1' : '0'); } catch(e){} if (!on){ exec(cmdVis(G.L.filter(l => !l.deleted).map(l => l.name), true)); if (S.hideObj.size) exec(cmdObjs([...S.hideObj], 'show')); toast('自分で1から見ます（全部表示にしました・相手の表示は変わりません）'); } else { for (const [k, d] of SH.R || []) if (k[1] === ':' && (k[0] === 'H' || k[0] === 'x')) applyItem(k, d.gone ? null : JSON.parse(d.j), new Set()); refreshGeom(); buildIndex(); renderBase(); renderTabs(); toast('共有の人と同じ表示にしました'); } refreshOpenSheet(); return; }
       if (b.dataset.a === 'objshow'){ exec(cmdObjs([...S.hideObj], 'show')); return; }

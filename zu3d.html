@@ -88,7 +88,7 @@ async function render(){let all=[];try{all=(await op(zdb,"projects","readonly",s
  $("#list").innerHTML=(last&&last.fileId?row(last,"図面修正でいま開いている"):"")+saved.map(p=>row(p)).join("")||`<div class="empty">まだありません。上の「✏️ 図面修正で図面を読み込む・直す」で図面を開いてください。</div>`}
 /* 見えない図面修正で3Dを作る */
 let FR=null;
-async function build(id){const p=PR.find(x=>x.id===id);if(!p)throw new Error("図面が見つかりません");const sig=(p.updated||0)+"|"+lsSig()+"|10",ck="z3c:"+id;   // |2：室内機の向き・模型を直した版（前に作った3Dは作り直す）
+async function build(id){const p=PR.find(x=>x.id===id);if(!p)throw new Error("図面が見つかりません");const sig=(p.updated||0)+"|"+lsSig()+"|11",ck="z3c:"+id;   // |2：室内機の向き・模型を直した版（前に作った3Dは作り直す）
  try{const c=await sget(ck);if(c&&c.sig===sig&&c.rec)return c.rec}catch(e){}
  busy(`🧊 「${esc(p.name||"図面")}」の3Dを作っています…<br><span style="font-size:13px;font-weight:500">大きい図面は1分くらいかかります。画面を閉じずにお待ちください</span>`);
  try{const r=await new Promise(ok=>{window.z3Done=ok;if(FR)FR.remove();FR=document.createElement("iframe");FR.setAttribute("aria-hidden","true");FR.tabIndex=-1;FR.style.cssText="position:fixed;left:-10000px;top:0;width:390px;height:700px;border:0;visibility:hidden";FR.src="cad/index.html?mk3d="+encodeURIComponent(id)+"&t="+Date.now();document.body.appendChild(FR);setTimeout(()=>ok({err:"時間切れ"}),240000)});
@@ -111,7 +111,7 @@ async function showV(rec){busy("🧊 3Dを出しています…");try{await load
  V.pt=rec.pipes.map(p=>p.P.map(q=>new T.Vector3(q[0]-cx,q[2],-(q[1]-cy))));
  if(!root){const m=new T.MeshStandardMaterial({color:0x94a3b8});V.pt.forEach(P=>{for(let i=1;i<P.length;i++)sc.add(tube(P[i-1],P[i],15,m))})} // 3Dの形が無い時は配管を灰色で
  /* 配管の管（系統 sy・引いた配管 np）→ 番号 */
- V.hit=[];sc.traverse(n=>{let o=n,j=-1;while(o&&j<0){const d=o.userData||{};if(d.sy!=null||d.np!=null)j=rec.pipes.findIndex(p=>(d.sy!=null&&p.sy===d.sy)||(d.np!=null&&p.np===d.np));o=o.parent}if(n.isMesh&&j>=0){n.userData.j=j;V.hit.push(n)}});
+ V.hit=[];sc.traverse(n=>{let o=n,js=[];while(o&&!js.length){const d=o.userData||{};if(d.sy!=null||d.np!=null)rec.pipes.forEach((p,j)=>{if((d.sy!=null&&p.sy===d.sy)||(d.np!=null&&p.np===d.np))js.push(j)});o=o.parent}if(n.isMesh&&js.length){n.userData.js=js;V.hit.push(n)}}); // 分岐のある系統は分岐前・枝の数だけ（タップした所にいちばん近い物）
  V.sel=new T.Group();sc.add(V.sel);
  const bb=new T.Box3();if(root)bb.setFromObject(root);V.pt.forEach(P=>P.forEach(v=>bb.expandByPoint(v)));if(bb.isEmpty())bb.set(new T.Vector3(-3000,0,-3000),new T.Vector3(3000,3000,3000));
  V.c=bb.getCenter(new T.Vector3());V.d=Math.max(3000,bb.getSize(new T.Vector3()).length()*.75);V.th=-.6;V.ph=.9;
@@ -140,7 +140,7 @@ function vPick(j){const T=THREE;V.cur=j;while(V.sel.children.length)V.sel.remove
  box.addEventListener("wheel",e=>{e.preventDefault();V.d=Math.max(300,V.d*(e.deltaY>0?1.12:.89))},{passive:false});
  const up=e=>{if(!P.has(e.pointerId))return;P.delete(e.pointerId);if(P.size||!g)return;const q=g;g=null;if(q.mv||Date.now()-q.t>450||!V.cam||!V.hit.length)return;
   const rc=box.getBoundingClientRect(),T=THREE,ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((e.clientX-rc.left)/rc.width*2-1,-(e.clientY-rc.top)/rc.height*2+1),V.cam);
-  const h=ray.intersectObjects(V.hit.filter(o=>o.visible!==false),false)[0];if(h)vPick(h.object.userData.j)};
+  const h=ray.intersectObjects(V.hit.filter(o=>o.visible!==false),false)[0];if(!h)return;const js=h.object.userData.js,ds=j=>{const P=V.pt[j];let m=1e18;for(let i=1;i<P.length;i++){const a=P[i-1],ab=P[i].clone().sub(a),t=Math.max(0,Math.min(1,h.point.clone().sub(a).dot(ab)/Math.max(1,ab.lengthSq())));m=Math.min(m,a.clone().addScaledVector(ab,t).distanceToSquared(h.point))}return m};vPick(js.reduce((b,j)=>ds(j)<ds(b)?j:b,js[0]))};
  box.addEventListener("pointerup",up);box.addEventListener("pointercancel",e=>{P.delete(e.pointerId);g=null})})();
 $("#v3l").onclick=e=>{const b=e.target.closest("[data-j]");if(b)vPick(+b.dataset.j)};
 $("#v3").addEventListener("click",async e=>{const b=e.target.closest("[data-v]");if(!b||!V.rec)return;const a=b.dataset.v,rec=V.rec;

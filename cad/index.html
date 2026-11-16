@@ -945,7 +945,7 @@ function drawOverlay(){
   drawPick(octx); drawMvg(octx); drawNp(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
-  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawGridCol(octx); drawSins(octx); drawWires(octx);
+  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawCeilCol(octx); drawGridCol(octx); drawSins(octx); drawWires(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
   drawSame(octx);
@@ -1140,6 +1140,7 @@ function tapSelect(p){
   }
   if (S.pick && S.pick.multi && pickScope === 'part'){ pickLayerAt(p); drawOverlay(); updatePickBar(); return; }
   if (!best && S.mode === 'pan' && gridTap(p)) return; // 通り芯をタップ：1回目で選ぶ・2回目で墨を出す
+  if (!best && S.mode === 'pan' && ceilColTap(p)) return; // 色を付けた冷媒：2回目のタップで系統の名前
   S.gsel = null;
   S.selDim = best;
   if (best) S.pick = null; else pickLayerAt(p);
@@ -1874,6 +1875,42 @@ const sinCs = (m, dir) => S.sins.filter(s => s.dir === dir).map(s => s.c).concat
 function sinGrids(P){ const g = grid4At(P), nm = (a, w) => a.map((x, i) => ({c:x.c, name:x.name || `${w}${i + 1}本目`})); return {v:nm([...g.C.l].reverse().concat(g.onX ? [g.onX] : [], g.C.r), '左から'), h:nm([...g.C.d].reverse().concat(g.onY ? [g.onY] : [], g.C.u), '下から')}; }
 const sinName = s => s.pt && !s.off ? (s.pt === 2 ? s.base : `${s.base}の真ん中`) : `${s.base}から${s.dir === 'v' ? (s.off >= 0 ? '右' : '左') : (s.off >= 0 ? '上' : '下')}${fmt(Math.abs(s.off))}`;
 function cmdSin(op, s){ const lab = op === 'add' ? '芯を出す' : '芯を消す'; return {kind:'note', label:lab, log:{label:lab, detail:sinName(s), sins:[{...s}], gone:op === 'del'}, do(){ if (op === 'add') S.sins.push(s); else S.sins = S.sins.filter(x => x !== s); }, undo(){ if (op === 'add') S.sins = S.sins.filter(x => x !== s); else S.sins.push(s); }}; }
+/* 冷媒を系統ごとの色で図面にも（2026-11-16 ユーザー：3Dと一緒の色・名前を決めたい）：天井の配管図だけ。表示の画面の「✓ 冷媒を系統の色に」zumen-ceilcol */
+function ceilColOn(){ try { return localStorage.getItem('zumen-ceilcol') !== '0'; } catch(e){ return true; } }
+let CCC = null;
+function ceilColCE(){ let k = ''; try { k = [S.srcName, localStorage.getItem('zumen-ceilsys'), localStorage.getItem('zumen-ceildel'), localStorage.getItem('zumen-ceillink'), localStorage.getItem('zumen-ceilh')].join('|'); } catch(e){}
+  if (CCC && CCC.G === G && CCC.k === k) return CCC.v; let v = null; try { v = ceilAna(); if (v){ ceilDelApply(v); ceilSys(v); } } catch(e){ v = null; } CCC = {G, k, v}; return v; }
+function drawCeilCol(c){ if (!G || !ceilColOn()) return; const CE = ceilColCE(); if (!CE || !CE.sys || !CE.sys.length) return; const u = unitMM(), SYI = new Map(CE.sys.map((o, i) => [o.key, i])), col = e => { const i = SYI.get(CE.sysOf.get(e)); return i == null ? null : CEIL_PALR[i % CEIL_PALR.length]; };
+  const ln = (a, b, cl, w) => { const p = w2s(a[0]/u, a[1]/u), q = w2s(b[0]/u, b[1]/u); c.strokeStyle = cl; c.lineWidth = w; c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(q[0], q[1]); c.stroke(); };
+  c.save(); c.lineCap = 'round'; c.globalAlpha = .5; const W = e => Math.max(5, Math.min(26, (e.w || 40)/u*view.s)), sel = S.csel;
+  for (const e of CE.ref){ const cl = col(e); if (cl) ln(e.a, e.b, cl, W(e)); }
+  for (const g of CE.brg) if (g.k === 'ref'){ const cl = col(g.ea); if (cl) ln(g.a, g.b, cl, W(g.ea)); }
+  for (const b of CE.br) if (b.k === 'ref'){ const cl = col(b.from); if (cl) ln(b.e, b.p, cl, W(b.from)); }
+  if (sel){ c.globalAlpha = .9; for (const e of CE.ref) if (CE.sysOf.get(e) === sel) ln(e.a, e.b, '#facc15', W(e) + 4); }
+  c.globalAlpha = 1; c.font = `800 12px ${FONT}`; c.textBaseline = 'middle';
+  for (const o of CE.sys){ const e = o.segs.reduce((a, b) => b.L > a.L ? b : a, o.segs[0]), q = w2s((e.a[0] + e.b[0])/2/u, (e.a[1] + e.b[1])/2/u); if (q[0] < -40 || q[0] > cw + 40 || q[1] < -20 || q[1] > ch + 20) continue;
+    const t = o.nm, w = c.measureText(t).width + 10; c.fillStyle = col(e) || '#c8763a'; c.fillRect(q[0] - w/2, q[1] - 20, w, 18); c.fillStyle = '#fff'; c.fillText(t, q[0] - w/2 + 5, q[1] - 11); }
+  c.restore(); }
+function ceilColTap(p){ // 色を付けた冷媒をタップ：1回目で系統を光らせる・2回目で名前を決める（ふつうに線を選ぶのは名前の画面から）
+  if (!G || !ceilColOn()){ S.csel = null; return false; } const CE = ceilColCE(); if (!CE || !CE.sys) { S.csel = null; return false; } const u = unitMM(); let hit = null, bd = 14;
+  for (const e of CE.ref){ const k = CE.sysOf.get(e); if (!CE.sys.some(o => o.key === k)) continue; const a = w2s(e.a[0]/u, e.a[1]/u), b = w2s(e.b[0]/u, e.b[1]/u), q = closestOnSeg(p[0], p[1], a[0], a[1], b[0], b[1]), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd){ bd = d; hit = k; } }
+  if (!hit){ S.csel = null; return false; } const o = CE.sys.find(x => x.key === hit);
+  S.pick = null; S.selDim = null; updateDimPanel(); updatePickBar();
+  if (S.csel !== hit){ S.csel = hit; drawOverlay(); toast(`系統「${o.nm}」${(o.tot/1000).toFixed(1)}m。もう1回タップで名前を決める`); return true; }
+  openCeilName(CE, o, p); return true; }
+function openCeilName(CE, o, tp){ openSheet('系統の名前', body => {
+  const auto = ceilUnitLabels().length;
+  body.innerHTML = `<div class="note">冷媒の長さ ${(o.tot/1000).toFixed(1)}m（${Object.entries(o.len).map(([k, v]) => `${esc(k)} ${(v/1000).toFixed(1)}m`).join('・')}）。3Dと材料の表も同じ名前になります。${o.auto ? '今の名前は図面の記号から自動で付けました。' : ''}</div>
+    <div class="frow"><input id="csNm" type="text" value="${esc(o.nm)}" placeholder="例 PAC-114" style="flex:1;min-width:0;height:50px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 12px;font:700 20px var(--font-ui);color:var(--ink)"></div>
+    <div class="frow"><button class="btn pri" data-a="ok" style="flex:1;height:50px;font-size:17px">この名前にする</button></div>
+    ${o.key[0] === 'n' ? `<div class="frow"><button class="btn" data-a="auto" style="flex:1">↩ 自動の名前にもどす${auto ? '（図面の記号から）' : ''}</button></div>` : ''}
+    <div class="frow"><button class="btn" data-a="pick" style="flex:1">👆 この線を選ぶ（非表示・削除など）</button></div>`;
+  body.onclick = e => { const b = e.target.closest('[data-a]'); if (!b) return; const OV = ceilSysMap();
+    if (b.dataset.a === 'pick'){ S.csel = null; closeSheet(); if (tp) pickLayerAt(tp); drawOverlay(); updatePickBar(); return; }
+    if (b.dataset.a === 'ok'){ const v = body.querySelector('#csNm').value.trim().slice(0, 20); if (!v){ toast('名前を入れてください'); return; } for (const x of o.segs) OV[ceilKey(x)] = v; toast(`「${v}」にしました（3Dも同じ名前）`); }
+    else { for (const x of o.segs) delete OV[ceilKey(x)]; toast('自動の名前にもどしました'); }
+    ceilSysSet(OV); S.csel = null; closeSheet(); drawOverlay(); };
+}); }
 function gridColOn(){ try { return localStorage.getItem('zumen-gridcol') !== '0'; } catch(e){ return true; } }
 let GCC = null; // 通り芯の見つけた物（描くたびに探すと重いので覚える。図面・芯・レイヤーが変わったら探し直す）
 function gridColList(){ const k = [S.sins.filter(s => s.grid).map(s => s.id + s.c).join(), JSON.stringify(gridPref), S.units, S.textH, G.L.map(l => l.deleted ? 0 : l.count ? 1 : 2).join('')].join('|');
@@ -3351,7 +3388,7 @@ function openViewSheet(){
           <button class="btn ${isCur ? 'sel' : 'pri'}" data-open="${v.id}">${isCur ? '表示中' : '切り替え'}</button><span class="confirm"><button class="btn" data-more="${v.id}">…</button></span></div>`;
       }
     }
-    h += `<div class="grp">すぐ使える</div><div class="sh-tools"><button class="btn" data-a="allon">全部表示</button><button class="btn" data-a="archwall">🧱 建築は壁・扉・窓だけ</button><button class="btn ${pickHid() ? 'sel' : ''}" data-a="pickhid">${pickHid() ? '✓ 隠した線も選べる' : '👆 見えている線だけ選ぶ'}</button><button class="btn ${gridColOn() ? 'sel' : ''}" data-a="gridcol">${gridColOn() ? '✓ 通り芯に色' : '🎯 通り芯に色をつけない'}</button><button class="btn" data-a="idle">⏱ 触らない時に選択へ：${idleSec() ? idleSec() + '秒' : 'しない'}</button>${SH.on ? `<button class="btn ${shFollow() ? 'sel' : ''}" data-a="shfollow">${shFollow() ? '✓ 共有の人と同じ表示' : '👀 自分で1から見ている'}</button>` : ''}${S.hideObj.size ? '<button class="btn" data-a="objshow">隠した部品も全部表示</button>' : ''}</div>`;
+    h += `<div class="grp">すぐ使える</div><div class="sh-tools"><button class="btn" data-a="allon">全部表示</button><button class="btn" data-a="archwall">🧱 建築は壁・扉・窓だけ</button><button class="btn ${pickHid() ? 'sel' : ''}" data-a="pickhid">${pickHid() ? '✓ 隠した線も選べる' : '👆 見えている線だけ選ぶ'}</button><button class="btn ${ceilColOn() ? 'sel' : ''}" data-a="ceilcol">${ceilColOn() ? '✓ 冷媒を系統の色に' : '🎨 冷媒を系統の色にしない'}</button><button class="btn ${gridColOn() ? 'sel' : ''}" data-a="gridcol">${gridColOn() ? '✓ 通り芯に色' : '🎯 通り芯に色をつけない'}</button><button class="btn" data-a="idle">⏱ 触らない時に選択へ：${idleSec() ? idleSec() + '秒' : 'しない'}</button>${SH.on ? `<button class="btn ${shFollow() ? 'sel' : ''}" data-a="shfollow">${shFollow() ? '✓ 共有の人と同じ表示' : '👀 自分で1から見ている'}</button>` : ''}${S.hideObj.size ? '<button class="btn" data-a="objshow">隠した部品も全部表示</button>' : ''}</div>`;
     body.innerHTML = h;
     const inp = body.querySelector('#viewName');
     body.onclick = e => {
@@ -3367,6 +3404,7 @@ function openViewSheet(){
       if (b.dataset.a === 'allon'){ exec(cmdVis(G.L.filter(l => !l.deleted).map(l => l.name), true)); return; }
       if (b.dataset.a === 'archwall'){ archWallOnly(); return; }
       if (b.dataset.a === 'idle'){ const i = IDLE_OPT.indexOf(idleSec()), v = IDLE_OPT[(i + 1) % IDLE_OPT.length]; try { localStorage.setItem('zumen-idle', String(v)); } catch(e){} toast(v ? `${v}秒さわらないと「選択」にもどします` : '自動で「選択」にもどすのをやめました'); refreshOpenSheet(); return; }
+      if (b.dataset.a === 'ceilcol'){ try { localStorage.setItem('zumen-ceilcol', ceilColOn() ? '0' : '1'); } catch(e){} toast(ceilColOn() ? '冷媒を系統ごとの色にします（天井の配管図）' : '冷媒の色を図面のままにします'); drawOverlay(); refreshOpenSheet(); return; }
       if (b.dataset.a === 'gridcol'){ try { localStorage.setItem('zumen-gridcol', gridColOn() ? '0' : '1'); } catch(e){} toast(gridColOn() ? '通り芯を赤くします' : '通り芯の色を図面のままにします'); drawOverlay(); refreshOpenSheet(); return; }
       if (b.dataset.a === 'pickhid'){ try { localStorage.setItem('zumen-pickhid', pickHid() ? '0' : '1'); } catch(e){} toast(pickHid() ? '隠したレイヤーの線も選べます' : '見えている線だけ選びます'); refreshOpenSheet(); return; }
       if (b.dataset.a === 'shfollow'){ const on = !shFollow(); try { localStorage.setItem('zumen-shfollow', on ? '1' : '0'); } catch(e){} if (!on){ exec(cmdVis(G.L.filter(l => !l.deleted).map(l => l.name), true)); if (S.hideObj.size) exec(cmdObjs([...S.hideObj], 'show')); toast('自分で1から見ます（全部表示にしました・相手の表示は変わりません）'); } else { for (const [k, d] of SH.R || []) if (k[1] === ':' && (k[0] === 'H' || k[0] === 'x')) applyItem(k, d.gone ? null : JSON.parse(d.j), new Set()); refreshGeom(); buildIndex(); renderBase(); renderTabs(); toast('共有の人と同じ表示にしました'); } refreshOpenSheet(); return; }
@@ -4903,6 +4941,7 @@ function ceilAna(){
 }
 /* 🧾 材料（2026-11-05 ユーザー：冷媒は系統ごと・サイズごとの m と合計、ドレンは継手ごと・サイズごと）。たての所（高さの変わる所・室外機へ下ろす所）も長さに入れる */
 /* 冷媒の系統（2026-11-05 ユーザー：系統を選んで光らせる・割り振り）：つながり（∩ の印をこえる）で自動、名前を付けた管（zumen-ceilsys・図面ごと・管の両端の座標）はその名前の系統。CE.sys＝[{key, nm, segs, len:{記号:mm}, tot}]・CE.sysOf＝管→系統 */
+const CEIL_PALR = ['#c8763a', '#2563eb', '#db2777', '#7c3aed', '#0891b2', '#ca8a04', '#dc2626', '#4f46e5', '#be185d', '#0f766e', '#9333ea', '#b45309'];   // 冷媒の系統の色（3Dと図面で同じ）
 const ceilKey = e => [e.a[0], e.a[1], e.b[0], e.b[1]].map(Math.round).join(',');
 /* 3Dで消した管（2026-11-13 ユーザー：よく分からない物を省きたい・3Dで削除）：zumen-ceildel の図面ごと [ceilKey]。読んだ後に外して、つながり・材料からも外す */
 function ceilDels(){ try { return (JSON.parse(localStorage.getItem('zumen-ceildel') || '{}') || {})[S.srcName || ''] || []; } catch(e){ return []; } }
@@ -4924,7 +4963,20 @@ function ceilSys(CE){ const R = CE.ref.filter(e => e.c != null), auto = new Map(
   const SZ = q => q.sz || '?', addL = (e, Ln) => { const k = sysOf.get(e); if (!k) return; const o = get(k); o.len[SZ(e)] = (o.len[SZ(e)] || 0) + Ln; o.tot += Ln; };
   for (const e of R) addL(e, e.L); for (const g of CE.brg) if (g.k === 'ref') addL(g.ea, Math.hypot(g.b[0] - g.a[0], g.b[1] - g.a[1]) + Math.abs(g.ha - g.hb)); for (const b of CE.br) if (b.k === 'ref') addL(b.from, Math.hypot(b.p[0] - b.e[0], b.p[1] - b.e[1]) + Math.abs(b.he - b.hm));
   for (const q of CE.mks) addL(q.a, Math.abs(q.a.h - q.b.h)); for (const q of CE.oe) addL(q.e, Math.abs(q.e.h - CE.OUT_H)); for (const e of R) for (const q of e.nbr) if (q.h !== e.h && R.indexOf(q) > R.indexOf(e)) addL(e, Math.abs(q.h - e.h));
-  let no = 0; const list = [...L.values()].filter(o => o.tot >= 3000);   /* 3m 未満のかけらは系統にしない（2026-11-13 ユーザー：系統1が1mのよく分からない物） */ for (const o of list) if (!o.nm) o.nm = '系統 ' + (++no); CE.sys = list; CE.sysOf = sysOf; return list; }
+  let no = 0; const list = [...L.values()].filter(o => o.tot >= 3000);   /* 3m 未満のかけらは系統にしない（2026-11-13 ユーザー：系統1が1mのよく分からない物） */
+  { const AN = new Map(), sd = (p, e) => { const c = closestOnSeg(p[0], p[1], e.a[0], e.a[1], e.b[0], e.b[1]); return Math.hypot(c[0] - p[0], c[1] - p[1]); };   // 室内機の記号（PAC-114A など）の近くの配管の系統に、その名前を自動で付ける（2026-11-16 ユーザー）
+    for (const lb of ceilUnitLabels()){ let k = null, bd = 2500; for (const x of CE.rEnds || []){ const d = Math.hypot(x.p[0] - lb.p[0], x.p[1] - lb.p[1]); if (d < bd && sysOf.get(x.e)){ bd = d; k = sysOf.get(x.e); } }
+      if (!k){ bd = 1500; for (const e of R){ const d = sd(lb.p, e); if (d < bd){ bd = d; k = sysOf.get(e); } } } if (k && k[0] === 'a') (AN.get(k) || AN.set(k, []).get(k)).push(lb.nm); }
+    for (const o of list) if (!o.nm && AN.has(o.key)){ const a = [...new Set(AN.get(o.key))].sort(); o.nm = a.length > 3 ? a.slice(0, 3).join('・') + ' ほか' : a.join('・'); o.auto = 1; } }
+  for (const o of list) if (!o.nm) o.nm = '系統 ' + (++no); CE.sys = list; CE.sysOf = sysOf; return list; }
+/* 図面の室内機の記号：丸の中の「PAC」と「114A」（上下2つの文字）・1つの文字「PAC-114A」→ {nm:'PAC-114A', p:[mm]}（2026-11-16 ユーザー：赤丸の名前で自動） */
+let CUL = null;
+function ceilUnitLabels(){ if (CUL && CUL.G === G) return CUL.v; const u = unitMM(), T = [], out = [], NG = /^(FL|CH|GL|SL|PS|EPS|DS|MB|UB|WC|SK|AW|SD|RC|FD|VD)$/;
+  G.L.forEach((l, li) => { if (l.deleted) return; for (const t of G.textsBy[li] || []){ const s2 = t.lines.join('').normalize('NFKC').replace(/\s+/g, ''); if (!s2 || s2.length > 12) continue; const w = [...s2].length*t.h*0.75*(t.wf || 1); const cx = t.ha === 1 ? t.x : t.ha === 2 ? t.x - w/2 : t.x + w/2, cy = t.va === 'mid' ? t.y : t.va === 'top' ? t.y - t.h/2 : t.y + t.h/2; T.push({s:s2, x:cx*u, y:cy*u, h:t.h*u}); } });
+  for (const t of T){ const m = /^([A-Z]{2,4})[-‐ー−]?(\d{1,4}[A-Z]{0,2})$/.exec(t.s); if (m && !NG.test(m[1])) out.push({nm:m[1] + '-' + m[2], p:[t.x, t.y]}); }
+  for (const t of T){ if (!/^[A-Z]{2,4}$/.test(t.s) || NG.test(t.s)) continue; let b = null, bd = 1e9; for (const q of T){ if (q === t || !/^\d{1,4}[A-Z]{0,2}$/.test(q.s)) continue; const dy = t.y - q.y, dx = Math.abs(t.x - q.x); if (dy > t.h*0.3 && dy < t.h*2.6 && dx < t.h*1.6 && dy + dx < bd){ bd = dy + dx; b = q; } }
+    if (b) out.push({nm:t.s + '-' + b.s, p:[(t.x + b.x)/2, (t.y + b.y)/2]}); }
+  CUL = {G, v:out}; return out; }
 /* 3Dで選ぶ（2026-11-05 ユーザー：配管を選んでハイライト・系統の割り振り・材料の表から系統へ） */
 function ceilTap(CE, x, y){ const TH = V3.TH, el = V3.r.domElement, r = el.getBoundingClientRect(), rc = new TH.Raycaster(); rc.setFromCamera(new TH.Vector2((x - r.left)/r.width*2 - 1, -(y - r.top)/r.height*2 + 1), V3.cam);
   const hit = rc.intersectObjects((V3.ceilSel || []).filter(o => { let v = true; for (let q = o; q; q = q.parent) if (q.visible === false) v = false; return v; }), false)[0];
@@ -5048,7 +5100,7 @@ function ceilBuild(TH, CE, grp, W, u, bb){
   const M = {ref:new TH.MeshStandardMaterial({color:0xc8763a, metalness:.5, roughness:.4}), drn:new TH.MeshStandardMaterial({color:0x22c55e, roughness:.5})}, BM = {ref:new TH.MeshStandardMaterial({color:0x7c2d12}), drn:new TH.MeshStandardMaterial({color:0x166534})}, rad = p => Math.max(12, Math.min(45, (p.w || 40)/2));
   if (V3.on.ceil_b == null) V3.on.ceil_b = false;   // 梁の貫通は初めは消す
   /* 配管ごとに色分け（2026-11-10 ユーザー：配管が何本もある時・高さの文字も同じ色）：冷媒は系統ごと、ドレンはつながった所ごと */
-  const PALR = ['#c8763a', '#2563eb', '#db2777', '#7c3aed', '#0891b2', '#ca8a04', '#dc2626', '#4f46e5', '#be185d', '#0f766e', '#9333ea', '#b45309'], PALD = ['#22c55e', '#14b8a6', '#65a30d', '#06b6d4', '#16a34a', '#0d9488', '#84cc16', '#0e7490'];
+  const PALR = CEIL_PALR, PALD = ['#22c55e', '#14b8a6', '#65a30d', '#06b6d4', '#16a34a', '#0d9488', '#84cc16', '#0e7490'];
   { const rd0 = (m, p) => Math.hypot(Math.max(m.x0 - p[0], 0, p[0] - m.x1), Math.max(m.y0 - p[1], 0, p[1] - m.y1)), MU = (CE.units || []).filter(m => v3dMdOf(m)); CE.cos = CE.cos.filter(q => { if (!q.cap || !MU.some(m => rd0(m, q.p) < 800)) return true; CE.dEnds.push(q.a); return false; }); }   // 機種の決まった室内機のそば（80cm）の丸は、室内機へ上がるドレン（掃除口にしない）
   ceilSys(CE); const SYI = new Map(CE.sys.map((o, i) => [o.key, i])), DGI = new Map(); { let n = 0; for (const e of CE.drn){ if (DGI.has(e)) continue; for (const x of ceilDrnRun(CE, e)) if (!DGI.has(x)) DGI.set(x, n); n++; } }
   const colOf = (e, k) => { if (k === 'ref'){ const i = SYI.get(CE.sysOf.get(e)); return i == null ? PALR[0] : PALR[i % PALR.length]; } const i = DGI.get(e); return i == null ? PALD[0] : PALD[i % PALD.length]; }, MCC = {}, MC = (e, k) => { const c = colOf(e, k); return MCC[c] || (MCC[c] = new TH.MeshStandardMaterial({color:c, metalness:k === 'ref' ? .45 : 0, roughness:.45})); };

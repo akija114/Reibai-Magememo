@@ -5224,7 +5224,7 @@ async function mageSend(rec){ toast('3Dをまとめています…'); await new 
   try { await new Promise((ok, ng) => { const o = indexedDB.open('pbmShare', 1); o.onupgradeneeded = () => { if (!o.result.objectStoreNames.contains('f')) o.result.createObjectStore('f'); }; o.onerror = () => ng(o.error);
       o.onsuccess = () => { try { const db = o.result, tx = db.transaction('f', 'readwrite'); tx.objectStore('f').put(rec, 'pipes'); tx.oncomplete = () => { db.close(); ok(); }; tx.onerror = tx.onabort = () => ng(tx.error); } catch(e){ ng(e); } }; });
     if (MK3D){ try { parent.z3Done({ok:1, n:rec.pipes.length, sc:!!rec.sc}); } catch(e){} return; }
-    autosave(false); toast('曲げ共有を開いています…'); setTimeout(() => { location.href = '../index.html?from=cadpipes'; }, 900); // 端末への保存（0.8秒後）が済んでから
+    autosave(false); toast('図面の3Dを開いています…'); setTimeout(() => { location.href = '../zu3d.html?v=1'; }, 900); // 端末への保存（0.8秒後）が済んでから。図面の画面の3Dで配管を選んで曲げ共有へ（2026-11-16 ユーザー）
   } catch(e){ if (MK3D){ try { parent.z3Done({err:(e && e.message) || String(e)}); } catch(e2){} return; } toast('渡せませんでした（' + ((e && e.message) || e) + '）'); }
 }
 /* 3Dを曲げ共有へ：天井の配管図・立面図は3Dをそのまま、1から引いた配管があればその配管、ほかは3Dだけ（前の図面の画面へは渡さない・2026-11-14 ユーザー：前の図面はしまう） */

@@ -36,18 +36,30 @@ details{margin-top:22px}summary{font-size:14px;font-weight:800;color:var(--sub);
 #sheet{position:fixed;inset:0;z-index:40;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center}
 #sheet>div{background:var(--card);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 16px);max-height:85vh;overflow:auto}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;max-width:90vw}
+#v3{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px calc(env(safe-area-inset-bottom,0px) + 8px)}
+#v3[hidden]{display:none}
+#v3 .top{display:flex;gap:8px;align-items:center}#v3 .top b{flex:1;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#v3 .top button{flex:none;height:42px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:800;font-size:14px;padding:0 12px}
+#v3c{flex:1;min-height:0;margin:6px 0;border-radius:14px;overflow:hidden;background:#dfe7ef;touch-action:none;position:relative}#v3c canvas{display:block;width:100%;height:100%}
+#v3h{font-size:13px;color:var(--sub);margin:0 2px 4px;line-height:1.5}
+#v3l{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;-webkit-overflow-scrolling:touch}
+#v3l button{flex:none;height:42px;border-radius:12px;padding:0 12px;font:inherit;font-size:14px;font-weight:800;border:2px solid var(--line);background:var(--card);color:var(--ink)}
+#v3l button.on{border-color:#eab308;background:#fef9c3;color:#0f172a}
+#v3go{margin-top:4px}#v3go:disabled{opacity:.45}
 </style>
 </head>
 <body>
 <nav class="apps"><a href="home.html" style="flex:0 0 38px" aria-label="入口">🏠</a><a href="index.html">🔧 曲げ共有</a><a href="zu3d.html" class="on">📐 図面</a><a href="genchou.html">📹 現調</a><a href="kiki.html">🔩 機器</a><a href="genba.html">📋 現場</a></nav>
 <h1>📐 図面の3D</h1>
-<div class="note">図面修正で直した図面を、3Dにして曲げ共有で開きます。配管を選ぶとその曲げになります。「📤 送る」で、ほかの人も同じ3Dを見られます（仕事の前の予習に）。</div>
+<div class="note">図面修正で直した図面を、ここで3Dにして見ます。見たい配管をタップして「🔧 この配管の曲げを作る」で、曲げ共有にその配管だけを出します。「📤 送る」で、ほかの人も同じ3Dを見られます（仕事の前の予習に）。</div>
 <a class="big" href="cad/">✏️ 図面修正で図面を読み込む・直す</a>
 <div class="grp">図面修正の図面</div>
 <div id="list"><div class="empty">読み込み中…</div></div>
 <details id="more"><summary>ほかの機能</summary>
 <a class="big" href="zumen.html">📐 前の図面の画面（読み込んで全部自動・材料拾い・見積り）</a>
 </details>
+<div id="v3" hidden><div class="top"><button data-v="x">‹ もどる</button><b id="v3n">図面の3D</b><button data-v="s">📤 送る</button></div>
+<div id="v3c"></div><div id="v3h"></div><div id="v3l"></div><button class="big pri" id="v3go" data-v="go" disabled>🔧 この配管の曲げを作る</button></div>
 <div id="busy" hidden><div id="busyT"></div></div>
 <script>
 /* 📐 図面（2026-11-14 ユーザー：図面は図面修正で読み込む。曲げ共有の図面は図面修正の3Dを開く所に・3Dをほかの人と共有して予習）
@@ -85,7 +97,55 @@ async function build(id){const p=PR.find(x=>x.id===id);if(!p)throw new Error("�
   const rec=await sget("pipes");if(!rec||!rec.sc)throw new Error("3Dを受け取れませんでした");
   try{await sput(ck,{sig,rec,t:Date.now()});const ks=(await op(sdb,"f","readonly",s=>s.getAllKeys())).filter(k=>/^z3c:/.test(k)&&k!==ck);if(ks.length>2){const ts=[];for(const k of ks){const v=await sget(k);ts.push([k,v&&v.t||0])}ts.sort((a,b)=>a[1]-b[1]).slice(0,ks.length-2).forEach(([k])=>sdel(k))}}catch(e){}
   return rec}finally{busy("")}}
-async function openRec(rec){await sput("pipes",{...rec,t:Date.now()});location.href="index.html?from=cadpipes"}
+/* 3Dはこの画面で見る（2026-11-16 ユーザー：図面は図面の画面で開く・選んだ配管だけ曲げ共有へ）。作った3Dは pbmShare の "z3v" にも残す（曲げ共有の「📐 図面で選び直す」→ ?v=1） */
+async function openRec(rec){try{await sput("z3v",rec)}catch(e){}await showV(rec)}
+const load3=()=>window.THREE?Promise.resolve():new Promise((ok,ng)=>{const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";sc.onload=ok;sc.onerror=()=>ng(new Error("3Dの部品を読めません。電波を確かめてください"));document.head.appendChild(sc)});
+const V={};
+function vClose(){$("#v3").hidden=true;document.body.style.overflow="";if(V.raf)cancelAnimationFrame(V.raf);V.raf=0;if(V.ren){V.ren.dispose();V.ren.domElement.remove();V.ren=null}V.rec=null}
+async function showV(rec){busy("🧊 3Dを出しています…");try{await load3()}finally{busy("")}
+ const T=THREE;vClose();V.rec=rec;V.cur=-1;$("#v3").hidden=false;document.body.style.overflow="hidden";$("#v3n").textContent="🧊 "+(rec.name||"図面");
+ const box=$("#v3c"),ren=new T.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(2,devicePixelRatio||1));box.appendChild(ren.domElement);V.ren=ren;
+ const sc=new T.Scene();sc.background=new T.Color(0xdfe7ef);sc.add(new T.HemisphereLight(0xffffff,0x8899aa,.85));const dl=new T.DirectionalLight(0xffffff,.55);dl.position.set(1,2,1.5);sc.add(dl);V.sc=sc;
+ const cx=rec.cx||0,cy=rec.cy||0;let root=null;
+ if(rec.sc){try{root=new T.ObjectLoader().parse(rec.sc);sc.add(root)}catch(e){console.warn(e)}}
+ V.pt=rec.pipes.map(p=>p.P.map(q=>new T.Vector3(q[0]-cx,q[2],-(q[1]-cy))));
+ if(!root){const m=new T.MeshStandardMaterial({color:0x94a3b8});V.pt.forEach(P=>{for(let i=1;i<P.length;i++)sc.add(tube(P[i-1],P[i],15,m))})} // 3Dの形が無い時は配管を灰色で
+ /* 配管の管（系統 sy・引いた配管 np）→ 番号 */
+ V.hit=[];sc.traverse(n=>{let o=n,j=-1;while(o&&j<0){const d=o.userData||{};if(d.sy!=null||d.np!=null)j=rec.pipes.findIndex(p=>(d.sy!=null&&p.sy===d.sy)||(d.np!=null&&p.np===d.np));o=o.parent}if(n.isMesh&&j>=0){n.userData.j=j;V.hit.push(n)}});
+ V.sel=new T.Group();sc.add(V.sel);
+ const bb=new T.Box3();if(root)bb.setFromObject(root);V.pt.forEach(P=>P.forEach(v=>bb.expandByPoint(v)));if(bb.isEmpty())bb.set(new T.Vector3(-3000,0,-3000),new T.Vector3(3000,3000,3000));
+ V.c=bb.getCenter(new T.Vector3());V.d=Math.max(3000,bb.getSize(new T.Vector3()).length()*.75);V.th=-.6;V.ph=.9;
+ V.cam=new T.PerspectiveCamera(45,1,20,V.d*20);
+ $("#v3h").textContent=rec.pipes.length?"見たい配管を3Dでタップするか、下から選んでください（1本指で回す・2本指で大きく・ずらす）":"この図面には曲げを出せる配管がありません（3Dを見るだけ）";
+ $("#v3l").innerHTML=rec.pipes.map((p,j)=>`<button data-j="${j}">${esc(p.nm)}・${(V.pt[j].reduce((a,v,i)=>i?a+v.distanceTo(V.pt[j][i-1]):0,0)/1000).toFixed(1)}m</button>`).join("");
+ $("#v3go").hidden=!rec.pipes.length;vPick(rec.pipes.length&&rec.cur!=null&&rec.cur>=0&&rec.cur<rec.pipes.length&&rec.only?rec.cur:-1);
+ const loop=()=>{V.raf=requestAnimationFrame(loop);const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;if(ren.domElement.width!==Math.round(w*ren.getPixelRatio())||ren.domElement.height!==Math.round(h*ren.getPixelRatio())){ren.setSize(w,h,false);V.cam.aspect=w/h;V.cam.updateProjectionMatrix()}
+  V.cam.position.set(V.c.x+V.d*Math.sin(V.ph)*Math.sin(V.th),V.c.y+V.d*Math.cos(V.ph),V.c.z+V.d*Math.sin(V.ph)*Math.cos(V.th));V.cam.lookAt(V.c);ren.render(sc,V.cam)};loop()}
+function tube(a,b,r,m){const T=THREE,L=a.distanceTo(b),g=new T.Group();if(L>1){const c=new T.Mesh(new T.CylinderGeometry(r,r,L,12),m);c.position.copy(a).add(b).multiplyScalar(.5);c.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),b.clone().sub(a).normalize());g.add(c)}const k=new T.Mesh(new T.SphereGeometry(r,12,8),m);k.position.copy(b);g.add(k);return g}
+/* 配管を選ぶ：黄色の太い管で重ねて、そこへ寄る */
+function vPick(j){const T=THREE;V.cur=j;while(V.sel.children.length)V.sel.remove(V.sel.children[0]);
+ document.querySelectorAll("#v3l button").forEach(b=>b.classList.toggle("on",+b.dataset.j===j));$("#v3go").disabled=j<0;
+ if(j<0)return;const P=V.pt[j],m=new T.MeshBasicMaterial({color:0xfacc15,transparent:true,opacity:.9,depthTest:false});P.forEach((v,i)=>{if(i)V.sel.add(tube(P[i-1],v,32,m))});V.sel.children.forEach(g=>g.traverse(o=>{o.renderOrder=9}));
+ const bb=new T.Box3();P.forEach(v=>bb.expandByPoint(v));V.c=bb.getCenter(new T.Vector3());V.d=Math.max(2500,bb.getSize(new T.Vector3()).length()*1.4);
+ const b=document.querySelector(`#v3l button[data-j="${j}"]`);if(b)b.scrollIntoView({block:"nearest",inline:"center"})}
+/* さわる：1本指で回す・2本指で大きく／ずらす・軽くタップで配管を選ぶ */
+(()=>{const box=$("#v3c"),P=new Map();let g=null;
+ const two=()=>{const [a,b]=[...P.values()];return{d:Math.hypot(a.x-b.x,a.y-b.y),x:(a.x+b.x)/2,y:(a.y+b.y)/2}};
+ box.addEventListener("pointerdown",e=>{box.setPointerCapture(e.pointerId);P.set(e.pointerId,{x:e.clientX,y:e.clientY});g=P.size===1?{t:Date.now(),x:e.clientX,y:e.clientY,mv:0}:{...two(),mv:1}});
+ box.addEventListener("pointermove",e=>{const o=P.get(e.pointerId);if(!o||!V.cam)return;const dx=e.clientX-o.x,dy=e.clientY-o.y;o.x=e.clientX;o.y=e.clientY;
+  if(P.size===1){if(Math.hypot(e.clientX-g.x,e.clientY-g.y)>6)g.mv=1;V.th-=dx*.008;V.ph=Math.max(.05,Math.min(Math.PI/2-.02,V.ph-dy*.008))}
+  else if(P.size===2){const n=two();if(g.d)V.d=Math.max(300,Math.min(V.cam.far/3,V.d*g.d/Math.max(1,n.d)));const k=V.d/box.clientHeight*.9,T=THREE,r=new T.Vector3(Math.cos(V.th),0,-Math.sin(V.th)),f=new T.Vector3(Math.sin(V.th),0,Math.cos(V.th));V.c.addScaledVector(r,-(n.x-g.x)*k).addScaledVector(f,-(n.y-g.y)*k);g={...n,mv:1}}});
+ box.addEventListener("wheel",e=>{e.preventDefault();V.d=Math.max(300,V.d*(e.deltaY>0?1.12:.89))},{passive:false});
+ const up=e=>{if(!P.has(e.pointerId))return;P.delete(e.pointerId);if(P.size||!g)return;const q=g;g=null;if(q.mv||Date.now()-q.t>450||!V.cam||!V.hit.length)return;
+  const rc=box.getBoundingClientRect(),T=THREE,ray=new T.Raycaster();ray.setFromCamera(new T.Vector2((e.clientX-rc.left)/rc.width*2-1,-(e.clientY-rc.top)/rc.height*2+1),V.cam);
+  const h=ray.intersectObjects(V.hit.filter(o=>o.visible!==false),false)[0];if(h)vPick(h.object.userData.j)};
+ box.addEventListener("pointerup",up);box.addEventListener("pointercancel",e=>{P.delete(e.pointerId);g=null})})();
+$("#v3l").onclick=e=>{const b=e.target.closest("[data-j]");if(b)vPick(+b.dataset.j)};
+$("#v3").addEventListener("click",async e=>{const b=e.target.closest("[data-v]");if(!b||!V.rec)return;const a=b.dataset.v,rec=V.rec;
+ if(a==="x"){vClose();return}
+ if(a==="s"){await sendRec(rec);return}
+ if(a==="go"&&V.cur>=0){const p=rec.pipes[V.cur],u=p.ui>=0&&rec.units&&rec.units[p.ui];  /* 曲げ共有へは選んだ配管と始まりの室内機だけ（3D・壁・ほかの配管は渡さない） */
+  await sput("pipes",{v:1,name:rec.name,t:Date.now(),ch:rec.ch,walls:[],ubs:[],units:u?[u]:[],pipes:[{...p,ui:u?0:-1}],cur:0,only:1});location.href="index.html?from=cadpipes"}});
 /* ---------- 送る（Firebase：匿名・links に 30万文字ずつ） ---------- */
 const FB_CFG={"apiKey":"AIzaSyCnvx6kB7rR9L6QHYrjzS3mEBaqtL7LJnI","authDomain":"setubi-zumen.firebaseapp.com","projectId":"setubi-zumen","storageBucket":"setubi-zumen.firebasestorage.app","messagingSenderId":"337675527486","appId":"1:337675527486:web:3c4d16c3d838b66185386f"},FB_V="https://www.gstatic.com/firebasejs/10.14.1/";
 let FXP=null;
@@ -126,7 +186,8 @@ $("#list").onclick=async e=>{const o=e.target.closest("[data-o]"),s=e.target.clo
  try{const rec=await build((o||s).dataset[o?"o":"s"]);if(o)await openRec(rec);else await sendRec(rec)}catch(err){busy("");toast("できませんでした（"+(err.message||err)+"）")}};
 /* 受け取る（?z3=番号）・曲げ共有から送る（?send=1：いま曲げ共有にある3D） */
 (async()=>{const q=new URLSearchParams(location.search),z=q.get("z3"),sd=q.get("send");
- if(z||sd)try{history.replaceState(null,"",location.pathname)}catch(e){}
+ const vw=q.get("v");if(z||sd||vw)try{history.replaceState(null,"",location.pathname)}catch(e){}
+ if(vw){render();try{let r=await sget("pipes");if(r&&r.sc){try{await sput("z3v",r)}catch(e){}}else r=await sget("z3v");if(!r||!r.pipes)throw new Error("図面の3Dがありません。下の一覧の「🧊 3Dで開く」から開いてください");await showV(r)}catch(e){busy("");toast(e.message||String(e))}return}
  if(sd){try{const r=await sget("pipes");if(!r||!r.sc)throw new Error("曲げ共有に図面の3Dがありません");await sendRec(r)}catch(e){busy("");toast(e.message||String(e))}}
  if(z){const id=z.replace(/[^\w]/g,"");busy("🧊 図面の3Dを受け取っています…");
   try{const f=await fx(),m=await f.get("links/"+id);if(!m||!/^z3:/.test(m.z))throw new Error("3Dが見つかりません");const M=JSON.parse(m.z.slice(3));let s="";

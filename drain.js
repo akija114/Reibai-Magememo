@@ -225,7 +225,7 @@ body.drmode #drPanel{display:block}
 #drSumOv .sh{background:var(--card);color:var(--ink);width:100%;max-width:560px;max-height:88vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 16px)}`;
  document.head.appendChild(css);
  const tg=document.createElement("div");tg.id="mtog";tg.innerHTML=APP==="bend"?'<button data-m="ref" class="on"><i class="ic ic-rf"></i>冷媒</button><button data-m="dr"><i class="ic ic-dr"></i>ドレン</button>':'<button data-m="ref" class="on">🔧 冷媒</button><button data-m="dr">💧 ドレン</button><button data-m="sum">📋 まとめ</button>';   // 曲げ共有は冷媒・ドレンだけ（まとめは図面で・2026-11-11 ユーザー）
- $("#legbar").before(tg);if(APP==="bend"){const w=document.createElement("div");w.id="mrow";tg.before(w);w.append(tg,$("#legbar"))}   // 曲げ共有：冷媒・ドレンと 新規・戻す・進む を1つの段に（2026-11-16 ユーザー）
+ $("#legbar").before(tg);if(APP==="bend"){tg.hidden=true;$("#lfBar").prepend($("#legbar"))}   // 曲げ共有：ドレンの切り替えはしまう・新規・戻す・進むは描いて曲げと同じ段に（2026-11-16 ユーザー：ドレンの項目いらない）
  const pn=document.createElement("div");pn.id="drPanel";$("#rows").after(pn);
  const ov=document.createElement("div");ov.id="drSumOv";ov.innerHTML='<div class="sh" id="drSumSh"></div>';document.body.appendChild(ov);
  ov.addEventListener("click",e=>{if(e.target===ov)ov.classList.remove("on")});
@@ -373,7 +373,7 @@ function drPick(cx,cy){if(!T||!T.drSegs||!T.drSegs.length||!T.w)return null;cons
  T.drSegs.forEach(sg=>{const a=sc(sg.a),b=sc(sg.b);if(!a||!b)return;const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;let t=L2<1e-6?0:((px-a[0])*dx+(py-a[1])*dy)/L2;t=Math.max(0,Math.min(1,t));const d=Math.hypot(px-(a[0]+dx*t),py-(a[1]+dy*t));if(d<bd){bd=d;best=sg}});
  return best&&bd<=26?{i:best.i,d:bd}:null}
 function drSelect(i,quiet){if(i===DR_SEL&&quiet)return;DR_SEL=i;if(i<0){if(T){build3D();T.dirty=true}return}
- if(typeof APP!=="undefined"&&APP==="bend"&&!document.body.classList.contains("drmode")){const b=document.querySelector('#mtog [data-m="dr"]');if(b)b.click()}
+ if(typeof APP!=="undefined"&&APP==="bend"&&!document.body.classList.contains("drmode")&&!document.getElementById("mtog").hidden){const b=document.querySelector('#mtog [data-m="dr"]');if(b)b.click()}
  if(T){build3D();T.dirty=true}
  if($("#drPanel")){drRender();const row=document.querySelector(`.drrow[data-r="${i}"]`);if(row){row.scrollIntoView({block:"center",behavior:"smooth"})}}
  if(!quiet)toast("💧 ドレン "+nm(i)+" を選びました")}

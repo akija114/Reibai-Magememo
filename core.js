@@ -426,13 +426,15 @@ function upd(){
 }
 
 /* 曲げを追加：今の先端（最後の行）の終わりで曲げて、その先に直管を足す。先端はいつも真っ直ぐ */
-$("#add").onclick=()=>{
+function addBend(){
  const rows=LR(),last=rows[rows.length-1];
  if(last&&!last.a&&T){const bi=rows.length-1;sel=bi;render();
   setTimeout(()=>openDirView(bi,{add:true}),60);   // 曲げと次の直管は、カメラが寄り終わってから出す
  }else{rows.push({l:500,a:0,t:0,o:false});sel=rows.length-1;save();render();if(T)fitT(true)}
  $("#rows").lastElementChild.scrollIntoView({block:"nearest",behavior:"smooth"});
-};
+}
+/* 曲げ共有（くわしい表示）：「曲げを追加」で「曲げを1つ足す／長さだけ先にメモ」を選ぶ（2026-11-16 ユーザー：長さだけ先にメモのボタンはいらない・曲げ追加で選べるように） */
+$("#add").onclick=()=>{if(APP==="bend"&&!EZ&&$("#lfOpen"))sheetMsg('<b style="font-size:16px">曲げを追加</b>',[["曲げを1つ足す（向きを決める）",addBend,"#0b67c2","#fff"],["長さだけ先にメモ（角度はあとで決める）",()=>$("#lfOpen").click()],["やめる"]]);else addBend()};
 
 /* ---------- 3D ---------- */
 function initT(){

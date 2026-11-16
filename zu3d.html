@@ -120,13 +120,15 @@ async function showV(rec){busy("🧊 3Dを出しています…");try{await load
  $("#v3l").innerHTML=rec.pipes.map((p,j)=>`<button data-j="${j}">${esc(p.nm)}・${(V.pt[j].reduce((a,v,i)=>i?a+v.distanceTo(V.pt[j][i-1]):0,0)/1000).toFixed(1)}m</button>`).join("");
  $("#v3go").hidden=!rec.pipes.length;vPick(rec.pipes.length&&rec.cur!=null&&rec.cur>=0&&rec.cur<rec.pipes.length&&rec.only?rec.cur:-1);
  const loop=()=>{V.raf=requestAnimationFrame(loop);const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;if(ren.domElement.width!==Math.round(w*ren.getPixelRatio())||ren.domElement.height!==Math.round(h*ren.getPixelRatio())){ren.setSize(w,h,false);V.cam.aspect=w/h;V.cam.updateProjectionMatrix()}
-  V.cam.position.set(V.c.x+V.d*Math.sin(V.ph)*Math.sin(V.th),V.c.y+V.d*Math.cos(V.ph),V.c.z+V.d*Math.sin(V.ph)*Math.cos(V.th));V.cam.lookAt(V.c);ren.render(sc,V.cam)};loop()}
+  V.cam.position.set(V.c.x+V.d*Math.sin(V.ph)*Math.sin(V.th),V.c.y+V.d*Math.cos(V.ph),V.c.z+V.d*Math.sin(V.ph)*Math.cos(V.th));V.cam.lookAt(V.c);if(V.selM&&V.cur>=0)V.selM.opacity=.55+.45*Math.abs(Math.sin(Date.now()/350));ren.render(sc,V.cam)};loop()}
 function tube(a,b,r,m){const T=THREE,L=a.distanceTo(b),g=new T.Group();if(L>1){const c=new T.Mesh(new T.CylinderGeometry(r,r,L,12),m);c.position.copy(a).add(b).multiplyScalar(.5);c.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),b.clone().sub(a).normalize());g.add(c)}const k=new T.Mesh(new T.SphereGeometry(r,12,8),m);k.position.copy(b);g.add(k);return g}
 /* 配管を選ぶ：黄色の太い管で重ねて、そこへ寄る */
 function vPick(j){const T=THREE;V.cur=j;while(V.sel.children.length)V.sel.remove(V.sel.children[0]);
  document.querySelectorAll("#v3l button").forEach(b=>b.classList.toggle("on",+b.dataset.j===j));$("#v3go").disabled=j<0;
- if(j<0)return;const P=V.pt[j],m=new T.MeshBasicMaterial({color:0xfacc15,transparent:true,opacity:.9,depthTest:false});P.forEach((v,i)=>{if(i)V.sel.add(tube(P[i-1],v,32,m))});V.sel.children.forEach(g=>g.traverse(o=>{o.renderOrder=9}));
- const bb=new T.Box3();P.forEach(v=>bb.expandByPoint(v));V.c=bb.getCenter(new T.Vector3());V.d=Math.max(2500,bb.getSize(new T.Vector3()).length()*1.4);
+ if(j<0)return;const P=V.pt[j],bb=new T.Box3();P.forEach(v=>bb.expandByPoint(v));V.c=bb.getCenter(new T.Vector3());V.d=Math.max(2500,bb.getSize(new T.Vector3()).length()*.62/(.414*Math.min(1,V.cam?V.cam.aspect:.8)));
+ /* 太さは見る距離に合わせる・黒いふち＋点滅（2026-11-16：黄色・だいだいの系統にまぎれて見えない） */
+ const r=Math.max(45,V.d/110),k=new T.MeshBasicMaterial({color:0x111827,transparent:true,opacity:.6,depthTest:false});V.selM=new T.MeshBasicMaterial({color:0xfacc15,transparent:true,opacity:1,depthTest:false});
+ P.forEach((v,i)=>{if(i){const a=tube(P[i-1],v,r*1.6,k),b=tube(P[i-1],v,r,V.selM);a.traverse(o=>{o.renderOrder=8});b.traverse(o=>{o.renderOrder=9});V.sel.add(a,b)}});
  const b=document.querySelector(`#v3l button[data-j="${j}"]`);if(b)b.scrollIntoView({block:"nearest",inline:"center"})}
 /* さわる：1本指で回す・2本指で大きく／ずらす・軽くタップで配管を選ぶ */
 (()=>{const box=$("#v3c"),P=new Map();let g=null;

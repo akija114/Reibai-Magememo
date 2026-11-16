@@ -86,6 +86,9 @@ input[type=range]{accent-color:var(--acc)}
 #legbar{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:0 2px 6px;align-items:stretch}
 #legbar:empty{display:none}
 #lfBar{flex:none;display:flex;gap:6px;padding:0 2px}#lfBar .sharebtn{flex:1;height:38px;margin-bottom:6px;font-size:13px}
+/* 描いて曲げ・長さメモのアイコン（上の段の「？」と同じ青い丸・2026-11-16 ユーザー：オリジナルのアイコン・描いて曲げはおすすめで目立つように） */
+.ic{display:inline-block;width:26px;height:26px;vertical-align:middle;background:center/contain no-repeat;margin-right:5px;flex:none}.ic-eg{background-image:url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJjdSIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2ZmZTFiNSIvPjxzdG9wIG9mZnNldD0iLjUiIHN0b3AtY29sb3I9IiNlODkwM2YiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM5YTRhMTIiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0OSIgZmlsbD0idXJsKCNyKSIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQyIiBmaWxsPSJ1cmwoI2cpIi8+PGVsbGlwc2UgY3g9IjM2IiBjeT0iMjUiIHJ4PSIyMiIgcnk9IjkiIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4zIiB0cmFuc2Zvcm09InJvdGF0ZSgtMjUgMzYgMjUpIi8+PHBhdGggZD0iTTIwIDY5SDM1UTQyIDY5IDQ1IDYyTDUxIDQ4UTU0IDQxIDYxIDQxIiBmaWxsPSJub25lIiBzdHJva2U9IiM3YzJkMTIiIHN0cm9rZS13aWR0aD0iMTIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgb3BhY2l0eT0iLjM1Ii8+PHBhdGggZD0iTTIwIDY3SDM1UTQyIDY3IDQ1IDYwTDUxIDQ2UTU0IDM5IDYxIDM5IiBmaWxsPSJub25lIiBzdHJva2U9InVybCgjY3UpIiBzdHJva2Utd2lkdGg9IjEwIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48cG9seWdvbiBwb2ludHM9IjczLjUsNDQuNSA4OC41LDU5LjUgODEuNSw2Ni41IDY2LjUsNTEuNSIgZmlsbD0iI2ZiYmYyNCIgc3Ryb2tlPSIjOTI0MDBlIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxwb2x5Z29uIHBvaW50cz0iODguNSw1OS41IDkyLjUsNjMuNSA4NS41LDcwLjUgODEuNSw2Ni41IiBmaWxsPSIjZjlhOGQ0IiBzdHJva2U9IiM5ZDE3NGQiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PHBvbHlnb24gcG9pbnRzPSI2Myw0MSA3My41LDQ0LjUgNjYuNSw1MS41IiBmaWxsPSIjZmRlN2M0IiBzdHJva2U9IiM5MjQwMGUiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PHBvbHlnb24gcG9pbnRzPSI2Myw0MSA2Ny4yLDQyLjQgNjQuNCw0NS4yIiBmaWxsPSIjMWYyOTM3Ii8+PC9zdmc+Cg==)}.ic-lf{background-image:url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJjdSIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2ZmZTFiNSIvPjxzdG9wIG9mZnNldD0iLjUiIHN0b3AtY29sb3I9IiNlODkwM2YiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM5YTRhMTIiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI0OSIgZmlsbD0idXJsKCNyKSIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQyIiBmaWxsPSJ1cmwoI2cpIi8+PGVsbGlwc2UgY3g9IjM2IiBjeT0iMjUiIHJ4PSIyMiIgcnk9IjkiIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4zIiB0cmFuc2Zvcm09InJvdGF0ZSgtMjUgMzYgMjUpIi8+PHJlY3QgeD0iMjUiIHk9IjIxIiB3aWR0aD0iNTAiIGhlaWdodD0iNTgiIHJ4PSI2IiBmaWxsPSIjZmZmIiBzdHJva2U9IiNjYmQ1ZTEiIHN0cm9rZS13aWR0aD0iMiIvPjxyZWN0IHg9IjI1IiB5PSIyMSIgd2lkdGg9IjUwIiBoZWlnaHQ9IjkiIHJ4PSI0IiBmaWxsPSIjZTg5MDNmIi8+PHRleHQgeD0iNTAiIHk9IjU3IiBmb250LWZhbWlseT0iSGVsdmV0aWNhLEFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtd2VpZ2h0PSI5MDAiIGZvbnQtc2l6ZT0iMjMiIGZpbGw9IiMwYjU3ZDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjEyMzwvdGV4dD48cmVjdCB4PSIyNSIgeT0iNjQiIHdpZHRoPSI1MCIgaGVpZ2h0PSIxMSIgZmlsbD0iI2ZkZTY4YSIgc3Ryb2tlPSIjYjQ1MzA5IiBzdHJva2Utd2lkdGg9IjEuNSIvPjxwYXRoIGQ9Ik0zMSA2NHY1TTM3IDY0djNNNDMgNjR2NU00OSA2NHYzTTU1IDY0djVNNjEgNjR2M002NyA2NHY1IiBzdHJva2U9IiM3ODM1MGYiIHN0cm9rZS13aWR0aD0iMS41Ii8+PC9zdmc+Cg==)}
+#lfBar{padding-top:8px;flex-wrap:wrap;column-gap:6px;row-gap:0}#lfBar .sharebtn{display:flex;align-items:center;justify-content:center;height:50px;white-space:nowrap;min-width:0}#lfBar #lfAng{flex:1 1 100%;height:40px}#lfBar #egOpen{flex:1.5;position:relative;background:linear-gradient(#3b8ff7,#0b57d0);color:#fff;border:0;font-size:16px;font-weight:900;box-shadow:0 3px 10px rgba(11,87,208,.35)}#lfBar #egOpen .ic{width:32px;height:32px}#egOpen .rec{position:absolute;top:-9px;left:8px;background:#fbbf24;color:#78350f;font-size:11px;font-weight:900;line-height:1;padding:3px 8px;border-radius:999px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
 .lfrow{display:flex;align-items:center;gap:8px;margin-bottom:6px}.lfrow b{flex:none;width:3.6em;font-size:14px;white-space:nowrap}.lfrow input{flex:1;height:42px;font-size:18px;border-radius:10px;padding:0 10px}.lfrow button{width:40px;height:40px;border-radius:20px;background:var(--bg)}
 .legadd{flex:1;height:40px;border:2px dashed #94a3b8;border-radius:12px;background:#fff;color:#334155;font-size:14px;font-weight:800}
 .legtabs{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -473,7 +476,7 @@ html[data-app="bend"] #calcBtn,html[data-app="bend"]:not([data-mode="easy"]) #mo
 </div>
 
 <div id="legbar"></div>
-<div id="lfBar"><button class="sharebtn" id="egOpen">✏️ 描いて曲げ</button><button class="sharebtn" id="lfOpen">🔢 長さだけ先にメモ</button><button class="sharebtn" id="lfAng" hidden>📐 角度を決める</button></div>
+<div id="lfBar"><button class="sharebtn" id="egOpen"><span class="rec">⭐ おすすめ</span><i class="ic ic-eg"></i>描いて曲げ</button><button class="sharebtn" id="lfOpen"><i class="ic ic-lf"></i>長さだけ先にメモ</button><button class="sharebtn" id="lfAng" hidden>📐 角度を決める</button></div>
 <div id="rows"></div>
 
 <div class="dock">
@@ -500,7 +503,7 @@ html[data-app="bend"] #calcBtn,html[data-app="bend"]:not([data-mode="easy"]) #mo
 </div>
 <div class="ov" id="lfOv">
   <div class="sheet" style="overflow-y:auto">
-    <div class="shead"><h3>🔢 長さだけ先にメモ</h3><button id="lfClose">✕</button></div>
+    <div class="shead"><h3><i class="ic ic-lf"></i>長さだけ先にメモ</h3><button id="lfClose">✕</button></div>
     <div class="note" style="font-size:13px;margin-bottom:8px">測った長さを順番に入れてください（起点から曲げまで、曲げから次の曲げまで…最後は先端まで）。角度と向きは、あとで1か所ずつ決めます。</div>
     <div class="seg" id="lfMode" style="margin-bottom:8px"><button data-v="add">今の曲げに続けて足す</button><button data-v="new">新しく作り直す</button></div>
     <div id="lfList"></div>
@@ -693,7 +696,7 @@ html[data-app="bend"] #calcBtn,html[data-app="bend"]:not([data-mode="easy"]) #mo
 <script src="models.js?v=309"></script>
 <script src="core.js?v=355"></script>
 <script src="drain.js?v=270"></script>
-<script src="egaku.js?v=18"></script>
+<script src="egaku.js?v=19"></script>
 <script src="tanka.js?v=228"></script>
 <script src="mitsumori.js?v=294"></script>
 <script src="team.js?v=257"></script>

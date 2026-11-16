@@ -20,7 +20,7 @@ const ends=()=>{let p=[0,0,0];const P=[p];EG.segs.forEach((s,i)=>{p=stp(p,EG.seg
 function build(){
  ov=document.createElement("div");ov.className="ov";ov.id="egOv";ov.style.alignItems="stretch";
  ov.innerHTML=`<div class="sheet" style="max-height:100vh;max-height:100dvh;height:100%;border-radius:0;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px calc(env(safe-area-inset-bottom,0px) + 8px)">
-  <div class="shead" style="flex:none"><h3>✏️ 描いて曲げ</h3><button id="egClose">✕</button></div>
+  <div class="shead" style="flex:none"><h3><i class="ic ic-eg"></i>描いて曲げ</h3><button id="egClose">✕</button></div>
   <div class="note" id="egHint" style="flex:none;font-size:13px;margin:0 0 6px;height:3.1em;overflow:hidden;line-height:1.5">方眼の上を指でなぞってください。線は「たて・横・奥」に吸い付きます。紙に描く絵と同じでOK。</div>
   <div style="flex:1;min-height:180px;position:relative;border-radius:14px;overflow:hidden;background:#f8fafc;border:1.5px solid #cbd5e1"><canvas id="egCv" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>
    <canvas id="egLp" style="position:absolute;left:8px;top:8px;width:170px;height:170px;border-radius:50%;display:none;box-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none"></canvas><div id="egPad" style="position:absolute;left:8px;bottom:56px;width:150px;height:150px;display:none"></div>

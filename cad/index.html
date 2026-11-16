@@ -1139,6 +1139,8 @@ function tapSelect(p){
     const dd = Math.hypot(c[0]-p[0], c[1]-p[1]); if (dd < bd){ bd = dd; best = d; }
   }
   if (S.pick && S.pick.multi && pickScope === 'part'){ pickLayerAt(p); drawOverlay(); updatePickBar(); return; }
+  if (!best && S.mode === 'pan' && gridTap(p)) return; // 通り芯をタップ：1回目で選ぶ・2回目で墨を出す
+  S.gsel = null;
   S.selDim = best;
   if (best) S.pick = null; else pickLayerAt(p);
   drawOverlay(); updateDimPanel(); updatePickBar();
@@ -1882,10 +1884,42 @@ function drawGridCol(c){ // 通り芯を赤い一点鎖線と記号の札で目�
   const cl = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
   for (const dir of ['v', 'h']) for (const g of gc[dir]) for (const [lo, hi] of g.iv){ const a = dir === 'v' ? w2s(g.c, lo) : w2s(lo, g.c), b = dir === 'v' ? w2s(g.c, hi) : w2s(hi, g.c);
     if (dir === 'v'){ if (a[0] < -2 || a[0] > cw + 2) continue; c.moveTo(a[0], cl(a[1], -5, ch + 5)); c.lineTo(a[0], cl(b[1], -5, ch + 5)); } else { if (a[1] < -2 || a[1] > ch + 2) continue; c.moveTo(cl(a[0], -5, cw + 5), a[1]); c.lineTo(cl(b[0], -5, cw + 5), a[1]); } }
-  c.stroke(); c.setLineDash([]); c.globalAlpha = 1; c.font = `800 12px ${FONT}`; c.textBaseline = 'middle';
+  c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+  const gs = S.gsel; if (gs){ const q = w2s(gs.c, gs.c); c.strokeStyle = '#f97316'; c.lineWidth = 6; c.globalAlpha = .55; c.beginPath(); if (gs.dir === 'v'){ c.moveTo(q[0], 0); c.lineTo(q[0], ch); } else { c.moveTo(0, q[1]); c.lineTo(cw, q[1]); } c.stroke(); c.globalAlpha = 1; }
+  c.font = `800 12px ${FONT}`; c.textBaseline = 'middle';
   for (const dir of ['v', 'h']) for (const g of gc[dir]){ if (!g.name) continue; const q = w2s(g.c, g.c), w = c.measureText(g.name).width + 10, x = dir === 'v' ? q[0] - w/2 : 4, y = dir === 'v' ? ch - 40 : q[1];
     if (dir === 'v' ? q[0] < 0 || q[0] > cw : q[1] < 0 || q[1] > ch) continue; c.fillStyle = '#dc2626'; c.fillRect(x, y - 9, w, 18); c.fillStyle = '#fff'; c.fillText(g.name, x + 5, y); }
   c.restore();
+}
+function gridTap(p){ // 赤い通り芯の上をタップ（2026-11-16 ユーザー：芯の出し方がめんどう・通り芯ごとに選んで2回タップで離す距離）
+  if (!G || !gridColOn()) return false; const gc = gridColList(); let hit = null, bd = 16;
+  for (const dir of ['v', 'h']) for (const g of gc[dir]){ const q = w2s(g.c, g.c), d = Math.abs(dir === 'v' ? p[0] - q[0] : p[1] - q[1]); if (d >= bd) continue;
+    const w = s2w(p[0], p[1]), v = dir === 'v' ? w[1] : w[0]; if (!g.iv.some(([lo, hi]) => v >= lo - 20/view.s && v <= hi + 20/view.s) && !(dir === 'v' ? Math.abs(p[1] - (ch - 40)) < 14 : p[0] < 60)) continue; bd = d; hit = {dir, c:g.c, name:g.name || (dir === 'v' ? '縦の通り芯' : '横の通り芯')}; }
+  if (!hit){ S.gsel = null; return false; }
+  const same = S.gsel && S.gsel.dir === hit.dir && Math.abs(S.gsel.c - hit.c) < 1e-6;
+  S.pick = null; S.selDim = null; updateDimPanel(); updatePickBar();
+  if (!same){ S.gsel = hit; drawOverlay(); toast(`通り芯「${hit.name}」を選びました。もう1回タップで墨を出す`); return true; }
+  drawOverlay(); openSumiQuick(hit); return true;
+}
+function openSumiQuick(g){ // 通り芯から ○mm 離した墨を出す（かんたん）
+  let sg = 1, mm = (() => { try { return +localStorage.getItem('zumen-sumimm') || 1000; } catch(e){ return 1000; } })(); const v = g.dir === 'v', L = v ? ['右へ', '左へ'] : ['上へ', '下へ'];
+  openSheet(`${g.name} から墨を出す`, body => {
+    const draw = () => { const mine = S.sins.filter(x => !x.grid && x.dir === g.dir && x.base === g.name);
+      body.innerHTML = `<div class="seg2"><button class="btn ${sg > 0 ? 'sel' : ''}" data-s="1" style="height:50px;font-size:18px">${L[0]}</button><button class="btn ${sg < 0 ? 'sel' : ''}" data-s="-1" style="height:50px;font-size:18px">${L[1]}</button></div>
+        <div class="frow" style="align-items:center"><input id="smMM" type="number" inputmode="numeric" value="${mm}" style="flex:1;min-width:0;height:50px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 12px;font:700 22px var(--font-ui);color:var(--ink)"><span style="font-size:16px">mm</span></div>
+        <div class="frow">${[500, 1000, 1500, 2000].map(n => `<button class="btn" data-n="${n}" style="flex:1">${n}</button>`).join('')}</div>
+        <div class="frow"><button class="btn pri" data-a="go" style="flex:1;height:52px;font-size:18px">墨を出す（青の点線）</button></div>
+        ${mine.length ? '<div class="grp">この通り芯から出した墨</div>' + mine.map(x => `<div class="row"><div class="grow"><div class="nm">${esc(sinName(x))}</div></div><button class="btn" data-x="${x.id}" aria-label="消す">✕</button></div>`).join('') : ''}`; };
+    draw();
+    body.onclick = e => { const b = e.target.closest('[data-s],[data-n],[data-a],[data-x]'); if (!b) return; const ip = body.querySelector('#smMM'); if (ip) mm = +ip.value;
+      if (b.dataset.s){ sg = +b.dataset.s; draw(); return; }
+      if (b.dataset.n){ mm = +b.dataset.n; draw(); return; }
+      if (b.dataset.x){ const x = S.sins.find(y => y.id === b.dataset.x); if (x){ exec(cmdSin('del', x)); toast('墨を消しました（↶で戻せます）'); } draw(); return; }
+      if (!(mm > 0)){ toast('離す距離を mm で入れてください'); return; }
+      try { localStorage.setItem('zumen-sumimm', String(mm)); } catch(e){}
+      const s2 = {id:'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), dir:g.dir, c:g.c + sg*mm/unitMM(), base:g.name, off:sg*mm, t:Date.now()};
+      exec(cmdSin('add', s2)); S.gsel = null; closeSheet(); drawOverlay(); toast(`墨を出しました：${sinName(s2)}`); };
+  });
 }
 const SUMI_C = '#2563eb'; // 通り芯から出した墨（地墨）の色：青の点線
 function drawSins(c){ // 通り芯から出した芯（墨）：青の点線と「墨 X2から右1000」。通り芯として登録した線は赤の一点鎖線

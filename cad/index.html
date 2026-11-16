@@ -90,10 +90,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .pill{position:absolute;left:50%;transform:translateX(-50%);top:52px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12px;display:flex;gap:8px;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,.12);pointer-events:none;white-space:nowrap}
 .pill b{font-family:var(--font-num);font-size:17px;font-variant-numeric:tabular-nums;color:var(--accent)}
 .hint{position:absolute;left:10px;right:10px;top:10px;display:flex;justify-content:center;pointer-events:none}
-.hint > div{pointer-events:auto;background:var(--panel);border:2px solid var(--accent);border-radius:14px;padding:7px 8px 7px 14px;font-size:15px;font-weight:700;line-height:1.35;display:flex;align-items:center;gap:8px;box-shadow:0 3px 12px rgba(0,0,0,.18);max-width:100%;box-sizing:border-box} /* 2026-11-14 ユーザー：見やすく（大きい字・折り返す・切れない） */
+.hint > div{pointer-events:auto;background:var(--panel);border:2px solid var(--accent);border-radius:14px;padding:7px 8px 7px 14px;font-size:15px;font-weight:700;line-height:1.35;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px 8px;box-shadow:0 3px 12px rgba(0,0,0,.18);max-width:100%;box-sizing:border-box} /* 2026-11-16 ユーザー：寸法の時に文字が1字ずつ縦に並んで大きすぎる→文字は9字分より細くしない・ボタンは次の行へ。2026-11-14 ユーザー：見やすく（大きい字・折り返す・切れない） */
 .hint button{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:0 12px;height:38px;font-size:14px;font-weight:800;white-space:nowrap;flex:none;max-width:10em;overflow:hidden;text-overflow:ellipsis}
 .hint button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
-.hint #hintTxt{min-width:0;flex:1 1 auto;overflow-wrap:anywhere}
+.hint #hintTxt{min-width:0;flex:1 1 9em;overflow-wrap:anywhere}
 #loupe{position:absolute;top:56px;left:10px;width:120px;height:120px;border-radius:50%;border:2px solid var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.25);background:var(--paper);pointer-events:none}
 .float{position:absolute;left:8px;right:8px;bottom:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.18);padding:10px;display:flex;flex-direction:column;gap:8px}
 .frow{display:flex;align-items:center;gap:8px;min-width:0}

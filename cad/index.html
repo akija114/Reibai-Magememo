@@ -4179,10 +4179,17 @@ function v3dPoses(A, mdf){ return A.units.map(m => { const md = typeof mdf === '
   if (md && md.gas){ const pe = v3dPipeEnds(m); if (pe.length){ const sq = Math.abs(md.L - md.W)/Math.max(md.L, md.W) < 0.15, dw = m.x1 - m.x0, dh = m.y1 - m.y0, rq = Math.max(dw, dh)/Math.max(1, Math.min(dw, dh)) < 1.15, lAx = bd ? (bd.ax ? 'x' : 'y') : (sq || rq) ? '' : (md.L > md.W) === (dw > dh) ? 'x' : 'y'; let best = null;   // 図面の冷媒の線が室内機に着く所へ配管の口を向ける（2026-11-14 ユーザー：配管の向きでエアコンの向きを決めて・全部向きが間違ってる）
     let all = null; for (const ff of [[1, 0], [-1, 0], [0, 1], [0, -1]]){ const t0 = Math.atan2(ff[1], -ff[0]), px = md.L/2 + 60, q = [ccx + px*Math.cos(t0) + md.gas.z*Math.sin(t0), ccy + px*Math.sin(t0) - md.gas.z*Math.cos(t0)], d = Math.min(...pe.map(e => Math.hypot(e[0] - q[0], e[1] - q[1]))); if (!all || d < all.d) all = {d, ff}; if (lAx && (ff[0] ? 'x' : 'y') !== lAx) continue; if (!best || d < best.d) best = {d, ff}; }
     if (all && all.d < 250 && (!best || best.d > 2*all.d + 150)) best = all;   // 線の端にぴったり合う向きがあれば、図面の四角の長い方よりそちら
-    if (best && best.d < 1200) f = best.ff; } }
+    if (best && best.d < 1200) f = best.ff;
+    const fc = v3dPipeFace(m); if (fc && (!lAx || sq || rq || (fc[0] ? 'x' : 'y') === lAx)) f = [-fc[0], fc[1]]; } }   // 配管の線が入ってくる面に口を向ける（4方向は口が角の近くで、端の点だけだと下向きなどになる・2026-11-16 ユーザー）
   const UA = v3dUAdj(m, md), th = Math.atan2(f[1], -f[0]) + UA.r*Math.PI/2, ref = UA.ref; if (UA.r) f = [-Math.cos(th), Math.sin(th)]; let port = [ccx, ccy], ph = ref, dport = null, dph = null;   // 向き・高さは3Dで変えた物・図面の文字（v3dUAdj）
   if (md){ const px = md.L/2 + 60, at = pz => { const dx = px*Math.cos(th) + pz*Math.sin(th), dz = -px*Math.sin(th) + pz*Math.cos(th); return [ccx + dx, ccy - dz]; }; port = at(md.gas.z); ph = ref + md.gas.y; if (md.dr){ dport = at(md.dr.z); dph = Math.round(ref + md.dr.y); } } // 3Dの z は図面の y と逆向き。ドレン口も
   return {m, k, cx:ccx, cy:ccy, f, th, port, ph:Math.round(ph), dport, dph, ref, src:UA.src, key:UA.key, tx:UA.tx, top:UA.top}; }); }
+/* 冷媒の線が室内機に入ってくる面（[1,0]＝右・[-1,0]＝左・[0,1]＝上・[0,-1]＝下）：面の幅の中（角の100mm は除く＝面にそって走る線）で、面の内 200mm〜外 600mm を面に直角に走る線の長さ。いちばん長い面がほかの2倍以上の時だけ */
+function v3dPipeFace(m){ v3dPipeEnds(m); const P = V3.peC.P, E = 600, w = {}, F = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (let i = 0; i + 1 < P.length; i += 2){ const A = P[i], B = P[i+1], dx = B[0] - A[0], dy = B[1] - A[1]; if (Math.hypot(dx, dy) < 30) continue;
+    for (const [ax, sg] of F){ const k = ax ? 0 : 1, o = 1 - k; if (Math.abs(k ? dy : dx) < 2*Math.abs(k ? dx : dy)) continue; const c = (A[o] + B[o])/2, lo = k ? m.y0 : m.x0, hi = k ? m.y1 : m.x1; if (c < (o ? m.y0 : m.x0) + 100 || c > (o ? m.y1 : m.x1) - 100) continue;
+      const a = Math.min(A[k], B[k]), b = Math.max(A[k], B[k]), e = sg > 0 || ax > 0 ? hi : lo, s2 = ax || sg, r0 = s2 > 0 ? e - 200 : e - E, r1 = s2 > 0 ? e + E : e + 200; if (s2 > 0 ? a > e + 300 : b < e - 300) continue; const L = Math.min(b, r1) - Math.max(a, r0); if (L > 0) w[ax + ',' + sg] = (w[ax + ',' + sg] || 0) + L; } }
+  const so = Object.entries(w).sort((a, b) => b[1] - a[1]); if (!so.length || so[0][1] < 150 || (so[1] && so[1][1]*2 > so[0][1])) return null; return so[0][0].split(',').map(Number); }
 /* 室内機のまわりで終わる冷媒の線の端（mm）：名前に「冷媒」のあるレイヤー（隠したレイヤーも・消したレイヤーは除く）の線の端で、室内機の四角＋600mm の中にある物 */
 function v3dPipeEnds(m){ const u = unitMM(); if (!V3.peC || V3.peC.G !== G || V3.peC.last !== S.undo[S.undo.length-1]){ const P = [], sg = G.segs; for (let i = 0; i < sg.length; i += SS){ const l = G.L[sg[i+4]]; if (!l || l.deleted || !/冷媒/.test(l.name) || gone(sg[i+7])) continue; P.push([sg[i]*u, sg[i+1]*u], [sg[i+2]*u, sg[i+3]*u]); } V3.peC = {G, last:S.undo[S.undo.length-1], P}; }
   const E = 600; return V3.peC.P.filter(p => p[0] > m.x0 - E && p[0] < m.x1 + E && p[1] > m.y0 - E && p[1] < m.y1 + E); }
@@ -5021,7 +5028,7 @@ function ceilBuild(TH, CE, grp, W, u, bb){
     for (const po of CE.PO || []){ const md = v3dMdOf(po.m); if (!md) continue; const n = [Math.cos(po.th), Math.sin(po.th)];
       { let a = null, bd = 1e9; for (const x of CE.rEnds || []){ if (usedR.has(x) || rd(po.m, x.p) > 1200) continue; const d = Math.hypot(x.p[0] - po.port[0], x.p[1] - po.port[1]); if (d < bd){ bd = d; a = x; } }
         if (a){ usedR.add(a); const e = a.e, h = e.h, P = po.port, m2 = [-n[1], n[0]], tE = (a.p[0] - P[0])*n[0] + (a.p[1] - P[1])*n[1], lE = (a.p[0] - P[0])*m2[0] + (a.p[1] - P[1])*m2[1], ph = Math.abs(h - po.ph) < 30 ? h : po.ph;   // 口の前にまっすぐ来ている端（横に10cm以内）は、まっすぐ口の面へ（2026-11-15 ユーザー：変な形のつなぎ）
-          let raw; if (Math.abs(lE) <= 100 && tE >= 20){ const T = [P[0] + m2[0]*lE, P[1] + m2[1]*lE]; raw = [[a.p[0], a.p[1], h], [a.p[0], a.p[1], ph], [T[0], T[1], ph]]; }
+          let raw; if (Math.abs(lE) <= 100 && tE >= -400){   /* 端が室内機の四角の中（口の面の奥）まで描いてある時も、外へ折り返さずにそのまま口の面へ（2026-11-16 ユーザー：反対にしたら口の所がぐちゃぐちゃ） */ const T = [P[0] + m2[0]*lE, P[1] + m2[1]*lE]; raw = [[a.p[0], a.p[1], h], [a.p[0], a.p[1], ph], [T[0], T[1], ph]]; }
           else { const tq = tE >= 60 ? Math.min(tE, 150) : 80, [Q, K] = lpath(P, n, tq, a.p); raw = [[a.p[0], a.p[1], h], [K[0], K[1], h], [Q[0], Q[1], h], [Q[0], Q[1], ph], [P[0], P[1], ph]]; }
           const pts = raw.filter((q, i, A) => !i || Math.hypot(q[0] - A[i-1][0], q[1] - A[i-1][1], q[2] - A[i-1][2]) > 2);
           { const r0 = rad(e), V = pts.map(q => at(q, q[2])), R2 = r0*2, cut2 = []; for (let i = 0; i < V.length; i++) cut2.push([V[i].clone(), V[i].clone()]);   // 角は曲がった管（エルボ）で（2026-11-15 ユーザー：玉で変な形）

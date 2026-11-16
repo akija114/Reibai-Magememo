@@ -224,8 +224,8 @@ body.drmode #drPanel{display:block}
 #drSumOv.on{display:flex}
 #drSumOv .sh{background:var(--card);color:var(--ink);width:100%;max-width:560px;max-height:88vh;overflow-y:auto;border-radius:18px 18px 0 0;padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 16px)}`;
  document.head.appendChild(css);
- const tg=document.createElement("div");tg.id="mtog";tg.innerHTML='<button data-m="ref" class="on">🔧 冷媒</button><button data-m="dr">💧 ドレン</button>'+(APP==="bend"?"":'<button data-m="sum">📋 まとめ</button>');   // 曲げ共有は冷媒・ドレンだけ（まとめは図面で・2026-11-11 ユーザー）
- $("#legbar").before(tg);
+ const tg=document.createElement("div");tg.id="mtog";tg.innerHTML=APP==="bend"?'<button data-m="ref" class="on"><i class="ic ic-rf"></i>冷媒</button><button data-m="dr"><i class="ic ic-dr"></i>ドレン</button>':'<button data-m="ref" class="on">🔧 冷媒</button><button data-m="dr">💧 ドレン</button><button data-m="sum">📋 まとめ</button>';   // 曲げ共有は冷媒・ドレンだけ（まとめは図面で・2026-11-11 ユーザー）
+ $("#legbar").before(tg);if(APP==="bend"){const w=document.createElement("div");w.id="mrow";tg.before(w);w.append(tg,$("#legbar"))}   // 曲げ共有：冷媒・ドレンと 新規・戻す・進む を1つの段に（2026-11-16 ユーザー）
  const pn=document.createElement("div");pn.id="drPanel";$("#rows").after(pn);
  const ov=document.createElement("div");ov.id="drSumOv";ov.innerHTML='<div class="sh" id="drSumSh"></div>';document.body.appendChild(ov);
  ov.addEventListener("click",e=>{if(e.target===ov)ov.classList.remove("on")});
@@ -266,7 +266,7 @@ body.drmode #drPanel{display:block}
 function drStartName(){const u=T&&T.UN&&(T.UN.find(x=>x.t==="s"&&x.dr)||T.UN.find(x=>x.dr));return u?"室内機のドレン口（"+u.name+"）":"配管の始まり（室内機の模型をONにすると、ドレン口から始まります）"}
 function drRender(){const pn=$("#drPanel");if(!pn)return;const D=DRN(),M=DR_MAT[D.mat];
  const seg=(k,list,cur)=>`<div class="drseg">${list.map(([v,l])=>`<button data-k="${k}" data-v="${v}" class="${String(cur)===String(v)?"on":""}">${l}</button>`).join("")}</div>`;
- let h=`<div style="position:sticky;top:0;z-index:5;display:flex;gap:6px;margin-bottom:8px;background:var(--bg);padding:4px 0"><button class="drbig" data-k="undo" style="flex:1;margin:0;background:var(--card);color:var(--ink);border:1.5px solid var(--line)">↩️ 戻る</button><button class="drbig" data-k="redo" style="flex:1;margin:0;background:var(--card);color:var(--ink);border:1.5px solid var(--line)">↪️ 進む</button></div>
+ let h=`<div style="position:sticky;top:0;z-index:5;display:flex;gap:6px;margin-bottom:8px;background:var(--bg);padding:4px 0"><button class="drbig" data-k="undo" style="flex:1;margin:0;background:var(--card);color:var(--ink);border:1.5px solid var(--line)">${APP==="bend"?'<i class="ic ic-ud"></i>':"↩️ "}戻る</button><button class="drbig" data-k="redo" style="flex:1;margin:0;background:var(--card);color:var(--ink);border:1.5px solid var(--line)">${APP==="bend"?'<i class="ic ic-rd"></i>':"↪️ "}進む</button></div>
  <div class="drc"><h4>💧 ドレン配管の設定</h4>
  <div style="font-size:13px;color:var(--sub)">材質</div>${seg("mat",[["VP","VP管"],["AC","ACドレン（保温付き）"]],D.mat)}
  <div class="drnote">💡 <b>サイズ感の注意</b>：ACドレンは保温層があるので、外径が同じ呼び径のVP管より1ランク大きくなります（例：AC25 は外径 約${DR_MAT.AC.od[25]}mm で、VP30〜35 くらいの太さ）。吊りバンドはAC用（保温付き外径用）を使ってください。VP用だと保温が潰れます。外径は目安なので、メーカーの値で確認してください。</div>

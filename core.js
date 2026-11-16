@@ -287,9 +287,9 @@ const szShort=i=>SIZES[i][0].split(" ")[0];
 function renderLegBar(){
  if(!legIds().includes(leg))leg="m";
  const box=$("#legbar");box.innerHTML="";
- {const nb=document.createElement("button");nb.className="legundo legnew";nb.innerHTML='<span style="font-size:15px;line-height:1">🆕</span><small>新規</small>';nb.setAttribute("aria-label","新規作成");nb.onclick=openNew;box.appendChild(nb)}
+ {const nb=document.createElement("button");nb.className="legundo legnew";nb.innerHTML=APP==="bend"?'<i class="ic ic-nw"></i><small>新規</small>':'<span style="font-size:15px;line-height:1">🆕</span><small>新規</small>';nb.setAttribute("aria-label","新規作成");nb.onclick=openNew;box.appendChild(nb)}
  [["undoBtn","↩️","1つ前に戻る",-1],["redoBtn","↪️","1つ先に進む",1]].forEach(([id,ic,lab,d])=>{
-  const b=document.createElement("button");b.className="legundo";b.id=id;b.textContent=ic;b.setAttribute("aria-label",lab);b.onclick=()=>histGo(d);box.appendChild(b);
+  const b=document.createElement("button");b.className="legundo";b.id=id;if(APP==="bend")b.innerHTML='<i class="ic ic-'+(d<0?"ud":"rd")+'"></i><small>'+(d<0?"戻す":"進む")+'</small>';else b.textContent=ic;b.setAttribute("aria-label",lab);b.onclick=()=>histGo(d);box.appendChild(b);
  });
  updUndoUI();
  if(!brOn()){if(APP!=="bend"){   // 曲げ共有は1本の曲げだけ（分岐管を追加は出さない・2026-11-11 ユーザー。前に作った分岐のデータは今までどおり出す）
@@ -2471,7 +2471,7 @@ function renderTable(){
 }
 /* 長さだけ先にメモ → あとで角度を1か所ずつ決める（曲げ共有だけ。行は今までと同じ {l,a,t,o}、角度を決めるまでは直管 a:0） */
 let LFQ=null;   // 角度決めの順番 {q:[行の番号],n,k}
-function lfUpd(){if(APP!=="bend")return;const b=$("#lfAng");if(!b)return;const n=LR().slice(0,-1).filter(r=>!r.a).length;b.hidden=!n||!T;b.textContent="📐 角度を決める（まっすぐの所 "+n+"）"}
+function lfUpd(){if(APP!=="bend")return;const b=$("#lfAng");if(!b)return;const n=LR().slice(0,-1).filter(r=>!r.a).length;b.hidden=!n||!T;b.innerHTML='<i class="ic ic-ag"></i>角度 '+n}
 function lfStart(from){
  const rows=LR(),q=[];for(let i=Math.max(0,from);i<rows.length-1;i++)if(!rows[i].a)q.push(i);
  if(!q.length){toast("角度を決める所がありません（長さを2つ以上入れてください）");return}

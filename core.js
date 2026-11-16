@@ -747,6 +747,9 @@ function label(txt,h,bg,fg,ik){
  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,transparent:true}));
  s.scale.set(h*w/76,h,1);s.renderOrder=10;s.userData.lab=1;s.userData.ar=w/76;return s;
 }
+/* 2行の吹き出し（曲げ手順の「曲げ寸法」の下に「バックした寸法」・2026-11-16 ユーザー）：L＝[[文字,色],…] */
+function label2(L,h,bg){const c=document.createElement("canvas"),x=c.getContext("2d"),f='bold 44px -apple-system,"Hiragino Sans",sans-serif';x.font=f;const w=Math.ceil(Math.max(...L.map(l=>x.measureText(l[0]).width)))+40,H=20+L.length*58;c.width=w;c.height=H;x.font=f;x.fillStyle=bg;x.beginPath();if(x.roundRect)x.roundRect(0,0,w,H,22);else x.rect(0,0,w,H);x.fill();x.textBaseline="middle";L.forEach((l,i)=>{x.fillStyle=l[1];x.fillText(l[0],20,10+29+i*58)});
+ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,transparent:true}));s.scale.set(h*w/H,h,1);s.renderOrder=10;s.userData.lab=1;s.userData.ar=w/H;return s}
 function pxl(s,px,off,rad){s.userData.px=px;s.userData.off=off||null;s.userData.rad=rad||0;return s}
 /* ラベルを画面上で一定の大きさにして、配管の横へずらして置く（拡大しても配管を隠さない） */
 function fixLabels(cam,W,H){
@@ -1349,8 +1352,8 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
     const a1=Pw.clone().add(upv),b1=Cw.clone().add(upv),dm=new THREE.MeshBasicMaterial({color:0x0c4a6e});
     const ln=new THREE.Mesh(new THREE.CylinderGeometry(Dl*0.12,Dl*0.12,a1.distanceTo(b1),6),dm);ln.position.copy(a1).add(b1).multiplyScalar(.5);ln.quaternion.setFromUnitVectors(Y,b1.clone().sub(a1).normalize());T.bgrp.add(ln);
     [[Pw,a1],[Cw,b1]].forEach(([p,q])=>{const tk=new THREE.Mesh(new THREE.CylinderGeometry(Dl*0.1,Dl*0.1,p.distanceTo(q),6),dm);tk.position.copy(p).add(q).multiplyScalar(.5);tk.quaternion.setFromUnitVectors(Y,q.clone().sub(p).normalize());T.bgrp.add(tk)});
-    const s1=label("曲げ寸法 "+fmt(row.l)+"mm",R*0.6,"#ffffffee","#0c4a6e");s1.position.copy(a1).add(b1).multiplyScalar(.5);pxl(s1,24,{t:"perp",a:a1,b:b1},Dl*0.2);T.bgrp.add(s1);
-    const bk=R*row.a/90,s2=LEV3?label("印（赤い輪）を "+(MK3.c&&row.a===45?MK3.c:rev?MK3.b:MK3.f)+" に合わせる",R*0.6,rev?"#ea580cf2":"#dc2626f2","#ffffff"):label(rev?"赤いラインから 前に出す "+fmt(bk/2)+"mm":"赤いラインから バック "+fmt(bk)+"mm",R*0.6,rev?"#ea580cf2":"#dc2626f2","#ffffff");
+    const bk=R*row.a/90,s1=LEV3?label("曲げ寸法 "+fmt(row.l)+"mm",R*0.6,"#ffffffee","#0c4a6e"):label2([["曲げ寸法 "+fmt(row.l)+"mm","#0c4a6e"],[rev?"前に出した寸法 "+fmt(row.l+bk/2)+"mm":"バックした寸法 "+fmt(row.l-bk)+"mm",rev?"#c2410c":"#b91c1c"]],R*1.15,"#ffffffee");s1.position.copy(a1).add(b1).multiplyScalar(.5);pxl(s1,LEV3?24:44,{t:"perp",a:a1,b:b1},Dl*0.2);T.bgrp.add(s1);   // 曲げ寸法の下にバックした寸法（曲げ寸法−バック）
+    const s2=LEV3?label("印（赤い輪）を "+(MK3.c&&row.a===45?MK3.c:rev?MK3.b:MK3.f)+" に合わせる",R*0.6,rev?"#ea580cf2":"#dc2626f2","#ffffff"):label(rev?"赤いラインから 前に出す "+fmt(bk/2)+"mm":"赤いラインから バック "+fmt(bk)+"mm",R*0.6,rev?"#ea580cf2":"#dc2626f2","#ffffff");
     s2.position.set(-Tn,0,0);pxl(s2,24,{t:"up",dn:true},R*0.5);T.bgrp.add(s2);
    }catch(e){(T.bgrp||T.grp).add(bg)}
    // 前の曲げ（もう曲げた配管）が、配管の後ろから見てどっちを向くか
@@ -1763,6 +1766,7 @@ function showGuideStep(){
   (BD.rat?`<small style="color:#9a3412">⚠️ なまし銅管だけ（1/2H・直管は不可）。管のくせは内側に向ける（外側だとへこみ・シワ）。ピストンを最後まで出さない（故障の元）。壁ぎわ・奥は逆曲げアダプタで</small>`:"")+
   `<span class="big">${how}</span>`;
  else $("#gdTxt").innerHTML=`曲げ寸法 <b>${fmt(rows[i].l)}</b>mm<br><small>（${i>0?"前の曲げの角から":"端から"}、この曲げの角まで）</small><br>`+
+  (rv2?`前に出した寸法 <b class="fw">${fmt(rows[i].l+fwd)}</b>mm <small>（${fmt(rows[i].l)}＋${fmt(fwd)}）</small><br>`:`バックした寸法 <b class="bk">${fmt(rows[i].l-back)}</b>mm <small>（${fmt(rows[i].l)}−${fmt(back)}）</small><br>`)+
   `印を赤いライン（シューの0）に合わせて<br>`+(rv2?`<b class="fw">前に出す ${fmt(fwd)}mm</b><small>（逆向き：${bRtxt(Dg)}÷2${aa!==90?"×"+aa+"/90":""}）</small>`:`<b class="bk">バック ${fmt(back)}mm</b><small>（${bRtxt(Dg)}${aa!==90?"×"+aa+"/90":""}）</small>`)+
   `<br>曲げ角度 <b>${aa}°${aa>=180?"（返し）":""}</b> <small>（戻り分 1〜2°多めに）</small><span class="big">${how}</span><small style="color:#94a3b8">シュー位置で印をつける時：前の印から ${fmt(c.shoe)}（端から ${fmt(c.cum)}）</small>`;
  if(!LEV&&BK==="ta515")$("#gdTxt").innerHTML+=`<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#f1f5f9;font-size:13px;line-height:1.55;color:#0f172a"><b>曲げ方（TA515）</b><br>① 曲げ寸法の所に印 → そこから<b>バック ${fmt(bR(SIZES[legSize(GUIDE.g)][1])*rows[i].a/90)}</b> の所にもう1つ印<br>② バックした印をシューの<b>0（赤いライン）に合わせる</b><br>③ 留め金具で配管を止める<br>④ ガイドの先端を0に合わせる（0より少し内側〔15〜20mm〕だとシワができにくい）<br>⑤ 締付け：ゆっくり、ハンドルが回らなくなるまで<br>⑥ 曲げ：シューの目盛りで ${rows[i].a}°まで（戻り分 1〜2°多めに）<br>⑦ 外す：留め金具とガイドを外す<br><small>「次の曲げ ▶」で、この順に動きと吹き出しで見られます</small></div>`;   /* 2026-11-01 ユーザー：いつも0に合わせる。上の吹き出しは出さない */
@@ -1786,7 +1790,7 @@ function showGuideStep(){
    "⚠️ 曲げると配管が床に当たります<br><button id='gdHitGo' style='margin-top:8px;height:42px;padding:0 16px;border-radius:12px;background:#ea580c;color:#fff;font-weight:800;font-size:15px;border:0'>🔄 "+nm2+"にしますか？</button> <button id='gdHitNo' style='margin-top:8px;height:42px;padding:0 12px;border-radius:12px;background:#f1f5f9;color:#475569;font-weight:700;font-size:13px;border:0'>このまま</button>";
    const g=$("#gdHitGo");if(g)g.onclick=()=>{if(!GUIDE||gdBusy)return;GUIDE.rev[GUIDE.i]=!GUIDE.rev[GUIDE.i];showGuideStep()};
    const n2=$("#gdHitNo");if(n2)n2.onclick=()=>{hb.style.display="none"}}}
- $("#gdMini").innerHTML=`<span>${nm(i)} 曲げ寸法 ${fmt(rows[i].l)}</span>${LM?`<span class="${rv?"fw":"bk"}">${rv?MK.b:MK.f}に印</span>`:LEV?`<span class="${rv&&!C45?"fw":"bk"}">${mk}に印</span>`:`<span class="${rv?"fw":"bk"}">${rv?"前に出す":"バック"} ${fmt(rv?fwd:back)}</span>`}<span>${rows[i].a}°${rows[i].a>=180?"返し":""}</span>${hitNow?'<span class="warn">⚠️床</span>':""}<button class="more" id="gdMore">詳細 ▲</button>`;
+ $("#gdMini").innerHTML=`<span>${nm(i)} 曲げ寸法 ${fmt(rows[i].l)}${LEV?"":`<br><small style="color:${rv?"#c2410c":"#b91c1c"};font-size:.85em">${rv?"前に出した寸法":"バックした寸法"} ${fmt(rv?rows[i].l+fwd:rows[i].l-back)}</small>`}</span>${LM?`<span class="${rv?"fw":"bk"}">${rv?MK.b:MK.f}に印</span>`:LEV?`<span class="${rv&&!C45?"fw":"bk"}">${mk}に印</span>`:`<span class="${rv?"fw":"bk"}">${rv?"前に出す":"バック"} ${fmt(rv?fwd:back)}</span>`}<span>${rows[i].a}°${rows[i].a>=180?"返し":""}</span>${hitNow?'<span class="warn">⚠️床</span>':""}<button class="more" id="gdMore">詳細 ▲</button>`;
  $("#gdMore").onclick=()=>setGdMini(false);
  $("#gdPrev").disabled=GUIDE.k===0;$("#gdNext").textContent=GUIDE.k>=N-1?"✅ 終わり":"次の曲げ ▶";if(!gdBusy)$("#gdNext").disabled=false;
 }

@@ -37,7 +37,7 @@ function mpApply(i, quiet){
   if (!MP.sc) for (const b of MP.ubs || []){ const H = Math.min(2100, b.ch || CH), T2 = 40; // ユニットバス：4方の壁（上はあける）
     for (const q of [[b.x0, b.y0, b.x1, b.y0 + T2], [b.x0, b.y1 - T2, b.x1, b.y1], [b.x0, b.y0, b.x0 + T2, b.y1], [b.x1 - T2, b.y0, b.x1, b.y1]]){ const c = X.W((q[0] + q[2])/2, (q[1] + q[3])/2); bld.push({k:"wall", x:c[0], z:c[1], w:q[2] - q[0], d:q[3] - q[1], h:H, y:0, r:deg(X.ph), full:false, auto:"ub"}); } }
   (MP.units || []).forEach((o, j) => { if (j === p.ui || MP.sc) return; const c = X.W(o.x, o.y); bld.push({k:"ind", x:c[0], z:c[1], w:o.w, d:o.d, h:300, y:0, r:deg(o.th + X.ph), full:false, m:o.mk && CAS2M[o.mk] ? o.mk : ""}); }); // ほかの室内機（始まりの室内機はアプリの模型で出る）
-  st.rows = normRows(rows, [{l:500, a:0, t:0, o:false}]); st.bl = []; st.bld = normBld(bld);
+  st.rows = normRows(rows, [{l:500, a:0, t:0, o:false}]); st.bl = []; st.bld = normBld(bld); delete st.cut;   // 前に切った配管は使わない
   if (p.sz){ const ix = v => SIZES.findIndex(z => Math.abs(z[1] - v) < 0.3), g = ix(p.sz.g), l = ix(p.sz.l); if (g >= 0){ st.s = g; st.ps = l >= 0 ? l : null; } } // 図面の冷媒サイズ表の太さ（ガス管＝曲げる管・液管＝相手）2026-11-16 ユーザー
   if (MP.sc){ st.dln = null; st.drain = null; } // 図面編集の3Dの時は、前の図面のダクト・衛生とアプリのドレンを消す（2026-11-14 ユーザー：前のデータが残って重なる）
   st.units = normUnits({...st.units, on:!MP.sc || !!un, s:un && un.mk && CAS2M[un.mk] ? "cas2" : st.units.s, ms:un && un.mk && CAS2M[un.mk] ? un.mk : st.units.ms, e:""});

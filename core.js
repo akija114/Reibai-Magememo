@@ -224,6 +224,7 @@ const legColor=g=>g==="m"?"#2563eb":LEGPAL[Math.max(0,st.bl.findIndex(l=>l.id===
 const LR=()=>legRows(leg);
 let hist=null,hi=0,histT=0;
 const save=(merge)=>{
+ if(window.cutSync)try{cutSync()}catch(e){}   // ✂ 切って分けた配管（kiru.js）：今の1本の直しを全体へ
  const j=JSON.stringify(st);
  try{localStorage.setItem("pbm1",j)}catch(e){}
  if(!hist||j===hist[hi])return;

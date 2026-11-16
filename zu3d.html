@@ -88,7 +88,7 @@ async function render(){let all=[];try{all=(await op(zdb,"projects","readonly",s
  $("#list").innerHTML=(last&&last.fileId?row(last,"図面修正でいま開いている"):"")+saved.map(p=>row(p)).join("")||`<div class="empty">まだありません。上の「✏️ 図面修正で図面を読み込む・直す」で図面を開いてください。</div>`}
 /* 見えない図面修正で3Dを作る */
 let FR=null;
-async function build(id){const p=PR.find(x=>x.id===id);if(!p)throw new Error("図面が見つかりません");const sig=(p.updated||0)+"|"+lsSig()+"|11",ck="z3c:"+id;   // |2：室内機の向き・模型を直した版（前に作った3Dは作り直す）
+async function build(id){const p=PR.find(x=>x.id===id);if(!p)throw new Error("図面が見つかりません");const sig=(p.updated||0)+"|"+lsSig()+"|12",ck="z3c:"+id;   // |2：室内機の向き・模型を直した版（前に作った3Dは作り直す）
  try{const c=await sget(ck);if(c&&c.sig===sig&&c.rec)return c.rec}catch(e){}
  busy(`🧊 「${esc(p.name||"図面")}」の3Dを作っています…<br><span style="font-size:13px;font-weight:500">大きい図面は1分くらいかかります。画面を閉じずにお待ちください</span>`);
  try{const r=await new Promise(ok=>{window.z3Done=ok;if(FR)FR.remove();FR=document.createElement("iframe");FR.setAttribute("aria-hidden","true");FR.tabIndex=-1;FR.style.cssText="position:fixed;left:-10000px;top:0;width:390px;height:700px;border:0;visibility:hidden";FR.src="cad/index.html?mk3d="+encodeURIComponent(id)+"&t="+Date.now();document.body.appendChild(FR);setTimeout(()=>ok({err:"時間切れ"}),240000)});
@@ -101,9 +101,10 @@ async function build(id){const p=PR.find(x=>x.id===id);if(!p)throw new Error("�
 async function openRec(rec){try{await sput("z3v",rec)}catch(e){}await showV(rec)}
 const load3=()=>window.THREE?Promise.resolve():new Promise((ok,ng)=>{const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";sc.onload=ok;sc.onerror=()=>ng(new Error("3Dの部品を読めません。電波を確かめてください"));document.head.appendChild(sc)});
 const V={};
+const bun=v=>({6.35:"2分",9.52:"3分",12.7:"4分",15.88:"5分",19.05:"6分",22.22:"7分",25.4:"8分",28.58:"28",31.75:"31",38.1:"38",44.45:"44"})[+v]||v+"φ"; // 配管の太さ（mm）→ 分
 function vClose(){$("#v3").hidden=true;document.body.style.overflow="";if(V.raf)cancelAnimationFrame(V.raf);V.raf=0;if(V.ren){V.ren.dispose();V.ren.domElement.remove();V.ren=null}V.rec=null}
 async function showV(rec){busy("🧊 3Dを出しています…");try{await load3()}finally{busy("")}
- const T=THREE;vClose();V.rec=rec;V.cur=-1;$("#v3").hidden=false;document.body.style.overflow="hidden";$("#v3n").textContent="🧊 "+(rec.name||"図面");
+ const T=THREE;vClose();V.rec=rec;V.h0="";V.cur=-1;$("#v3").hidden=false;document.body.style.overflow="hidden";$("#v3n").textContent="🧊 "+(rec.name||"図面");
  const box=$("#v3c"),ren=new T.WebGLRenderer({antialias:true});ren.setPixelRatio(Math.min(2,devicePixelRatio||1));box.appendChild(ren.domElement);V.ren=ren;
  const sc=new T.Scene();sc.background=new T.Color(0xdfe7ef);sc.add(new T.HemisphereLight(0xffffff,0x8899aa,.85));const dl=new T.DirectionalLight(0xffffff,.55);dl.position.set(1,2,1.5);sc.add(dl);V.sc=sc;
  const cx=rec.cx||0,cy=rec.cy||0;let root=null;
@@ -117,7 +118,8 @@ async function showV(rec){busy("🧊 3Dを出しています…");try{await load
  V.c=bb.getCenter(new T.Vector3());V.d=Math.max(3000,bb.getSize(new T.Vector3()).length()*.75);V.th=-.6;V.ph=.9;
  V.cam=new T.PerspectiveCamera(45,1,20,V.d*20);
  $("#v3h").textContent=rec.pipes.length?"見たい配管を3Dでタップするか、下から選んでください（1本指で回す・2本指で大きく・ずらす）":"この図面には曲げを出せる配管がありません（3Dを見るだけ）";
- $("#v3l").innerHTML=rec.pipes.map((p,j)=>`<button data-j="${j}">${esc(p.nm)}・${(V.pt[j].reduce((a,v,i)=>i?a+v.distanceTo(V.pt[j][i-1]):0,0)/1000).toFixed(1)}m</button>`).join("");
+ V.len=V.pt.map(P=>P.reduce((a,v,i)=>i?a+v.distanceTo(P[i-1]):0,0));
+ $("#v3l").innerHTML=rec.pipes.map((p,j)=>`<button data-j="${j}">${esc(p.nm)}・${(V.len[j]/1000).toFixed(1)}m${p.sz?`<span style="font-weight:600;font-size:12px;color:#0369a1">（${bun(p.sz.g)}・${bun(p.sz.l)}）</span>`:""}</button>`).join("");
  $("#v3go").hidden=!rec.pipes.length;vPick(rec.pipes.length&&rec.cur!=null&&rec.cur>=0&&rec.cur<rec.pipes.length&&rec.only?rec.cur:-1);
  const loop=()=>{V.raf=requestAnimationFrame(loop);const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;if(ren.domElement.width!==Math.round(w*ren.getPixelRatio())||ren.domElement.height!==Math.round(h*ren.getPixelRatio())){ren.setSize(w,h,false);V.cam.aspect=w/h;V.cam.updateProjectionMatrix()}
   V.cam.position.set(V.c.x+V.d*Math.sin(V.ph)*Math.sin(V.th),V.c.y+V.d*Math.cos(V.ph),V.c.z+V.d*Math.sin(V.ph)*Math.cos(V.th));V.cam.lookAt(V.c);if(V.selM&&V.cur>=0)V.selM.opacity=.55+.45*Math.abs(Math.sin(Date.now()/350));ren.render(sc,V.cam)};loop()}
@@ -125,7 +127,7 @@ function tube(a,b,r,m){const T=THREE,L=a.distanceTo(b),g=new T.Group();if(L>1){c
 /* 配管を選ぶ：黄色の太い管で重ねて、そこへ寄る */
 function vPick(j){const T=THREE;V.cur=j;while(V.sel.children.length)V.sel.remove(V.sel.children[0]);
  document.querySelectorAll("#v3l button").forEach(b=>b.classList.toggle("on",+b.dataset.j===j));$("#v3go").disabled=j<0;
- if(j<0)return;const P=V.pt[j],bb=new T.Box3();P.forEach(v=>bb.expandByPoint(v));V.c=bb.getCenter(new T.Vector3());V.d=Math.max(2500,bb.getSize(new T.Vector3()).length()*.62/(.414*Math.min(1,V.cam?V.cam.aspect:.8)));
+ if(j<0){V.h0&&($("#v3h").textContent=V.h0);return}const pz=V.rec.pipes[j];V.h0=V.h0||$("#v3h").textContent;$("#v3h").innerHTML=`<b style="color:var(--ink);font-size:15px">${esc(pz.nm)}・${(V.len[j]/1000).toFixed(1)}m</b>${pz.sz?`<br>配管サイズ：<b style="color:#0369a1;font-size:15px">ガス管 ${bun(pz.sz.g)}（${pz.sz.g}）・液管 ${bun(pz.sz.l)}（${pz.sz.l}）</b>（図面の記号 ${esc(pz.sz.z)}）`:"<br>配管サイズは図面から読めませんでした"}`;const P=V.pt[j],bb=new T.Box3();P.forEach(v=>bb.expandByPoint(v));V.c=bb.getCenter(new T.Vector3());V.d=Math.max(2500,bb.getSize(new T.Vector3()).length()*.62/(.414*Math.min(1,V.cam?V.cam.aspect:.8)));
  /* 太さは見る距離に合わせる・黒いふち＋点滅（2026-11-16：黄色・だいだいの系統にまぎれて見えない） */
  const r=Math.max(45,V.d/110),k=new T.MeshBasicMaterial({color:0x111827,transparent:true,opacity:.6,depthTest:false});V.selM=new T.MeshBasicMaterial({color:0xfacc15,transparent:true,opacity:1,depthTest:false});
  P.forEach((v,i)=>{if(i){const a=tube(P[i-1],v,r*1.6,k),b=tube(P[i-1],v,r,V.selM);a.traverse(o=>{o.renderOrder=8});b.traverse(o=>{o.renderOrder=9});V.sel.add(a,b)}});

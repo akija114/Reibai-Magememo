@@ -38,13 +38,14 @@ function mpApply(i, quiet){
     for (const q of [[b.x0, b.y0, b.x1, b.y0 + T2], [b.x0, b.y1 - T2, b.x1, b.y1], [b.x0, b.y0, b.x0 + T2, b.y1], [b.x1 - T2, b.y0, b.x1, b.y1]]){ const c = X.W((q[0] + q[2])/2, (q[1] + q[3])/2); bld.push({k:"wall", x:c[0], z:c[1], w:q[2] - q[0], d:q[3] - q[1], h:H, y:0, r:deg(X.ph), full:false, auto:"ub"}); } }
   (MP.units || []).forEach((o, j) => { if (j === p.ui || MP.sc) return; const c = X.W(o.x, o.y); bld.push({k:"ind", x:c[0], z:c[1], w:o.w, d:o.d, h:300, y:0, r:deg(o.th + X.ph), full:false, m:o.mk && CAS2M[o.mk] ? o.mk : ""}); }); // ほかの室内機（始まりの室内機はアプリの模型で出る）
   st.rows = normRows(rows, [{l:500, a:0, t:0, o:false}]); st.bl = []; st.bld = normBld(bld);
+  if (p.sz){ const ix = v => SIZES.findIndex(z => Math.abs(z[1] - v) < 0.3), g = ix(p.sz.g), l = ix(p.sz.l); if (g >= 0){ st.s = g; st.ps = l >= 0 ? l : null; } } // 図面の冷媒サイズ表の太さ（ガス管＝曲げる管・液管＝相手）2026-11-16 ユーザー
   if (MP.sc){ st.dln = null; st.drain = null; } // 図面編集の3Dの時は、前の図面のダクト・衛生とアプリのドレンを消す（2026-11-14 ユーザー：前のデータが残って重なる）
   st.units = normUnits({...st.units, on:!MP.sc || !!un, s:un && un.mk && CAS2M[un.mk] ? "cas2" : st.units.s, ms:un && un.mk && CAS2M[un.mk] ? un.mk : st.units.ms, e:""});
   st.gnd = normGnd({...st.gnd, on:true, mode:"start", h:Math.round(X.H0), c:true, ch:Math.round(CH)}); st.nopipe = false;
   leg = "m"; sel = 0; MP.cur = i; mpSave(); save(); render();
   if (T){ build3D(); const bb = new THREE.Box3(); Pv.forEach(v => bb.expandByPoint(v)); bb.expandByScalar(800); bb.getCenter(T.center); const sz = bb.getSize(new V()); T.ext = Math.max(2500, sz.x, sz.y, sz.z)*1.3; fitT(true); } // 見る所：選んだ配管のまわり
   mpBar();
-  if (!quiet) toast(`${p.nm}（${(pLen(p.P)/1000).toFixed(2)}m）の曲げを出しました`);
+  if (!quiet) toast(`${p.nm}（${(pLen(p.P)/1000).toFixed(2)}m${p.sz && SIZES[st.s] ? "・" + SIZES[st.s][0].split(" ")[0] : ""}）の曲げを出しました`);
 }
 /* 3D：今の配管のほかの配管を灰色の管で（タップで選ぶ） */
 function mpDraw(){ if (!MP || !T || !T.grp) return; if (SC){ scDraw(); return; } if (MP.cur == null || MP.cur < 0 || !MP.pipes[MP.cur]) return; const X = mpXf(MP.cur), V = THREE.Vector3, GY0 = 0;

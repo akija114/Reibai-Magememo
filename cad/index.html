@@ -4916,8 +4916,10 @@ function ceilRunsP(CE, o){ const BR = CE.br.filter(b => b.k === 'ref' && CE.sysO
   const G = new Map(); for (const x of all){ const r = f(id.get(x)); if (!G.has(r)) G.set(r, []); G.get(r).push(x); }
   const runs = []; for (const g of G.values()){ const P = ceilChainP(CE, g.filter(x => !x.arc && x.L >= 30));   /* 円弧（曲がり角）はつながりだけに使った */ if (!P || P.length < 2) continue; const L = P.reduce((a, q, i) => i ? a + Math.hypot(q[0] - P[i-1][0], q[1] - P[i-1][1], q[2] - P[i-1][2]) : 0, 0); if (L < 300) continue;
     for (const b of BR){ if (!g.some(x => x.src === b.from)) continue; for (const k of [0, 1]){ const q = k ? P[P.length - 1] : P[0]; if (near(q, b.e) < 400 && near(q, b.p) > 1){ const np = [Math.round(b.p[0]), Math.round(b.p[1]), q[2]]; if (k) P.push(np); else P.unshift(np); break; } } }   // 枝の端を本管の真ん中まで
-    runs.push({P, oe:g.some(x => !x.arc && CE.oe.some(q => q.e === x.src && Math.min(near(q.p, x.a), near(q.p, x.b)) < 300))}); }   // 室外機の口の所のかけらがある＝分岐前
-  runs.sort((a, b) => b.oe - a.oe); const no = runs.filter(r => r.oe).length; let n = 0, m = 0; return runs.map(r => ({P:r.P, nm:o.nm + '・' + (r.oe ? '分岐前' + (no > 1 ? ++m : '') : '枝' + (++n))})); }   // 室外機につながる所が2つの時は 分岐前1・2
+    runs.push({P, sz:ceilSzOf(CE, g.filter(x => !x.arc).map(x => ({sz:x.src.sz, L:x.L}))), oe:g.some(x => !x.arc && CE.oe.some(q => q.e === x.src && Math.min(near(q.p, x.a), near(q.p, x.b)) < 300))}); }   // 室外機の口の所のかけらがある＝分岐前
+  runs.sort((a, b) => b.oe - a.oe); const no = runs.filter(r => r.oe).length; let n = 0, m = 0; return runs.map(r => ({P:r.P, sz:r.sz, nm:o.nm + '・' + (r.oe ? '分岐前' + (no > 1 ? ++m : '') : '枝' + (++n))})); }   // 室外機につながる所が2つの時は 分岐前1・2
+/* 配管の太さ（2026-11-16 ユーザー：配管サイズを図面から）：線の長さがいちばん多い記号（A〜H）→ 冷媒サイズ表の [液, ガス] mm */
+function ceilSzOf(CE, segs){ const L = {}; for (const e of segs) if (e.sz && e.sz !== '?') L[e.sz] = (L[e.sz] || 0) + (e.L || 0); const z = Object.keys(L).sort((a, b) => L[b] - L[a])[0], t = z && ((CE.tab || {})[z] || CEIL_TAB0[z]); return t ? {z, l:+t[0], g:+t[1]} : null; }
 function ceilChainP(CE, SG){ if (!SG.length) return null; const near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]), others = (e, p) => SG.some(f => f !== e && Math.min(near(p, f.a), near(p, f.b)) < 450);
   let cur = SG.find(e => !others(e, e.a) || !others(e, e.b)) || SG[0], end = others(cur, cur.a) ? cur.a : cur.b; const seq = [], used = new Set();
   for (;;){ used.add(cur); const st = near(end, cur.a) < 1 ? cur.a : cur.b, en = st === cur.a ? cur.b : cur.a; seq.push({e:cur, st, en}); let nx = null, nd = 1500; for (const f of SG){ if (used.has(f)) continue; for (const p of [f.a, f.b]){ const d = near(p, en); if (d < nd){ nd = d; nx = {f, p}; } } } if (!nx) break; cur = nx.f; end = nx.p; }
@@ -5236,8 +5238,8 @@ function v3dSceneJSON(CE){ if (!V3.sc) return null; const all = V3.sc.children.s
   finally { for (const [x, d, m, g] of bk){ x.userData = d; x.material = m; if (g) x.geometry = g; } V3.sc.children = all; } }
 /* 3Dの「曲げ共有へ」：天井の配管図は分岐の無い系統を全部（選んだ系統 key が最初に開く）、立面図などは3Dだけ */
 async function send3DMage(key){ if (!V3.sc) return; const CE = V3.ceilCE, pipes = []; let cur = 0;
-  if (CE) for (const o of CE.sys || []){ const P = ceilPathP(CE, o); if (o.key === key) cur = pipes.length; if (P && P.length > 1){ pipes.push({nm:o.nm, P, ui:-1, sy:String(o.key)}); continue; }
-    for (const r of ceilRunsP(CE, o) || []) pipes.push({nm:r.nm, P:r.P, ui:-1, sy:String(o.key), br:1}); }   // 分岐のある系統は分岐前・枝ごと（2026-11-16）
+  if (CE) for (const o of CE.sys || []){ const P = ceilPathP(CE, o); if (o.key === key) cur = pipes.length; if (P && P.length > 1){ pipes.push({nm:o.nm, P, ui:-1, sy:String(o.key), sz:ceilSzOf(CE, o.segs.filter(e => !e.arc))}); continue; }
+    for (const r of ceilRunsP(CE, o) || []) pipes.push({nm:r.nm, P:r.P, ui:-1, sy:String(o.key), br:1, sz:r.sz}); }   // 分岐のある系統は分岐前・枝ごと（2026-11-16）
   return mageSend({v:1, name:S.name || S.srcName || '図面', t:Date.now(), ch:CE ? 2700 : 2400, walls:[], ubs:[], units:[], pipes, cur}); }
 async function mageSend(rec){ toast('3Dをまとめています…'); await new Promise(r => setTimeout(r, 30)); const j = v3dSceneJSON(V3.ceilCE); if (j){ rec.sc = j; rec.cx = V3.cx; rec.cy = V3.cy; }
   try { await new Promise((ok, ng) => { const o = indexedDB.open('pbmShare', 1); o.onupgradeneeded = () => { if (!o.result.objectStoreNames.contains('f')) o.result.createObjectStore('f'); }; o.onerror = () => ng(o.error);

@@ -435,7 +435,8 @@ function addBend(){
  $("#rows").lastElementChild.scrollIntoView({block:"nearest",behavior:"smooth"});
 }
 /* 曲げ共有（くわしい表示）：「曲げを追加」で「曲げを1つ足す／長さだけ先にメモ」を選ぶ（2026-11-16 ユーザー：長さだけ先にメモのボタンはいらない・曲げ追加で選べるように） */
-$("#add").onclick=()=>{if(APP==="bend"&&!EZ&&$("#lfOpen"))sheetMsg('<b style="font-size:16px">曲げを追加</b>',[["曲げを1つ足す（向きを決める）",addBend,"#0b67c2","#fff"],["長さだけ先にメモ（角度はあとで決める）",()=>$("#lfOpen").click()],["やめる"]]);else addBend()};
+$("#add").onclick=()=>{if(APP==="bend"&&!EZ&&$("#lfOpen")){const n=T?LR().slice(0,-1).filter(r=>!r.a).length:0;   /* まっすぐの所の角度を決める（前の「角度」のボタン）もここで選ぶ（2026-11-17 ユーザー：角度と曲げの追加は一緒の機能） */
+ sheetMsg('<b style="font-size:16px">曲げを追加</b>',[["曲げを1つ足す（向きを決める）",addBend,"#0b67c2","#fff"],...(n?[["角度を決める（まっすぐの所 "+n+"か所）",()=>$("#lfAng").click(),"#0b67c2","#fff"]]:[]),["長さだけ先にメモ（角度はあとで決める）",()=>$("#lfOpen").click()],["やめる"]])}else addBend()};
 
 /* ---------- 3D ---------- */
 function initT(){

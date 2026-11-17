@@ -1113,7 +1113,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   });
 
  }
- T.ezRoomY=null;if(!GM&&EZROOM&&(EZ||(APP==="bend"&&DV)))ezRoom(GY,CY,!!C2,ext,!EZ);   // かんたん表示：天井面・床面（表示用）。くわしい表示は向きを決める画面の全体図の中だけ（2026-11-17 ユーザー：全体図の地面と天井がわからない）
+ T.ezRoomY=null;if(!GM&&EZROOM&&EZ)ezRoom(GY,CY,!!C2,ext);   // かんたん表示：天井面・床面（表示用）。くわしい表示の全体図は面でなく「上・右・前」の矢印（2026-11-17 ユーザー）
  if(!GM&&!HIDX.has("m"))flag(new V(),"🟢 起点","#dcfce7f2","#14532d",0x16a34a);
  LEAF.filter(L=>!GM&&!HIDX.has(L.id)).forEach(L=>flag(L.pos,br?"🔴 終点"+L.tag:"🔴 終点","#fee2e2f2","#7f1d1d",0xdc2626));
  const anyOver=LG.some(L=>L.over);
@@ -1420,7 +1420,7 @@ function loop(){
   cam.updateMatrixWorld();fixLabels(cam,W,H);
   rd.setScissorTest(false);rd.setViewport(0,0,W,H);rd.render(T.sc,cam);
   const g=Math.round(Math.min(104,Math.min(W,H)*0.34)),gx=W-g-4-(T.full?0:(()=>{const t=$("#tools");return t.classList.contains("hide")?0:t.offsetWidth+6})()),gy=4;
-  T.gcam.position.copy(cam.position).sub(tg).normalize().multiplyScalar(4.4);
+  T.gcam.position.copy(cam.position).sub(tg).normalize().multiplyScalar(5.6);   // 4.4 だと矢印の文字が枠で切れた（2026-11-17 ユーザー）
   T.gcam.up.copy(cam.up);T.gcam.lookAt(0,0,0);
   rd.setViewport(gx,gy,g,g);rd.setScissor(gx,gy,g,g);rd.setScissorTest(true);
   rd.autoClear=false;rd.clearDepth();rd.render(T.gs,T.gcam);rd.autoClear=true;rd.setScissorTest(false);
@@ -2383,16 +2383,16 @@ function ezOvRender(rd,H){
  const F=T.ovFit&&T.ovFit.segs===T.segs&&T.ovFit.a===a&&T.ovFit.ph===ph?T.ovFit:(T.ovFit=ezFitAll(T.segs,ph,Math.tan(oc.fov*Math.PI/360)*0.9,a));
  if(!F)return;
  /* 向きを決めている間は全体図の真ん中・大きさを止める（配管の形が変わるたびに動いて分かりにくい・2026-11-17 ユーザー）。はみ出しそうな時だけ広げる */
- let L=DV.ovL;if(!L||L.a!==a||L.ph!==ph){let G=null;const fr=(T.legFr&&T.legFr[DV.g]||[])[DV.i];   // 曲げた後の配管がどの向きに回っても入る広さで初めから止める（曲げる所から、その先の長さの球）
-  if(fr){const R=LR().slice(DV.i+1).reduce((s,r)=>s+(+r.l||0),0),pts=ezPts(T.segs).concat([[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].map(v=>fr.c.clone().add(new THREE.Vector3(v[0],v[1],v[2]).multiplyScalar(R))));G=ezFitAll2(pts,ph,Math.tan(oc.fov*Math.PI/360)*0.9,a)}
-  L=DV.ovL=G?{a,ph,c:G.c,dist:G.dist}:{a,ph,c:F.c.clone(),dist:F.dist*1.12}}else if(F.dist+F.c.distanceTo(L.c)*1.2>L.dist){L.c=F.c.clone();L.dist=F.dist*1.15}
+ let L=DV.ovL;if(!L||L.a!==a||L.ph!==ph)L=DV.ovL={a,ph,c:F.c.clone(),dist:F.dist*1.1};else if(F.dist+F.c.distanceTo(L.c)*1.2>L.dist){L.c=F.c.clone();L.dist=F.dist*1.15}   // 少しの向きの変化では動かさない・はみ出す時だけ広げる（回る範囲ぜんぶの広さは小さすぎた・2026-11-17 ユーザー）
  const bk=ezBasis(th,ph).bk,up=ezBasis(th,ph).up;
  oc.aspect=a;oc.near=L.dist*0.02;oc.far=L.dist*20;oc.updateProjectionMatrix();
  oc.up.copy(up);oc.position.copy(L.c).addScaledVector(bk,L.dist);oc.lookAt(L.c);oc.updateMatrixWorld();
  const y=H-r.y-r.h;
  rd.setViewport(r.x,y,r.w,r.h);rd.setScissor(r.x,y,r.w,r.h);rd.setScissorTest(true);
  rd.setClearColor(0xf8fafc,1);rd.clear(true,true,false);
- rd.autoClear=false;rd.render(T.sc,oc);rd.autoClear=true;
+ rd.autoClear=false;rd.render(T.sc,oc);
+ {const g=Math.round(Math.min(84,r.h*0.42));T.gcam.position.copy(oc.position).sub(L.c).normalize().multiplyScalar(5.6);T.gcam.up.copy(oc.up);T.gcam.lookAt(0,0,0);rd.setViewport(r.x+r.w-g-4,y+4,g,g);rd.setScissor(r.x+r.w-g-4,y+4,g,g);rd.clearDepth();rd.render(T.gs,T.gcam)}   // 全体図にも「上・右・前」の矢印（右下・2026-11-17 ユーザー）
+ rd.autoClear=true;
  rd.setClearColor(0x000000,0);rd.setScissorTest(false);rd.setViewport(0,0,T.w,H);
 }
 /* 曲げ入力を1段ずつ：1 長さ → 2 角度 → 3 向き → 4 確認 */

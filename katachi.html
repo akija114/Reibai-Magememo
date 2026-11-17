@@ -123,7 +123,7 @@ function openOne(id){ const r = shpList().find(x => x.id === id); if (!r) return
     if (b.dataset.k){ kind = b.dataset.k; if (kind !== 'unit') mdl = ''; draw(); return; }
     const a = b.dataset.a; if (a === 'x'){ S.hidden = true; return; }
     if (a === 'del'){ if (!confirm('この登録を消しますか？（3Dは自動の読み方にもどります）')) return; if (shpSave(shpList().filter(x => x.id !== id))){ S.hidden = true; render(); toast('登録を消しました'); } return; }
-    if (a === 'ok'){ const L = shpList(), q = L.find(x => x.id === id); if (!q) return; q.kind = kind; if (kind === 'unit') q.mdl = mdl; else delete q.mdl; if (shpSave(L)){ S.hidden = true; render(); toast(`${SHPK[kind]}にしました。次に3Dを開いた時から変わります`); } } }; }
+    if (a === 'ok'){ const L = shpList(), q = L.find(x => x.id === id); if (!q) return; q.kind = kind; if (kind === 'unit') q.mdl = mdl; else if (kind !== 'odu') delete q.mdl; if (shpSave(L)){ S.hidden = true; render(); toast(`${SHPK[kind]}にしました。次に3Dを開いた時から変わります`); } } }; }
 $('#sh').onclick = e => { if (e.target.id === 'sh') $('#sh').hidden = true; };
 /* ほかのスマホへ：ファイルで書き出す・読み込む（同じ登録は2つにしない） */
 $('#exp').onclick = async () => { const L = shpList(); if (!L.length){ toast('まだ登録がありません'); return; }

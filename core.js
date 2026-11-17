@@ -1099,7 +1099,7 @@ LG.filter(L=>!GM&&hasKid(L)&&!HIDX.has(L.id)).forEach(P0=>{
   });
 
  }
- if(EZ&&!GM&&EZROOM)ezRoom(GY,CY,!!C2,ext);   // かんたん表示：天井面・床面（表示用）
+ T.ezRoomY=null;if(!GM&&EZROOM&&(EZ||(APP==="bend"&&DV)))ezRoom(GY,CY,!!C2,ext,!EZ);   // かんたん表示：天井面・床面（表示用）。くわしい表示は向きを決める画面の全体図の中だけ（2026-11-17 ユーザー：全体図の地面と天井がわからない）
  if(!GM&&!HIDX.has("m"))flag(new V(),"🟢 起点","#dcfce7f2","#14532d",0x16a34a);
  LEAF.filter(L=>!GM&&!HIDX.has(L.id)).forEach(L=>flag(L.pos,br?"🔴 終点"+L.tag:"🔴 終点","#fee2e2f2","#7f1d1d",0xdc2626));
  const anyOver=LG.some(L=>L.over);
@@ -2290,7 +2290,7 @@ function ezFitOne(pts,th,ph,tv,a){
 }
 function ezPts(segs){const pts=[];(segs||[]).forEach(sg=>{pts.push(sg.a,sg.b)});return pts}
 /* 天井面・床面も入れて写す時の点。入りきらない時は、配管の 2/3 の大きさまで引いて写す（配管を優先・天井床は見える範囲で） */
-function ezRoomPts(pts){const R=EZ&&EZROOM&&T.ezRoomY;if(!R||!pts.length)return null;const b=new THREE.Box3();pts.forEach(p=>b.expandByPoint(p));const c=b.getCenter(new THREE.Vector3());return pts.concat([new THREE.Vector3(c.x,R.fy,c.z),new THREE.Vector3(c.x,R.cy,c.z)])}
+function ezRoomPts(pts){const R=T.ezRoomY;if(!R||!pts.length)return null;const b=new THREE.Box3();pts.forEach(p=>b.expandByPoint(p));const c=b.getCenter(new THREE.Vector3());return pts.concat([new THREE.Vector3(c.x,R.fy,c.z),new THREE.Vector3(c.x,R.cy,c.z)])}
 /* どの水平の向きに回しても入る距離（12方向で調べて一番遠い物）。中心は配管の箱の真ん中（回しても動かない） */
 function ezFitAll(segs,ph,tv,a,noRoom){
  const pts=ezPts(segs);if(!pts.length)return null;
@@ -2325,7 +2325,7 @@ function ezFitMain(force){
    高さが分からない時は「仮」と書き、離隔の数字は出さない。全体図（レイヤー1）にも出す。世界の上下（y）に水平に置くので、全体図を回しても水平 */
 let EZROOM=true;try{EZROOM=localStorage.getItem("pbm_ezroom")!=="0"}catch(e){}
 const EZ_CH0=2200;   // 仮の天井高（表示だけ）
-function ezRoom(GY,CY,c2,ext){
+function ezRoom(GY,CY,c2,ext,ov){   // ov：くわしい表示の全体図だけ（レイヤー1だけ・大きい画面には出さない・床に方眼）
  const pts=ezPts(T.segs);if(!pts.length)return;
  const V=THREE.Vector3,b=new THREE.Box3();pts.forEach(p=>b.expandByPoint(p));
  const known=GY!==null&&(st.gnd.mode!=="auto"||c2);   // 床からの高さが分かる
@@ -2334,22 +2334,24 @@ function ezRoom(GY,CY,c2,ext){
  let fy,cy;
  if(known){fy=GY;cy=CY!==null?CY:GY+CH}
  else{const sp=b.max.y-b.min.y;if(sp+200<=CH){fy=(b.min.y+b.max.y)/2-CH/2}else fy=b.min.y-100;cy=Math.max(fy+CH,b.max.y+100)}
- const c=b.getCenter(new V()),sz=b.getSize(new V()),size=Math.max(sz.x,sz.z)*1.4+1500;
+ let c=b.getCenter(new V()),sz=b.getSize(new V()),size=Math.max(sz.x,sz.z)*1.4+1500;
+ if(ov&&DV){const R0=DV.rmL;if(R0&&R0.n===LR().length){fy=R0.fy;cy=R0.cy;c=R0.c.clone();size=Math.max(size,R0.size)}else DV.rmL={n:LR().length,fy,cy,c:c.clone(),size:size*1.3}}   // 向きを決めている間は床・天井を動かさない（2026-11-17 ユーザー：全体図も一緒に動いて分かりにくい）
  const lab1=(txt,y,bg,fg)=>{const s=label(txt,ext*0.04,bg,fg);s.position.set(b.min.x,y,c.z);s.userData.cat="room";pxl(s,17,{t:"up",dn:y!==fy});T.grp.add(s)};
  [[fy,0xd1d5db,0x9ca3af,.28],[cy,0xbfdbfe,0x60a5fa,.18]].forEach(([y,col,ecol,op])=>{
   const g=new THREE.PlaneGeometry(size,size),pl=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op,side:THREE.DoubleSide,depthWrite:false}));
-  pl.rotation.x=-Math.PI/2;pl.position.set(c.x,y,c.z);pl.renderOrder=-2;pl.userData.room=1;pl.layers.enable(1);T.grp.add(pl);
+  pl.rotation.x=-Math.PI/2;pl.position.set(c.x,y,c.z);pl.renderOrder=-2;pl.userData.room=1;if(ov){pl.layers.set(1);pl.material.opacity=op*1.6}else pl.layers.enable(1);T.grp.add(pl);
   const ed=new THREE.LineSegments(new THREE.EdgesGeometry(g),new THREE.LineBasicMaterial({color:ecol,transparent:true,opacity:.8}));
-  ed.rotation.x=-Math.PI/2;ed.position.copy(pl.position);ed.userData.room=1;ed.layers.enable(1);T.grp.add(ed);
+  ed.rotation.x=-Math.PI/2;ed.position.copy(pl.position);ed.userData.room=1;if(ov)ed.layers.set(1);else ed.layers.enable(1);T.grp.add(ed);
  });
+ if(ov){const gr=new THREE.GridHelper(size,12,0x6b7280,0xb6bcc6);gr.position.set(c.x,fy+1,c.z);gr.userData.room=1;gr.layers.set(1);T.grp.add(gr)}   // 全体図の床は方眼で床らしく
  const ft=known?"床・地面":"床・地面（仮の位置）";
  const ct=known&&chSet?"天井（床から "+fmt(CH)+"）":known?"天井（仮・床から "+fmt(CH)+"）":chSet?"天井（仮の位置・天井高 "+fmt(CH)+"）":"天井（仮の位置）";
- lab1(ft,fy,"#f3f4f6f2","#374151");lab1(ct,cy,"#dbeafef2","#1e3a8a");
- T.ezRoomY={fy,cy,known,ch:CH,chSet:!!chSet,ft,ct};   // 全体図の説明・確認用
+ if(!ov){lab1(ft,fy,"#f3f4f6f2","#374151");lab1(ct,cy,"#dbeafef2","#1e3a8a")}
+ T.ezRoomY={fy,cy,known,ch:CH,chSet:!!chSet,ft,ct,ov:!!ov};   // 全体図の説明・確認用
 }
 function ezRoomSet(on){EZROOM=on;try{localStorage.setItem("pbm_ezroom",on?"1":"0")}catch(e){}[...document.querySelectorAll(".ezroomb")].forEach(b=>b.classList.toggle("on",on));if(T){build3D();T.dirty=true;if(DV&&DV.ez===3){T.ovFit=null;drawDial()}}}
 /* 全体図の枠の説明：天井・床（3Dの中の文字は全体図では小さすぎるので枠に書く） */
-function ezOvLegend(){const e=$("#ezOvRoom");if(!e)return;const R=EZ&&EZROOM&&T&&T.ezRoomY;e.style.display=R?"":"none";if(R)e.innerHTML=`<i style="background:#9ca3af"></i>${R.ft}　<i style="background:#60a5fa"></i>${R.ct}`}
+function ezOvLegend(){const e=$("#ezOvRoom");if(!e)return;const R=T&&T.ezRoomY;e.style.display=R?"":"none";if(R)e.innerHTML=`<i style="background:#9ca3af"></i>${R.ft}　<i style="background:#60a5fa"></i>${R.ct}`}
 /* ラベルなどの出し分け（かんたん表示の曲げ入力中）：寸法は入力中の曲げの前後だけ、角度は今の曲げだけ。向きの矢印・目印は STEP 3 だけ */
 function ezDvFilter(){
  T.grp.children.forEach(o=>{const u=o.userData||{};
@@ -2366,9 +2368,13 @@ function ezOvRender(rd,H){
  const oc=T.ocam,a=r.w/r.h,mv=ezView0(),th=DV.oth!=null?DV.oth:mv.th,ph=mv.ph;
  const F=T.ovFit&&T.ovFit.segs===T.segs&&T.ovFit.a===a&&T.ovFit.ph===ph?T.ovFit:(T.ovFit=ezFitAll(T.segs,ph,Math.tan(oc.fov*Math.PI/360)*0.9,a));
  if(!F)return;
+ /* 向きを決めている間は全体図の真ん中・大きさを止める（配管の形が変わるたびに動いて分かりにくい・2026-11-17 ユーザー）。はみ出しそうな時だけ広げる */
+ let L=DV.ovL;if(!L||L.a!==a||L.ph!==ph){let G=null;const fr=(T.legFr&&T.legFr[DV.g]||[])[DV.i];   // 曲げた後の配管がどの向きに回っても入る広さで初めから止める（曲げる所から、その先の長さの球）
+  if(fr){const R=LR().slice(DV.i+1).reduce((s,r)=>s+(+r.l||0),0),pts=ezPts(T.segs).concat([[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].map(v=>fr.c.clone().add(new THREE.Vector3(v[0],v[1],v[2]).multiplyScalar(R))));G=ezFitAll2(pts,ph,Math.tan(oc.fov*Math.PI/360)*0.9,a)}
+  L=DV.ovL=G?{a,ph,c:G.c,dist:G.dist}:{a,ph,c:F.c.clone(),dist:F.dist*1.12}}else if(F.dist+F.c.distanceTo(L.c)*1.2>L.dist){L.c=F.c.clone();L.dist=F.dist*1.15}
  const bk=ezBasis(th,ph).bk,up=ezBasis(th,ph).up;
- oc.aspect=a;oc.near=F.dist*0.02;oc.far=F.dist*20;oc.updateProjectionMatrix();
- oc.up.copy(up);oc.position.copy(F.c).addScaledVector(bk,F.dist);oc.lookAt(F.c);oc.updateMatrixWorld();
+ oc.aspect=a;oc.near=L.dist*0.02;oc.far=L.dist*20;oc.updateProjectionMatrix();
+ oc.up.copy(up);oc.position.copy(L.c).addScaledVector(bk,L.dist);oc.lookAt(L.c);oc.updateMatrixWorld();
  const y=H-r.y-r.h;
  rd.setViewport(r.x,y,r.w,r.h);rd.setScissor(r.x,y,r.w,r.h);rd.setScissorTest(true);
  rd.setClearColor(0xf8fafc,1);rd.clear(true,true,false);

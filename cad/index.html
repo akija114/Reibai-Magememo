@@ -1270,9 +1270,12 @@ function boxSelect(a, b){
   const w1 = s2w(a[0], a[1]), w2 = s2w(b[0], b[1]);
   const x0 = Math.min(w1[0], w2[0]), x1 = Math.max(w1[0], w2[0]), y0 = Math.min(w1[1], w2[1]), y1 = Math.max(w1[1], w2[1]);
   const inside = [], hidden = [];
+  /* 上のタブでレイヤー（グループ）を1つだけ出している時・「レイヤーごと」で選んでいる時は、そのレイヤーの部品だけ囲む（2026-11-17 ユーザー） */
+  const so = soloLayers(), only = so ? new Set([...so].map(l => l.idx)) : (pickScope === 'layer' && S.pick && S.pick.cands && S.pick.cands.length ? new Set([S.pick.cands[S.pick.i]]) : null);
   for (const [e, bx] of G.pbox){
     if (S.delObj.has(e)) continue;
-    const vis = [...bx[4]].some(li => !G.L[li].deleted && G.L[li].on); if (!vis) continue;
+    if (only && ![...bx[4]].some(li => only.has(li))) continue;
+    const vis = [...bx[4]].some(li => !G.L[li].deleted && (G.L[li].on || (only && only.has(li)))); if (!vis) continue;   // タブで出しているレイヤーは消してあっても見えている
     const hit = boxCross ? !(bx[2] < x0 || bx[0] > x1 || bx[3] < y0 || bx[1] > y1) : (bx[0] >= x0 && bx[2] <= x1 && bx[1] >= y0 && bx[3] <= y1);
     if (!hit) continue;
     if (S.hideObj.has(e)) hidden.push(e); else inside.push(e);

@@ -43,8 +43,8 @@ a.doc{color:var(--acc);font-weight:700}
 <select id="mk" aria-label="メーカー" style="margin-bottom:8px"></select>
 <select id="m" aria-label="機種" hidden></select>
 <div id="out"></div>
-<script src="models.js?v=311"></script>
-<script src="kiso.js?v=17"></script>
+<script src="models.js?v=312"></script>
+<script src="kiso.js?v=18"></script>
 <script>
 /* 🔩 機器：仕込み用の寸法を見るページ（模型は three.js をこのページだけで読む・core.js は読まない）
    配管口・ドレンの位置は「全ねじ（吊りボルト）の芯」から測る。開口寸法は現場で変わるので、全ねじ基準なら誰でも使える */
@@ -77,6 +77,8 @@ function qGo(){const t=$("#q").value.trim(),r=$("#qr");if(!t){r.innerHTML="";ret
   r.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{r.innerHTML="";setCur(b.dataset.k)});return}
  {const q=QN(t),wc=(typeof WALLM!=="undefined"?WALL_MORDER.map(k=>[WALLM[k],"壁掛け"]).concat(CEIL_MORDER.map(k=>[CEILM[k],CEILM[k].kind||"天吊"])):[]).find(([m])=>m.n.split(" / ").some(n=>{const x=QN(n);return x===q||(q.length>=6&&x.includes(q))||(q.length>=8&&q.includes(x.slice(0,8)))}));   // 壁掛け・天吊は模型の欄が無いので大きさだけ
   if(wc){const [m,kd]=wc,E=x=>String(x).replace(/[<>&"]/g,"");r.innerHTML=`<div class="card" style="margin-top:0"><b>✅ ${E(m.n)}（${E(kd)}）</b><div class="note">本体 ${m.W}×${m.H}×${m.D}／ガスφ${m.g}・液φ${m.l}<br>${E(m.spec)}<br>（${E(m.src)}）<br>曲げ共有の「機器の模型」で${kd==="壁掛け"?"壁掛け":"天吊"}を選ぶと、「${kd==="壁掛け"?"壁掛け":"天吊"}の機種」でこの大きさの模型を出せます。</div></div>`;return}}
+ {const q=QN(t),kd=q.length>=5&&typeof airConditionerMaster!=="undefined"&&airConditionerMaster.find(d=>QN(d.name+" "+d.description).includes(q));   // 模型の無い品番（日立の除湿機など）は 📘 の説明へ
+  if(kd&&window.kisoOpen){r.innerHTML=`<div class="card" style="margin-top:0"><b>✅ ${kd.name.replace(/[<>&"]/g,"")}</b><div class="note">寸法・配管・電気は 📘 の説明に入っています</div><button id="qKs" style="margin-top:8px;width:100%;height:44px;border-radius:10px;border:0;background:var(--pri,#2563eb);color:#fff;font:inherit;font-weight:800">📘 説明を開く</button></div>`;$("#qKs").onclick=()=>kisoOpen(kd.id);return}}
  const req=qReq();if(!req.some(x=>QN(x)===QN(t))){req.push(t.normalize("NFKC").toUpperCase());try{localStorage.setItem("pbm_kiki_req",JSON.stringify(req.slice(-50)))}catch(e){}}
  r.innerHTML=`<div class="card" style="margin-top:0;border-color:#f59e0b"><b>「${t.replace(/[<>&"]/g,"")}」はまだアプリに入っていない品番です</b><div class="note">「調べてほしい品番」に残しました。この品番をチャットで教えてもらえれば、メーカーの外形図から寸法（本体・吊りボルト・配管とドレンの位置）を調べてアプリに登録します。<br>調べてほしい品番：${qReq().join("、").replace(/[<>&"]/g,"")}</div></div>`}
 $("#qb").onclick=qGo;$("#q").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();qGo()}};

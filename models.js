@@ -124,7 +124,10 @@ const OUTM={
  pz40:{py:99.5,pz:0,ix:-31,iz:144.5,ex:["b"],n:"三菱 PUZ-ZRMP28S〜50KA15",sub:"P28〜50（配管は後ろからだけ）",w:809,h:630,d:330,f:"front",nf:1},
  pz80:{py:447,pz:0,ix:71,n:"三菱 PUZ-ZRMP80HA15",sub:"P80",w:950,h:943,d:370,f:"front",nf:1},
  pz140:{py:450,pz:0,ix:81,n:"三菱 PUZ-ZRMP140・160KA15",sub:"P140・P160（ファン2段）",w:1050,h:1338,d:370,f:"front",nf:2},
- pz280:{py:337,pz:0,ix:81,n:"三菱 PUZ-ZRMP280KA5",sub:"P280（ガスはろう付け φ25.4）",w:1050,h:1338,d:370,f:"front",nf:2}
+ pz280:{py:337,pz:0,ix:81,n:"三菱 PUZ-ZRMP280KA5",sub:"P280（ガスはろう付け φ25.4）",w:1050,h:1338,d:370,f:"front",nf:2},
+ /* 日立 RAS-GP400／450／500TG（2026-11-17 ユーザーの外形図 GA163827A04）。本体 1600×765×1428（脚60・上のファンガード267）・上吹き2ファン。
+    lx＝ガスの口の左の端からの内側（正面から見て左下・図から読んだ目安）・py＝ガスの口の高さ160（液259）・iz＝前からの内側152（液132）・ex＝前と下 */
+ hi_gp:{py:160,pz:0,lx:200,iz:152,ex:["f","d"],n:"日立 RAS-GP400・450・500TG",sub:"P400〜500（上吹き2ファン）",w:1600,h:1428,d:765,f:"top",nf:2}
 };
 const OUT_PKG=["p40","p80","p112","dk160","pz40","pz80","pz140","pz280"];
 const OUT_X={s:"右側面（前から50mm内側）",f:"正面（表）",b:"背面（裏）",d:"真下（手前）",l:"左下（正面からまっすぐ）",m:"真下（左・手前）"};
@@ -138,13 +141,14 @@ function outPort(mk,k){
  const m=OUTM[mk]||OUTM.room,W=m.w,D=m.d;
  if(mk==="room")return[W/2+45,100,-30]; // 右側面の外側45mm、後ろ向きに出る
  if(mk==="ghp")return[-W/2+120,150,D/2];
+ if(m.lx!=null)return k==="d"?[-W/2+m.lx,0,D/2-m.iz]:[-W/2+m.lx,m.py,D/2];   // 口が左下の機種（日立 GP）
  if(OUT_VRV.includes(mk))return k==="m"?[-W/2+120,0,D/2-60]:[-W/2+180,175,D/2];
  if(mk==="dk160")return k==="f"?[W/2-70,410,D/2]:k==="b"?[W/2-70,410,-D/2]:k==="d"?[W/2-70,0,D/2-75]:[W/2,410,D/2-75];   // 閉鎖弁は右前・高さ400〜417
  if(!OUT_PKG.includes(mk))return[W/2,m.py,m.pz];
  const y=m.py||200,ix=m.ix==null?120:m.ix,iz=m.iz||50;   // 外形図の分かる機種は口の高さ・位置（py・ix・iz）
  return k==="f"?[W/2-ix,y,D/2]:k==="b"?[W/2-ix,y,-D/2]:k==="d"?[W/2-ix,0,D/2-60]:[W/2,y,D/2-iz];
 }
-const OUT_ORDER=["room","p40","p80","p112","vrv","vrv2","ghp","dk160","pz40","pz80","pz140","pz280"];
+const OUT_ORDER=["room","p40","p80","p112","vrv","vrv2","ghp","dk160","pz40","pz80","pz140","pz280","hi_gp"];
 /* ===== 換気機器（エアコンとは別）：ロスナイ（三菱電機 天井埋込形 LGH-N○○RXW3）=====
    メーカーの外形寸法表より（単位mm）。A＝ダクトの並ぶ向きの幅、B＝奥行、C＝高さ、D×E＝天吊金具ピッチ、F＝金具の出、
    d＝ダクトの呼び径、G・H＝フランジ、J＝フランジの出、K＝ダクトピッチ、L＝端からダクト芯、M・N・P＝ダクトの位置、kg＝質量

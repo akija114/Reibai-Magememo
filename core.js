@@ -1563,13 +1563,13 @@ const SLOTS=[["s","起点"],...(st.nopipe?[]:brOn()?leaves().map(g=>["L"+g,slotN
   box.appendChild(gr);
   const xk="x"+k,mkey=st.units[ok];
   if(outAllow(mkey).length>1){
-   const t2=document.createElement("div");t2.className="ctitle";t2.textContent="🔧 配管をつなぐ位置（"+(OUT_VRV.includes(mkey)?"左下":"右下")+"・"+lab+"）";box.appendChild(t2);
+   const t2=document.createElement("div");t2.className="ctitle";t2.textContent="🔧 配管をつなぐ位置（"+(OUT_VRV.includes(mkey)||OUTM[mkey].lx!=null?"左下":"右下")+"・"+lab+"）";box.appendChild(t2);
    const g2=document.createElement("div");g2.className="ugrid";
    outAllow(mkey).forEach(key=>{const b=document.createElement("button");b.className="ubtn"+(outExitKey(mkey,st.units[xk])===key?" on":"");b.textContent=OUT_X[key];
     b.onclick=()=>{st.units[xk]=key;save();renderUnitSheet();unitRefresh()};g2.appendChild(b)});
    box.appendChild(g2);
   }
-  const n=document.createElement("div");n.className="note";n.textContent=OUTM[mkey].ex?"三菱の外形図の大きさです。配管は右の横のバルブから後ろへ出します（外形図：配管は背面側からだけ）。":/^pz/.test(mkey)?"三菱の外形図の大きさです。配管の口の高さも外形図の値です。前・右・後ろ・下へ出せます。":OUT_PKG.includes(mkey)?"大きさは目安です。パッケージの配管は、正面から見て右下から出ます。":mkey==="ghp"?"大きさは目安です。GHPの配管は、正面から見て左下の真正面から出ます。":OUT_VRV.includes(mkey)?"大きさは目安です。ビルマルチの配管は、正面から見て左下から出ます。":"大きさは目安です。配管は、正面から見て右の側面から出ます（ルームエアコンは右側面の外側から後ろ向き・下から100mm上）。";box.appendChild(n);
+  const n=document.createElement("div");n.className="note";n.textContent=OUTM[mkey].lx!=null?"日立の外形図の大きさです。配管は正面から見て左下（ガスの口は下から160mm）から、前か下へ出します。":OUTM[mkey].ex?"三菱の外形図の大きさです。配管は右の横のバルブから後ろへ出します（外形図：配管は背面側からだけ）。":/^pz/.test(mkey)?"三菱の外形図の大きさです。配管の口の高さも外形図の値です。前・右・後ろ・下へ出せます。":OUT_PKG.includes(mkey)?"大きさは目安です。パッケージの配管は、正面から見て右下から出ます。":mkey==="ghp"?"大きさは目安です。GHPの配管は、正面から見て左下の真正面から出ます。":OUT_VRV.includes(mkey)?"大きさは目安です。ビルマルチの配管は、正面から見て左下から出ます。":"大きさは目安です。配管は、正面から見て右の側面から出ます（ルームエアコンは右側面の外側から後ろ向き・下から100mm上）。";box.appendChild(n);
  });
  SLOTS.map(([k,lab])=>[k,"#uW"+k,"w"+k,lab]).forEach(([k,q,wk,lab])=>{
   const box=$(q);box.innerHTML="";

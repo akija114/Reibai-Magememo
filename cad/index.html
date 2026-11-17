@@ -1145,7 +1145,7 @@ function tapSelect(p){
   if (!best && S.mode === 'pan' && ceilColTap(p)) return; // 色を付けた冷媒：2回目のタップで系統の名前
   S.gsel = null;
   S.selDim = best;
-  if (best) S.pick = null; else pickLayerAt(p);
+  if (best) S.pick = null; else { pickLayerAt(p); if (S.pick && !S.pick.multi) S.pick.tw = s2w(p[0], p[1]); }   // タップした所（機器1台分を探す）
   drawOverlay(); updateDimPanel(); updatePickBar();
 }
 /* ---- tap a line / text in the drawing -> pick a part (one drawn object) or its whole layer ---- */
@@ -2203,7 +2203,15 @@ function updatePickBar(){
     else if (a === 'ohide'){ const sel = [...pk.sel]; exec(cmdObjs(sel, 'hide')); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を非表示にしました（↶で戻せます）`); S.pick = null; }
     else if (a === 'omove'){ mvgStart([...pk.sel]); return; }
     else if (a === 'olay'){ openLaySheet([...pk.sel]); return; }
-    else if (a === 'ogrow'){ const all = new Set(pk.sel); for (const e of [...pk.sel]) pickGrow(e).forEach(f => all.add(f)); pk.sel = all; pk.multi = true; drawOverlay(); updatePickBar(); toast(`${all.size} 本の線を選びました（タップで足す／外す）`); return; }
+    else if (a === 'ogrow'){ let all = new Set(pk.sel); for (const e of [...pk.sel]) pickGrow(e).forEach(f => all.add(f));
+      /* 🧊 機器1台だけ（2026-11-17 ユーザー：室外機を1台だけ選びたい・となりと線がくっついていて全部選ばれる）：タップした所のファンなどの形（四角が 6cm〜2.5m）からもたどって、
+         1台の大きさ（3m 以内）に収まる中でいちばん大きい物にする（となりの機器まで続く線・枠をたどると何台分も選ばれるため） */
+      if (pk.tw){ const u0 = unitMM(), bx = S0 => { let b = [1e18, 1e18, -1e18, -1e18]; for (const e of S0){ const bb = G.pbox.get(e); if (bb) b = [Math.min(b[0], bb[0]), Math.min(b[1], bb[1]), Math.max(b[2], bb[2]), Math.max(b[3], bb[3])]; } return b; }, sz = b => Math.max(b[2] - b[0], b[3] - b[1])*u0, ar = b => (b[2] - b[0])*(b[3] - b[1]);
+        const C = [all]; let nr = null; for (const [e, bb] of G.pbox){ if (gone(e)) continue; const dd = Math.hypot(Math.max(0, bb[0] - pk.tw[0], pk.tw[0] - bb[2]), Math.max(0, bb[1] - pk.tw[1], pk.tw[1] - bb[3]))*u0; if (dd > 400) continue; const d = Math.min(bb[2] - bb[0], bb[3] - bb[1])*u0, D = sz(bb); if (d < 60 || D > 2500) continue; const t = G.parts[e]; if (t && (!G.L[t.li] || G.L[t.li].deleted || !G.L[t.li].on)) continue; if (dd === 0) C.push(new Set(pickGrow(e))); else if (!nr || dd < nr.dd) nr = {e, dd}; }
+        if (C.length === 1 && nr) C.push(new Set(pickGrow(nr.e)));   // 形の上でない時（枠の線・ファンの間）は40cm 以内のいちばん近い形から
+        const ok = C.filter(S0 => sz(bx(S0)) <= 3000).sort((x, y) => ar(bx(y)) - ar(bx(x))); let nw = null; if (sz(bx(all)) > 3000 && ok.length) nw = ok[0]; else if (ok.length && ok[0] !== all && ar(bx(ok[0])) > ar(bx(all))*1.5) nw = ok[0];
+        if (nw){ const b = bx(nw), m = 30/u0; all = new Set(nw); for (const [e, bb] of G.pbox){ if (gone(e) || all.has(e) || bb[0] < b[0] - m || bb[2] > b[2] + m || bb[1] < b[1] - m || bb[3] > b[3] + m) continue; const t = G.parts[e]; if (t && (!G.L[t.li] || G.L[t.li].deleted || !G.L[t.li].on)) continue; all.add(e); } } }   // 1台の中の文字・ほかのレイヤーの線も
+      pk.sel = all; pk.multi = true; drawOverlay(); updatePickBar(); toast(`${all.size} 本の線を選びました（タップで足す／外す）`); return; }
     else if (a === 'oshp'){ shpSelStart(); return; }
     else if (a === 'odup'){ const sel = [...pk.sel], all = sel.concat(compOf(sel).filter(e => !sel.includes(e))), b = outlineBox(sel) || partsBox(sel), u = unitMM(), c = cmdDup(all, [b ? (b[2] - b[0]) + 300/u : 1000/u, 0]);
       if (!c.list.length){ toast('この部品は複製できません'); return; } exec(c); renderTabs(); S.pick = {...pk, sel:new Set(c.list), parts:c.list, pi:0, multi:false}; toast(`${c.list.length}個を複製しました。指で動かして置く所を決めてください（↶で戻せます）`); mvgStart(c.list); if (S.mvg){ S.mvg.useS = false; S.mvg.useC = false; S.mvg.comp = []; updatePickBar(); } return; } // 複製した物は、まわりの配管をつなぎ直さない
@@ -4844,12 +4852,25 @@ function ceilAna(){
     { const G0 = k === 'ref' ? 40 : 20, G1 = k === 'ref' ? 160 : 120, ST = E.filter(e => !e.arc && e.L >= 6), BK = new Map(), ak = e => { let a = Math.atan2(e.d[1], e.d[0]); if (a < 0) a += Math.PI; if (a >= Math.PI - 0.005) a -= Math.PI; return Math.round(a*180/Math.PI) % 180; };
       ST.forEach(e => { const k2 = ak(e); (BK.get(k2) || BK.set(k2, []).get(k2)).push(e); });
       const pr = (e, q) => { const n = [-e.d[1], e.d[0]], o = (q.a[0] - e.a[0])*n[0] + (q.a[1] - e.a[1])*n[1], t0 = (q.a[0] - e.a[0])*e.d[0] + (q.a[1] - e.a[1])*e.d[1], t1 = (q.b[0] - e.a[0])*e.d[0] + (q.b[1] - e.a[1])*e.d[1]; return {o, s0:Math.max(0, Math.min(t0, t1)), s1:Math.min(e.L, Math.max(t0, t1)), t0:Math.min(t0, t1), t1:Math.max(t0, t1)}; };
-      const nb = new Map(); for (const e of ST){ const k2 = ak(e); let up = null, dn = null; for (const kk of [k2 - 2, k2 - 1, k2, k2 + 1, k2 + 2]) for (const q of BK.get((kk + 180) % 180) || []){ if (q === e || q.li !== e.li || Math.abs(e.d[0]*q.d[1] - e.d[1]*q.d[0]) > (Math.min(e.L, q.L) < 300 ? 0.035 : 0.02)) continue; const r = pr(e, q), ao = Math.abs(r.o); if (ao < G0 || ao > G1 || r.s1 - r.s0 < Math.min(30, e.L*0.5, q.L*0.5)) continue; if (r.o > 0 ? (!up || ao < up.ao) : (!dn || ao < dn.ao)) { const v = {q, ao, r}; if (r.o > 0) up = v; else dn = v; } } nb.set(e, {up, dn}); }
-      const SY = [], seen = new Set(); for (const e of ST){ const me = nb.get(e); for (const sd of ['up', 'dn']){ const v = me[sd]; if (!v || seen.has(v.q)) continue; const back = nb.get(v.q); if (!back || ![back.up, back.dn].some(x => x && x.q === e)) continue;
+      const nb = new Map(); for (const e of ST){ const k2 = ak(e); let up = null, dn = null; for (const kk of [k2 - 2, k2 - 1, k2, k2 + 1, k2 + 2]) for (const q of BK.get((kk + 180) % 180) || []){ if (q === e || q.li !== e.li || Math.abs(e.d[0]*q.d[1] - e.d[1]*q.d[0]) > (Math.min(e.L, q.L) < 300 ? 0.035 : 0.02)) continue; const r = pr(e, q), ao = Math.abs(r.o); if (ao < G0 || ao > G1 || r.s1 - r.s0 < Math.min(30, e.L*0.5, q.L*0.5)) continue; const v = {q, ao, r}; if (r.o > 0) (up = up || []).push(v); else (dn = dn || []).push(v); } const cut = L => { if (!L) return null; const m = Math.min(...L.map(x => x.ao)); return L.filter(x => x.ao <= m + 3); }; nb.set(e, {up:cut(up), dn:cut(dn)}); }   /* いちばん近い間の線が2本に分かれて（重ねて）描いてある時は全部と組む（2026-11-17 ユーザー：室外機・室内機へ下りる管が無い） */
+      const SY = [], seen = new Set(); for (const e of ST){ const me = nb.get(e); for (const sd of ['up', 'dn']) for (const v of me[sd] || []){ if (seen.has(v.q)) continue; const back = nb.get(v.q); if (!back || ![...(back.up || []), ...(back.dn || [])].some(x => x.q === e)) continue;
           const {o, s0, s1, t0, t1} = v.r, w = Math.abs(o); let a0 = s0, a1 = s1; const ex = x => x > w*0.5 && x < w*1.6;   // 片方の線だけ間くらい先までのびる＝角
           if (ex(Math.abs(t0))) a0 -= w/2; if (ex(Math.abs(t1 - e.L))) a1 += w/2; if (a1 - a0 < 40) continue;
           const n = [-e.d[1], e.d[0]], c0 = [e.a[0] + e.d[0]*a0 + n[0]*o/2, e.a[1] + e.d[1]*a0 + n[1]*o/2], c1 = [e.a[0] + e.d[0]*a1 + n[0]*o/2, e.a[1] + e.d[1]*a1 + n[1]*o/2];
+          if (SY.some(c => c.src[0] === e && Math.abs(c.cw - w) < 3 && Math.min(c.L, a1 - a0) > 0 && Math.abs(((c.a[0] + c.b[0])/2 - (c0[0] + c1[0])/2)*n[0] + ((c.a[1] + c.b[1])/2 - (c0[1] + c1[1])/2)*n[1]) < 3 && Math.max(0, Math.min((c.b[0] - e.a[0])*e.d[0] + (c.b[1] - e.a[1])*e.d[1], a1) - Math.max((c.a[0] - e.a[0])*e.d[0] + (c.a[1] - e.a[1])*e.d[1], a0)) > Math.min(c.L, a1 - a0)*0.8)) continue;   // 重ねて描いた線で同じ管を2回作らない
           SY.push({a:c0, b:c1, L:a1 - a0, arc:false, d:[e.d[0], e.d[1]], cw:w, syn:1, src:[e, v.q]}); } seen.add(e); }
+      /* くっついて並んだ管（外の線を1本ずつ共有）は、すき間も同じ間の2本線になる：束のいちばん外の線から順に、1本の線が両側と組んだ所は外から決まった組を残してもう片側を外す（2026-11-17 ユーザー：室外機・室内機の上の束） */
+      { const PR = new Map(), rg = c => { const u = c.d, t0 = c.a[0]*u[0] + c.a[1]*u[1], t1 = c.b[0]*u[0] + c.b[1]*u[1]; return [Math.min(t0, t1), Math.max(t0, t1)]; }, sideOf = (l, o) => { const n = [-l.d[1], l.d[0]], m = [(o.a[0] + o.b[0])/2, (o.a[1] + o.b[1])/2]; return Math.sign((m[0] - l.a[0])*n[0] + (m[1] - l.a[1])*n[1]); };
+        SY.forEach(c => { c.rg = rg(c); for (const [l, o] of [[c.src[0], c.src[1]], [c.src[1], c.src[0]]]){ c['s' + (l === c.src[0] ? 0 : 1)] = sideOf(l, o); (PR.get(l) || PR.set(l, []).get(l)).push(c); } });
+        const ov = (x, y) => Math.min(x.rg[1], y.rg[1]) - Math.max(x.rg[0], y.rg[0]) > Math.min(x.L, y.L)*0.5, sd = (c, l) => l === c.src[0] ? c.s0 : c.s1, del = new Set();
+        /* 管の真ん中に芯の線（一点鎖線など・ほかのレイヤーでも）がある組は本物の管：両側と組んだ線は、芯の線のある側を残す */
+        const CG = new Map(), cg = (x, y) => Math.floor(x/400) + ',' + Math.floor(y/400); for (let i = 0; i < sg.length; i += 8){ const L0 = G.L[sg[i + 4]]; if (!L0 || L0.deleted) continue; const a = [sg[i]*u, sg[i + 1]*u], b = [sg[i + 2]*u, sg[i + 3]*u], m = [(a[0] + b[0])/2, (a[1] + b[1])/2], Ls = Math.hypot(b[0] - a[0], b[1] - a[1]); if (Ls < 15 || Ls > 30000) continue; const n0 = Math.ceil(Ls/400); for (let j = 0; j <= n0; j++){ const kk = cg(a[0] + (b[0] - a[0])*j/n0, a[1] + (b[1] - a[1])*j/n0); (CG.get(kk) || CG.set(kk, []).get(kk)).push(i); } }
+        const supOf = c => { let hit = 0; for (const f of [0.25, 0.5, 0.75]){ const m = [c.a[0] + (c.b[0] - c.a[0])*f, c.a[1] + (c.b[1] - c.a[1])*f]; let ok = false; for (const i of CG.get(cg(m[0], m[1])) || []){ const a = [sg[i]*u, sg[i + 1]*u], b = [sg[i + 2]*u, sg[i + 3]*u], Ls = Math.hypot(b[0] - a[0], b[1] - a[1]), d = [(b[0] - a[0])/Ls, (b[1] - a[1])/Ls]; if (Math.abs(d[0]*c.d[1] - d[1]*c.d[0]) > 0.05) continue; const t = (m[0] - a[0])*d[0] + (m[1] - a[1])*d[1]; if (t < -60 || t > Ls + 60) continue; if (Math.abs(-(m[0] - a[0])*d[1] + (m[1] - a[1])*d[0]) <= Math.max(5, c.cw*0.08)){ ok = true; break; } } if (ok) hit++; } return hit >= 2; };
+        SY.forEach(c => { c.sup = supOf(c); });
+        for (const c of SY){ if (!c.sup) continue; for (const l of c.src) for (const o of PR.get(l)) if (o !== c && !o.sup && sd(o, l) !== sd(c, l) && ov(o, c)) del.add(o); }
+        const cf = (c, l) => (PR.get(l) || []).some(o => o !== c && !del.has(o) && sd(o, l) !== sd(c, l) && ov(o, c));
+        for (let it = 0; it < 40; it++){ let ch = false; for (const c of SY){ if (del.has(c) || c.sure) continue; const [l0, l1] = c.src; const e0 = !cf(c, l0), e1 = !cf(c, l1); if (e0 === e1) continue; c.sure = 1; ch = true; const l = e0 ? l1 : l0; for (const o of PR.get(l)) if (o !== c && !del.has(o) && sd(o, l) !== sd(c, l) && ov(o, c)) del.add(o); } if (!ch) break; }
+        for (let i = SY.length - 1; i >= 0; i--){ if (del.has(SY[i])) SY.splice(i, 1); else { delete SY[i].rg; delete SY[i].s0; delete SY[i].s1; delete SY[i].sure; delete SY[i].sup; } } }
       const synL = SY.reduce((x, e) => x + e.L, 0), cwL = E.filter(e => e.cw && !e.arc).reduce((x, e) => x + e.L, 0);
       if (SY.length >= 20 && synL > cwL*3){ E.forEach(e => { if (e.cw){ e.cw = 0; delete e.cw; } }); pairK = true;
         /* 管のレイヤーだけ残す（2026-11-17 ユーザー：冷媒じゃない所を読む）：同じ色の名前でも、通り芯（一点鎖線）・室内機の記号は2本線の組ができない → 組の長さがいちばん多いレイヤーの2割未満・自分の線の長さの2割未満のレイヤーは外す */
@@ -4861,6 +4882,7 @@ function ceilAna(){
         const GP = new Map(), gk = p => Math.round(p[0]/4) + ',' + Math.round(p[1]/4), add = (p, e) => { for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++){ const kk = (Math.round(p[0]/4) + dx) + ',' + (Math.round(p[1]/4) + dy); (GP.get(kk) || GP.set(kk, []).get(kk)).push(e); } };
         E.forEach(e => { if (e.L < 0.3) return; add(e.a, e); add(e.b, e); });
         const trace = (l, p0) => { let cur = l, p = p0, dir = null, len = 0; const far = Math.hypot(l.a[0] - p0[0], l.a[1] - p0[1]) < Math.hypot(l.b[0] - p0[0], l.b[1] - p0[1]) ? l.a : l.b;   // l の、真ん中の線の端に近い方の端から先へ
+          if (Math.hypot(far[0] - p0[0], far[1] - p0[1]) > 250) return null;   // となりの管と共有する長い外の線の、遠い端からはたどらない（別の管の角とまちがえる）
           p = far; dir = far === l.a ? [-l.d[0], -l.d[1]] : l.d;
           for (let st = 0; st < 120 && len < 3000; st++){ let nx = null, bd = 0.5; for (const f of GP.get(gk(p)) || []){ if (f === cur || f.li !== l.li) continue; const at = Math.hypot(f.a[0] - p[0], f.a[1] - p[1]) < 3 ? 'a' : Math.hypot(f.b[0] - p[0], f.b[1] - p[1]) < 3 ? 'b' : null; if (!at) continue; const fd = at === 'a' ? f.d : [-f.d[0], -f.d[1]], dt = fd[0]*dir[0] + fd[1]*dir[1]; if (dt > bd){ bd = dt; nx = {f, at, fd}; } }
             if (!nx) return null; const f = nx.f; if (SRC.has(f) && f.L >= 6) return {f, p}; len += f.L; cur = f; p = nx.at === 'a' ? f.b : f.a; dir = nx.fd; } return null; };

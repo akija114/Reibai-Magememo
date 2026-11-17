@@ -61,7 +61,12 @@ function bar(live){ const stg = $("#stage"); if (!stg) return; let el = $("#cutB
   if (!C){ if (el) el.remove(); return; }
   if (!el){ el = document.createElement("div"); el.id = "cutBar"; el.style.cssText = "position:absolute;left:8px;z-index:3;display:flex;gap:4px;align-items:center;max-width:calc(100% - 64px);overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 2px 4px"; stg.appendChild(el);
     el.onclick = e => { const b = e.target.closest("[data-cj]"); if (b){ cutGo(+b.dataset.cj); return; } if (e.target.closest("[data-cx]")) askConfirm("切るのをやめて、1本の配管にもどしますか？", "↩ 1本にもどす", () => { cutSync(); const C2 = st.cut; if (C2){ st.rows = cp(C2.f); delete st.cut; } sel = 0; save(); render(); if (T){ build3D(); fitT(true); } toast("1本にもどしました"); }); };
-    ["pointerdown", "touchstart"].forEach(ev => el.addEventListener(ev, e => e.stopPropagation(), {passive:true})); }
+    ["pointerdown", "touchstart"].forEach(ev => el.addEventListener(ev, e => e.stopPropagation(), {passive:true}));
+    { let sx = null, sy = 0, sl = 0; const P = e => e.changedTouches ? e.changedTouches[0] : e;   /* 左へスワイプで支持の札と一緒にしまう（横にずれなかった時＝端まで見えている時だけ）・▶ で出す（2026-11-17 ユーザー：見にくいから左にスライドして非表示に）。指は touch（横にずれると pointercancel になるため） */
+      const dn = e => { if (e.pointerType && e.pointerType !== "mouse") return; const q = P(e); sx = q.clientX; sy = q.clientY; sl = el.scrollLeft; };
+      const upF = e => { if (sx === null || (e.pointerType && e.pointerType !== "mouse")) return; const q = P(e), dx = q.clientX - sx, dy = q.clientY - sy; sx = null; if (dx < -40 && Math.abs(dx) > Math.abs(dy)*1.2 && Math.abs(el.scrollLeft - sl) < 3 && window.infoHide){ window.infoHide(true); el.dataset.sw = Date.now(); } };
+      el.addEventListener("touchstart", dn, {passive:true}); el.addEventListener("touchend", upF); el.addEventListener("pointerdown", dn); el.addEventListener("pointerup", upF);
+      el.addEventListener("click", e => { if (Date.now() - (+el.dataset.sw || 0) < 400){ e.stopImmediatePropagation(); e.preventDefault(); } }, true); } }
   const sp = $("#supPill"), vis = sp && sp.offsetParent && !stg.classList.contains("infohide"); el.style.top = (vis ? sp.offsetTop + sp.offsetHeight + 6 : (stg.classList.contains("full") ? 62 : 50)) + "px";
   const tot = lenOf(C.i < 0 ? st.rows : C.f), cs = live || C.c, ls = [...cs, tot].map((x, k) => x - (k ? cs[k - 1] : 0)), m = v => (v/1000).toFixed(1) + "m";
   const B = (on, col) => `flex:none;height:34px;border-radius:17px;padding:0 11px;font-size:13px;font-weight:800;border:2px solid ${on ? col : "#cbd5e1"};background:${on ? col : "#ffffffee"};color:${on ? "#fff" : "#0f172a"};box-shadow:0 2px 6px #0c4a6e33`;

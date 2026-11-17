@@ -2028,7 +2028,7 @@ ${APP==="zumen"?`  <div class="pt pt2" style="margin-top:10px;font-size:13px">�
 /* 左上の文字（寸法の合計・支持の数）：左へスワイプでしまう／▶で出す */
 (function(){
  const st0=$("#stage"),tab=$("#infoTab");
- const set=h=>{st0.classList.toggle("infohide",h);try{localStorage.setItem("pbm_info",h?"1":"0")}catch(e){}};
+ const set=h=>{st0.classList.toggle("infohide",h);try{localStorage.setItem("pbm_info",h?"1":"0")}catch(e){}};window.infoHide=set;   // 切った配管の段（kiru.js の #cutBar）も左へスワイプでしまう（2026-11-17 ユーザー：見にくい）
  let sx=null,sy=0,sw=0;
  const down=e=>{sx=e.clientX;sy=e.clientY};
  const up=(e,dir)=>{if(sx===null)return false;const dx=e.clientX-sx,dy=e.clientY-sy;sx=null;

@@ -140,6 +140,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .sh-h{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;border-bottom:1px solid var(--line)}
 .sh-h h2{flex:1;margin:0;font-size:16px}
 .sh-b{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.sh-b>*{flex-shrink:0} /* 中身が多い時に欄が縮んで文字が半分切れる（2026-11-17 ユーザー） */
 .sh-tools{display:flex;gap:6px;flex-wrap:wrap}
 .grp{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);padding-top:6px}
 .row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);min-width:0}
@@ -2684,7 +2685,7 @@ function autoDimAt(cur){
 /* ---- 同じ機器ぜんぶ：1台で決めた点（芯・吊りボルトなど）を、同じ形の機器ぜんぶの同じ所に置く。向き（90°ずつ・左右反対）も合わせる ---- */
 /* 🏷 図面の形を登録（2026-10-28 ユーザー：この形はこれ、を自分で登録したい）：選んだ部品の形（線の端の点の並び）を覚え、同じ形（回した・裏返した形も）を図面ぜんぶから探して、3Dにその種類で出す。
    種類：wall 壁・door 扉・unit 室内機（mdl 機種）・insp 点検口・out 吹出口・col 柱・ign 家具など（3Dに出さない＝そこに読んだ壁・機器を消す）。この端末で覚えて、ほかの図面でも使う（zumen-shapes・長さは mm） */
-const SHPK = {wall:'🧱 壁', door:'🚪 扉', unit:'❄️ 室内機', insp:'🔲 点検口', out:'💨 吹出口・吸込口', col:'🏛 柱', win:'🪟 窓', stair:'🪜 階段', bed:'🛏 ベッド', ign:'🪑 家具など（3Dに出さない）'};
+const SHPK = {wall:'🧱 壁', door:'🚪 扉', unit:'❄️ 室内機', odu:'🌀 室外機', insp:'🔲 点検口', out:'💨 吹出口・吸込口', col:'🏛 柱', win:'🪟 窓', stair:'🪜 階段', bed:'🛏 ベッド', ign:'🪑 家具など（3Dに出さない）'};
 function shpList(){ try { const a = JSON.parse(localStorage.getItem('zumen-shapes') || '[]'); return Array.isArray(a) ? a : []; } catch(e){ return []; } }
 function shpSave(a){ try { localStorage.setItem('zumen-shapes', JSON.stringify(a)); } catch(e){ toast('この端末に保存できませんでした'); } V3.shp = null; }
 function shpMake(sel){ // 選んだ部品 → 形の記録（いちばん大きい部品を目印に、その真ん中からの点の並び）
@@ -4087,12 +4088,12 @@ function v3dAna(){
   let un = units.filter(inB); const mg = mageOk(); if (mg && mg.units.length){ const f = un.filter(c => mg.units.some(o => o.x >= c.x0 - 300 && o.x <= c.x1 + 300 && o.y >= c.y0 - 300 && o.y <= c.y1 + 300)); if (f.length) un = f; } // 曲げメモで室内機と読めた物だけ（ロスナイなどの機器は除く）
   if (mg && mg.walls.length) walls = mg.walls; // 壁も曲げメモの読み取り（軽量壁など）
   const doors = v3dDoors().filter(inD => !bld || (inD.c[0] >= bld[0] && inD.c[0] <= bld[2] && inD.c[1] >= bld[1] && inD.c[1] <= bld[3]));
-  const SH = shpMatches(); { if (SH.length){ // 🏷 登録した形：家具など＝そこに読んだ物を消す、ほかはその種類で足す
+  const SO = [], SH = shpMatches(); { if (SH.length){ // 🏷 登録した形：家具など＝そこに読んだ物を消す、ほかはその種類で足す
     const cin = (x0, y0, x1, y1, b) => (x0 + x1)/2 > b[0] - 50 && (x0 + x1)/2 < b[2] + 50 && (y0 + y1)/2 > b[1] - 50 && (y0 + y1)/2 < b[3] + 50, ovl = (c, b) => c.x0 < b[2] && c.x1 > b[0] && c.y0 < b[3] && c.y1 > b[1];
-    for (const m of SH){ const b = m.b; if (m.kind !== 'ign' && m.kind !== 'unit') continue; un = un.filter(c => !(m.kind === 'ign' ? cin(c.x0, c.y0, c.x1, c.y1, b) : ovl(c, b))); if (m.kind === 'ign'){ walls = walls.filter(w => !cin(w[0], w[1], w[2], w[3], b)); for (const L of [insp, outs]) L.splice(0, L.length, ...L.filter(c => !cin(c.x0, c.y0, c.x1, c.y1, b))); for (let i = doors.length - 1; i >= 0; i--) if (cin(doors[i].c[0], doors[i].c[1], doors[i].c[0], doors[i].c[1], b)) doors.splice(i, 1); } }
+    for (const m of SH){ const b = m.b; if (m.kind !== 'ign' && m.kind !== 'unit' && m.kind !== 'odu') continue; un = un.filter(c => !(m.kind === 'ign' ? cin(c.x0, c.y0, c.x1, c.y1, b) : ovl(c, b))); if (m.kind === 'ign'){ walls = walls.filter(w => !cin(w[0], w[1], w[2], w[3], b)); for (const L of [insp, outs]) L.splice(0, L.length, ...L.filter(c => !cin(c.x0, c.y0, c.x1, c.y1, b))); for (let i = doors.length - 1; i >= 0; i--) if (cin(doors[i].c[0], doors[i].c[1], doors[i].c[0], doors[i].c[1], b)) doors.splice(i, 1); } }
     const US = []; for (const m of SH){ const b = m.b, cx = (b[0] + b[2])/2, cy = (b[1] + b[3])/2, ch2 = chAt(cx, cy);
       if (m.kind === 'wall' || m.kind === 'col'){ const ar = (b[2] - b[0])*(b[3] - b[1]); if (!walls.some(w => w.length < 5 && Math.max(0, Math.min(w[2], b[2]) - Math.max(w[0], b[0]))*Math.max(0, Math.min(w[3], b[3]) - Math.max(w[1], b[1])) > ar*0.6)) walls.push(b.slice(0, 4)); } // 自動で読んだ壁とほとんど重なる時は足さない
-      else if (m.kind === 'insp') insp.push({x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2}); else if (m.kind === 'out') outs.push({x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2});
+      else if (m.kind === 'insp') insp.push({x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2}); else if (m.kind === 'out') outs.push({x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2}); else if (m.kind === 'odu') SO.push({x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2}); // 🌀 室外機（2026-11-17 ユーザー：これは何？に室外機が無い）
       else if (m.kind === 'unit'){ const c = {x0:b[0], y0:b[1], x1:b[2], y1:b[3], ch:ch2, n:0, s:[], mdl:m.mdl || ''}; un.push(c); US.push(c); }
       else if (m.kind === 'win'){ const hz = b[2] - b[0] >= b[3] - b[1], N = []; // 窓：重なる壁を窓の幅だけ切って、下（腰壁 0〜850）と上（2000〜）を残す
         for (const w of walls){ const wh = w[2] - w[0] >= w[3] - w[1]; if (w.length > 4 || wh !== hz || !(w[0] < b[2] && w[2] > b[0] && w[1] < b[3] + 100 && w[3] > b[1] - 100)){ N.push(w); continue; }
@@ -4114,6 +4115,7 @@ function v3dAna(){
       for (let i = oud.length - 1; i >= 0; i--){ const v = V2.get(gk(oud[i])); if (v[0] + v[1] >= 3 && v[0] >= (v[0] + v[1])*0.6){ const q = oud.splice(i, 1)[0], wn = acSide(q, q.hz, LL); wallU.push({...q, n:wn ? wn.n : (q.n ? q.n.map(z => -z) : [0, 1]), face:wn ? wn.face : (q.hz ? q.y1 : q.x1), t:wn ? wn.t : 150}); } } }
     un = keep; for (const q of wallU){ const cx = (q.x0 + q.x1)/2, cy = (q.y0 + q.y1)/2; let b = null, bd = 4500; for (const o of oud){ const ox = (o.x0 + o.x1)/2, oy = (o.y0 + o.y1)/2; if ((ox - cx)*q.n[0] + (oy - cy)*q.n[1] <= q.t*0.5) continue; const dd = Math.hypot(ox - cx, oy - cy); if (dd < bd && !wallU.some(z => z !== q && z.o === o)){ bd = dd; b = o; } } q.o = b; } } // 壁掛けごとに、壁の外のいちばん近い室外機
   const outU = []; if (!window.V3ALL){ const NG = v3dUG() || {}; const NP = v3dUP(); un = un.filter(m => { const pk = (NP[v3dUPk(m)] || {}).k; if (pk === '__no') return false; if (pk != null) return true; const k = NG[v3dUKey(m)]; if (m.mdl == null && k === '__out'){ outU.push(m); return false; } return m.mdl != null || k !== '__no'; });   /* 「🌀 室外機」にした形は床に箱（2026-11-05 ユーザー：機種を聞く画面に室外機が出る） */ for (let i = wallU.length - 1; i >= 0; i--){ const pk = (NP[v3dUPk(wallU[i])] || {}).k; if (pk === '__no' || (pk == null && NG['W' + v3dUKey(wallU[i])] === '__no')) wallU.splice(i, 1); } }   // 「🚫 室内機ではない」にした形は出さない（2026-11-03 ユーザー）
+  for (const q of SO){ for (const L of [wallU, oud]) for (let i = L.length - 1; i >= 0; i--){ const c = L[i]; if (c.x0 < q.x1 && c.x1 > q.x0 && c.y0 < q.y1 && c.y1 > q.y0) L.splice(i, 1); } outU.push(q); }   // 登録した室外機は床に箱（壁掛け・室外機の読み取りと重なる物はこちら）
   if (!T.length) un.forEach(m => { m.noch = 1; }); return {walls, doors, reg:SH, ubs:ubs.filter(inB), units:un, outU, insp:insp.filter(inB), outs:outs.filter(inB), wallU, oud, bld, CH0, wallH:CH0}; // 壁は天井の高さまで（天井の上の機器が見えるように）
 }
 /* 細長い機械の記号の中の、短い辺の向きの線（短い辺の6割以上）の本数。壁掛けは格子（多い）、室外機は横じま（少ない） */

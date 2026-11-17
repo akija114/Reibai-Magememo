@@ -92,7 +92,7 @@ select{width:100%;height:46px;border-radius:12px;border:1.5px solid var(--line);
 <script>
 const $ = s => document.querySelector(s), esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /* 図面編集（cad/index.html）の SHPK・shpList・shpSave・shpSvg と同じ（変えたら両方） */
-const SHPK = {wall:'🧱 壁', door:'🚪 扉', unit:'❄️ 室内機', insp:'🔲 点検口', out:'💨 吹出口・吸込口', col:'🏛 柱', win:'🪟 窓', stair:'🪜 階段', bed:'🛏 ベッド', ign:'🪑 家具など（3Dに出さない）'};
+const SHPK = {wall:'🧱 壁', door:'🚪 扉', unit:'❄️ 室内機', odu:'🌀 室外機', insp:'🔲 点検口', out:'💨 吹出口・吸込口', col:'🏛 柱', win:'🪟 窓', stair:'🪜 階段', bed:'🛏 ベッド', ign:'🪑 家具など（3Dに出さない）'};
 function shpList(){ try { const a = JSON.parse(localStorage.getItem('zumen-shapes') || '[]'); return Array.isArray(a) ? a : []; } catch(e){ return []; } }
 function shpSave(a){ try { localStorage.setItem('zumen-shapes', JSON.stringify(a)); return true; } catch(e){ toast('この端末に保存できませんでした'); return false; } }
 function shpSvg(r, w, h){ const xs = [], ys = []; (r.ln || []).forEach(l => { xs.push(l[0], l[2]); ys.push(l[1], l[3]); }); (r.pts || []).forEach(p => { xs.push(p[0]); ys.push(p[1]); }); if (!xs.length) return `<svg width="${w}" height="${h}"></svg>`;

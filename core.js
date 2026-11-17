@@ -565,8 +565,8 @@ function makeUnit(type,opt){
   body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(...RB[0]),new THREE.Vector3(...RB[1]),new THREE.Vector3(...RB[2])));
   {const q=R(Pn);body.position.set(-q[0],-q[1],-q[2])}
   name=om.n;
-  {const q=R([0,H+(om.f==="top"?60:0)-Pn[1],0]),q0=R([-Pn[0],0,-Pn[2]]);cx=q[0]+q0[0];top=q[1]+q0[1];opt.cz=q[2]+q0[2]}
-  rb(W,H,D,Math.min(24,D/8),X,H/2,0,WH);bx(W*.94,40,D*.9,X,B-20,0,0x475569);
+  {const q=R([0,H+(om.hi?267:om.f==="top"?60:0)-Pn[1],0]),q0=R([-Pn[0],0,-Pn[2]]);cx=q[0]+q0[0];top=q[1]+q0[1];opt.cz=q[2]+q0[2]}
+  rb(W,H,D,Math.min(24,D/8),X,H/2,0,om.hi?0xe7e5df:WH);bx(W*.94,40,D*.9,X,B-20,0,0x475569);
   const fan=(fx,fy,fz,r,face)=>{
    if(face==="front"){ // 正面(+z)向き
     const c=cyl(r,8,fx,fy,FZ+2,DK,40);c.rotation.x=Math.PI/2;
@@ -579,7 +579,21 @@ function makeUnit(type,opt){
     bx(r*2,6,6,fx,fy+6,fz,MD);bx(6,6,r*2,fx,fy+6,fz,MD);
    }
   };
-  if(om.f==="front"){
+  if(om.hi){ // 日立 フレックスマルチ（2026-11-17 ユーザーの写真）：上に背の高いファンガード2つ・正面は左の上下2枚＋右の細い板・横と後ろは熱交換器
+   const r=Math.min(D*.46,W/4*.92),gh=267;
+   for(const s of[-1,1]){const fx=X+s*W/4;
+    put(new THREE.CylinderGeometry(r*1.07,r*.93,gh,40),fx,top0+gh/2,0,0xe7e5df);   // ガード（上が少し広い）
+    put(new THREE.TorusGeometry(r*1.05,10,8,40),fx,top0+gh-4,0,0xd6d3cc).rotation.x=Math.PI/2;
+    cyl(r*.97,6,fx,top0+gh,0,DK,40);bx(r*1.9,6,6,fx,top0+gh+4,0,MD);bx(6,6,r*1.9,fx,top0+gh+4,0,MD);
+    bx(W/2-14,12,D-30,fx,top0+6,0,0xe7e5df)}   // 上の板（2枚）
+   const xr=X+W/2-W*.27,C=0x64748b;   // 右の細い板の境
+   bx(6,H-60,4,xr,B+H/2,FZ+2,C);bx(xr-(X-W/2),6,4,(X-W/2+xr)/2,B+H*.52,FZ+2,C);
+   bx(W*.16,26,4,X-W/2+(xr-(X-W/2))*.5,B+H*.83,FZ+3,0x1f2937);bx(W*.1,16,4,X-W/2+(xr-(X-W/2))*.5,B+H*.6,FZ+3,0x475569);   // 名前の札
+   for(let i=0;i<3;i++){const c=cyl(i<2?32:20,6,X-W/2+90+i*70,B+150,FZ+3,MD,20);c.rotation.x=Math.PI/2}   // 左下の電線の穴
+   bx(110,90,4,X-W/2+120,B+70,FZ+3,MD);bx(70,90,4,X-W/2+240,B+70,FZ+3,MD);   // 配管の取出口（角穴）
+   for(let i=0;i<22;i++){const y=B+50+i*(H-100)/21;bx(6,6,D*.88,X+W/2+1,y,0,0x475569);bx(6,6,D*.88,X-W/2-1,y,0,0x475569);bx(W*.92,6,6,X,y,-FZ-1,0x475569)}   // 熱交換器
+   bx(W*.94,50,6,X,B-25,FZ*.92,0x1f2937);
+  }else if(om.f==="front"){
    const r=Math.min(om.nf===2?290:330,W*.38,H*(om.nf===2?.17:.3));
    for(let i=0;i<om.nf;i++){
     const y=om.nf===2?B+H*(i?.25:.72):B+H*.55;

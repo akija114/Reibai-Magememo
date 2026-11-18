@@ -1597,7 +1597,7 @@ function ccRender(body){ const B = ccB(), A = ccAddr(B), FL = ccFl(B), mit = B.m
     h += `<td><button class="btn" data-add="${f}" style="height:86px;width:44px;font-size:20px">＋</button></td></tr>`; }
   h += `</table></div>`;
   h += `<div style="font-weight:800;margin-top:6px">集中線のルート（一筆書きの順）</div><div style="font-size:13px;line-height:1.6">`; for (const f of FL){ const it = ccIt(B, f); if (!it.length) continue; h += `<div><b>${f}階</b>${B.rcF === f ? '（🎛）' : ''}：${it.map((q, i) => q.ty === 'fl' ? esc(ccFlTxt(B, A, f, q.tx)) : `${q.ty === 'out' ? '🌀' : ''}<b>${esc(A[f][i])}</b> ${esc(q.rm || q.kd || CCTY[q.ty])}${IFS && q.ifc && q.ty !== 'out' ? `（${IFS}）` : ''}`).join(' → ')}</div>`; } h += `</div>`;
-  h += `<div class="frow"><button class="btn" data-a="txt" style="flex:1">📋 文字でコピー（LINE に貼る）</button></div><div class="frow"><button class="btn del" data-a="clr" style="flex:1">🗑 表を空にする</button></div>`;
+  h += `<div class="frow"><button class="btn pri" data-a="img" style="flex:1">🖼 画像で送る（LINE など）</button></div><img id="ccImgV" hidden alt="アドレス表の画像" style="width:100%;border:1px solid var(--line);border-radius:10px;margin:4px 0"><div class="frow"><button class="btn" data-a="txt" style="flex:1">📋 文字でコピー（LINE に貼る）</button></div><div class="frow"><button class="btn del" data-a="clr" style="flex:1">🗑 表を空にする</button></div>`;
   body.innerHTML = h;
   const re = () => { ccSave(B); ccRender(body); drawOverlay(); };
   body.onchange = ev => { const t = ev.target; if (t.id === 'ccNm'){ B.nm = t.value.trim().slice(0, 40); ccSave(B); } else if (t.id === 'ccNf'){ B.nf = Math.max(1, Math.min(60, +t.value || B.nf)); re(); } else if (t.id === 'ccRc'){ B.rcF = +t.value; re(); } };
@@ -1608,8 +1608,43 @@ function ccRender(body){ const B = ccB(), A = ccAddr(B), FL = ccFl(B), mit = B.m
     else if (b.dataset.add){ const f = +b.dataset.add; (B.F[f] = B.F[f] || {src:'', it:[]}).it.push({ty:'in', rm:'', kd:'', cp:'', md:'', ifc:B.mk === 'mitsu' ? 1 : 0}); ccSave(B); ccEdit(f, B.F[f].it.length - 1); }
     else if (b.dataset.i != null) ccEdit(+b.dataset.f, +b.dataset.i);
     else if (b.dataset.cp) ccCopy(B, +b.dataset.cp, re);
+    else if (b.dataset.a === 'img') ccImgSend(B, b);
     else if (b.dataset.a === 'txt'){ const s = ccTxt(B); (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => toast('コピーしました。LINE などに貼れます'), () => { const ta = document.createElement('textarea'); ta.value = s; ta.style.cssText = 'width:100%;height:160px;font-size:13px'; b.after(ta); ta.select(); toast('下の文字を長押しでコピーしてください'); }); }
     else if (b.dataset.a === 'clr'){ if (!confirm('表をぜんぶ空にしますか？（もどせません）')) return; B.F = {}; re(); } }; }
+function ccImg(B){ // 🖼 アドレス表を1枚の画像に（2026-11-18 ユーザー：LINE で文字だけでなく分かりやすく画像でも）。行＝階・6台ごとに折り返し・一筆書きの順に矢印
+  const A = ccAddr(B), FL = ccFl(B).filter(f => ccIt(B, f).length || f === B.rcF), NC = 6, CW = 150, CH = 112, GX = 22, GY = 12, HW = 96, PD = 16, Z = 2, IFS = CCIFS[B.mk];
+  let nIn = 0, nOut = 0, nIf = 0; for (const f of FL) for (const q of ccIt(B, f)){ if (q.ty === 'in'){ nIn++; if (q.ifc) nIf++; } else if (q.ty === 'out') nOut++; }
+  const rows = FL.map(f => Math.max(1, Math.ceil(ccIt(B, f).length/NC))), W = PD*2 + HW + 8 + NC*CW + (NC - 1)*GX, TH = 74, H = TH + rows.reduce((a, r) => a + r*CH + (r - 1)*GY + 14, 0) + 40 + PD;
+  const cv = document.createElement('canvas'); cv.width = W*Z; cv.height = H*Z; const c = cv.getContext('2d'); c.scale(Z, Z); c.fillStyle = '#fff'; c.fillRect(0, 0, W, H); c.textBaseline = 'middle';
+  const F = (w, s) => `${w} ${s}px ${FONT}`, fit = (t, w, s, wt) => { t = String(t || ''); let z = s; c.font = F(wt, z); while (z > 8 && c.measureText(t).width > w){ z -= 0.5; c.font = F(wt, z); } return t; }, rr = (x, y, w, h, r) => { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); };
+  c.fillStyle = '#0f172a'; c.textAlign = 'left'; c.fillText(fit(`📡 ${B.nm || '集中線'}　集中線のアドレス表（${CCMK[B.mk]}）`, W - PD*2, 22, 800), PD, 24);
+  c.fillStyle = '#334155'; c.fillText(fit(`🎛 集中リモコン ${B.rcF}階　室内機 ${nIn}台・室外機 ${nOut}台${CCIF[B.mk] ? `・${CCIF[B.mk]} ${nIf}個` : ''}${CCRM[B.mk] ? `・捨てリモコン ${nIn}個` : ''}　${new Date().toLocaleDateString('ja-JP')}`, W - PD*2, 15, 600), PD, 54);
+  let y = TH;
+  FL.forEach((f, k) => { const it = ccIt(B, f), h = rows[k]*CH + (rows[k] - 1)*GY;
+    c.fillStyle = B.rcF === f ? '#cffafe' : '#f1f5f9'; rr(PD, y, HW, h, 10); c.fill(); c.fillStyle = '#0f172a'; c.textAlign = 'center'; c.font = F(800, 22); c.fillText(`${f}階`, PD + HW/2, y + h/2 - (B.rcF === f ? 12 : 0)); if (B.rcF === f){ c.fillStyle = '#0891b2'; c.fillText(fit('🎛 集中リモコン', HW - 8, 12, 800), PD + HW/2, y + h/2 + 16); }
+    if (!it.length){ c.fillStyle = '#94a3b8'; c.textAlign = 'left'; c.font = F(600, 14); c.fillText('（まだ入っていません）', PD + HW + 16, y + CH/2); }
+    it.forEach((q, i) => { const cx = PD + HW + 8 + (i % NC)*(CW + GX), cy = y + Math.floor(i/NC)*(CH + GY), mx = cx + CW/2, out = q.ty === 'out', fl = q.ty === 'fl';
+      if (i % NC){ c.fillStyle = '#0891b2'; c.textAlign = 'center'; c.font = F(800, 18); c.fillText('→', cx - GX/2, cy + CH/2); } else if (i){ c.fillStyle = '#0891b2'; c.textAlign = 'center'; c.font = F(800, 14); c.fillText('↳', cx - 8, cy + 10); }
+      c.lineWidth = out ? 3 : 1.5; c.strokeStyle = out ? '#0f766e' : fl ? '#94a3b8' : '#cbd5e1'; c.fillStyle = fl ? '#f8fafc' : '#fff'; c.setLineDash(fl ? [6, 4] : []); rr(cx, cy, CW, CH, 12); c.fill(); c.stroke(); c.setLineDash([]); c.textAlign = 'center';
+      if (fl){ const t = ccFlTxt(B, A, f, q.tx), m = t.match(/^(.*?)（(.*)）$/); c.fillStyle = '#0891b2'; c.font = F(800, 26); c.fillText(/下/.test(q.tx) ? '⬇' : /上/.test(q.tx) ? '⬆' : '↔', mx, cy + 26); c.fillStyle = '#0f172a'; c.fillText(fit(m ? m[1] : t, CW - 10, 14, 800), mx, cy + 58); if (m){ c.fillStyle = '#475569'; c.fillText(fit(m[2], CW - 10, 12, 700), mx, cy + 82); } return; }
+      c.fillStyle = out ? '#0f766e' : '#0891b2'; c.fillText(fit(A[f][i], CW - 10, 28, 800), mx, cy + 22);
+      c.fillStyle = '#0f172a'; c.fillText(fit(q.rm || '—', CW - 10, 15, 800), mx, cy + 48);
+      c.fillStyle = '#334155'; c.fillText(fit(`${q.ty === 'in' ? q.kd || '室内機' : CCTY[q.ty]}${q.cp ? ' ' + q.cp : ''}`, CW - 10, 13, 600), mx, cy + 68);
+      if (q.md){ c.fillStyle = '#64748b'; c.fillText(fit(q.md, CW - 10, 11, 600), mx, cy + 85); }
+      const tg = [IFS && q.ifc && !out ? [IFS, '#ea580c'] : null, CCRM[B.mk] && q.ty === 'in' ? ['捨てリモコン', '#475569'] : null].filter(Boolean); let tw = tg.reduce((a, t) => { c.font = F(800, 11); return a + c.measureText(t[0]).width + 12; }, 0), tx = mx - tw/2;
+      for (const [t, col] of tg){ c.font = F(800, 11); const w = c.measureText(t).width + 8; c.fillStyle = col; rr(tx, cy + 95, w, 14, 4); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(t, tx + w/2, cy + 102.5); tx += w + 4; } });
+    y += h + 14; });
+  c.fillStyle = '#64748b'; c.textAlign = 'left'; c.fillText(fit(`${IFS ? IFS + '＝' + CCIF[B.mk] + '　' : ''}→＝集中線を一筆書きでつなぐ順　🌀＝室外機（緑のふち）`, W - PD*2, 12, 600), PD, H - PD - 10);
+  return cv; }
+let ccImgF = null;
+async function ccImgSend(B, btn){ // iPhone の共有の画面は押してすぐでないと出ないので、作った画像を覚えて2回目は先に送る
+  const share = async f => { if (navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return true; } return false; };
+  const key = JSON.stringify(B); if (ccImgF && ccImgF.k === key){ try { if (await share(ccImgF.f)) return; } catch(e){ if (e && e.name === 'AbortError') return; } }
+  const cv = ccImg(B), bl = await new Promise(ok => cv.toBlob(ok, 'image/png')); if (!bl){ toast('画像を作れませんでした'); return; }
+  const f = new File([bl], `集中線アドレス表_${(B.nm || '現場').replace(/[\\/:*?"<>|\s]/g, '')}.png`, {type:'image/png'}); ccImgF = {k:key, f};
+  const im = document.getElementById('ccImgV'); if (im){ im.src = URL.createObjectURL(bl); im.hidden = false; }
+  try { if (await share(f)) return; } catch(e){ if (e && e.name === 'AbortError') return; toast('もう一度「🖼 画像で送る」を押すと送れます（下の画像を長押しでも保存できます）'); return; }
+  try { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000); toast('画像を保存しました（下の画像を長押しでも保存できます）'); } catch(e){ toast('下の画像を長押しで保存してください'); } }
 function ccCopy(B, f, re){ const r = prompt(`${f}階の並びを何階にコピーしますか？（例：3-12 か 5）\n部屋の番号の頭の階（${f}01 など）もその階に変えます`, ''); if (!r) return; const m = r.normalize('NFKC').match(/^\s*(\d+)\s*(?:[-~〜]\s*(\d+))?\s*$/); if (!m){ toast('3-12 のように入れてください'); return; }
   const a = +m[1], z = m[2] ? +m[2] : a, T = []; for (let t = Math.min(a, z); t <= Math.max(a, z); t++) if (t >= 1 && t <= B.nf && t !== f) T.push(t); if (!T.length) return;
   if (T.some(t => ccIt(B, t).length) && !confirm('もう入っている階は上書きします。いいですか？')) return;

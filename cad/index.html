@@ -6519,7 +6519,8 @@ function shStatus(){
 function shareCode(code){ return code.slice(0, 3) + '-' + code.slice(3); }
 async function sendCode(code, gname, fid, dname){
   const url = location.origin + location.pathname + '?join=' + code + (fid ? '&d=' + fid : '');
-  const text = fid ? `図面「${dname || ''}」を送ります。リンクをタップするとそのまま開きます（書き込んだ寸法・メモも一緒に見られます）。\n${url}` : `CAD図面編集の共有「${gname || ''}」に入ってください。合言葉：${shareCode(code)}\n${url}`;
+  const gif = location.origin + location.pathname.replace(/[^/]*$/, '') + 'kyoyu.gif', how = `ホーム画面のアプリで見る時は：合言葉をコピー →「図面修正」の 👥（共有）→「合言葉で参加する」に貼り付けて「参加」\nやり方の動く絵：${gif}`;   // リンクではホーム画面のアプリが開かないので、合言葉と手順の絵を必ず書く（2026-11-18 ユーザー：仲間に伝えるのが大変・GIFで）
+  const text = fid ? `図面「${dname || ''}」を送ります（書き込んだ寸法・メモ付き）。\n合言葉：${shareCode(code)}\n${how}\nブラウザで見る時はこちら：${url}` : `CAD図面編集の共有「${gname || ''}」に入ってください。合言葉：${shareCode(code)}\n${how}\n${url}`;
   try { if (navigator.share){ await navigator.share({text}); return; } } catch(e){ if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(text); toast('合言葉と案内をコピーしました'); } catch(e){ toast('合言葉：' + shareCode(code)); }
 }

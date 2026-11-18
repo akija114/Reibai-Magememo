@@ -1493,7 +1493,7 @@ function wHtml(e){ const wr = WIRE[e.k], sl = e.sel || [], B = 'style="flex:1"';
   else if (e.k === 'rc') h += `<div class="note">${e.rcPick ? '<b>リモコンの位置をタップしてください（□R）</b>' : 'リモコンにつなぐ室内機をタップ（何台でも・もう1回タップで外す）。絵が無いロスナイなどは何も無い所をタップ → 書き込み。→「📍 リモコンの位置」。□R は指でつかんで動かせます'}</div><div style="font-weight:800">選んだ室内機 ${sl.length}台</div><div class="frow"><button class="btn" data-a="wall" ${B}>☑ 室内機を全部選ぶ${e.units ? `（${e.units.length}台）` : ''}</button><button class="btn" data-a="wnone" ${B} ${sl.length ? '' : 'disabled'}>全部外す</button></div><div class="frow"><button class="btn ${e.rcPick ? 'sel' : 'pri'}" data-a="wR" ${B} ${sl.length ? '' : 'disabled'}>📍 リモコンの位置をタップ</button></div>`;
   else h += `<div class="note">${e.k === 'io' ? `室外機 → 室内機の順にタップしてください（1・2・3…・四角の印が室外機${e.outs && e.outs.length ? '・' + e.outs.length + '台' : ''}）。冷媒配管に沿って一筆書きで引きます` : '線を通す順に室内機か室外機（点線の四角）をタップしてください（1・2・3…・1つの系統に1か所）。何も無い所をタップすると「下の階へ」「上の階へ」の吹き出し'}</div><div style="font-weight:800">選んだ ${sl.length}か所</div><div class="frow"><button class="btn" data-a="wundo" ${B} ${sl.length ? '' : 'disabled'}>↩ 1つもどす</button><button class="btn pri" data-a="wgo" ${B} ${sl.length >= 2 ? '' : 'disabled'}>線を引く →</button></div>`;
   if (e.k === 'rc'){ const c = wRcCount(e); h += `<div style="font-weight:800;margin-top:2px">エアコンのリモコン ${c.ra}個・ロスナイのリモコン ${c.rl}個<span style="font-weight:600;font-size:12.5px;color:var(--sub)">（つないだ室内機 ${c.u}・ロスナイなど ${c.lb}・この図面ぜんぶ）</span></div>`; }
-  if (e.k === 'cc'){ const c = wCcCount(e); h += `<div style="font-weight:800;margin-top:2px">集中線につなぐ数 ${c.t}台<span style="font-weight:600;font-size:12.5px;color:var(--sub)">（室内機・室外機 ${c.u}＋ロスナイ ${c.ro}［リモコン線 ${c.rr}・メモ ${c.rn}］・上の階／下の階へは数えない）</span></div>`; } // 2026-11-14 ユーザー
+  if (e.k === 'cc'){ const c = wCcCount(e); h += `<div style="font-weight:800;margin-top:2px">集中線につなぐ数 ${c.t}台<span style="font-weight:600;font-size:12.5px;color:var(--sub)">（室内機・室外機 ${c.u}＋ロスナイ ${c.ro}［リモコン線 ${c.rr}・メモ ${c.rn}］・上の階／下の階へは数えない）</span></div>`; h += `<div class="frow"><button class="btn" data-a="wcc" style="flex:1">📡 アドレス表（階ごと・一筆書きの順）</button></div>`; } // 2026-11-14 ユーザー
   if (e.edit) h += `<div class="frow"><button class="btn del" data-a="wdel" ${B}>🗑 この線を消す</button></div>`;
   return h + `<div class="frow"><button class="btn" data-a="no" ${B}>やめる</button>${e.pts || e.multi ? `<button class="btn" data-a="redo" ${B}>やり直す</button>` : ''}<button class="btn pri" data-a="ok" style="flex:1.4" ${e.pts || e.multi ? '' : 'disabled'}>${e.edit ? '直す' : 'できた'}</button></div>`; }
 function wClick(ev){ const b = ev.target.closest('button'); if (!b || b.disabled) return; const e = S.npe, a = b.dataset.a;
@@ -1504,6 +1504,7 @@ function wClick(ev){ const b = ev.target.closest('button'); if (!b || b.disabled
   else if (a === 'wundo'){ (e.sel || []).pop(); (e.selL || []).pop(); (e.selK || []).pop(); }
   else if (a === 'wvu'){ const o = (e.Vh || []).pop(); if (o) wSnapSet(e, o); }
   else if (a === 'wdel' && e.edit){ if (!confirm(WIRE[e.k].n + 'を消しますか？（↶で戻せます）')) return; const it = e.edit; npEnd(); exec(cmdObjs([KB2 + it.no], 'del')); toast(WIRE[it.k].n + 'を消しました（↶で戻せます）'); return; }
+  else if (a === 'wcc'){ ccOpen(); return; }
   else if (a === 'wgo') wBuild();
   else if (a === 'wall'){ e.sel = (e.units || []).map(q => q.c.slice()); e.selL = []; if (!e.sel.length) toast('図面から室内機が見つかりません。室内機を1台ずつタップしてください'); }
   else if (a === 'wnone'){ e.sel = []; e.selL = []; }
@@ -1513,17 +1514,118 @@ function wClick(ev){ const b = ev.target.closest('button'); if (!b || b.disabled
   else if (a === 'wflip' && e.A && e.B && e.V){ const A = e.A, d = [e.B[0] - A[0], e.B[1] - A[1]], L2 = d[0]*d[0] + d[1]*d[1] || 1; e.V = e.V.map(q => { const t = ((q[0] - A[0])*d[0] + (q[1] - A[1])*d[1])/L2, f = [A[0] + d[0]*t, A[1] + d[1]*t]; return [2*f[0] - q[0], 2*f[1] - q[1]]; }); e.pts = npFromPts(e.A, e.B); }
   updateNpPanel(); drawOverlay(); updateUi(); }
 function drawWires(c){ // 電線のルート：白いふち＋種類ごとの点線（配管でないと分かるように）・名前と長さ
-  if (!G || !S.np.some(p => isW(p.k))) return; c.save(); c.lineCap = 'butt'; c.lineJoin = 'round'; c.font = `700 11px ${FONT}`; c.textBaseline = 'middle';
+  if (!G || !S.np.some(p => isW(p.k))) return; const CM = S.np.some(p => p.k === 'cc') ? ccDrawMap() : null; c.save(); c.lineCap = 'butt'; c.lineJoin = 'round'; c.font = `700 11px ${FONT}`; c.textBaseline = 'middle';
   for (const p of S.np){ const w = WIRE[p.k]; if (!w || gone(KB2 + p.no)) continue; const l = G.L.find(x => x.name === w.L); if (l && (!l.on || l.deleted)) continue; const Q = wPts(p).map(q => w2s(q[0], q[1]));
     const path = () => { c.beginPath(); Q.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); };
     path(); c.setLineDash([]); c.strokeStyle = tok.paper; c.lineWidth = 7; c.stroke(); path(); c.setLineDash(w.d); c.strokeStyle = w.col; c.lineWidth = 3.2; c.stroke(); c.setLineDash([]);
     for (const q of [Q[0], Q[Q.length - 1]]){ c.fillStyle = w.col; c.beginPath(); c.arc(q[0], q[1], 4, 0, Math.PI*2); c.fill(); }
-    if (p.rcR) wRmark(c, Q[Q.length - 1], w.col); if (p.lb){ c.fillStyle = '#fff'; c.strokeStyle = w.col; c.lineWidth = 3; c.beginPath(); c.arc(Q[0][0], Q[0][1], 9, 0, Math.PI*2); c.fill(); c.stroke(); wBalloon(c, Q[0], p.lb, w.col); c.font = `700 11px ${FONT}`; c.textBaseline = 'middle'; } (p.us || []).forEach((q, i) => { const s2 = w2s(q[0], q[1]); c.fillStyle = w.col; c.beginPath(); c.arc(s2[0], s2[1], 9, 0, Math.PI*2); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(String(i + 1), s2[0], s2[1] + 1); if (p.ul && p.ul[i]) wBalloon(c, s2, p.ul[i], w.col); }); // 選んだ順の番号・リモコン（□R）・吹き出し
+    if (p.rcR) wRmark(c, Q[Q.length - 1], w.col); if (p.lb){ c.fillStyle = '#fff'; c.strokeStyle = w.col; c.lineWidth = 3; c.beginPath(); c.arc(Q[0][0], Q[0][1], 9, 0, Math.PI*2); c.fill(); c.stroke(); wBalloon(c, Q[0], p.lb, w.col); c.font = `700 11px ${FONT}`; c.textBaseline = 'middle'; } (p.us || []).forEach((q, i) => { const s2 = w2s(q[0], q[1]); if (p.k === 'cc' && CM){ const o = CM.M.find(o => wSame(o.q.p, q)); if (o){ ccMark(c, s2, o, CM, w.col); c.font = `700 11px ${FONT}`; c.textBaseline = 'middle'; return; } } c.fillStyle = w.col; c.beginPath(); c.arc(s2[0], s2[1], 9, 0, Math.PI*2); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(String(i + 1), s2[0], s2[1] + 1); if (p.ul && p.ul[i]) wBalloon(c, s2, p.ul[i], w.col); }); // 選んだ順の番号・リモコン（□R）・吹き出し
     let tl = 0; for (let i = 1; i < Q.length; i++) tl += Math.hypot(Q[i][0] - Q[i-1][0], Q[i][1] - Q[i-1][1]); if (tl < 60) continue; let mx = Q[0][0], my = Q[0][1]; // 名前・長さは線の真ん中（長さの半分の所）
     for (let i = 1, cu = 0; i < Q.length; i++){ const L = Math.hypot(Q[i][0] - Q[i-1][0], Q[i][1] - Q[i-1][1]); if (cu + L >= tl/2){ const t = (tl/2 - cu)/(L || 1); mx = Q[i-1][0] + (Q[i][0] - Q[i-1][0])*t; my = Q[i-1][1] + (Q[i][1] - Q[i-1][1])*t; break; } cu += L; } my -= 12;
     const t = `${w.ic} ${w.n} ${fmtM(npLen(wPts(p)))}`, tw = c.measureText(t).width + 10;
     c.fillStyle = w.col; c.fillRect(mx - tw/2, my - 9, tw, 18); c.fillStyle = '#fff'; c.textAlign = 'center'; c.fillText(t, mx, my); }
   c.restore(); }
+/* 📡 集中線のアドレス表（2026-11-18 ユーザー：ホテルの1階〜12階を1本の集中線で一筆書き。行＝階・列＝アドレスの順、部屋・形・能力・品番・インターフェイス・集中リモコンの階、図面の集中線の上にアドレスと階の移り）
+   localStorage zumen-ccaddr＝{nm, mk:mitsu|daikin|toshiba, nf 階の数, rcF 集中リモコンの階, ord:up|down（一筆書きの階の順）, F:{階:{src 図面の名前, it:[{ty:in 室内機|out 室外機|lb ロスナイなど|fl 階の移り, rm 部屋, kd 形, cp 能力, md 品番, sy 系統, ifc インターフェイス, ad 手で決めたアドレス, tx 階の移りの文字, p 図面の点}]}}} */
+const CCMK = {mitsu:'三菱', daikin:'ダイキン', toshiba:'東芝', hitachi:'日立', pana:'パナソニック'}, CCIF = {mitsu:'インターフェイス', toshiba:'TCC-LINK アダプター', pana:'S-LINK アダプター'}, CCIFS = {mitsu:'IF', toshiba:'TCC', pana:'S-LINK'}, CCRM = {daikin:1, toshiba:1, pana:1}, CCTY = {in:'室内機', out:'室外機', lb:'ロスナイなど', fl:'階の移り'};
+function ccB(){ let o = null; try { o = JSON.parse(localStorage.getItem('zumen-ccaddr') || 'null'); } catch(e){} o = o && typeof o === 'object' ? o : {}; o.nm = o.nm || ''; o.mk = CCMK[o.mk] ? o.mk : 'mitsu'; o.nf = Math.max(1, Math.min(60, +o.nf || 12)); o.rcF = Math.max(1, Math.min(o.nf, +o.rcF || 1)); o.ord = o.ord === 'down' ? 'down' : 'up'; o.F = o.F && typeof o.F === 'object' ? o.F : {}; return o; }
+function ccSave(B){ try { localStorage.setItem('zumen-ccaddr', JSON.stringify(B)); } catch(e){ toast('保存できませんでした（端末の空きを確かめてください）'); } }
+const ccFl = B => { const a = []; for (let f = 1; f <= B.nf; f++) a.push(f); return B.ord === 'down' ? a.reverse() : a; };
+const ccIt = (B, f) => (B.F[f] && B.F[f].it) || [];
+function ccCap(n){ n = String(n || '').normalize('NFKC').toUpperCase(); const m = n.match(/-[A-Z]*(\d{2,4})/) || n.match(/^[A-Z]+?(\d{2,3})/); if (!m) return ''; let d = m[1]; if (d.length === 4) d = d.slice(0, 2); const v = +d/10; return v >= 1.5 && v <= 60 ? v.toFixed(1) + 'kW' : ''; } // 品番の数字＝能力（PL-ZRP80→8.0kW・MBZ-2822→2.8kW）
+function ccAddr(B){ // 一筆書きの順にアドレス（2026-11-18 ユーザー：メーカーごと）。手で決めた q.ad はそのまま
+  const R = {}, FL = ccFl(B), mk = B.mk, man = q => q.ad != null && String(q.ad).trim() !== '';
+  for (const f of FL) R[f] = ccIt(B, f).map(() => '');
+  if (mk === 'mitsu'){ const inA = []; let n = 1, o = 51; // 三菱 M-NET：室内機 1〜・室外機＝同じ系統の室内機のいちばん小さい番号＋50（系統が無い時は 51〜の順）
+    for (const f of FL) ccIt(B, f).forEach((q, i) => { if (q.ty === 'fl' || q.ty === 'out') return; const a = man(q) && +q.ad > 0 ? +q.ad : n; if (man(q) && !(+q.ad > 0)){ R[f][i] = q.ad; return; } n = a + 1; R[f][i] = a; inA.push([q.sy || '', a]); });
+    for (const f of FL) ccIt(B, f).forEach((q, i) => { if (q.ty !== 'out') return; if (man(q)){ R[f][i] = q.ad; return; } const m = q.sy ? inA.filter(x => x[0] === q.sy).map(x => x[1]) : []; R[f][i] = m.length ? Math.min(...m) + 50 : o++; }); return R; }
+  if (mk === 'daikin'){ let n = 0; // ダイキン DIII-NET：集中制御用グループNo. 1-00〜1-15・2-00…4-15（64グループ）をリモコンの現地設定で
+    for (const f of FL) ccIt(B, f).forEach((q, i) => { if (q.ty === 'fl') return; if (man(q)){ R[f][i] = q.ad; return; } if (q.ty === 'out'){ R[f][i] = '—'; return; } R[f][i] = `${1 + Math.floor(n/16)}-${String(n%16).padStart(2, '0')}`; n++; }); return R; }
+  const b0 = mk === 'hitachi' ? 0 : 1, SY = new Map(), sn = k => { if (!SY.has(k)) SY.set(k, {n:b0 + SY.size, c:b0}); return SY.get(k); }; // 東芝・日立・パナソニック：系統（室外機）の番号－その系統の中の室内機の番号
+  for (const f of FL) ccIt(B, f).forEach((q, i) => { if (q.ty === 'fl') return; const y = sn(q.sy || ''); if (man(q)){ R[f][i] = q.ad; return; } R[f][i] = q.ty === 'out' ? '系統 ' + y.n : `${y.n}-${y.c++}`; });
+  return R; }
+const CCHOW = { // 📖 アドレスの設定のしかた（目安・調べた資料から。最後は機械の据付工事説明書で）
+  mitsu:['集中線（M-NET）は室外機・室内機をわたって一筆書き','アドレスは室内機・室外機の基板のスイッチで、電源を入れる前に','室内機 1〜50・室外機は同じ系統の室内機のいちばん小さい番号＋50','品番に FY の無い室内機（パッケージ・ルームエアコンなど）はインターフェイスをつけて、集中線はインターフェイスへ'],
+  daikin:['室内機1台ずつにリモコンをつける','電源を入れてから、リモコンの「現地設定」→「集中制御用グループNo.の設定」で 1-00 から順に（1-00〜1-15、2-00〜2-15 … 4-15 まで 64 グループ）','同じ集中線（DIII-NET）の中で同じ番号を2回使わない','終わったらリモコンは天井の中に置いておく（捨てリモコン）'],
+  toshiba:['室外機ごとに系統アドレス（1〜30）','電源を入れると自動アドレス。そのあと、ワイヤードリモコンで室内アドレス（系統の中で 1〜64）・グループアドレスを決める','集中管理の機械をつなぐ時は、系統アドレスがいちばん小さい室外機のスイッチ SW30-2 を ON（ビル用マルチ。パッケージだけの時はいちばん小さいユニットの SW01-1）','パッケージ（カスタム）を集中管理する時は TCC-LINK アダプター（別売）が要る','終わったらリモコンは天井の中へ（捨てリモコン）'],
+  hitachi:['室外機の基板のスイッチ（ディップ DSW・ロータリー RSW）で冷媒系統のアドレス。同じ集中線（H-LINK）の中で重ならないように','室内機の基板のスイッチで、系統のアドレス（つながる室外機と同じ番号）と室内機のアドレス（同じ系統の中で重ならない）。入れない時は自動で決まる','1本の集中線に室外機が何台もある時は、終端のスイッチを ON にするのは1台だけ（海外の機種の資料での目安）','最後にセントラルステーション（適温適所 mini・EZ・EX）に登録。機種でつなげるコントローラーがちがうので確かめる'],
+  pana:['電源を入れる前に、室外機の基板のロータリースイッチ・ディップスイッチで系統アドレス（0〜30）','室内機・室外機ぜんぶの電源を入れると自動アドレス（10分くらい・ランプが消えたら終わり）。終わってから1分30秒以上待って運転','室内機のアドレスはリモコンのメンテナンスの画面で見る・直す','システムコントローラーなど集中管理の機械につなぐ時は S-LINK アダプター（別売）が要る機種がある。システムコントローラーPLUS は室内機64台まで','終わったらリモコンは天井の中へ（捨てリモコン）']};
+function ccRoom(c){ const R = 5000/unitMM(); let best = '', bd = R; // 室内機のそば 5m の部屋の名前（○○室・101 など）
+  G.L.forEach((l, li) => { if (l.deleted) return; for (const t of G.textsBy[li] || []){ if (gone(t.eid)) continue; const z = t.lines.join('').normalize('NFKC').replace(/\s+/g, ''); if (z.length > 14 || !/室|ルーム|ホール|廊下|ロビー|事務|会議|店|休憩|倉庫|厨房|フロント|ラウンジ|トイレ|WC|^\d{3,4}(号室?)?$/.test(z) || /FL|CH|PAC|φ|×|機|^\d+A$/.test(z)) continue; const d = Math.hypot(t.x - c[0], t.y - c[1]); if (d < bd){ bd = d; best = z; } } }); return best; }
+function ccImport(B, f){ const W = S.np.filter(p => p.k === 'cc' && !gone(KB2 + p.no)).sort((a, b) => (a.t || 0) - (b.t || 0)); if (!W.length) return false; // この図面の集中線（引いた順）→ その階の行。前に直した所（部屋・品番・IF など）は同じ点なら残す
+  let U = [], OL = []; try { U = npUnitsCalc(); } catch(e){} try { OL = v3dOutList(); } catch(e){} const O = wOuts(), u = unitMM(), old = ccIt(B, f), it = [], inB = (b, c, r) => c[0] >= b[0] - r && c[0] <= b[2] + r && c[1] >= b[1] - r && c[1] <= b[3] + r, same = (a, b) => a && b && Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-6;
+  for (const p of W){ const us = p.us || [p.pts[0], p.pts[p.pts.length - 1]]; us.forEach((c, i) => { const lb = p.ul && p.ul[i], uk = p.uk ? p.uk[i] : (lb ? 0 : 1), la = it[it.length - 1]; if (la && same(la.p, c)) return; const od = old.find(q => same(q.p, c));
+    if (lb){ if (od && od.ty === 'fl'){ od.tx = lb; it.push(od); } else it.push({ty:'fl', tx:lb, p:c.slice()}); return; }
+    if (!uk) return; if (od && od.ty !== 'fl'){ it.push(od); return; }
+    let q; if (O.some(o => inB(o.b, c, 200/u))){ const L = OL.find(o => inB([o.x0/u, o.y0/u, o.x1/u, o.y1/u], c, 200/u)), k = L ? v3dOMk(L) : '', md = k && typeof OUTM !== 'undefined' ? OUTM[k] : null; q = {ty:'out', kd:'室外機', md:md ? md.n : '', cp:md ? ccCap(md.n) : ''}; }
+    else { const un = U.find(x => inB(x.b, c, 150/u)), wm = un && typeof WALLM !== 'undefined' && WALLM[un.k], md = un ? v3dMdAny(un.k) || wm : null; q = {ty:'in', kd:md ? (wm ? '壁掛け' : ukdOf(md.kind || '') || md.kind || '') : '', md:md ? md.n : '', cp:md ? ccCap(md.n) : ''}; if (md && CCMK[md.mk] && !B.mkSet) B.mk = md.mk; }
+    q.rm = ccRoom(c); try { const k = wSysOf(c); if (k){ const CE = wCE(); q.sy = (((CE && CE.sys) || []).find(o => o.key === k) || {}).nm || ''; } } catch(e){}
+    q.ifc = B.mk === 'mitsu' && q.ty === 'in' && !/FY/i.test(q.md) ? 1 : 0; /* 東芝・パナソニックのアダプターは手で */ q.p = c.slice(); it.push(q); }); }
+  B.F[f] = {src:S.srcName || '', it}; return true; }
+function ccFlTo(B, f, tx){ const m = String(tx || '').normalize('NFKC').match(/(\d{1,2})\s*(階|F)/i); const t = m ? +m[1] : /上/.test(tx) ? f + 1 : /下/.test(tx) ? f - 1 : 0; return t >= 1 && t <= B.nf && t !== f ? t : 0; }
+function ccFlTxt(B, A, f, tx){ const t = ccFlTo(B, f, tx); if (!t) return tx; const FL = ccFl(B), nx = FL.indexOf(t) > FL.indexOf(f), I = ccIt(B, t).map((q, i) => i).filter(i => ccIt(B, t)[i].ty !== 'fl' && A[t][i] !== ''), a = I.length ? A[t][I[nx ? 0 : I.length - 1]] : ''; return `${tx}（${t}階${a !== '' ? `・アドレス ${a}${nx ? '〜' : 'まで'}` : ''}）`; } // 階の移り：つづく階と、その階のアドレス
+let ccDM = null;
+function ccDrawMap(){ let s = ''; try { s = localStorage.getItem('zumen-ccaddr') || ''; } catch(e){} if (ccDM && ccDM.s === s && ccDM.src === S.srcName) return ccDM.v; let v = null; // 図面に入れた階があればアドレスを図面に
+  if (s){ const B = ccB(), f = Object.keys(B.F).find(k => B.F[k].src && B.F[k].src === (S.srcName || '')); if (f){ const A = ccAddr(B); v = {B, A, f:+f, M:ccIt(B, f).map((q, i) => ({q, a:A[f][i]})).filter(o => o.q.p)}; } }
+  ccDM = {s, src:S.srcName, v}; return v; }
+function ccMark(c, s2, o, CM, col){ const q = o.q;
+  if (q.ty === 'fl'){ c.save(); c.lineWidth = 4; c.strokeStyle = col; c.fillStyle = '#fff'; c.beginPath(); c.arc(s2[0], s2[1], 15, 0, Math.PI*2); c.fill(); c.stroke(); c.fillStyle = col; c.font = `800 16px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(/下/.test(q.tx) ? '⬇' : /上/.test(q.tx) ? '⬆' : '↔', s2[0], s2[1] + 1); c.restore(); wBalloon(c, [s2[0], s2[1] - 6], ccFlTxt(CM.B, CM.A, CM.f, q.tx), col); return; }
+  c.save(); c.font = `800 14px ${FONT}`; const t = String(o.a), w = Math.max(24, c.measureText(t).width + 12), x = s2[0] - w/2, y = s2[1] - 12, bg = q.ty === 'out' ? '#0f766e' : col;
+  c.fillStyle = bg; c.strokeStyle = '#fff'; c.lineWidth = 2; c.beginPath(); c.roundRect ? c.roundRect(x, y, w, 24, 12) : c.rect(x, y, w, 24); c.fill(); c.stroke(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(t, s2[0], s2[1] + 1);
+  let tx = x + w + 2; for (const [tg, cl] of q.ty === 'out' ? [['室外機', '#475569']] : [[q.ifc && CCIFS[CM.B.mk] ? CCIFS[CM.B.mk] : '', '#ea580c'], [q.ty === 'in' && CCRM[CM.B.mk] ? '捨てリモコン' : '', '#475569']]){ if (!tg) continue; c.font = `800 11px ${FONT}`; const tw = c.measureText(tg).width + 8; c.fillStyle = cl; c.fillRect(tx, y + 4, tw, 16); c.fillStyle = '#fff'; c.fillText(tg, tx + tw/2, y + 12.5); tx += tw + 2; }
+  if (q.rm){ c.font = `700 11px ${FONT}`; const rw = c.measureText(q.rm).width + 6; c.fillStyle = 'rgba(255,255,255,.88)'; c.fillRect(s2[0] - rw/2, y + 26, rw, 15); c.fillStyle = '#0f172a'; c.fillText(q.rm, s2[0], y + 34); }
+  c.restore(); }
+function ccOpen(){ loadModels().then(() => openSheet('📡 集中線のアドレス表', ccRender)); }
+function ccTxt(B){ const A = ccAddr(B); let s = `${B.nm || '集中線'}（${CCMK[B.mk]}）・🎛 集中リモコン ${B.rcF}階\n`; for (const f of ccFl(B)){ const it = ccIt(B, f); if (!it.length) continue; s += `\n■${f}階${B.rcF === f ? '（集中リモコン）' : ''}\n` + it.map((q, i) => q.ty === 'fl' ? `　${ccFlTxt(B, A, f, q.tx)}` : `　${A[f][i]}　${[q.rm, q.ty === 'in' ? q.kd : CCTY[q.ty], q.cp, q.md].filter(Boolean).join('・')}${q.ifc && CCIF[B.mk] ? `（${CCIF[B.mk]}）` : ''}${q.ty === 'in' && CCRM[B.mk] ? '（捨てリモコン）' : ''}`).join('\n') + '\n'; } return s; }
+function ccRender(body){ const B = ccB(), A = ccAddr(B), FL = ccFl(B), mit = B.mk === 'mitsu', has = S.np.some(p => p.k === 'cc' && !gone(KB2 + p.no)), cur = Object.keys(B.F).find(k => B.F[k].src && B.F[k].src === (S.srcName || '')), gf = +(cur || ((String(S.srcName || '').normalize('NFKC').match(/(\d{1,2})\s*(F|階)/i) || [])[1]) || 1);
+  const IFN = CCIF[B.mk], IFS = CCIFS[B.mk]; let nIn = 0, nOut = 0, nIf = 0, nLb = 0; for (const f of FL) for (const q of ccIt(B, f)){ if (q.ty === 'in'){ nIn++; if (q.ifc) nIf++; } else if (q.ty === 'out') nOut++; else if (q.ty === 'lb') nLb++; }
+  const IS = 'height:42px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 8px;font:16px var(--font-ui);color:var(--ink)', fo = (v, n) => [...Array(n)].map((_, i) => `<option value="${i+1}" ${v === i+1 ? 'selected' : ''}>${i+1}階</option>`).join('');
+  let h = `<div class="frow"><input id="ccNm" value="${esc(B.nm)}" placeholder="現場の名前（〇〇ホテル など）" style="flex:1;min-width:0;${IS}"></div>`;
+  h += `<div class="seg2" style="flex-wrap:wrap">${Object.keys(CCMK).map(k => `<button class="btn ${B.mk === k ? 'sel' : ''}" data-mk="${k}" style="min-width:30%;font-size:14px;padding:0 4px">${CCMK[k]}</button>`).join('')}</div>`;
+  h += `<div class="frow" style="align-items:center;gap:6px;flex-wrap:wrap"><span>階の数</span><input id="ccNf" type="number" inputmode="numeric" min="1" max="60" value="${B.nf}" style="width:72px;${IS}"><span>🎛 集中リモコンは</span><select id="ccRc" style="${IS}">${fo(B.rcF, B.nf)}</select></div>`;
+  h += `<div class="seg2"><button class="btn ${B.ord === 'up' ? 'sel' : ''}" data-ord="up">1階 → 上の階の順</button><button class="btn ${B.ord === 'down' ? 'sel' : ''}" data-ord="down">上の階 → 1階の順</button></div>`;
+  h += `<div class="note">${({mitsu:'三菱：室内機 1〜（一筆書きの順）、室外機は同じ系統の室内機のいちばん小さい番号＋50（系統が分からない時は 51〜）。品番に FY の無い室内機は<b>インターフェイス（IF）</b>へつなぐ', daikin:'ダイキン：室内機ごとのリモコンで<b>集中制御用グループNo.</b>（1-00〜4-15）を設定。リモコンは天井の中へ（<b>捨てリモコン</b>）。室外機には番号を振らない', toshiba:'東芝：<b>系統アドレス－室内アドレス</b>（系統は室外機ごと 1〜30・室内は系統の中で 1〜64）。リモコンで設定して天井の中へ（<b>捨てリモコン</b>）。パッケージは <b>TCC-LINK アダプター</b>', hitachi:'日立：<b>冷媒系統のアドレス－室内機のアドレス</b>（0 から）。室外機・室内機の<b>基板のスイッチ</b>で設定（リモコンでなく）', pana:'パナソニック：<b>系統アドレス－室内機のアドレス</b>（系統は室外機の基板のスイッチで 0〜30・室内機は自動アドレス→リモコンで確かめる）。集中管理の機械には <b>S-LINK アダプター</b>が要る機種あり'})[B.mk]}。系統は機械を押して「系統」に同じ名前を入れると分かれます。番号を押すと直せます（アドレスも手で決められます）</div><details style="margin:4px 0"><summary style="font-weight:800;padding:6px 0">📖 ${CCMK[B.mk]}のアドレスの設定のしかた</summary><ol style="margin:4px 0 4px 18px;padding:0;font-size:13.5px;line-height:1.6">${CCHOW[B.mk].map(t => `<li>${esc(t)}</li>`).join('')}</ol><div class="note">調べた資料からの目安です。機種で変わるので、最後は機械の据付工事説明書で確かめてください</div></details>`;
+  h += `<div class="frow" style="align-items:center;gap:6px;flex-wrap:wrap"><span>この図面は</span><select id="ccCur" style="${IS}">${fo(gf, B.nf)}</select><button class="btn pri" data-a="imp" style="flex:1;min-width:150px" ${has ? '' : 'disabled'}>📥 この図面の集中線を入れる</button></div>`;
+  if (!has) h += `<div class="note">この図面にはまだ集中線がありません（ルート → 📡 集中線 で、線を通す順に室内機・室外機をタップ・ほかの階へ行く所は何も無い所をタップ）。表は手でも足せます（＋）</div>`;
+  h += `<div style="font-weight:800;margin:4px 0">室内機 ${nIn}台・室外機 ${nOut}台${nLb ? `・ロスナイなど ${nLb}` : ''}${IFN ? `・${IFN} ${nIf}個` : ''}${CCRM[B.mk] ? `・捨てリモコン ${nIn}個` : ''}</div>`;
+  { const W = {mitsu:[50, '室内機が50台をこえています。集中コントローラー1台で見られる台数・アドレスの決まりを確かめてください'], daikin:[64, '64グループ（1-00〜4-15）をこえています。集中線（DIII-NET）を分けるか、集中の機械で見られる数を確かめてください'], pana:[64, 'システムコントローラーPLUS は室内機64台までです。台数を確かめてください']}[B.mk]; if (W && nIn + nLb > W[0]) h += `<div class="note" style="color:#c2410c">⚠️ ${W[1]}</div>`; }
+  const cs = 'display:block;width:100%;min-width:86px;min-height:86px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);padding:4px;font:12px var(--font-ui);text-align:center;line-height:1.3';
+  h += `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px;margin:4px 0"><table style="border-collapse:separate;border-spacing:4px">`;
+  for (const f of FL){ const it = ccIt(B, f);
+    h += `<tr><th style="position:sticky;left:0;z-index:1;background:var(--panel2);min-width:64px;padding:4px;border-radius:8px;font:800 15px var(--font-ui);vertical-align:middle">${f}階${B.rcF === f ? '<div style="font-size:11px;color:#0891b2">🎛 集中リモコン</div>' : ''}${B.F[f] && B.F[f].src ? '<div style="font-size:10px;color:var(--sub)">📄 図面</div>' : ''}${it.length ? `<button class="btn" data-cp="${f}" style="height:28px;font-size:11px;padding:0 4px;margin-top:2px">📋 コピー</button>` : ''}</th>`;
+    it.forEach((q, i) => { h += `<td><button data-f="${f}" data-i="${i}" style="${cs};${q.ty === 'fl' ? 'background:var(--panel2);border-style:dashed' : q.ty === 'out' ? 'border-color:#0f766e;border-width:2px' : ''}">` + (q.ty === 'fl' ? `<div style="font-size:20px">${/下/.test(q.tx) ? '⬇' : /上/.test(q.tx) ? '⬆' : '↔'}</div><div style="font-weight:700">${esc(ccFlTxt(B, A, f, q.tx))}</div>` : `<div style="font:800 19px var(--font-ui);color:${q.ty === 'out' ? '#0f766e' : '#0891b2'}">${esc(A[f][i])}</div><div style="font-weight:700">${esc(q.rm || '—')}</div><div>${esc(q.ty === 'in' ? q.kd || '室内機' : CCTY[q.ty])}${q.cp ? ' ' + esc(q.cp) : ''}</div>${q.md ? `<div style="font-size:10.5px;color:var(--sub);word-break:break-all">${esc(q.md)}</div>` : ''}${IFS && q.ifc && q.ty !== 'out' ? `<div style="color:#ea580c;font-weight:800">${IFS}</div>` : ''}${CCRM[B.mk] && q.ty === 'in' ? '<div style="font-size:10.5px;color:#475569">捨てリモコン</div>' : ''}`) + `</button></td>`; });
+    h += `<td><button class="btn" data-add="${f}" style="height:86px;width:44px;font-size:20px">＋</button></td></tr>`; }
+  h += `</table></div>`;
+  h += `<div style="font-weight:800;margin-top:6px">集中線のルート（一筆書きの順）</div><div style="font-size:13px;line-height:1.6">`; for (const f of FL){ const it = ccIt(B, f); if (!it.length) continue; h += `<div><b>${f}階</b>${B.rcF === f ? '（🎛）' : ''}：${it.map((q, i) => q.ty === 'fl' ? esc(ccFlTxt(B, A, f, q.tx)) : `${q.ty === 'out' ? '🌀' : ''}<b>${esc(A[f][i])}</b> ${esc(q.rm || q.kd || CCTY[q.ty])}${IFS && q.ifc && q.ty !== 'out' ? `（${IFS}）` : ''}`).join(' → ')}</div>`; } h += `</div>`;
+  h += `<div class="frow"><button class="btn" data-a="txt" style="flex:1">📋 文字でコピー（LINE に貼る）</button></div><div class="frow"><button class="btn del" data-a="clr" style="flex:1">🗑 表を空にする</button></div>`;
+  body.innerHTML = h;
+  const re = () => { ccSave(B); ccRender(body); drawOverlay(); };
+  body.onchange = ev => { const t = ev.target; if (t.id === 'ccNm'){ B.nm = t.value.trim().slice(0, 40); ccSave(B); } else if (t.id === 'ccNf'){ B.nf = Math.max(1, Math.min(60, +t.value || B.nf)); re(); } else if (t.id === 'ccRc'){ B.rcF = +t.value; re(); } };
+  body.onclick = ev => { const b = ev.target.closest('button'); if (!b || b.disabled) return;
+    if (b.dataset.mk){ B.mk = b.dataset.mk; B.mkSet = 1; re(); }
+    else if (b.dataset.ord){ B.ord = b.dataset.ord; re(); }
+    else if (b.dataset.a === 'imp'){ const f = +body.querySelector('#ccCur').value, o = B.F[f]; if (o && o.it.length && o.src !== (S.srcName || '') && !confirm(`${f}階には、もう入っています。この図面で入れ直しますか？`)) return; for (const k of Object.keys(B.F)) if (+k !== f && B.F[k].src === (S.srcName || '')) B.F[k].src = ''; if (ccImport(B, f)){ re(); toast(`${f}階に ${ccIt(B, f).filter(q => q.ty !== 'fl').length}台 入れました。図面の集中線にアドレスが出ます`); } }
+    else if (b.dataset.add){ const f = +b.dataset.add; (B.F[f] = B.F[f] || {src:'', it:[]}).it.push({ty:'in', rm:'', kd:'', cp:'', md:'', ifc:B.mk === 'mitsu' ? 1 : 0}); ccSave(B); ccEdit(f, B.F[f].it.length - 1); }
+    else if (b.dataset.i != null) ccEdit(+b.dataset.f, +b.dataset.i);
+    else if (b.dataset.cp) ccCopy(B, +b.dataset.cp, re);
+    else if (b.dataset.a === 'txt'){ const s = ccTxt(B); (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => toast('コピーしました。LINE などに貼れます'), () => { const ta = document.createElement('textarea'); ta.value = s; ta.style.cssText = 'width:100%;height:160px;font-size:13px'; b.after(ta); ta.select(); toast('下の文字を長押しでコピーしてください'); }); }
+    else if (b.dataset.a === 'clr'){ if (!confirm('表をぜんぶ空にしますか？（もどせません）')) return; B.F = {}; re(); } }; }
+function ccCopy(B, f, re){ const r = prompt(`${f}階の並びを何階にコピーしますか？（例：3-12 か 5）\n部屋の番号の頭の階（${f}01 など）もその階に変えます`, ''); if (!r) return; const m = r.normalize('NFKC').match(/^\s*(\d+)\s*(?:[-~〜]\s*(\d+))?\s*$/); if (!m){ toast('3-12 のように入れてください'); return; }
+  const a = +m[1], z = m[2] ? +m[2] : a, T = []; for (let t = Math.min(a, z); t <= Math.max(a, z); t++) if (t >= 1 && t <= B.nf && t !== f) T.push(t); if (!T.length) return;
+  if (T.some(t => ccIt(B, t).length) && !confirm('もう入っている階は上書きします。いいですか？')) return;
+  for (const t of T) B.F[t] = {src:'', it:ccIt(B, f).map(q => { const n = {...q}; delete n.p; delete n.ad; const mm = String(n.rm || '').match(/^(\D*)(\d{1,2})(\d{2})(\D*)$/); if (mm && +mm[2] === f) n.rm = mm[1] + t + mm[3] + mm[4]; return n; })};
+  re(); toast(`${T[0]}階${T.length > 1 ? '〜' + T[T.length - 1] + '階' : ''}にコピーしました`); }
+function ccEdit(f, i){ const B = ccB(), q = ccIt(B, f)[i]; if (!q) return; const IS = 'width:100%;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);padding:0 10px;font:16px var(--font-ui);color:var(--ink);box-sizing:border-box';
+  openSheet(`${f}階・${i + 1}番目`, body => { const fl = q.ty === 'fl', L = (t, x) => `<label style="display:block;margin:6px 0 2px;font-weight:700">${t}</label>${x}`;
+    body.innerHTML = `<div class="seg2">${Object.keys(CCTY).map(k => `<button class="btn ${q.ty === k ? 'sel' : ''}" data-ty="${k}" style="font-size:13px;padding:0 4px">${CCTY[k]}</button>`).join('')}</div>` + (fl ? L('文字', `<input id="cxTx" value="${esc(q.tx || '')}" placeholder="⬆ 上の階へ／⬇ 下の階へ／3階へ" style="${IS}">`) :
+      L('部屋の名前', `<input id="cxRm" value="${esc(q.rm || '')}" placeholder="101号室" style="${IS}">`) + L('形', `<input id="cxKd" list="cxKdL" value="${esc(q.kd || '')}" placeholder="4方向・ビルトイン など" style="${IS}"><datalist id="cxKdL">${UKD.map(u => `<option value="${u[0]}">`).join('')}<option value="室外機"></datalist>`) + L('能力', `<input id="cxCp" value="${esc(q.cp || '')}" placeholder="4.0kW" style="${IS}">`) + L('品番（分かれば）', `<input id="cxMd" value="${esc(q.md || '')}" placeholder="PL-ZRP40HA4" style="${IS}">`) + L('系統（室外機と同じ名前にすると、三菱は室外機のアドレスが＋50）', `<input id="cxSy" value="${esc(q.sy || '')}" placeholder="PAC-1 など" style="${IS}">`) + L(`アドレス（空なら自動${B.mk === 'daikin' ? '・1-00 の形' : B.mk === 'mitsu' ? '' : '・1-1 の形'}）`, `<input id="cxAd" value="${esc(q.ad != null ? q.ad : '')}" style="${IS}">`) + (CCIF[B.mk] && q.ty !== 'out' ? `<label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:700"><input id="cxIf" type="checkbox" ${q.ifc ? 'checked' : ''} style="width:24px;height:24px">${CCIF[B.mk]}をつける（集中線は${CCIF[B.mk]}へ）</label>` : '')) +
+      `<div class="frow" style="margin-top:10px"><button class="btn" data-mv="-1" style="flex:1">◀ 前へ</button><button class="btn" data-mv="1" style="flex:1">後ろへ ▶</button></div><div class="frow"><button class="btn del" data-a="del" style="flex:1">🗑 消す</button><button class="btn pri" data-a="ok" style="flex:1.4">💾 決める</button></div>`;
+    const rd = () => { const v = id => { const el = body.querySelector('#' + id); return el ? el.value.trim().slice(0, 40) : null; }; if (fl){ q.tx = v('cxTx') || q.tx || '⬆ 上の階へ'; return; } q.rm = v('cxRm'); q.kd = v('cxKd'); q.cp = v('cxCp'); q.md = v('cxMd'); q.sy = v('cxSy'); const ad = String(v('cxAd') || '').normalize('NFKC').trim().slice(0, 10); if (ad) q.ad = /^\d+$/.test(ad) ? +ad : ad; else delete q.ad; const c = body.querySelector('#cxIf'); if (c) q.ifc = c.checked ? 1 : 0; };
+    body.onclick = ev => { const b = ev.target.closest('button'); if (!b) return; const it = B.F[f].it;
+      if (b.dataset.ty){ rd(); q.ty = b.dataset.ty; if (q.ty === 'fl' && !q.tx) q.tx = '⬆ 上の階へ'; if (q.ty === 'out'){ q.ifc = 0; if (!q.kd) q.kd = '室外機'; } ccSave(B); ccEdit(f, i); }
+      else if (b.dataset.mv){ rd(); const j = i + +b.dataset.mv; if (j < 0 || j >= it.length) return; it.splice(i, 1); it.splice(j, 0, q); ccSave(B); ccEdit(f, j); }
+      else if (b.dataset.a === 'del'){ it.splice(i, 1); ccSave(B); drawOverlay(); ccOpen(); }
+      else if (b.dataset.a === 'ok'){ rd(); ccSave(B); drawOverlay(); ccOpen(); } }; }); }
 const npLen = pts => pts.reduce((a, p, i) => i ? a + Math.hypot(p[0] - pts[i-1][0], p[1] - pts[i-1][1]) : 0, 0);
 const fmtM = v => (v*unitMM()/1000).toFixed(2) + 'm';
 function npHdef(){ try { const o = JSON.parse(localStorage.getItem('zumen-np') || '{}'); return isFinite(o.h) ? o.h : 2500; } catch(e){ return 2500; } }
@@ -3142,6 +3244,7 @@ function changed(kind){
   if (S.selDim && !S.dims.includes(S.selDim)) S.selDim = null;
   drawOverlay(); updateUi(); refreshOpenSheet(); autosave(true);
   { const t = document.querySelector('#tabs [data-g="__dims"] .ct'); if ((t ? +t.textContent : 0) !== S.dims.length) renderTabs(); }
+  if (!!document.querySelector('#tabs [data-g="__cc"]') !== S.np.some(p => p.k === 'cc' && !gone(KB2 + p.no))) renderTabs();
 }
 function cmdDelLayers(names, label){
   const ls = names.map(n => G.L.find(l => l.name === n)).filter(l => l && !l.deleted);
@@ -3197,6 +3300,7 @@ function renderTabs(){
     h += `<button class="tab ${S.group === g.id ? 'on' : ''} ${ls.length ? '' : 'zero'} ${allOff ? 'off' : ''}" data-g="${g.id}"><i class="gb" style="background:${g.col}"></i><span class="nm">${g.name}</span><span class="ct">${ls.length}</span></button>`;
   }
   if (S.dims.length) h += `<button class="tab" data-g="__dims">📏 寸法 <span class="ct">${S.dims.length}</span></button>`; // 入れた寸法（2026-11-13 ユーザー：レイヤーに見当たらない）
+  if (S.np.some(p => p.k === 'cc' && !gone(KB2 + p.no))) h += `<button class="tab" data-g="__cc">📡 集中アドレス</button>`; // 2026-11-18 ユーザー
   if (dead.length) h += `<button class="tab trash" data-g="__trash">ゴミ箱 <span class="ct">${dead.length}</span></button>`;
   el.innerHTML = h;
   const on = el.querySelector('.tab.on'); if (on) on.scrollIntoView({block:'nearest', inline:'center'});
@@ -3212,6 +3316,7 @@ $('#tabs').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (!b || b.dataset.g === undefined) return; const g = b.dataset.g;
   if (g === '__trash'){ openLayerSheet(true); return; }
   if (g === '__dims'){ openDimGroupSheet(); return; }
+  if (g === '__cc'){ ccOpen(); return; }
   setGroup(g || null);
 });
 $('#subtabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (!b) return; setTab(b.dataset.tab || null); });

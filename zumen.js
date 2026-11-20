@@ -1117,6 +1117,7 @@ function polyToRows(P){
   if(i<P.length-2){const d1=seg.clone().normalize(),d2=P[i+2].clone().sub(P[i+1]).normalize(),c=Math.max(-1,Math.min(1,d1.dot(d2)));a=Math.round(Math.acos(c)*180/Math.PI);
    if(a>0){const b=d2.clone().addScaledVector(d1,-c).normalize();t=normT(Math.round(Math.atan2(b.dot(r),b.dot(u))*180/Math.PI));
     const ax=d1.clone().cross(d2).normalize(),ang=Math.acos(c);u=u.clone().applyAxisAngle(ax,ang);r=r.clone().applyAxisAngle(ax,ang);d=d2.clone()}}
+  if(!ANG.includes(a)&&Math.abs(a-(a>60?90:45))>5&&typeof toast==="function"){const w=a;setTimeout(()=>toast("⚠️ "+w+"°の曲げは無いので"+(w>60?90:45)+"°にしました。形を確かめてください"),400)}   /* だまって寄せない（2026-11-20：135°が90°に） */
   rows.push({l,a:ANG.includes(a)?a:(a>60?90:45),t,o:false})}
  return rows;
 }

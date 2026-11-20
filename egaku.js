@@ -240,6 +240,7 @@ function toRows(P,a45){const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],len=a=>M
  for(let i=0;i<P.length-1;i++){const seg=sub(P[i+1],P[i]),l=Math.round(len(seg));let a=0,t=0;
   if(i<P.length-2){const d1=nz(seg),d2=nz(sub(P[i+2],P[i+1])),c=Math.max(-1,Math.min(1,dot(d1,d2)));a=Math.round(Math.acos(c)*180/Math.PI);
    if(a>0){const b=nz(sub(d2,d1.map(z=>z*c)));t=normT(Math.round(Math.atan2(dot(b,r),dot(b,u))*180/Math.PI));const ax=nz(cr(d1,d2)),ang=Math.acos(c);u=rotA(u,ax,ang);r=rotA(r,ax,ang)}}
+  if(!ANG.includes(a)&&Math.abs(a-(a>60?90:45))>5&&typeof toast==="function"){const w=a;setTimeout(()=>toast("⚠️ "+w+"°の曲げは無いので"+(w>60?90:45)+"°にしました。形を確かめてください"),400)}   /* だまって寄せない（2026-11-20：135°が90°に） */
   rows.push({l,a:ANG.includes(a)?a:(a>60?90:45),t,o:false})}
  return rows}
 /* ✅ この形で曲げを作る */

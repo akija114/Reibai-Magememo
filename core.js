@@ -160,6 +160,8 @@ function normRows(rows,def){
  if(!Array.isArray(rows)||!rows.length)return def;
  return rows.slice(0,60).map(r=>({l:Math.max(0,+r.l||0),a:ANG.includes(+r.a)?+r.a:0,t:normT(r.t),o:!!r.o}));
 }
+/* ✂ 切って分けた配管（kiru.js の st.cut）を戻す・開く・共有の時にも残す（2026-11-20 ユーザー：切った残りが消える） */
+function normCut(c){if(!c||!Array.isArray(c.f)||!Array.isArray(c.c))return undefined;const f=normRows(c.f,[]);if(!f.length)return undefined;const L=f.reduce((s,r)=>s+r.l,0),cc=c.c.map(Number).filter(x=>isFinite(x)&&x>0&&x<L).sort((a,b)=>a-b);if(!cc.length)return undefined;return{f,c:cc,i:Number.isInteger(c.i)&&c.i>=-1&&c.i<=cc.length?c.i:-1}}
 const DEFROWS=side=>[{l:500,a:45,t:side,o:false},{l:800,a:0,t:0,o:false}];
 function normBL(arr){
  if(!Array.isArray(arr))return[];
@@ -237,7 +239,7 @@ function updUndoUI(){const u=$("#undoBtn"),r=$("#redoBtn");if(!u||!r)return;u.di
 function histGo(d){
  if(!hist)return;const n=hi+d;if(n<0||n>=hist.length)return;
  hi=n;const o=JSON.parse(hist[hi]);
- st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,bldHideB:o.bldHideB===false?false:undefined,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null,bhid:o.bhid&&typeof o.bhid==="object"?o.bhid:null};
+ st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,bldHideB:o.bldHideB===false?false:undefined,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null,bhid:o.bhid&&typeof o.bhid==="object"?o.bhid:null,cut:normCut(o.cut)};
  if(!legIds().includes(leg))leg="m";
  try{localStorage.setItem("pbm1",JSON.stringify(st))}catch(e){}
  histT=0;sel=0;render();if(T)fitT(true);updUndoUI();
@@ -2170,7 +2172,8 @@ function cvCrank(i,g){return cvCrankR(legRows(g||leg),i)}
 function cvPlanR(R,i,deg,D,m){
  const H=R[i].l,th=deg*Math.PI/180,run=H/Math.tan(th),L=H/Math.sin(th),bk=bR(D)*deg/90;
  let a=R[i-1].l-run/2,b=R[i+1].l-run/2;if(m===1){a=R[i-1].l-run;b=R[i+1].l}else if(m===2){a=R[i-1].l;b=R[i+1].l-run}else{if(a<0){b+=a;a=0}if(b<0){a+=b;b=0}}
- return{deg,L:Math.round(L),a:Math.round(a),b:Math.round(b),ok:a>=0&&b>=0&&L-bk>=0&&a-(R[i-1].a?bk:0)>=-0.01};
+ const bn=R[i+1].a?bR(D)*R[i+1].a/90:0;   /* 後ろの行も自分の曲げに足りる長さか（2026-11-20：変えた後のシューがマイナスでも「できる」と出ていた） */
+ return{deg,L:Math.round(L),a:Math.round(a),b:Math.round(b),ok:a>=0&&b>=0&&L-bk>=0&&a-(R[i-1].a?bk:0)>=-0.01&&b-bn>=-0.01};
 }
 function cvPlan(i,deg,g,m){g=g||leg;return cvPlanR(legRows(g),i,deg,cur(g).D,m)}
 function cvSet(R,i,q){R[i-1].l=q.a;R[i-1].a=q.deg;R[i].l=q.L;R[i].a=q.deg;R[i+1].l=q.b}
@@ -3358,7 +3361,7 @@ let LOCAL=false;const SITES_KEY="pbm_sites";
 function loadSites(){try{const a=JSON.parse(localStorage.getItem(SITES_KEY));return Array.isArray(a)?a:[]}catch(e){return[]}}
 function storeSites(a){localStorage.setItem(SITES_KEY,JSON.stringify(a))}
 function restoreSt(o){
- st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,bldHideB:o.bldHideB===false?false:undefined,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null,bhid:o.bhid&&typeof o.bhid==="object"?o.bhid:null};
+ st={s:SIZES[o.s]?o.s:2,rows:normRows(o.rows,[{l:500,a:90,t:0,o:false}]),ps:SIZES[o.ps]?o.ps:null,bl:normBL(o.bl),sup:normSup(o.sup),gnd:normGnd(o.gnd),info:normInfo(o.info),goal:normGoal(o.goal),units:normUnits(o.units),bld:normBld(o.bld),bldXf:o.bldXf||null,bldKey:o.bldKey||"",bldHide:!!o.bldHide,bldHideB:o.bldHideB===false?false:undefined,nopipe:!!o.nopipe,scan:o.scan||st.scan,drain:o.drain,rj:o.rj||null,kabe:Array.isArray(o.kabe)?o.kabe:[],dln:o.dln&&typeof o.dln==="object"?o.dln:null,dlOn:o.dlOn&&typeof o.dlOn==="object"?o.dlOn:null,bhid:o.bhid&&typeof o.bhid==="object"?o.bhid:null,cut:normCut(o.cut)};
  leg="m";sel=0;save();$("#sz").value=st.s;render();if(T)fitT(true);
 }
 function openPlan(p){
@@ -3368,7 +3371,7 @@ function openPlan(p){
   restoreSt(o);closeCloud();toast("「"+(p.title||"無題")+"」を開きました");return;
  }
  if(!SIZES[p.s]||!Array.isArray(p.rows)||!p.rows.length){toast("読み込めませんでした");return}
- st.s=p.s;st.rows=JSON.parse(JSON.stringify(p.rows));migrateLegacy(p);st.bl=normBL(p.bl);leg="m";st.info=normInfo(p.info);st.goal=normGoal(p.goal);st.units=normUnits(p.units);sel=0;save();
+ st.s=p.s;st.rows=JSON.parse(JSON.stringify(p.rows));delete st.cut;migrateLegacy(p);st.bl=normBL(p.bl);leg="m";st.info=normInfo(p.info);st.goal=normGoal(p.goal);st.units=normUnits(p.units);sel=0;save();
  $("#sz").value=st.s;render();if(T)fitT();
  closeCloud();toast("「"+(p.title||"無題プラン")+"」を開きました");
 }
@@ -3684,7 +3687,7 @@ async function encZ(o){const raw=new TextEncoder().encode(JSON.stringify(o));
 async function decZ(s2){const t=s2[0],u=ub64(s2.slice(1));let bytes=u;
  if(t==="z"){const ds=new Blob([u]).stream().pipeThrough(new DecompressionStream("deflate-raw"));bytes=new Uint8Array(await new Response(ds).arrayBuffer())}
  return JSON.parse(new TextDecoder().decode(bytes))}
-const shareData=()=>{const d={s:st.s,ps:st.ps,rows:st.rows,bl:st.bl,gnd:st.gnd,sup:st.sup,info:st.info,goal:st.goal,units:st.units};if(st.bld&&st.bld.length)d.bld=st.bld;if(st.drain&&st.drain.rows&&st.drain.rows.length)d.drain=st.drain;return d};
+const shareData=()=>{const d={s:st.s,ps:st.ps,rows:st.rows,bl:st.bl,gnd:st.gnd,sup:st.sup,info:st.info,goal:st.goal,units:st.units};if(st.bld&&st.bld.length)d.bld=st.bld;if(st.drain&&st.drain.rows&&st.drain.rows.length)d.drain=st.drain;if(window.cutSync)try{cutSync()}catch(e){}if(st.cut)d.cut=st.cut;return d};
 async function shareLinkZ(){return APP_URL+"#z="+await encZ(shareData())}
 function shareSummary(){
  const i=st.info,kind=i.kind==="液"?"液管":i.kind==="ガス"?"ガス管":"";
@@ -3722,7 +3725,7 @@ function exportText(){
 function applyData(d){
  if(!d||!SIZES[d.s]||!Array.isArray(d.rows)||!d.rows.length)return false;
  migrateLegacy(d);
- st={s:d.s,rows:d.rows.slice(0,60).map(r=>({l:Math.max(0,+r.l||0),a:ANG.includes(+r.a)?+r.a:0,t:normT(r.t),o:!!r.o})),info:normInfo(d.info),goal:normGoal(d.goal),units:normUnits(d.units),ps:SIZES[d.ps]?d.ps:null,bl:normBL(d.bl),sup:d.sup?normSup(d.sup):st.sup,gnd:d.gnd?normGnd(d.gnd):st.gnd,bld:normBld(d.bld),scan:st.scan,drain:d.drain};
+ st={s:d.s,rows:d.rows.slice(0,60).map(r=>({l:Math.max(0,+r.l||0),a:ANG.includes(+r.a)?+r.a:0,t:normT(r.t),o:!!r.o})),info:normInfo(d.info),goal:normGoal(d.goal),units:normUnits(d.units),ps:SIZES[d.ps]?d.ps:null,bl:normBL(d.bl),sup:d.sup?normSup(d.sup):st.sup,gnd:d.gnd?normGnd(d.gnd):st.gnd,bld:normBld(d.bld),scan:st.scan,drain:d.drain,cut:normCut(d.cut)};
  leg="m";sel=0;save();$("#sz").value=st.s;render();if(T)fitT();return true;
 }
 async function importTextZ(txt){const m=txt.match(/[#&]z=([jz][A-Za-z0-9_\-]+)/);if(m){try{return applyData(await decZ(m[1]))}catch(e){return false}}return importText(txt)}

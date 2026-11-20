@@ -11,12 +11,13 @@ const cp = r => r.map(x => ({...x})), lenOf = r => r.reduce((s, x) => s + (+x.l 
 const Rb = () => bR(SIZES[legSize("m")][1]), tn = a => !a ? 0 : a >= 180 ? Rb() : Rb()*Math.tan(a*Math.PI/360);
 /* 全体の行 f を切る所 c で分ける */
 function cutPieces(f, c){ const P = [[]]; let S = 0, ci = 0;
-  for (const r of f){ let off = 0; while (ci < c.length && c[ci] > S + off + 1e-6 && c[ci] < S + r.l - 1e-6){ const L = c[ci] - S - off; P[P.length - 1].push({l:L, a:0, t:0, o:false}); P.push([]); off += L; ci++; } P[P.length - 1].push({...r, l:r.l - off}); S += r.l; }
+  for (const r of f){ let off = 0; while (ci < c.length && c[ci] <= S + 1e-6){ if (P[P.length - 1].length) P.push([]); ci++; }   /* 行の境目ぴったりの切る所も分ける（前はだまって無視して、その後の切る所も止まっていた） */
+    while (ci < c.length && c[ci] > S + off + 1e-6 && c[ci] < S + r.l - 1e-6){ const L = c[ci] - S - off; P[P.length - 1].push({l:L, a:0, t:0, o:false}); P.push([]); off += L; ci++; } P[P.length - 1].push({...r, l:r.l - off}); S += r.l; }
   return P; }
 /* 分けた物を1本にもどす（1本の終わりの a:0 の行と次の1本の頭をつなぐ） */
 function cutJoin(P){ const R = cp(P[0] || []); for (let k = 1; k < P.length; k++){ const q = P[k]; if (!q.length) continue; const z = R[R.length - 1]; if (z && !z.a){ R.pop(); R.push({...q[0], l:z.l + q[0].l}); } else R.push({...q[0]}); for (let j = 1; j < q.length; j++) R.push({...q[j]}); } return R; }
 /* 切る所を、曲げにかからない所へ（だめな時 null） */
-function cutFix(f, x){ let S = 0; for (let k = 0; k < f.length; k++){ const r = f[k]; if (x <= S + r.l || k === f.length - 1){ const lo = S + tn(k ? f[k-1].a : 0) + M, hi = S + r.l - tn(r.a) - M; if (hi < lo) return null; return Math.round(Math.max(lo, Math.min(hi, x))/10)*10; } S += r.l; } return null; }
+function cutFix(f, x){ let S = 0; for (let k = 0; k < f.length; k++){ const r = f[k]; if (x <= S + r.l || k === f.length - 1){ const lo = S + tn(k ? f[k-1].a : 0) + M, hi = S + r.l - tn(r.a) - M; const l2 = Math.ceil(lo/10)*10, h2 = Math.floor(hi/10)*10; if (h2 < l2) return null; return Math.max(l2, Math.min(h2, Math.round(x/10)*10)); } /* 10mm きざみでも曲げの近く（M）に入らない（2026-11-20：最大5mm入っていた） */ S += r.l; } return null; }
 window.cutSync = function(){ const C = st.cut; if (!C) return; if (!Array.isArray(C.f) || !C.f.length || !Array.isArray(C.c)){ delete st.cut; return; }
   if (C.i >= 0){ const P = cutPieces(C.f, C.c); if (C.i >= P.length){ C.i = -1; st.rows = cp(C.f); return; } P[C.i] = cp(st.rows); C.f = cutJoin(P); C.c = []; let s = 0; for (let k = 0; k < P.length - 1; k++){ s += lenOf(P[k]); C.c.push(s); } }
   else { C.f = cp(st.rows); const L = lenOf(C.f); C.c = C.c.filter(x => x > 0 && x < L); }

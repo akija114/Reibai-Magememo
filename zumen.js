@@ -328,7 +328,7 @@ function planAutoIns(I){const P=PLAN;if(!P.rects){try{planAnalyze()}catch(e){}}c
 /* 全部自動で読む：室内機のほかの機器（ロスナイ・全熱交換器など）を箱で置く。
    品番（LGH-N15RXW3 など）の文字の近く（60cm以内）に「FL+3080下端」「FL+3370上端」があり、品番が機器の色の四角の中にある物 */
 function planAutoEquip(r){const P=PLAN,mm=P.mmpp,T2=P.textsAll||P.texts||[],nm=t=>normTx(t.s).trim(),R=P.rects||[],out=[],CH=(st.gnd&&st.gnd.ch)||P.CH||2700;
- const blue=col=>{const[a,g,b]=rgbOf(col);return b>150&&a<90&&g<90};
+ const BM=new Map(),blue=col=>{let v=BM.get(col);if(v===undefined){const[a,g,b]=rgbOf(col);v=b>150&&a<90&&g<90;BM.set(col,v)}return v};   // 色ごとに1回だけ調べる（速く・2026-11-21）
  T2.forEach(t=>{const s=nm(t);if(!/^[A-Z]{2,5}[-‐−][A-Z0-9]{3,}/.test(s)||(r&&r.ind&&s.includes(r.ind)))return;
   if(/[□◻]\s*$/.test(s)||/^(VHS|VH|HS|NK|SH|NS|AB|VS)[-‐−]/.test(s))return;   // 吹出口・吸込口（「200□」）は機械ではない
   const vk=typeof ventFind==="function"?ventFind(s):"",V=vk?VENTM[vk]:null;
@@ -338,7 +338,8 @@ function planAutoEquip(r){const P=PLAN,mm=P.mmpp,T2=P.textsAll||P.texts||[],nm=t
   R.forEach(q=>{if(!blue(q.col))return;const a=(q.x1-q.x0)*mm,b=(q.y1-q.y0)*mm;if(Math.max(a,b)<300||Math.max(a,b)>3500||Math.min(a,b)<200)return;if(cx<q.x0-2||cx>q.x1+2||cy<q.y0-2||cy>q.y1+2)return;const ar=a*b;if(ar<ba){ba=ar;rc=q}});
   /* 四角が閉じていない時（フランジの出っ張りなど）：近くの青い線をつながりごとにまとめて、品番を囲むかたまりの外形 */
   if(!rc){const lim=2200/mm,B=P.segs.filter(s2=>blue(s2[4])&&Math.hypot((s2[0]+s2[2])/2-cx,(s2[1]+s2[3])/2-cy)<lim),par=B.map((_,i)=>i),fd=i=>par[i]===i?i:(par[i]=fd(par[i])),tol=25/mm;
-   for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){const a=B[i],b=B[j];if([[a[0],a[1]],[a[2],a[3]]].some(p=>[[b[0],b[1]],[b[2],b[3]]].some(q=>Math.hypot(p[0]-q[0],p[1]-q[1])<tol)))par[fd(i)]=fd(j)}
+   {const EG=new Map(),ek=(x,y)=>Math.floor(x/tol)+","+Math.floor(y/tol);B.forEach((a,i)=>{for(const[x,y]of[[a[0],a[1]],[a[2],a[3]]]){const kk=ek(x,y);(EG.get(kk)||EG.set(kk,[]).get(kk)).push([x,y,i])}});   // 端の点が近い線どうしをつなぐ（升目で探す・前は全部の組を見ていて遅かった）
+    for(const[kk,L]of EG){const[gx,gy]=kk.split(",").map(Number);for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){const M=EG.get((gx+dx)+","+(gy+dy));if(!M)continue;for(const p of L)for(const q of M)if(p[2]!==q[2]&&Math.hypot(p[0]-q[0],p[1]-q[1])<tol)par[fd(p[2])]=fd(q[2])}}}
    const G={};B.forEach((s2,i)=>{const k=fd(i);const g=G[k]=G[k]||{x0:1e9,y0:1e9,x1:-1e9,y1:-1e9,n:0};g.x0=Math.min(g.x0,s2[0],s2[2]);g.x1=Math.max(g.x1,s2[0],s2[2]);g.y0=Math.min(g.y0,s2[1],s2[3]);g.y1=Math.max(g.y1,s2[1],s2[3]);g.n++});
    Object.values(G).forEach(q=>{const a=(q.x1-q.x0)*mm,b=(q.y1-q.y0)*mm;if(q.n<4||Math.max(a,b)<300||Math.max(a,b)>3500||Math.min(a,b)<200)return;if(cx<q.x0||cx>q.x1||cy<q.y0||cy>q.y1)return;if(a*b<ba){ba=a*b;rc=q}})}
   /* 品番が機械の外にある（引出線で離して書いてある）時：近く（6m）の、機器の色の小さい四角（20〜80cm）で、ダクトの端がすぐ横にある物（換気扇など） */
@@ -783,13 +784,15 @@ async function zsLoad(q){if(!confirm("今の図面を閉じて「"+(q.nm||"無�
 /* 図面編集アプリの「🧊 3D」（?from=cad3d）：図面編集の中に見えない形で開き、届いた図面を「全部自動」と同じに読んで（室内機の機種・位置・冷媒配管のルート・壁・ダクト・衛生）、
    できた3Dの形（文字は除く）と壁・室内機（DXFの mm）を図面編集へ返す（親の cad3dDone）。3Dは図面編集の画面で描く。ここの画面は出さない */
 async function cad3dGo(r){
- openDraw();await planLoad(new File([r.blob],r.name||"zumen.dxf",{type:"application/dxf"}),true);
+ const pg=(p,m)=>{try{if(parent!==window&&typeof parent.cad3dPg==="function")parent.cad3dPg(p,m)}catch(e){}};   // 図面編集の「3Dを作っています 何%」（2026-11-21 ユーザー）
+ pg(8,"図面のファイルを開いています");openDraw();await planLoad(new File([r.blob],r.name||"zumen.dxf",{type:"application/dxf"}),true);
  const P=PLAN,done=v=>{try{if(parent!==window&&typeof parent.cad3dDone==="function")parent.cad3dDone(v)}catch(e){console.warn(e)}};
  if(!P||!P.dxf){done({err:"図面を読めませんでした"});return}
- window.yomiCheck=undefined;window.toast=()=>{};let res=null;try{res=planAutoAll();if(res&&typeof res.then==="function")res=await res}catch(e){console.warn("cad3d",e)}   // 読み取りチェックの画面・お知らせは出さない
- if(!st.dln){try{const D=planDrawLines();if(D&&DL_KINDS.some(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)))st.dln=D}catch(e){console.warn(e)}}
+ pg(18,"室内機・配管のルート・壁を読んでいます");await new Promise(r=>setTimeout(r,0));window.yomiCheck=undefined;window.toast=()=>{};let res=null;const bc0=window.bldChanged;window.bldChanged=()=>save(true);   // 読む間は物を置くたびに3Dを作り直さない（最後に1回・速く）
+ try{res=planAutoAll();if(res&&typeof res.then==="function")res=await res}catch(e){console.warn("cad3d",e)}finally{window.bldChanged=bc0}   // 読み取りチェックの画面・お知らせは出さない
+ pg(34,"ダクト・衛生を読んでいます");await new Promise(r=>setTimeout(r,0));if(!st.dln){try{const D=planDrawLines();if(D&&DL_KINDS.some(([k])=>(D[k]&&D[k].length)||(D[k+"S"]&&D[k+"S"].length)))st.dln=D}catch(e){console.warn(e)}}
  if(!P.org)P.org=[P.W/2,P.H0/2];if(!P.CH)P.CH=2700;
- try{wz3D()}catch(e){console.warn(e)}try{build3D()}catch(e){console.warn(e)}
+ pg(40,"3Dの形をまとめています");await new Promise(r=>setTimeout(r,0));try{wz3D()}catch(e){console.warn(e)}try{build3D()}catch(e){console.warn(e)}
  try{const mm=q=>[P.dX0+q[0]*P.mmpp,P.dY1-q[1]*P.mmpp],rd=q=>q.map(Math.round),xf=xfOf(),walls=[],units=[],r90=v=>Math.abs((((v||0)%90)+90)%90)<0.5||Math.abs((((v||0)%90)+90)%90-90)<0.5;
   for(const o of st.bld){if(o.k==="wall"&&r90(o.r)&&r90(xf.r)){const v=Math.abs((((o.r||0)%180)+180)%180-90)<1,hx=(v?o.d:o.w)/2,hz=(v?o.w:o.d)/2,C=[[-1,-1],[1,1]].map(([i,j])=>rd(mm(btP(o.x+i*hx,o.z+j*hz))));   // 壁の四角（3Dの向き）を図面の mm へ
     walls.push([Math.min(C[0][0],C[1][0]),Math.min(C[0][1],C[1][1]),Math.max(C[0][0],C[1][0]),Math.max(C[0][1],C[1][1])])}

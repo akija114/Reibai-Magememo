@@ -4233,7 +4233,7 @@ function v3dAna(){
   walls = walls.filter(w => !ubs.some(b => w[0] > b.x0 - 30 && w[2] < b.x1 + 30 && w[1] > b.y0 - 30 && w[3] < b.y1 + 30)); // ユニットバスの中の線は壁にしない（ユニットバスに沿った長い壁は残す）
   walls = walls.filter(w => Math.max(w[2] - w[0], w[3] - w[1]) >= 2000 || wDen(w) >= 15); // 塗りの無い短い2本（家具・クローゼット・階段など）は壁にしない（2026-10-28 ユーザー：図面の壁を覚えて・統一して）
   const inB = c => !bld || ((c.x0 + c.x1)/2 >= bld[0] && (c.x0 + c.x1)/2 <= bld[2] && (c.y0 + c.y1)/2 >= bld[1] && (c.y0 + c.y1)/2 <= bld[3]);
-  let un = units.filter(inB); const mg = mageOk(); if (mg && mg.units.length){ const f = un.filter(c => mg.units.some(o => o.x >= c.x0 - 300 && o.x <= c.x1 + 300 && o.y >= c.y0 - 300 && o.y <= c.y1 + 300)); if (f.length) un = f; } // 曲げメモで室内機と読めた物だけ（ロスナイなどの機器は除く）
+  let un = units.filter(inB); const mg = mageOk(); if (mg && mg.units.length){ const NPm = v3dUP(), f = un.filter(c => mg.units.some(o => o.x >= c.x0 - 300 && o.x <= c.x1 + 300 && o.y >= c.y0 - 300 && o.y <= c.y1 + 300) || ((NPm[v3dUPk(c)] || {}).k != null && NPm[v3dUPk(c)].k !== '__no') || (typeof CAS2M !== 'undefined' && v3dMdlNear(c).k)); if (f.length) un = f; } /* 自分で品番を選んだ機械・そばに品番の文字がある機械は残す（2026-11-21 ユーザー：除湿機・日立の室内機が3Dに出ない） */ // 曲げメモで室内機と読めた物だけ（ロスナイなどの機器は除く）
   if (mg && mg.walls.length) walls = mg.walls; // 壁も曲げメモの読み取り（軽量壁など）
   const doors = v3dDoors().filter(inD => !bld || (inD.c[0] >= bld[0] && inD.c[0] <= bld[2] && inD.c[1] >= bld[1] && inD.c[1] <= bld[3]));
   const SO = [], SH = shpMatches(); { if (SH.length){ // 🏷 登録した形：家具など＝そこに読んだ物を消す、ほかはその種類で足す

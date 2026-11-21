@@ -154,9 +154,32 @@ const OUTM={
  /* 日立 RAS-GP400／450／500TG（2026-11-17 ユーザーの外形図 GA163827A04）。本体 1600×765×1428（脚60・上のファンガード267）・上吹き2ファン。
     lx＝ガスの口の左の端からの内側（正面から見て左下・図から読んだ目安）・py＝ガスの口の高さ160（液259）・iz＝前からの内側152（液132）・ex＝前と下 */
  /* 日立 業務用除湿機の室外 RCR-NP2TV（2026-11-17 ユーザーの寸法図・仕様表）。950×370×800・ファン1つ正面。口は正面右のサービスカバーの中（ix＝右の端から・py＝ガスの口の高さ＝図から読んだ目安）・ex＝前・後ろのノック穴 */
- rcr_np2:{py:440,pz:0,ix:75,ex:["f","b"],n:"日立 RCR-NP2TV",sub:"床置の除湿機 RK-NP2LTV の室外（2馬力）",w:950,h:800,d:370,f:"front",nf:1,nt:"日立の寸法図の大きさです（口の高さは図から読んだ目安）。ガスφ12.7・液φ9.52（ろう付け）。配管は正面の右下か後ろのノック穴から出します。"},
- hi_gp:{hi:1,py:160,pz:0,lx:200,iz:152,ex:["f","d"],n:"日立 RAS-GP400・450・500TG",sub:"P400〜500（上吹き2ファン）",w:1600,h:1428,d:765,f:"top",nf:2}
+ rcr_np2:{nv:["RCRNP2TV"],py:440,pz:0,ix:75,ex:["f","b"],n:"日立 RCR-NP2TV",sub:"床置の除湿機 RK-NP2LTV の室外（2馬力）",w:950,h:800,d:370,f:"front",nf:1,nt:"日立の寸法図の大きさです（口の高さは図から読んだ目安）。ガスφ12.7・液φ9.52（ろう付け）。配管は正面の右下か後ろのノック穴から出します。"},
+ hi_gp:{nv:["RASGP400TG","RASGP450TG","RASGP500TG"],hi:1,py:160,pz:0,lx:200,iz:152,ex:["f","d"],n:"日立 RAS-GP400・450・500TG",sub:"P400〜500（上吹き2ファン）",w:1600,h:1428,d:765,f:"top",nf:2}
 };
+/* 室外機の本体の模型（2026-11-21 ユーザー：図面修正の3D・機器の画面でもリアルの模型を）：core.js の makeUnit の out の形を写した物（変えたら両方）。
+   自然な向き：幅 w＝x・奥行 d＝z（正面＝+z）・床＝y0・真ん中が原点。配管口の位置は outPort(mk,k) */
+function outModel3D(TH,mk){const om=OUTM[mk]||OUTM.room,W=om.w,H=om.h,D=om.d,B=0,X=0,top0=H,FZ=D/2,g=new TH.Group(),WH=0xf1f5f9,DK=0x334155,MD=0x94a3b8;
+ const em=new TH.LineBasicMaterial({color:0x64748b}),M=c=>new TH.MeshStandardMaterial({color:c,roughness:.55,metalness:.12}),put=(geo,x,y,z,c)=>{const m=new TH.Mesh(geo,M(c));m.position.set(x,y,z);g.add(m);return m},
+  bx=(w,h,d,x,y,z,c)=>put(new TH.BoxGeometry(w,h,d),x,y,z,c),cyl=(r,h,x,y,z,c,sg)=>put(new TH.CylinderGeometry(r,r,h,sg||24),x,y,z,c);
+ {const b=bx(W,H,D,X,H/2,0,om.hi?0xe7e5df:WH),e=new TH.LineSegments(new TH.EdgesGeometry(b.geometry),em);e.position.copy(b.position);g.add(e)} bx(W*.94,40,D*.9,X,B-20,0,0x475569);
+ const fan=(fx,fy,fz,r,face)=>{if(face==="front"){const c=cyl(r,8,fx,fy,FZ+2,DK,40);c.rotation.x=Math.PI/2;put(new TH.TorusGeometry(r,6,6,40),fx,fy,FZ+5,MD);bx(r*2,6,6,fx,fy,FZ+9,MD);bx(6,r*2,6,fx,fy,FZ+9,MD);const q=r*1.25;bx(q*2,5,5,fx,fy+q,FZ+4,MD);bx(q*2,5,5,fx,fy-q,FZ+4,MD)}
+  else{cyl(r,8,fx,fy,fz,DK,40);const ring=put(new TH.TorusGeometry(r,6,6,40),fx,fy+2,fz,MD);ring.rotation.x=Math.PI/2;bx(r*2,6,6,fx,fy+6,fz,MD);bx(6,6,r*2,fx,fy+6,fz,MD)}};
+ if(om.hi){const r=Math.min(D*.46,W/4*.92),gh=267;
+  for(const s of[-1,1]){const fx=X+s*W/4;put(new TH.CylinderGeometry(r*1.07,r*.93,gh,40),fx,top0+gh/2,0,0xe7e5df);put(new TH.TorusGeometry(r*1.05,10,8,40),fx,top0+gh-4,0,0xd6d3cc).rotation.x=Math.PI/2;cyl(r*.97,6,fx,top0+gh,0,DK,40);bx(r*1.9,6,6,fx,top0+gh+4,0,MD);bx(6,6,r*1.9,fx,top0+gh+4,0,MD);bx(W/2-14,12,D-30,fx,top0+6,0,0xe7e5df)}
+  const xr=X+W/2-W*.27,C=0x64748b;bx(6,H-60,4,xr,B+H/2,FZ+2,C);bx(xr-(X-W/2),6,4,(X-W/2+xr)/2,B+H*.52,FZ+2,C);
+  bx(W*.16,26,4,X-W/2+(xr-(X-W/2))*.5,B+H*.83,FZ+3,0x1f2937);bx(W*.1,16,4,X-W/2+(xr-(X-W/2))*.5,B+H*.6,FZ+3,0x475569);
+  for(let i=0;i<3;i++){const c=cyl(i<2?32:20,6,X-W/2+90+i*70,B+150,FZ+3,MD,20);c.rotation.x=Math.PI/2}
+  bx(110,90,4,X-W/2+120,B+70,FZ+3,MD);bx(70,90,4,X-W/2+240,B+70,FZ+3,MD);
+  for(let i=0;i<22;i++){const y=B+50+i*(H-100)/21;bx(6,6,D*.88,X+W/2+1,y,0,0x475569);bx(6,6,D*.88,X-W/2-1,y,0,0x475569);bx(W*.92,6,6,X,y,-FZ-1,0x475569)}
+  bx(W*.94,50,6,X,B-25,FZ*.92,0x1f2937)}
+ else if(om.f==="front"){const r=Math.min(om.nf===2?290:330,W*.38,H*(om.nf===2?.17:.3));for(let i=0;i<om.nf;i++){const y=om.nf===2?B+H*(i?.25:.72):B+H*.55;fan(X,y,0,r,"front")}
+  for(let i=0;i<10;i++){const y=B+40+i*(H-80)/9;bx(6,5,D*.8,X-W/2-1,y,0,MD);bx(W*.8,5,6,X,y,-FZ-1,MD)}}
+ else{const nf=om.nf,r=Math.min(D,W/nf)*.4;for(let i=0;i<nf;i++)fan(nf===1?X:X+(i?1:-1)*W*.25,top0+2,0,r,"top");
+  for(let i=0;i<16;i++){const y=B+60+i*(H-120)/15;bx(W*.9,5,6,X,y,FZ+1,MD);bx(W*.9,5,6,X,y,-FZ-1,MD)}for(let i=0;i<14;i++){const y=B+60+i*(H-120)/13;bx(6,5,D*.85,X-W/2-1,y,0,MD)}
+  if(om.ghp){bx(W*.4,H*.5,6,X+W*.1,B+H*.3,FZ+3,0xcbd5e1);bx(W*.5,200,6,X,B+H*.78,FZ+3,0xfacc15)}}
+ bx(W*.5,18,6,X,H-45,FZ+3,0xdc2626);   // 正面の目印（赤い帯）
+ return g}
 const OUT_PKG=["p40","p80","p112","dk160","pz40","pz80","pz140","pz280","rcr_np2"];
 const OUT_X={s:"右側面（前から50mm内側）",f:"正面（表）",b:"背面（裏）",d:"真下（手前）",l:"左下（正面からまっすぐ）",m:"真下（左・手前）"};
 const OUT_VRV=["vrv","vrv2"];

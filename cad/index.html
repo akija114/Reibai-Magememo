@@ -1133,6 +1133,7 @@ function tapSelect(p){
   if (S.mode === 'kiki'){ kikiPut(s2w(p[0], p[1])); return; }
   { const ho = holeAt(p); if (ho && !(S.mode === 'np' && S.npe && S.npe.tool !== 'hole')){ openHoleSheet(ho); return; } } // 貫通部をタップ → 直す・消す
   if (S.mode === 'np'){ npTap(s2w(p[0], p[1])); return; }
+  if (S.lkPick && S.mode === 'pan'){ lkPickAt(p); return; } // つなぐ相手の管をタップ
   let best = null, bd = 22;
   for (const d of S.dims) if (d.to && dimLabelHit(d, p, 1)){ best = d; bd = 0; } // 動かした数字をタップしても、その寸法を選ぶ
   for (const d of S.dims){
@@ -1141,6 +1142,7 @@ function tapSelect(p){
     const dd = Math.hypot(c[0]-p[0], c[1]-p[1]); if (dd < bd){ bd = dd; best = d; }
   }
   if (S.pick && S.pick.multi && pickScope === 'part'){ pickLayerAt(p); drawOverlay(); updatePickBar(); return; }
+  if (!best && S.mode === 'pan' && endTap(p)) return; // つながっていない配管の端（赤い丸）を2回タップ：つなぐ・分岐・曲がる（2026-11-21 ユーザー）
   if (!best && S.mode === 'pan' && !(S.pick && S.pick.multi) && unitTap(p)) return; // 室内機を2回タップ：品番を選ぶ（2026-11-17 ユーザー）
   if (!best && S.mode === 'pan' && gridTap(p)) return; // 通り芯をタップ：1回目で選ぶ・2回目で墨を出す
   if (!best && S.mode === 'pan' && ceilColTap(p)) return; // 色を付けた冷媒：2回目のタップで系統の名前
@@ -2041,13 +2043,35 @@ function readHlUnits(){ if (typeof CAS2M === 'undefined') return []; let L; try 
   return L.L.map(z => { const o = P[v3dUPk(z.m)] || {}; if (o.k === '__no') return null; const g = Gg[(z.wall ? 'W' : '') + v3dUKey(z.m)]; if (g === '__no' || g === '__out') return null;
     const ok = (o.k != null && o.k !== '') || z.m.mdl || !!v3dMdlNear(z.m, z.wall).k || (g != null && g !== ''); return {m:z.m, wall:z.wall, ok:!!ok}; }).filter(Boolean); }
 function readHlEnds(){ let CE = null; try { CE = ceilColCE(); } catch(e){} if (!CE) return []; const U = readHlUnits(), near = (p, r) => U.some(q => p[0] > q.m.x0 - r && p[0] < q.m.x1 + r && p[1] > q.m.y0 - r && p[1] < q.m.y1 + r), out = [];
-  for (const a of CE.rEnds || []){ if (near(a.p, 1200) || (CE.oe || []).some(q => Math.hypot(q.p[0] - a.p[0], q.p[1] - a.p[1]) < 60)) continue; out.push({p:a.p, k:'冷媒'}); }
-  for (const a of CE.dEnds || []){ if (near(a.p, 1200) || (CE.cos || []).some(q => Math.hypot(q.p[0] - a.p[0], q.p[1] - a.p[1]) < 200) || (CE.rsr || []).some(q => Math.hypot(q.p[0] - a.p[0], q.p[1] - a.p[1]) < (q.r || 50) + 200)) continue; out.push({p:a.p, k:'ドレン'}); }
+  const OK = new Set(endOk()), okd = p => OK.has(Math.round(p[0]) + ',' + Math.round(p[1]));
+  for (const a of CE.rEnds || []){ if (okd(a.p) || near(a.p, 1200) || (CE.oe || []).some(q => Math.hypot(q.p[0] - a.p[0], q.p[1] - a.p[1]) < 60)) continue; out.push({p:a.p, k:'冷媒'}); }
+  for (const a of CE.dEnds || []){ if (okd(a.p) || near(a.p, 1200) || (CE.cos || []).some(q => Math.hypot(q.p[0] - a.p[0], q.p[1] - a.p[1]) < 200) || (CE.rsr || []).some(q => Math.hypot(q.p[0] - a.p[0], q.p[1] - a.p[1]) < (q.r || 50) + 200)) continue; out.push({p:a.p, k:'ドレン'}); }
   return out; }
+function endOk(){ try { return ((JSON.parse(localStorage.getItem('zumen-endok') || '{}') || {})[S.srcName || ''] || []); } catch(e){ return []; } }
+function endOkSet(a){ try { const o = JSON.parse(localStorage.getItem('zumen-endok') || '{}') || {}; o[S.srcName || ''] = a; localStorage.setItem('zumen-endok', JSON.stringify(o)); } catch(e){} }
+/* 赤い丸（つながっていない端）を2回タップ → 🔗 まっすぐつなぐ／↪ ここで曲がる（相手の管と角で）／⑂ 分岐管（相手の管の途中へ）／✅ このままでいい。つなぐ物は相手の管をタップして zumen-ceillink（3Dの「ほかの管とつなぐ」と同じ）に t：c 曲がる・b 分岐 */
+function endTap(p){ if (!G || !readHlOn()) { S.esel = null; return false; } const u = unitMM(); let hit = null, bd = 22; for (const e of readHlEnds()){ const q = w2s(e.p[0]/u, e.p[1]/u), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd){ bd = d; hit = e; } }
+  if (!hit){ let CE = null; try { CE = ceilColCE(); } catch(e){} const G2 = CE ? [...(CE.brg || []).filter(g => g.man).map(g => [g.a, g.b]), ...(CE.br || []).filter(g => g.man).map(g => [g.e, g.p])] : []; let gh = null; for (const [A, B] of G2){ const a = w2s(A[0]/u, A[1]/u), b = w2s(B[0]/u, B[1]/u), q = closestOnSeg(p[0], p[1], a[0], a[1], b[0], b[1]); if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 16){ gh = [A, B]; break; } }   // 緑（手でつないだ所）を2回タップで外す
+    if (!gh){ S.esel = null; return false; } const gk = 'g' + Math.round(gh[0][0]) + ',' + Math.round(gh[0][1]); if (S.esel !== gk){ S.esel = gk; toast('手でつないだ所です。もう1回タップで外せます'); return true; } S.esel = null;
+    if (confirm('この手でつないだ所（緑）を外しますか？')){ const nr = P => gh.some(X => Math.hypot(X[0] - P[0], X[1] - P[1]) < 120); ceilLinksSet(ceilLinks().filter(x => !nr(x.p))); toast('外しました'); drawOverlay(); } return true; }
+  const key = Math.round(hit.p[0]) + ',' + Math.round(hit.p[1]);
+  if (S.esel !== key){ S.esel = key; toast(hit.k + 'の端です。もう1回タップで直せます'); return true; } S.esel = null; const kk = hit.k === '冷媒' ? 'ref' : 'drn';
+  openSheet(hit.k + 'がつながっていない', body => { body.innerHTML = `<div class="note">この端をどうするか選んでください。「つなぐ・曲がる・分岐」は、次に相手の管をタップします（3Dにもそのまま使います）。</div>
+    <div class="frow" style="flex-direction:column;gap:8px"><button class="btn pri" data-t="j" style="height:50px;font-size:16px">🔗 ほかの管とまっすぐつなぐ</button><button class="btn" data-t="c" style="height:50px;font-size:16px">↪ ここで曲がる（相手の管と角でつなぐ）</button><button class="btn" data-t="b" style="height:50px;font-size:16px">⑂ ここは分岐管（相手の管の途中へ）</button><button class="btn" data-t="ok" style="height:46px">✅ このままでいい（赤くしない）</button></div>`;
+    body.onclick = ev => { const b = ev.target.closest('[data-t]'); if (!b) return; const t = b.dataset.t; closeSheet();
+      if (t === 'ok'){ endOkSet(endOk().concat([key])); toast('この端はこのままにします'); drawOverlay(); return; }
+      S.lkPick = {k:kk, p:[Math.round(hit.p[0]), Math.round(hit.p[1])], t}; toast(t === 'b' ? '分岐する相手（本管）をタップしてください' : 'つなぐ相手の管をタップしてください'); drawOverlay(); }; }); return true; }
+function lkPickAt(p){ const L = S.lkPick; S.lkPick = null; let CE = null; try { CE = ceilColCE(); } catch(e){} if (!CE){ drawOverlay(); return; } const u = unitMM(); let hit = null, bd = 30;
+  for (const e of CE[L.k] || []){ if (e.arc || (q1 => Math.hypot(q1[0] - L.p[0], q1[1] - L.p[1]))(closestOnSeg(L.p[0], L.p[1], e.a[0], e.a[1], e.b[0], e.b[1])) < 5) continue; /* 端の自分の管は相手にしない */ const a = w2s(e.a[0]/u, e.a[1]/u), b = w2s(e.b[0]/u, e.b[1]/u), q = closestOnSeg(p[0], p[1], a[0], a[1], b[0], b[1]), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd){ bd = d; hit = e; } }
+  if (!hit || (q1 => Math.hypot(q1[0] - L.p[0], q1[1] - L.p[1]))(closestOnSeg(L.p[0], L.p[1], hit.a[0], hit.a[1], hit.b[0], hit.b[1])) < 5){ toast(L.k === 'ref' ? '冷媒の管が見つかりませんでした。もう一度、端の赤い丸から' : 'ドレンの管が見つかりませんでした。もう一度、端の赤い丸から'); drawOverlay(); return; }
+  const w = s2w(p[0], p[1]), q0 = closestOnSeg(w[0]*u, w[1]*u, hit.a[0], hit.a[1], hit.b[0], hit.b[1]); ceilLinksSet(ceilLinks().concat([{k:L.k, p:L.p, q:[Math.round(q0[0]), Math.round(q0[1])], t:L.t === 'j' ? undefined : L.t}]));
+  toast(L.t === 'b' ? '分岐管にしました（3Dにも出ます）' : L.t === 'c' ? '角でつなぎました（3Dにも出ます）' : 'つなぎました（3Dにも出ます）'); drawOverlay(); }
 function drawReadHL(c){ if (!G || !readHlOn()) return; const u = unitMM(); c.save(); c.font = `800 12px ${FONT}`; c.textBaseline = 'middle';
   for (const q of readHlUnits()){ const a = w2s(q.m.x0/u, q.m.y1/u), b = w2s(q.m.x1/u, q.m.y0/u), x = Math.min(a[0], b[0]) - 6, y = Math.min(a[1], b[1]) - 6, w = Math.abs(b[0] - a[0]) + 12, h = Math.abs(b[1] - a[1]) + 12; if (x > cw || y > ch || x + w < 0 || y + h < 0) continue;
     const cl = q.ok ? '#38bdf8' : '#ef4444'; c.globalAlpha = .16; c.fillStyle = cl; c.fillRect(x, y, w, h); c.globalAlpha = 1; c.strokeStyle = cl; c.lineWidth = 3; c.strokeRect(x, y, w, h);
     if (!q.ok){ const t = '品番を設定（2回タップ）', tw = c.measureText(t).width + 10; c.fillStyle = cl; c.fillRect(x, y - 20, tw, 18); c.fillStyle = '#fff'; c.fillText(t, x + 5, y - 11); } }
+  { let CE = null; try { CE = ceilColCE(); } catch(e){} if (CE){ c.strokeStyle = '#16a34a'; c.lineWidth = 6; c.lineCap = 'round'; c.globalAlpha = .85; for (const g of (CE.brg || []).filter(g => g.man)){ const a = w2s(g.a[0]/u, g.a[1]/u), b = w2s(g.b[0]/u, g.b[1]/u); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); } for (const g of (CE.br || []).filter(g => g.man)){ const a = w2s(g.e[0]/u, g.e[1]/u), b = w2s(g.p[0]/u, g.p[1]/u); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.fillStyle = '#16a34a'; c.beginPath(); c.arc(b[0], b[1], 7, 0, Math.PI*2); c.fill(); } c.globalAlpha = 1; } }   // 図面で手でつないだ所・分岐は緑
+  if (S.lkPick){ const q = w2s(S.lkPick.p[0]/u, S.lkPick.p[1]/u); c.strokeStyle = '#f59e0b'; c.lineWidth = 4; c.beginPath(); c.arc(q[0], q[1], 18, 0, Math.PI*2); c.stroke(); }
   const LB = []; for (const e of readHlEnds()){ const q = w2s(e.p[0]/u, e.p[1]/u); if (q[0] < -30 || q[0] > cw + 30 || q[1] < -30 || q[1] > ch + 30) continue; c.strokeStyle = '#ef4444'; c.lineWidth = 3; c.globalAlpha = .9; c.beginPath(); c.arc(q[0], q[1], 13, 0, Math.PI*2); c.stroke(); c.globalAlpha = .18; c.fillStyle = '#ef4444'; c.fill(); c.globalAlpha = 1;
     if (view.s*1000/u > 40 && !LB.some(z => Math.hypot(z[0] - q[0], z[1] - q[1]) < 150)){ LB.push(q); const t = e.k + 'がつながっていない', tw = c.measureText(t).width + 10; c.fillStyle = '#ef4444'; c.fillRect(q[0] + 15, q[1] - 9, tw, 18); c.fillStyle = '#fff'; c.fillText(t, q[0] + 20, q[1]); } }
   c.restore(); }
@@ -5204,8 +5228,10 @@ function ceilAna(){
     /* 手でつないだ所（3Dで「🔗 ほかの管とつなぐ」・2026-11-10 ユーザー：図面修正で直したい）：2本の管のいちばん近い端どうし */
     for (const lk of ceilLinks()){ if (lk.k !== k) continue; const at = p => { let bs = null, bd2 = 80; for (const e of S){ if (e.arc) continue; const d = dseg(p, [...e.a, ...e.b]); if (d < bd2){ bd2 = d; bs = e; } } return bs; }, sa = at(lk.p), sb = at(lk.q); if (!sa || !sb || sa === sb) continue;
       const cand = e => { const f = ends.filter(x => x.e.c === e.c && !used.has(x)).map(x => [x.p, x.n]); return f.length ? f : [[e.a, e.na], [e.b, e.nb]]; };   // 空いた端があればそれを
+      if (lk.t === 'b'){ /* ⑂ 分岐管（図面で決めた・2026-11-21 ユーザー）：sa の空いた端を sb の途中へ */ let pe = null; for (const [pa, na] of cand(sa)){ const d = dseg(pa, [...sb.a, ...sb.b]); if (!pe || d < pe.d) pe = {d, pa, na}; } const L2 = Math.hypot(sb.b[0] - sb.a[0], sb.b[1] - sb.a[1]) || 1, dd = sb.d || [(sb.b[0] - sb.a[0])/L2, (sb.b[1] - sb.a[1])/L2], t = Math.max(0, Math.min(L2, (pe.pa[0] - sb.a[0])*dd[0] + (pe.pa[1] - sb.a[1])*dd[1]));
+        for (const x of ends) if (x.n === pe.na) used.add(x); br.push({k, e:pe.pa, p:[sb.a[0] + dd[0]*t, sb.a[1] + dd[1]*t], from:sa, to:sb, n:pe.na, t, man:1}); continue; }
       let best = null; for (const [pa, na] of cand(sa)) for (const [pb, nb] of cand(sb)){ const d = Math.hypot(pa[0] - pb[0], pa[1] - pb[1]); if (!best || d < best.d) best = {d, pa, pb, na, nb}; }
-      for (const x of ends) if (x.n === best.na || x.n === best.nb) used.add(x); brg.push({k, a:best.pa, b:best.pb, ea:sa, eb:sb, na:best.na, nb:best.nb, man:1}); }
+      for (const x of ends) if (x.n === best.na || x.n === best.nb) used.add(x); brg.push({k, a:best.pa, b:best.pb, ea:sa, eb:sb, na:best.na, nb:best.nb, man:1, ...(lk.t === 'c' ? {corner:1} : {})}); }   // ↪ 曲がる（角でつなぐ）は corner
     /* ∩ の印の片側にしか真ん中の線が無い時（2026-11-12 ユーザー：「R」の文字の所で管が切れていて、そのすぐ先が ∩ の印）：つないだ所の印の側で高さを分ける（印でたて管・高さは印をこえない） */
     for (const g of brg){ if (g.k !== k || g.lm) continue; const at = (e, p) => lmk.some(q => q.e === e && Math.hypot(q.p[0] - p[0], q.p[1] - p[1]) < 12); let sw = false;
       if (at(g.ea, g.a) && !at(g.eb, g.b)) sw = true; else if (!at(g.eb, g.b)) continue;

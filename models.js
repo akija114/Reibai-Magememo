@@ -131,8 +131,8 @@ CAS2M.hi_rci112=HI4("RCI-GP112/140/160KA",298,"15.88","9.52","26（+6.5）");
    W×H×D＝本体（高さは床から本体の上面・上の吹出口のふち17は入れない）、pl＝上に載せるプレナムチャンバーの高さ（0＝無し・上にダクト）。
    配管は左の横の φ62 の取出口（正面を見て左の面・前から pz）、床から ガス gy・液 ly、ドレン R1 は前から dz・床から dy */
 const FLRM={
- hi_rknp2:{n:"日立 RK-NP2LTV",sub:"床置の除湿機（プレナムなし・上の吹出口にダクト）",W:650,H:1650,D:500,pl:0,g:"12.7",l:"9.52",gy:131.5,ly:257.5,pz:80,dy:485,dz:54.4,src:"日立の技術資料の室内ユニット標準寸法図"},
- hi_rknp2p:{n:"日立 RK-NP2LTV＋K-2PCV",sub:"床置の除湿機（プレナムチャンバー付き・正面へ吹き出し）",W:650,H:1650,D:500,pl:250,g:"12.7",l:"9.52",gy:131.5,ly:257.5,pz:80,dy:485,dz:54.4,src:"日立の技術資料のプレナムチャンバー付寸法図"}};
+ hi_rknp2:{mk:"hitachi",n:"日立 RK-NP2LTV",sub:"床置の除湿機（プレナムなし・上の吹出口にダクト）",W:650,H:1650,D:500,pl:0,g:"12.7",l:"9.52",gy:131.5,ly:257.5,pz:80,dy:485,dz:54.4,src:"日立の技術資料の室内ユニット標準寸法図"},
+ hi_rknp2p:{mk:"hitachi",n:"日立 RK-NP2LTV＋K-2PCV",sub:"床置の除湿機（プレナムチャンバー付き・正面へ吹き出し）",W:650,H:1650,D:500,pl:250,g:"12.7",l:"9.52",gy:131.5,ly:257.5,pz:80,dy:485,dz:54.4,src:"日立の技術資料のプレナムチャンバー付寸法図"}};
 const FLR_MORDER=["hi_rknp2","hi_rknp2p"];
 const CAS2_MAKERS=[["mitsu","三菱電機"],["daikin","ダイキン"],["hitachi","日立"]];
 const CAS2_ORDER=["40","56","80","mi_zrp80","mi_zrp40","mi_zrp71","mi_zrp80h4","mi_rp28","mi_erp56","mi_erp80","mi_erp112","mbz2822","mbz5022","ge_mp1080","ge_mp1680","ge_mp2100","pe_rp50","pe_rp80","pe_rp280","pd_rp40","dk_fhgp50","dk_fhgp80","dk_fhgp160","dk_fhcp80","dk_fhkp80","hi_rcid40","hi_rcid71","hi_rcid112","hi_rci28","hi_rci71","hi_rci112"];

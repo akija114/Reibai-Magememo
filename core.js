@@ -89,7 +89,7 @@ const MAKERS=[["daikin","ダイキン",-1,1],["mitsu","三菱電機",1,1],["pana
 const BR_ICO="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImciIGN4PSIuMzUiIGN5PSIuMyIgcj0iLjkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzYzYjhmZiIvPjxzdG9wIG9mZnNldD0iLjYiIHN0b3AtY29sb3I9IiMyMDc4ZjAiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjU3ZDAiLz48L3JhZGlhbEdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0iciIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZmFmYyIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzhiOWJiMCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJjdSIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2ZmZTFiNSIvPjxzdG9wIG9mZnNldD0iLjQ1IiBzdG9wLWNvbG9yPSIjZTg5MDNmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjOWE0YTEyIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ5IiBmaWxsPSJ1cmwoI3IpIi8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDIiIGZpbGw9InVybCgjZykiLz48ZWxsaXBzZSBjeD0iMzYiIGN5PSIyNSIgcng9IjIyIiByeT0iOSIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0icm90YXRlKC0yNSAzNiAyNSkiLz48ZyBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiPgoKPHBhdGggZD0iTTUwIDUwIEM2MCA1MCA2NCAzMiA3NiAzMCBMODQgMjkiIHN0cm9rZT0iIzVhMjgwOCIgc3Ryb2tlLXdpZHRoPSIxMCIvPjxwYXRoIGQ9Ik01MCA1MCBDNjAgNTAgNjQgNjggNzYgNzAgTDg0IDcxIiBzdHJva2U9IiM1YTI4MDgiIHN0cm9rZS13aWR0aD0iMTAiLz4KPHBhdGggZD0iTTUwIDUwIEM2MCA1MCA2NCAzMiA3NiAzMCBMODQgMjkiIHN0cm9rZT0idXJsKCNjdSkiIHN0cm9rZS13aWR0aD0iNyIvPjxwYXRoIGQ9Ik01MCA1MCBDNjAgNTAgNjQgNjggNzYgNzAgTDg0IDcxIiBzdHJva2U9InVybCgjY3UpIiBzdHJva2Utd2lkdGg9IjciLz4KCjxwYXRoIGQ9Ik01MCA0Ny41IEM1OSA0Ny41IDYzIDMwIDc2IDI3LjUgTDg0IDI2LjUiIHN0cm9rZT0iI2ZmZjRlMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIG9wYWNpdHk9Ii43NSIvPgo8cGF0aCBkPSJNNTIgNDggQzYwIDQ5IDY0IDY2IDc2IDY3LjUgTDg0IDY4LjUiIHN0cm9rZT0iI2ZmZjRlMCIgc3Ryb2tlLXdpZHRoPSIxLjYiIG9wYWNpdHk9Ii42Ii8+CjwvZz4KPHJlY3QgeD0iOSIgeT0iNDMuNSIgd2lkdGg9IjM2IiBoZWlnaHQ9IjEzIiByeD0iNi41IiBmaWxsPSIjNWEyODA4Ii8+PHJlY3QgeD0iMTAuNSIgeT0iNDUiIHdpZHRoPSIzMyIgaGVpZ2h0PSIxMCIgcng9IjUiIGZpbGw9InVybCgjY3UpIi8+PHJlY3QgeD0iMTIiIHk9IjQ2IiB3aWR0aD0iMzAiIGhlaWdodD0iMiIgcng9IjEiIGZpbGw9IiNmZmY0ZTAiIG9wYWNpdHk9Ii44Ii8+CjxyZWN0IHg9IjM2IiB5PSI0MSIgd2lkdGg9IjIwIiBoZWlnaHQ9IjE4IiByeD0iNiIgZmlsbD0iIzVhMjgwOCIvPjxyZWN0IHg9IjM3LjUiIHk9IjQyLjUiIHdpZHRoPSIxNyIgaGVpZ2h0PSIxNSIgcng9IjUiIGZpbGw9InVybCgjY3UpIi8+PHJlY3QgeD0iMzkiIHk9IjQ0IiB3aWR0aD0iMTQiIGhlaWdodD0iMyIgcng9IjEuNSIgZmlsbD0iI2ZmZjRlMCIgb3BhY2l0eT0iLjc1Ii8+Cjwvc3ZnPg==";
 const BRI=(h)=>`<img alt="" src="${BR_ICO}" style="width:${h||"1.35em"};height:${h||"1.35em"};vertical-align:-0.35em;margin-right:4px">`;
 const LEGIDS="abcdefghijklmnopqrstuvwx".split("");
-const wcmKey=k=>(typeof WALLM!=="undefined"&&WALLM[k])||(typeof CEILM!=="undefined"&&CEILM[k])?k:"";   // 壁掛け・天吊の機種（無い時は ""＝目安の大きさ）
+const wcmKey=k=>(typeof WALLM!=="undefined"&&WALLM[k])||(typeof CEILM!=="undefined"&&CEILM[k])||(typeof FLRM!=="undefined"&&FLRM[k])?k:"";   // 壁掛け・天吊・床置の機種（無い時は ""＝目安の大きさ）
 function normUnits(u){u=u||{};const o={he:Array.isArray(u.he)&&u.he.length===2&&u.he.every(isFinite)?u.he.map(Number):null,on:u.on!==false,s:UNIT_KEYS.includes(u.s)?u.s:"",e:UNIT_KEYS.includes(u.e)?u.e:"",ws:WALLX[u.ws]?u.ws:"rb",we:WALLX[u.we]?u.we:"rb",mk:MAKERS.some(m=>m[0]===u.mk)?u.mk:"daikin",flip:!!u.flip,os:OUTM[u.os]?u.os:"room",oe:OUTM[u.oe]?u.oe:"room",xs:OUT_X[u.xs]?u.xs:"s",xe:OUT_X[u.xe]?u.xe:"s",cs:u.cs==="r"?"r":"f",ce:u.ce==="r"?"r":"f",ms:CAS2M[u.ms]?u.ms:"56",me:CAS2M[u.me]?u.me:"56",ks:wcmKey(u.ks),ke:wcmKey(u.ke)};
  LEGIDS.forEach(id=>{const k="L"+id;if(u[k]===undefined)return;
   o[k]=UNIT_KEYS.includes(u[k])?u[k]:"";o["wL"+id]=WALLX[u["wL"+id]]?u["wL"+id]:"rb";o["oL"+id]=OUTM[u["oL"+id]]?u["oL"+id]:"room";o["xL"+id]=OUT_X[u["xL"+id]]?u["xL"+id]:"s";o["cL"+id]=u["cL"+id]==="r"?"r":"f";o["mL"+id]=CAS2M[u["mL"+id]]?u["mL"+id]:"56"});
@@ -702,19 +702,28 @@ function makeUnit(type,opt){
   tg=g;
  }else if(type==="flr"){
   /* 床置き（目安 600×1850×350）：箱の下面が床（y0）、正面=+z。配管は裏面右下 または 右側面の下から */
-  const W=600,H=1850,D=350,ck=opt.ck==="r"?"r":"f",Pn=ck==="r"?[W/2,150,-D/2+100]:[W/2-100,150,-D/2];
-  const RB=ck==="r"?OUT_R.s:OUT_R.b;
+  const FM=typeof FLRM!=="undefined"&&FLRM[opt.wm];   // 機種を選んだ時（日立の除湿機など）は寸法図の大きさ・配管は左の横の取出口
+  const W=FM?FM.W:600,H=FM?FM.H:1850,D=FM?FM.D:350,ck=FM?"l":opt.ck==="r"?"r":"f",Pn=FM?[-W/2,opt.kind==="液"?FM.ly:FM.gy,D/2-FM.pz]:ck==="r"?[W/2,150,-D/2+100]:[W/2-100,150,-D/2];
+  const RB=FM?[[-1,0,0],[0,1,0],[0,0,-1]]:ck==="r"?OUT_R.s:OUT_R.b;
   const R=v=>[0,1,2].map(j=>v[0]*RB[0][j]+v[1]*RB[1][j]+v[2]*RB[2][j]);
   const body=new THREE.Group();g.add(body);tg=body;
   body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(...RB[0]),new THREE.Vector3(...RB[1]),new THREE.Vector3(...RB[2])));
   {const q=R(Pn);body.position.set(-q[0],-q[1],-q[2])}
-  name="床置き（配管："+(ck==="r"?"右側面・下":"裏面・右下")+"）";
-  {const q=R([-Pn[0],H+200-Pn[1],-Pn[2]]);cx=q[0];top=q[1];opt.cz=q[2]}
+  name=FM?FM.n+"（"+FM.sub+"）":"床置き（配管："+(ck==="r"?"右側面・下":"裏面・右下")+"）";
+  {const q=R([-Pn[0],H+(FM?FM.pl:0)+200-Pn[1],-Pn[2]]);cx=q[0];top=q[1];opt.cz=q[2]}
+  if(FM){rb(W,H,D,10,0,H/2,0,WH);
+   bx(W-40,573,6,0,708+573/2,D/2+2,0xe8edf2);for(let i=0;i<20;i++)bx(W-60,5,8,0,730+i*27,D/2+4,MD);                     // 前の吸込みの格子（床から 708〜1281）
+   bx(110,90,6,W/2-150,H-150,D/2+3,0x38bdf8);bx(W-10,89,D-10,0,44,0,0x475569);                                            // 運転操作部・下の台
+   [[FM.gy,"ガス"],[FM.ly,"液"]].forEach(([y])=>{const c=cyl(31,6,-W/2-2,y,D/2-FM.pz,DK,20);c.rotation.z=Math.PI/2});   // 左の横の取出口 φ62
+   {const c=cyl(17,40,-W/2-20,FM.dy,D/2-FM.dz,MD,16);c.rotation.z=Math.PI/2}                               // ドレン R1
+   if(FM.pl){rb(W,FM.pl,D,10,0,H+FM.pl/2,0,WH);bx(W-60,FM.pl-60,6,0,H+FM.pl/2,D/2+2,DK);for(let i=0;i<6;i++)bx(W-80,6,10,0,H+40+i*30,D/2+5,MD)}   // プレナムチャンバー：正面の吹出口
+   else{bx(342,17,318,0,H+8,-D/2+221/2+60,DK)}                                                                              // 上の吹出口（ダクトをつなぐ）
+  }else{
   rb(W,H,D,24,0,H/2,0,WH);
   bx(W*.84,H*.14,8,0,H-170,D/2+2,DK);for(let i=0;i<6;i++)bx(W*.8,6,10,0,H-250+i*30,D/2+5,MD);                 // 上の吹出口
   bx(W*.84,H*.32,6,0,H*.25,D/2+2,0xe8edf2);for(let i=0;i<12;i++)bx(W*.8,4,8,0,H*.12+i*H*.022,D/2+4,MD);         // 下の吸込みグリル
   bx(110,40,6,0,H*.62,D/2+3,0x38bdf8);bx(W-20,40,D-20,0,20,0,0x475569);                                           // 表示部・台
-  if(ck==="r")bx(8,180,140,Pn[0]+3,Pn[1],Pn[2],MD);else bx(140,180,8,Pn[0],Pn[1],Pn[2]-3,MD);                        // 配管カバー
+  if(ck==="r")bx(8,180,140,Pn[0]+3,Pn[1],Pn[2],MD);else bx(140,180,8,Pn[0],Pn[1],Pn[2]-3,MD);}                       // 配管カバー
   tg=g;
  }else if(type==="ceil"){
   /* 天吊：箱は中心が原点。正面=+z、吹出口は正面の下向き。配管は正面から見て右端の後ろ・下から出る */
@@ -1498,14 +1507,16 @@ const cas2Grp=m=>!m?"cas2":m.bi?"bi":m.kind==="4方向"?"cas":m.kind==="1方向"
 function unitGrp(k){const u=st.units[k];return u==="cas2"?cas2Grp(CAS2M[st.units["m"+k]]):u}
 /* 壁掛け・天吊の機種（外形図の大きさ）：st.units.ks／ke（"" は今までの目安の大きさ） */
 function wcmPick(box,k,ty,lab){
- const L=ty==="wall"?WALL_MORDER.map(x=>[x,WALLM[x]]):CEIL_MORDER.map(x=>[x,CEILM[x]]),kk="k"+k,cur=(ty==="wall"?WALLM:CEILM)[st.units[kk]]?st.units[kk]:"";
- const t=document.createElement("div");t.className="ctitle";t.textContent=(ty==="wall"?"🧱 壁掛けの機種":"🔧 天吊の機種")+"（"+lab+"）";box.appendChild(t);
+ if(ty==="flr"&&typeof FLRM==="undefined")return;const MM=ty==="wall"?WALLM:ty==="flr"?FLRM:CEILM;
+ const L=(ty==="wall"?WALL_MORDER:ty==="flr"?FLR_MORDER:CEIL_MORDER).map(x=>[x,MM[x]]),kk="k"+k,cur=MM[st.units[kk]]?st.units[kk]:"";
+ const t=document.createElement("div");t.className="ctitle";t.textContent=(ty==="wall"?"🧱 壁掛けの機種":ty==="flr"?"🧊 床置の機種":"🔧 天吊の機種")+"（"+lab+"）";box.appendChild(t);
  const g=document.createElement("div");g.className="ugrid mdl";
  [["",null]].concat(L).forEach(([key,m])=>{const b=document.createElement("button");b.className="ubtn"+(cur===key?" on":"");
-  b.innerHTML=m?m.n.split(" / ").map(x=>"<b"+(x.length>14?' style="font-size:12.5px"':"")+">"+x+"</b>").join("")+"<small>"+m.W+"×"+m.H+"×"+m.D+"<br>ガスφ"+m.g+"・液φ"+m.l+"</small>":"<b>目安の大きさ</b><small>"+(ty==="wall"?"800×290×215":"1240×210×690")+"</small>";
+  b.innerHTML=m?m.n.split(" / ").map(x=>"<b"+(x.length>14?' style="font-size:12.5px"':"")+">"+x+"</b>").join("")+"<small>"+m.W+"×"+(m.H+(m.pl||0))+"×"+m.D+"<br>ガスφ"+m.g+"・液φ"+m.l+"</small>":"<b>目安の大きさ</b><small>"+(ty==="wall"?"800×290×215":ty==="flr"?"600×1850×350":"1240×210×690")+"</small>";
   b.onclick=()=>{st.units[kk]=key;save();renderUnitSheet();unitRefresh()};g.appendChild(b)});
  box.appendChild(g);
- const m=cur&&(ty==="wall"?WALLM:CEILM)[cur];if(m){const n=document.createElement("div");n.className="note";n.textContent="三菱電機 "+m.n+(m.kind?"（"+m.kind+"）":"")+"　"+m.spec+"。"+m.src+"の寸法で作っています。";box.appendChild(n)}
+ const m=cur&&MM[cur];if(m&&ty==="flr"){const n=document.createElement("div");n.className="note";n.textContent=m.n+"（"+m.sub+"）　幅"+m.W+"×奥行"+m.D+"×高さ"+(m.H+m.pl)+"。配管は正面を見て左の横の取出口（前から"+m.pz+"・床から ガス"+m.gy+"・液"+m.ly+"）。"+m.src+"の寸法で作っています。";box.appendChild(n)}
+ else if(m){const n=document.createElement("div");n.className="note";n.textContent="三菱電機 "+m.n+(m.kind?"（"+m.kind+"）":"")+"　"+m.spec+"。"+m.src+"の寸法で作っています。";box.appendChild(n)}
 }
 function renderUnitSheet(){
  const nop=!!st.nopipe;$("#uTtl").textContent=nop?"❄️ 室内機を選ぶ":"🏠 機器の模型";$("#uDone").style.display=nop?"":"none";$("#uOn").style.display=nop?"none":"";
@@ -1531,7 +1542,7 @@ const SLOTS=[["s","起点"],...(st.nopipe?[]:brOn()?leaves().map(g=>["L"+g,slotN
    [["f","裏面（右下）"],["r","右側面（下）"]].forEach(([key,nm])=>{const b=document.createElement("button");b.className="ubtn"+(st.units[ck]===key?" on":"");b.textContent=nm;
     b.onclick=()=>{st.units[ck]=key;save();renderUnitSheet();unitRefresh()};g3.appendChild(b)});
    box.appendChild(g3);
-   const n=document.createElement("div");n.className="note";n.textContent="床置き形（目安：幅600×高さ1850×奥行350）。床に置いた形で表示し、地面は機器の下面になります。機種の図面があれば寸法どおりに作れます。";box.appendChild(n);return;
+   const n=document.createElement("div");n.className="note";n.textContent="床置き形（目安：幅600×高さ1850×奥行350）。床に置いた形で表示し、地面は機器の下面になります。機種の図面があれば寸法どおりに作れます。";box.appendChild(n);wcmPick(box,k,"flr",lab);return;
   }
   if(st.units[k]==="ceil"){
    const ck="c"+k,t3=document.createElement("div");t3.className="ctitle";t3.textContent="🔧 天吊：配管をつなぐ位置（"+lab+"）";box.appendChild(t3);

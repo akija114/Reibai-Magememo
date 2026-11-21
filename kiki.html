@@ -51,13 +51,13 @@ a.doc{color:var(--acc);font-weight:700}
 const $=s=>document.querySelector(s),f=n=>Math.round(n).toLocaleString("ja-JP");
 const sel=$("#m"),mkS=$("#mk");
 /* はじめはメーカーだけ → 選ぶとそのメーカーの品番が種類ごとに出る（2026-11-11 ユーザー：三菱だけですごい数になる） */
-mkS.innerHTML='<option value="">メーカーを選ぶ</option>'+CAS2_MAKERS.map(([mk,mn])=>`<option value="${mk}">${mn}</option>`).join("")+'<option value="vent">換気（ロスナイ・三菱電機）</option>'+(typeof OUTM!=="undefined"?'<option value="out">🌀 室外機</option>':"");
-const AL=k=>CAS2M[k]&&CAS2M[k].al||k,mkOf=k=>/^o:/.test(k||"")?"out":VENTM[k]?"vent":CAS2M[k]?CAS2M[k].mk:"";
+mkS.innerHTML='<option value="">メーカーを選ぶ</option>'+CAS2_MAKERS.map(([mk,mn])=>`<option value="${mk}">${mn}</option>`).join("")+'<option value="vent">換気（ロスナイ・三菱電機）</option>';
+const AL=k=>CAS2M[k]&&CAS2M[k].al||k,OMK={dk160:"daikin",pz40:"mitsu",pz80:"mitsu",pz140:"mitsu",pz280:"mitsu",hi_gp:"hitachi",rcr_np2:"hitachi"},mkOf=k=>/^o:/.test(k||"")?(OMK[k.slice(2)]||mkS.value||"mitsu"):VENTM[k]?"vent":CAS2M[k]?CAS2M[k].mk:"";
 function fillM(mk){sel.innerHTML='<option value="">品番を選ぶ</option>';sel.hidden=!mk;if(!mk)return;
- if(mk==="out"){OUT_ORDER.forEach(x=>{const o=document.createElement("option");o.value="o:"+x;o.textContent=OUTM[x].n+"（"+OUTM[x].sub+"）";sel.appendChild(o)});return}   // 🌀 室外機（2026-11-21 ユーザー：機器の中に室外機が無い）
  if(mk==="vent"){VENT_ORDER.forEach(x=>{const o=document.createElement("option");o.value=x;o.textContent=VENTM[x].n+"（ロスナイ）";sel.appendChild(o)});return}
  const ks=CAS2_ORDER.filter(k=>CAS2M[k]&&CAS2M[k].mk===mk&&!CAS2M[k].al),kinds=[...new Set(ks.map(k=>CAS2M[k].kind))];
- kinds.forEach(kd=>{const g=document.createElement("optgroup");g.label=kd;ks.filter(k=>CAS2M[k].kind===kd).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=CAS2M[k].n;g.appendChild(o)});sel.appendChild(g)})}
+ kinds.forEach(kd=>{const g=document.createElement("optgroup");g.label=kd;ks.filter(k=>CAS2M[k].kind===kd).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=CAS2M[k].n;g.appendChild(o)});sel.appendChild(g)});
+ if(typeof OUTM!=="undefined")[[OUT_ORDER.filter(x=>OMK[x]===mk),"🌀 室外機"],[OUT_ORDER.filter(x=>!OMK[x]),"🌀 室外機（メーカー共通の目安）"]].forEach(([L,lb])=>{if(!L.length)return;const g=document.createElement("optgroup");g.label=lb;L.forEach(x=>{const o=document.createElement("option");o.value="o:"+x;o.textContent=OUTM[x].n+"（"+OUTM[x].sub+"）";g.appendChild(o)});sel.appendChild(g)})}   // 室外機はメーカーごとの中に（2026-11-21 ユーザー：室外機の欄は無しで、メーカーの中に）
 const OK=k=>!!(CAS2M[k]||VENTM[k]||(/^o:/.test(k||"")&&typeof OUTM!=="undefined"&&OUTM[k.slice(2)]));
 function setCur(k){k=AL(k);cur=k;mkS.value=mkOf(k);fillM(mkS.value);sel.value=k;try{localStorage.setItem("pbm_kiki",k)}catch(e){}draw()}
 let cur=new URLSearchParams(location.search).get("m");

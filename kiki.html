@@ -43,7 +43,7 @@ a.doc{color:var(--acc);font-weight:700}
 <select id="mk" aria-label="メーカー" style="margin-bottom:8px"></select>
 <select id="m" aria-label="機種" hidden></select>
 <div id="out"></div>
-<script src="models.js?v=320"></script>
+<script src="models.js?v=321"></script>
 <script src="kiso.js?v=23"></script>
 <script>
 /* 🔩 機器：仕込み用の寸法を見るページ（模型は three.js をこのページだけで読む・core.js は読まない）
@@ -52,12 +52,12 @@ const $=s=>document.querySelector(s),f=n=>Math.round(n).toLocaleString("ja-JP");
 const sel=$("#m"),mkS=$("#mk");
 /* はじめはメーカーだけ → 選ぶとそのメーカーの品番が種類ごとに出る（2026-11-11 ユーザー：三菱だけですごい数になる） */
 mkS.innerHTML='<option value="">メーカーを選ぶ</option>'+CAS2_MAKERS.map(([mk,mn])=>`<option value="${mk}">${mn}</option>`).join("")+'<option value="vent">換気（ロスナイ・三菱電機）</option>';
-const AL=k=>CAS2M[k]&&CAS2M[k].al||k,OMK={dk160:"daikin",pz40:"mitsu",pz80:"mitsu",pz140:"mitsu",pz280:"mitsu",hi_gp:"hitachi",rcr_np2:"hitachi",rcr_np4:"hitachi",rcr_np8:"hitachi",rcr_np2t:"hitachi",rcr_np5t:"hitachi",rcr_np8t:"hitachi"},mkOf=k=>/^f:/.test(k||"")&&typeof FLRM!=="undefined"&&FLRM[k.slice(2)]?FLRM[k.slice(2)].mk:/^o:/.test(k||"")?(OMK[k.slice(2)]||mkS.value||"mitsu"):VENTM[k]?"vent":CAS2M[k]?CAS2M[k].mk:"";
+const AL=k=>CAS2M[k]&&CAS2M[k].al||k,OMK={dk160:"daikin",pz40:"mitsu",pz80:"mitsu",pz140:"mitsu",pz280:"mitsu",hi_gp:"hitachi",rcr_np2:"hitachi",rcr_np4:"hitachi",rcr_np8:"hitachi",rcr_np2t:"hitachi",rcr_np5t:"hitachi",rcr_np8t:"hitachi",ras_gp3:"hitachi",ras_gp5:"hitachi"},mkOf=k=>/^f:/.test(k||"")&&typeof FLRM!=="undefined"&&FLRM[k.slice(2)]?FLRM[k.slice(2)].mk:/^o:/.test(k||"")?(OMK[k.slice(2)]||mkS.value||"mitsu"):VENTM[k]?"vent":CAS2M[k]?CAS2M[k].mk:"";
 function fillM(mk){sel.innerHTML='<option value="">品番を選ぶ</option>';sel.hidden=!mk;if(!mk)return;
  if(mk==="vent"){VENT_ORDER.forEach(x=>{const o=document.createElement("option");o.value=x;o.textContent=VENTM[x].n+"（ロスナイ）";sel.appendChild(o)});return}
  const ks=CAS2_ORDER.filter(k=>CAS2M[k]&&CAS2M[k].mk===mk&&!CAS2M[k].al),kinds=[...new Set(ks.map(k=>CAS2M[k].kind))];
  kinds.forEach(kd=>{const g=document.createElement("optgroup");g.label=kd;ks.filter(k=>CAS2M[k].kind===kd).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=CAS2M[k].n;g.appendChild(o)});sel.appendChild(g)});
- if(typeof FLRM!=="undefined"){const L=FLR_MORDER.filter(x=>FLRM[x].mk===mk);if(L.length){const g=document.createElement("optgroup");g.label="🧊 床置（除湿機など）";L.forEach(x=>{const o=document.createElement("option");o.value="f:"+x;o.textContent=FLRM[x].n+"（"+FLRM[x].sub+"）";g.appendChild(o)});sel.appendChild(g)}}   // 床置（2026-11-22 ユーザー：日立の床置の除湿機が機器に無い）
+ if(typeof FLRM!=="undefined"){const L=FLR_MORDER.filter(x=>FLRM[x].mk===mk);if(L.length){const g=document.createElement("optgroup");g.label="🧊 床置・小型天吊（除湿機など）";L.forEach(x=>{const o=document.createElement("option");o.value="f:"+x;o.textContent=FLRM[x].n+"（"+FLRM[x].sub+"）";g.appendChild(o)});sel.appendChild(g)}}   // 床置（2026-11-22 ユーザー：日立の床置の除湿機が機器に無い）
  if(typeof OUTM!=="undefined")[[OUT_ORDER.filter(x=>OMK[x]===mk),"🌀 室外機"],[OUT_ORDER.filter(x=>!OMK[x]),"🌀 室外機（メーカー共通の目安）"]].forEach(([L,lb])=>{if(!L.length)return;const g=document.createElement("optgroup");g.label=lb;L.forEach(x=>{const o=document.createElement("option");o.value="o:"+x;o.textContent=OUTM[x].n+"（"+OUTM[x].sub+"）";g.appendChild(o)});sel.appendChild(g)})}   // 室外機はメーカーごとの中に（2026-11-21 ユーザー：室外機の欄は無しで、メーカーの中に）
 const OK=k=>!!(CAS2M[k]||VENTM[k]||(/^f:/.test(k||"")&&typeof FLRM!=="undefined"&&FLRM[k.slice(2)])||(/^o:/.test(k||"")&&typeof OUTM!=="undefined"&&OUTM[k.slice(2)]));
 function setCur(k){k=AL(k);if(cur!==k)FSD=null;cur=k;mkS.value=mkOf(k);fillM(mkS.value);sel.value=k;try{localStorage.setItem("pbm_kiki",k)}catch(e){}draw()}
@@ -68,7 +68,7 @@ if(OK(cur)){cur=AL(cur);mkS.value=mkOf(cur);fillM(mkS.value);sel.value=cur}else{
 mkS.onchange=()=>{fillM(mkS.value);cur="";$("#out").innerHTML=""};
 sel.onchange=()=>{if(sel.value)setCur(sel.value)};
 const QN=s=>String(s||"").normalize("NFKC").toUpperCase().replace(/[\s\-－‐ー_/・.]/g,"");
-const ALLM=()=>Object.keys(CAS2M).map(k=>[k,CAS2M[k].n,CAS2M[k].kind]).concat(VENT_ORDER.map(k=>[k,VENTM[k].n,"ロスナイ"])).concat(typeof FLRM==="undefined"?[]:FLR_MORDER.map(k=>["f:"+k,FLRM[k].n,"床置"])).concat(typeof OUTM==="undefined"?[]:OUT_ORDER.flatMap(k=>[["o:"+k,OUTM[k].n,"室外機"]].concat((OUTM[k].nv||[]).map(v=>["o:"+k,v,"室外機"]))));
+const ALLM=()=>Object.keys(CAS2M).map(k=>[k,CAS2M[k].n,CAS2M[k].kind]).concat(VENT_ORDER.map(k=>[k,VENTM[k].n,"ロスナイ"])).concat(typeof FLRM==="undefined"?[]:FLR_MORDER.map(k=>["f:"+k,FLRM[k].n,FLRM[k].hg?"天吊":"床置"])).concat(typeof OUTM==="undefined"?[]:OUT_ORDER.flatMap(k=>[["o:"+k,OUTM[k].n,"室外機"]].concat((OUTM[k].nv||[]).map(v=>["o:"+k,v,"室外機"]))));
 function qFind(t){const r=qFind0(t),u=new Set();return r.map(([k,n,kd])=>{const a=AL(k);return /^f:/.test(k)?[k,FLRM[k.slice(2)].n,kd]:/^o:/.test(k)?[k,OUTM[k.slice(2)].n,kd]:a===k?[k,n,kd]:[a,CAS2M[a].n,CAS2M[a].kind]}).filter(([k])=>!u.has(k)&&u.add(k))}   // 45・50 などまとめた品番は1つに
 function qFind0(t){const q=QN(t);if(!q)return[];const L=ALLM(),ex=L.filter(([,n])=>QN(n)===q);if(ex.length)return ex;
  return L.filter(([,n])=>{const m=QN(n);return m.includes(q)||q.includes(m)||(q.length>=6&&m.startsWith(q.slice(0,Math.max(6,q.length-3))))})}
@@ -108,7 +108,7 @@ function drawVent(){const V=VENTM[cur],W=360,span=Math.max(V.A+2*V.J+260,V.E+200
   row("点検口",`□450 または □600（メンテナンス側の下）<br>本体から 150〜250、天井から600以上のスペース`);
  $("#out").innerHTML=`<div class="card"><div class="nm">${V.n}</div><div class="sub">三菱電機　ロスナイ（天井埋込形）</div></div>${m3Card("本体の下面",1)}<div class="card"><h2>📏 寸法</h2><table class="tb">${tb}</table></div><div class="card"><h2>上から見た図</h2>${sv}<div class="note">紫＝天吊金具（全ねじ）。数値はメーカーの外形寸法表より。</div></div>`;draw3(null,V)}
 /* 🌀 室外機（2026-11-21 ユーザー：どこから配管を出すか・電線は何がいるか）：大きさ・配管の出せる向きと口の位置（outAllow・outPort）・電線は 📘 の説明（KO）。模型は models.js の outModel3D */
-const KO={room:"wall_mounted",vrv:"bldg_multi",vrv2:"bldg_multi",ghp:"ghp",rcr_np2:"hi_jsk",rcr_np4:"hi_jsk",rcr_np8:"hi_jsk",rcr_np2t:"hi_jsk",rcr_np5t:"hi_jsk",rcr_np8t:"hi_jsk"};
+const KO={room:"wall_mounted",vrv:"bldg_multi",vrv2:"bldg_multi",ghp:"ghp",rcr_np2:"hi_jsk",rcr_np4:"hi_jsk",rcr_np8:"hi_jsk",rcr_np2t:"hi_jsk",rcr_np5t:"hi_jsk",rcr_np8t:"hi_jsk",ras_gp3:"hi_jsk",ras_gp5:"hi_jsk"};
 function drawOut(){const k=cur.slice(2),m=OUTM[k],W=m.w,D=m.d,E=x=>String(x==null?"":x).replace(/[<>&"]/g,""),row=(l,h)=>`<tr><td>${l}</td><td>${h}</td></tr>`;
  let tb="";outAllow(k).forEach(x=>{const p=outPort(k,x),lr=p[0]>=0?"右の端から "+f(W/2-p[0]):"左の端から "+f(W/2+p[0]),fz=D/2-p[2];
   tb+=row(`<b>${E(OUT_X[x])}</b>`,`高さ（下から）<b>${f(p[1])}</b><br>${lr}${Math.abs(p[0])>=W/2-1?"（側面）":""}<br>${fz<=1?"正面の面":fz>=D-1?"背面の面":"前から "+f(fz)}`)});
@@ -121,14 +121,14 @@ function drawOut(){const k=cur.slice(2),m=OUTM[k],W=m.w,D=m.d,E=x=>String(x==nul
  if($("#oKs"))$("#oKs").onclick=()=>kisoOpen(id);draw3(null,null,k)}
 /* 🧊 床置（2026-11-22 ユーザー：日立の床置の除湿機）：models.js の FLRM（承認図）。配管・ドレンの口は両側面にあり左右どちらからでも出せる（`FSD`＝"r" 正面を見て右（標準寸法図）／"l" 左・⇆ で入れかえ）。高さは本体の下から、pb・db・eb は後ろの面から。2つ目のドレン（エマージェンシードレン ey・eb）。模型は core.js の makeUnit の flr を簡単にした形 */
 var FSD=null;
-function drawFlr(){const k=cur.slice(2),m=FLRM[k],E=x=>String(x==null?"":x).replace(/[<>&"]/g,""),row=(l,h)=>`<tr><td>${l}</td><td>${h}</td></tr>`,kd=typeof airConditionerMaster!=="undefined"&&airConditionerMaster.find(d=>d.id==="hi_jsk"),sd=FSD||m.sd||"r",sn=sd==="l"?"左":"右";
- const tb=row("本体",`幅 <b>${f(m.W)}</b> × 奥行 <b>${f(m.D)}</b> × 高さ <b>${f(m.H)}</b>`)+(m.pl?row("プレナムチャンバー",`${E(m.pn)}・本体の上に 高さ <b>${f(m.pl)}</b>（全体の高さ ${f(m.H+m.pl)}）・正面へ吹き出し`):row("吹出口","本体の上"+(m.sm?"":"（ダクトをつなぐ）")))
-  +(m.g?row(`<span class="dot" style="background:var(--gas)"></span>ガス管`,`φ${E(m.g)}・床から <b>${f(m.gy)}</b>・後ろから <b>${f(m.pb)}</b>`)+row(`<span class="dot" style="background:var(--liq)"></span>液管`,`φ${E(m.l)}・床から <b>${f(m.ly)}</b>・後ろから <b>${f(m.pb)}</b>`):row("冷媒配管","なし（一体型）"))
-  +row(`<span class="dot" style="background:var(--dr)"></span>ドレン ①`,`${E(m.dk)}・床から <b>${f(m.dy)}</b>・後ろから <b>${f(m.db)}</b>`)+(m.ey?row(`<span class="dot" style="background:var(--dr)"></span>ドレン ②`,`エマージェンシードレン ${E(m.ek)}・床から <b>${f(m.ey)}</b>・後ろから <b>${f(m.eb)}</b>`):"");
- $("#out").innerHTML=`<div class="card"><div class="nm">${E(m.n)}</div><div class="sub">床置　${E(m.sub)}</div></div>${m3Card("床",3)}
-<div class="card"><h2>📏 大きさと配管の口</h2><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><b style="flex:1">口の向き：正面を見て${sn}の横${sd===(m.sd||"r")?"（標準）":""}</b><button id="fSd" style="height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line,#cbd5e1);background:var(--panel2,#f8fafc);color:inherit;font:inherit;font-weight:800">⇆ ${sd==="l"?"右":"左"}にする</button></div><table class="tb">${tb}</table><div class="note">${m.g?"配管・":""}ドレンの口は左右の横の両方にあり、どちらからでも出せます（標準寸法図は右の横）。高さは本体の下（木台なし）から。${m.ey?"ドレンは2か所（①ドレン・②エマージェンシードレン）なので、両方を排水へつないでください。":""}値は ${E(m.src)} より。</div></div>
+function drawFlr(){const k=cur.slice(2),m=FLRM[k],E=x=>String(x==null?"":x).replace(/[<>&"]/g,""),row=(l,h)=>`<tr><td>${l}</td><td>${h}</td></tr>`,kd=typeof airConditionerMaster!=="undefined"&&airConditionerMaster.find(d=>d.id==="hi_jsk"),sd=FSD||m.sd||"r",sn=sd==="l"?"左":"右",fl=m.hg?"本体の下から":"床から";
+ const tb=row("本体",`幅 <b>${f(m.W)}</b> × 奥行 <b>${f(m.D)}</b> × 高さ <b>${f(m.H)}</b>`)+(m.bp?row("吊りボルト",`ピッチ <b>${f(m.bp[0])}</b> × <b>${f(m.bp[1])}</b>（M10）`):"")+(m.pl?row("プレナムチャンバー",`${E(m.pn)}・本体の上に 高さ <b>${f(m.pl)}</b>（全体の高さ ${f(m.H+m.pl)}）・正面へ吹き出し`):row("吹出口","本体の上"+(m.hg?"（保護アミ付き 278×140）":m.sm?"":"（ダクトをつなぐ）")))
+  +(m.g?row(`<span class="dot" style="background:var(--gas)"></span>ガス管`,`φ${E(m.g)}・${fl} <b>${f(m.gy)}</b>・後ろから <b>${f(m.pb)}</b>`)+row(`<span class="dot" style="background:var(--liq)"></span>液管`,`φ${E(m.l)}・${fl} <b>${f(m.ly)}</b>・後ろから <b>${f(m.pb)}</b>`):row("冷媒配管","なし（一体型）"))
+  +row(`<span class="dot" style="background:var(--dr)"></span>ドレン ①`,`${E(m.dk)}・${fl} <b>${f(m.dy)}</b>・後ろから <b>${f(m.db)}</b>`)+(m.ey?row(`<span class="dot" style="background:var(--dr)"></span>ドレン ②`,`エマージェンシードレン ${E(m.ek)}・${fl} <b>${f(m.ey)}</b>・後ろから <b>${f(m.eb)}</b>`):"");
+ $("#out").innerHTML=`<div class="card"><div class="nm">${E(m.n)}</div><div class="sub">${m.hg?"天吊":"床置"}　${E(m.sub)}</div></div>${m3Card(m.hg?"天吊":"床",3)}
+<div class="card"><h2>📏 大きさと配管の口</h2>${m.one?"":`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><b style="flex:1">口の向き：正面を見て${sn}の横${sd===(m.sd||"r")?"（標準）":""}</b><button id="fSd" style="height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line,#cbd5e1);background:var(--panel2,#f8fafc);color:inherit;font:inherit;font-weight:800">⇆ ${sd==="l"?"右":"左"}にする</button></div>`}<table class="tb">${tb}</table><div class="note">${m.one?"ドレンの口は正面を見て右の端の面です（後ろの面から測った値）。天井から吊りボルトで吊ります。":(m.g?"配管・":"")+"ドレンの口は左右の横の両方にあり、どちらからでも出せます（標準寸法図は右の横）。高さは本体の下（木台なし）から。"}${m.ey?"ドレンは2か所（①ドレン・②エマージェンシードレン）なので、両方を排水へつないでください。":""}値は ${E(m.src)} より。</div></div>
 ${kd&&window.kisoOpen?`<div class="card"><h2>⚡ 電源・電線・室外ユニット</h2><div class="note">${m.out?"室外ユニット（"+E(m.out)+"）とのつなぎ方・":""}電源・電線・ブレーカーは 📘 の説明にあります。電線は目安なので、最後はメーカーの据付説明書・電気設計図で確かめてください。</div><button id="fKs" style="margin-top:8px;width:100%;height:44px;border-radius:10px;border:0;background:var(--pri,#2563eb);color:#fff;font:inherit;font-weight:800">📘 説明を開く</button></div>`:""}`;
- $("#fSd").onclick=()=>{FSD=sd==="l"?"r":"l";drawFlr()};
+ if($("#fSd"))$("#fSd").onclick=()=>{FSD=sd==="l"?"r":"l";drawFlr()};
  if($("#fKs"))$("#fKs").onclick=()=>kisoOpen("hi_jsk");draw3(null,null,null,k)}
 function draw(){if(/^f:/.test(cur)){drawFlr();return}if(/^o:/.test(cur)){drawOut();return}if(VENTM[cur]){drawVent();return}const m=CAS2M[cur],bi=!!m.bi,fin=bi?"本体の下面":"天井の仕上げ面";
  const P=[["gas","ガス",m.g?"φ"+m.g:"","--gas"],["liq","液",m.l?"φ"+m.l:"","--liq"],["dr","ドレン",m.dn?"":"","--dr"]].filter(a=>m[a[0]]);
@@ -268,7 +268,7 @@ async function draw3(m,VV,OO,FF){const box=$("#m3");if(!box)return;try{await loa
   if(fm.pl){bx(W,fm.pl,D,0,H+fm.pl/2,0,0xe2e8f0);bx(W*0.8,fm.pl*0.6,6,0,H+fm.pl/2,D/2+3,0x475569)}else{bx(W*0.7,40,D*0.6,0,H+20,0,0x64748b)}
   const P=(fm.g?[[fm.gy,C.gas,"ガス φ"+fm.g,fm.pb],[fm.ly,C.liq,"液 φ"+fm.l,fm.pb]]:[]).concat([[fm.dy,C.dr,"ドレン① "+fm.dk,fm.db]],fm.ey?[[fm.ey,C.dr,"ドレン② "+fm.ek,fm.eb]]:[]);cg=G.dp;
   const LY=[];{let pv=-1e9;P.map((p,i)=>[p[0],i]).sort((a,b)=>a[0]-b[0]).forEach(([y,i])=>{pv=Math.max(y,pv+span*0.06);LY[i]=pv})}   // 札が重ならないように下から順に
-  P.forEach(([y,c,n,z],i)=>{const a=new V(sx*W/2,y,-D/2+z);cyl(i<2&&fm.g?12:16,0,a,a.clone().add(new V(sx*160,0,0)),c,G.port);const q=new V(sx*(W/2+o*2.4),LY[i],-D/2+z);ln(a.clone().add(new V(sx*160,0,0)),q,c);lab(n+"　床から "+f(y),q.clone().add(new V(sx*o*0.4,0,0)),c)});
+  P.forEach(([y,c,n,z],i)=>{const a=new V(sx*W/2,y,-D/2+z);cyl(i<2&&fm.g?12:16,0,a,a.clone().add(new V(sx*160,0,0)),c,G.port);const q=new V(sx*(W/2+o*2.4),LY[i],-D/2+z);ln(a.clone().add(new V(sx*160,0,0)),q,c);lab(n+(fm.hg?"　下から ":"　床から ")+f(y),q.clone().add(new V(sx*o*0.4,0,0)),c)});
   cg=G.db;dim(new V(-W/2,0,D/2),new V(W/2,0,D/2),new V(0,-o,o),"幅 "+f(W));dim(new V(-sx*W/2,0,-D/2),new V(-sx*W/2,0,D/2),new V(-sx*o,-o,0),"奥行 "+f(D));dim(new V(-sx*W/2,0,-D/2),new V(-sx*W/2,H,-D/2),new V(-sx*o,0,-o),"高さ "+f(H));if(fm.pl)dim(new V(-sx*W/2,H,-D/2),new V(-sx*W/2,H+fm.pl,-D/2),new V(-sx*o,0,-o),"プレナム "+f(fm.pl));lab("▼ 正面",new V(0,H*0.55,D/2+span*0.1),0xdc2626)}
  else if(OO){const om=OUTM[OO];span=Math.max(om.w,om.d,om.h)+700;G.body.add(outModel3D(TH,OO));
   {const c=new TH.Mesh(new TH.BoxGeometry(span,4,span),new TH.MeshStandardMaterial({color:0x94a3b8,transparent:true,opacity:.28,depthWrite:false}));c.position.y=-62;G.body.add(c)}

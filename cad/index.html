@@ -947,7 +947,7 @@ function drawOverlay(){
   drawPick(octx); drawMvg(octx); drawNp(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
-  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawCeilCol(octx); drawReadHL(octx); drawGridCol(octx); drawSins(octx); drawWires(octx);
+  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawCeilCol(octx); drawDrnCol(octx); drawReadHL(octx); drawGridCol(octx); drawSins(octx); drawWires(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
   drawSame(octx);
@@ -2025,6 +2025,11 @@ function ceilColOn(){ try { return localStorage.getItem('zumen-ceilcol') !== '0'
 let CCC = null;
 function ceilColCE(){ let k = ''; try { k = [S.srcName, localStorage.getItem('zumen-ceilsys'), localStorage.getItem('zumen-ceildel'), localStorage.getItem('zumen-ceillink'), localStorage.getItem('zumen-ceilh'), localStorage.getItem('zumen-3dunitP'), localStorage.getItem('zumen-3dunitG')].join('|'); } catch(e){}
   if (CCC && CCC.G === G && CCC.k === k) return CCC.v; let v = null; try { v = ceilAna(); if (v){ ceilDelApply(v); ceilSys(v); } } catch(e){ v = null; } CCC = {G, k, v}; return v; }
+/* ドレンも色で（2026-11-22 ユーザー：アプリの書き込みのグループで冷媒・ドレン・寸法を出す／消す）：天井の配管図のドレンの管を緑で。上のタブ「✏️ アプリの書き込み」zumen-drncol */
+function drnColOn(){ try { return localStorage.getItem('zumen-drncol') !== '0'; } catch(e){ return true; } }
+function drawDrnCol(c){ if (!G || !drnColOn()) return; let CE = null; try { CE = ceilColCE(); } catch(e){} if (!CE || !CE.drn || !CE.drn.length) return; const u = unitMM(); c.save(); c.lineCap = 'round'; c.globalAlpha = .45; c.strokeStyle = '#16a34a';
+  const ln = (a, b, w) => { const p = w2s(a[0]/u, a[1]/u), q = w2s(b[0]/u, b[1]/u); c.lineWidth = w; c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(q[0], q[1]); c.stroke(); }, W = e => Math.max(5, Math.min(22, (e.w || 30)/u*view.s));
+  for (const e of CE.drn) ln(e.a, e.b, W(e)); for (const g of CE.brg) if (g.k === 'drn') ln(g.a, g.b, W(g.ea)); for (const b of CE.br) if (b.k === 'drn') ln(b.e, b.p, W(b.from)); c.restore(); }
 function drawCeilCol(c){ if (!G || !ceilColOn()) return; const CE = ceilColCE(); if (!CE || !CE.sys || !CE.sys.length) return; const u = unitMM(), SYI = new Map(CE.sys.map((o, i) => [o.key, i])), col = e => { const i = SYI.get(CE.sysOf.get(e)); return i == null ? null : CEIL_PALR[i % CEIL_PALR.length]; };
   const ln = (a, b, cl, w) => { const p = w2s(a[0]/u, a[1]/u), q = w2s(b[0]/u, b[1]/u); c.strokeStyle = cl; c.lineWidth = w; c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(q[0], q[1]); c.stroke(); };
   c.save(); c.lineCap = 'round'; c.globalAlpha = .5; const W = e => Math.max(5, Math.min(26, (e.w || 40)/u*view.s)), sel = S.csel;
@@ -2043,7 +2048,7 @@ function readHlUnits(){ if (typeof CAS2M === 'undefined') return []; let L; try 
   return L.L.map(z => { const o = P[v3dUPk(z.m)] || {}; if (o.k === '__no') return null; const g = Gg[(z.wall ? 'W' : '') + v3dUKey(z.m)]; if (g === '__no' || g === '__out') return null;
     const ok = (o.k != null && o.k !== '') || z.m.mdl || !!v3dMdlNear(z.m, z.wall).k || (g != null && g !== ''); return {m:z.m, wall:z.wall, ok:!!ok}; }).filter(Boolean); }
 function readHlEnds(){ let CE = null; try { CE = ceilColCE(); } catch(e){} if (!CE) return []; const U = readHlUnits(), near = (p, r) => U.some(q => p[0] > q.m.x0 - r && p[0] < q.m.x1 + r && p[1] > q.m.y0 - r && p[1] < q.m.y1 + r), out = [];
-  const OK = new Set(endOk()), okd = p => OK.has(Math.round(p[0]) + ',' + Math.round(p[1])); let OU = []; try { OU = v3dAna().outU || []; } catch(e){} const nearO = p => OU.some(q => p[0] > q.x0 - 600 && p[0] < q.x1 + 600 && p[1] > q.y0 - 600 && p[1] < q.y1 + 600);   // 室外機（品番の文字・登録）のそばの端は赤くしない
+  const OK = new Set(endOk()), okd = p => OK.has(Math.round(p[0]) + ',' + Math.round(p[1])); let OU = []; try { if (!V3.hlOU || V3.hlOU.G !== G || V3.hlOU.CE !== CE || V3.hlOU.n !== S.undo.length) V3.hlOU = {G, CE, n:S.undo.length, L:v3dAna().outU || []}; OU = V3.hlOU.L; } catch(e){} /* 毎回読むと図面を動かすのが重い（1回だけ） */ const nearO = p => OU.some(q => p[0] > q.x0 - 600 && p[0] < q.x1 + 600 && p[1] > q.y0 - 600 && p[1] < q.y1 + 600);   // 室外機（品番の文字・登録）のそばの端は赤くしない
   for (const a of CE.rEnds || []){ if (okd(a.p) || near(a.p, 1200) || nearO(a.p) || (CE.oe || []).some(q => Math.hypot(q.p[0] - a.p[0], q.p[1] - a.p[1]) < 60)) continue; out.push({p:a.p, k:'冷媒'}); }
   for (const a of CE.dEnds || []){ if (okd(a.p) || near(a.p, 1200) || (CE.cos || []).some(q => Math.hypot(q.p[0] - a.p[0], q.p[1] - a.p[1]) < 200) || (CE.rsr || []).some(q => Math.hypot(q.p[0] - a.p[0], q.p[1] - a.p[1]) < (q.r || 50) + 200)) continue; out.push({p:a.p, k:'ドレン'}); }
   return out; }
@@ -3369,17 +3374,21 @@ const groupLayers = gid => sortedLayers().filter(l => !l.deleted && l.g === gid)
 function renderTabs(){
   const el = $('#tabs'), sub = $('#subtabs'); if (!G){ el.innerHTML = ''; sub.hidden = true; return; }
   const live = sortedLayers().filter(l => !l.deleted), dead = G.L.filter(l => l.deleted && l.count > 0);
-  let h = `<button class="tab ${S.group == null ? 'on' : ''}" data-g="">すべて <span class="ct">${live.length}</span></button>`;
+  let h = `<button class="tab ${S.group == null && !S.app ? 'on' : ''}" data-g="">すべて <span class="ct">${live.length}</span></button>`;
   for (const g of GROUPS){
     const ls = live.filter(l => l.g === g.id); if (!ls.length && S.group !== g.id) continue; // 0のグループは出さない
     const allOff = ls.length && ls.every(l => !l.on);
     h += `<button class="tab ${S.group === g.id ? 'on' : ''} ${ls.length ? '' : 'zero'} ${allOff ? 'off' : ''}" data-g="${g.id}"><i class="gb" style="background:${g.col}"></i><span class="nm">${g.name}</span><span class="ct">${ls.length}</span></button>`;
   }
-  if (S.dims.length) h += `<button class="tab" data-g="__dims">📏 寸法 <span class="ct">${S.dims.length}</span></button>`; // 入れた寸法（2026-11-13 ユーザー：レイヤーに見当たらない）
+  { let CE = null; try { CE = ceilColCE(); } catch(e){} const n = (S.dims.length ? 1 : 0) + (CE && CE.ref.length ? 1 : 0) + (CE && CE.drn.length ? 1 : 0); if (n) h += `<button class="tab ${S.app ? 'on' : ''}" data-g="__app">✏️ アプリの書き込み <span class="ct">${n}</span></button>`; }   // 冷媒・ドレンの色・寸法（2026-11-22 ユーザー：レイヤーの下でオンオフ・グループに。前の「📏 寸法」のタブもここへ）
   if (S.np.some(p => p.k === 'cc' && !gone(KB2 + p.no))) h += `<button class="tab" data-g="__cc">📡 集中アドレス</button>`; // 2026-11-18 ユーザー
   if (dead.length) h += `<button class="tab trash" data-g="__trash">ゴミ箱 <span class="ct">${dead.length}</span></button>`;
   el.innerHTML = h;
   const on = el.querySelector('.tab.on'); if (on) on.scrollIntoView({block:'nearest', inline:'center'});
+  if (S.app){ let CE = null; try { CE = ceilColCE(); } catch(e){} const dOn = S.dims.some(d => dimVisible(d)), it = [];
+    if (CE && CE.ref.length) it.push(['ref', '冷媒配管（系統の色）', ceilColOn(), '#a855f7']); if (CE && CE.drn.length) it.push(['drn', 'ドレン配管（緑）', drnColOn(), '#16a34a']); if (S.dims.length) it.push(['dim', `寸法（このアプリで測った ${S.dims.length} 本）`, !!dOn, '#2563eb']);
+    let sh = it.map(([k, n, on, cl]) => `<button class="tab ${on ? '' : 'off'}" data-app="${k}"><i class="dot" style="background:${cl}"></i><span class="nm">${on ? '👁' : '🚫'} ${n}</span></button>`).join(''); if (S.dims.length) sh += `<button class="tab" data-app="dimg"><span class="nm">📏 寸法のグループ…</span></button>`;
+    sub.innerHTML = sh || '<span class="tab">この図面にはまだありません</span>'; sub.hidden = false; return; }
   if (!S.group){ sub.hidden = true; return; }
   const ls = groupLayers(S.group);
   let sh = `<button class="tab ${S.tab == null ? 'on' : ''}" data-tab="">${gById(S.group).name}ぜんぶ</button>`;
@@ -3392,11 +3401,17 @@ $('#tabs').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (!b || b.dataset.g === undefined) return; const g = b.dataset.g;
   if (g === '__trash'){ openLayerSheet(true); return; }
   if (g === '__dims'){ openDimGroupSheet(); return; }
+  if (g === '__app'){ S.app = !S.app; if (S.app){ S.group = null; S.tab = null; } renderTabs(); requestAnimationFrame(resize); updateLayerBar(); return; }   // ✏️ アプリの書き込み（レイヤーのグループとは別）
   if (g === '__cc'){ ccOpen(); return; }
   setGroup(g || null);
 });
-$('#subtabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (!b) return; setTab(b.dataset.tab || null); });
-function setGroup(g){ S.group = g; S.tab = null; renderTabs(); requestAnimationFrame(resize); updateLayerBar(); }
+$('#subtabs').addEventListener('click', e => { const a = e.target.closest('[data-app]'); if (a){ const k = a.dataset.app;   // ✏️ アプリの書き込み：押すたびに出す／消す
+    if (k === 'ref') try { localStorage.setItem('zumen-ceilcol', ceilColOn() ? '0' : '1'); } catch(e){}
+    if (k === 'drn') try { localStorage.setItem('zumen-drncol', drnColOn() ? '0' : '1'); } catch(e){}
+    if (k === 'dim'){ const on = !S.dimGroups.some(g => g.on !== false); S.dimGroups.forEach(g => { g.on = on; }); if (S.selDim && !dimVisible(S.selDim)) S.selDim = null; autosave(); updateDimPanel(); }
+    if (k === 'dimg'){ openDimGroupSheet(); return; } renderTabs(); drawOverlay(); return; }
+  const b = e.target.closest('[data-tab]'); if (!b) return; setTab(b.dataset.tab || null); });
+function setGroup(g){ S.app = false; S.group = g; S.tab = null; renderTabs(); requestAnimationFrame(resize); updateLayerBar(); }
 function setTab(t){
   S.tab = t; if (t){ const l = G.L.find(x => x.name === t); if (l && S.group !== l.g){ S.group = l.g; requestAnimationFrame(resize); } }
   renderTabs(); renderBase(); updateLayerBar();
@@ -5925,6 +5940,9 @@ function v3dLabel(TH, txt, at, wh, col){ /* wh：大きさ（mm）を決める�
   g.font = `bold ${f}px ${FONT}`; g.fillStyle = 'rgba(255,255,255,.92)'; g.fillRect(0, 0, cv2.width, cv2.height); if (col){ g.fillStyle = col; g.fillRect(0, 0, 10, cv2.height); } g.fillStyle = col || '#7a3e12'; g.textBaseline = 'middle'; g.fillText(txt, 14, cv2.height/2 + 2);   // col：系統の色（2026-11-10）
   const sp = new TH.Sprite(new TH.SpriteMaterial({map:new TH.CanvasTexture(cv2), depthTest:false, sizeAttenuation:!!wh})); sp.position.copy(at); const k = wh || 0.032; sp.scale.set(k*cv2.width/cv2.height, k, 1); /* 画面の上でいつも同じ大きさ */ sp.renderOrder = 9; return sp; }
 function v3dView(k){ const TH = V3.TH, c = V3.bb.getCenter(new TH.Vector3()), sz = V3.bb.getSize(new TH.Vector3()); const box = $('#v3dS'), asp = box.clientWidth/Math.max(1, box.clientHeight), hf = Math.min(1, asp)*Math.tan(22.5*Math.PI/180); V3.tg = c; V3.dist = Math.max(1500, sz.length()/2)/hf*1.3; /* 全体が入る距離（縦長の画面は横の幅で） */ V3.th = k === 'top' ? 0 : -0.6; V3.ph = k === 'top' ? 0.001 : 1.0; v3dDraw(); }
+/* 指で動かす間（2026-11-22 ユーザー：3Dがカクカク）：描くのは画面の1こまに1回だけ・動かしている間は細かさ（画素の数）を落とし、止まったらきれいに描き直す */
+function v3dDrawQ(){ if (!V3.r) return; if (!V3.mv){ V3.mv = 1; V3.r.setPixelRatio(1); } clearTimeout(V3.mvT); V3.mvT = setTimeout(() => { V3.mv = 0; V3.r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); v3dDraw(); }, 220);
+  if (V3.rq) return; V3.rq = requestAnimationFrame(() => { V3.rq = 0; v3dDraw(); }); }
 function v3dDraw(){ if (!V3.sc || $('#v3d').hidden) return; const TH = V3.TH, box = $('#v3dS'), w = box.clientWidth, h = box.clientHeight;
   if (!V3.cam) V3.cam = new TH.PerspectiveCamera(45, 1, 10, 1e7); V3.cam.aspect = w/Math.max(1, h); V3.cam.near = Math.max(5, V3.dist/200); V3.cam.far = V3.dist*200; V3.cam.updateProjectionMatrix(); V3.r.setSize(w, h);
   const d = V3.dist, t = V3.tg; V3.cam.position.set(t.x + d*Math.sin(V3.ph)*Math.sin(V3.th), t.y + d*Math.cos(V3.ph), t.z + d*Math.sin(V3.ph)*Math.cos(V3.th)); V3.cam.up.set(0, 1, 0); if (V3.ph < 0.01) V3.cam.up.set(-Math.sin(V3.th), 0, -Math.cos(V3.th)); V3.cam.lookAt(t);
@@ -5937,9 +5955,9 @@ function v3dCtl(){ const el = V3.r.domElement, P = new Map(); let last = null;
   el.addEventListener('pointermove', e => { if (!P.has(e.pointerId) || !last) return; P.set(e.pointerId, {x:e.clientX, y:e.clientY, b:P.get(e.pointerId).b}); const a = [...P.values()];
     if (a.length >= 2){ const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y), x = (a[0].x + a[1].x)/2, y = (a[0].y + a[1].y)/2; if (last.d > 0) V3.dist = Math.max(300, Math.min(5e6, V3.dist*last.d/Math.max(1, d))); pan(x - last.x, y - last.y); last = {d, x, y}; }
     else { const dx = a[0].x - last.x, dy = a[0].y - last.y; if (a[0].b === 2 || e.shiftKey) pan(dx, dy); else { V3.th -= dx*0.008; V3.ph = Math.max(0.001, Math.min(Math.PI/2 - 0.02, V3.ph - dy*0.008)); } last = {x:a[0].x, y:a[0].y}; }
-    v3dDraw(); });
+    v3dDrawQ(); });
   const up = e => { const T0 = tap; P.delete(e.pointerId); st2(); if (T0 && e.type === 'pointerup' && !P.size && Date.now() - T0.t < 450 && Math.hypot(e.clientX - T0.x, e.clientY - T0.y) < 8 && typeof V3.onTap === 'function') V3.onTap(e.clientX, e.clientY); tap = null; }; el.addEventListener('pointerup', up);   /* タップ（動かさない）＝選ぶ */ el.addEventListener('pointercancel', up); el.addEventListener('contextmenu', e => e.preventDefault());
-  el.addEventListener('wheel', e => { e.preventDefault(); V3.dist = Math.max(300, Math.min(5e6, V3.dist*Math.exp(e.deltaY*0.0015))); v3dDraw(); }, {passive:false});
+  el.addEventListener('wheel', e => { e.preventDefault(); V3.dist = Math.max(300, Math.min(5e6, V3.dist*Math.exp(e.deltaY*0.0015))); v3dDrawQ(); }, {passive:false});
   window.addEventListener('resize', () => v3dDraw()); }
 $('#b3D').onclick = open3D;
 /* 曲げ共有へ渡す：IndexedDB pbmShare / f / "pipes" → ../index.html?from=cadpipes（曲げ共有の pipes.js が受け取る）。

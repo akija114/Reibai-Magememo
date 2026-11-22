@@ -1831,6 +1831,28 @@ function setLay(e, name){ // name が null・元のレイヤーなら元に戻�
   t.li = li; G.L[from].count = Math.max(0, (G.L[from].count || 0) - 1); G.L[li].count = (G.L[li].count || 0) + 1;
   if (li === t.li0) S.lay.delete(e); else S.lay.set(e, G.L[li].name);
 }
+/* ✂ 形で分ける・🧭 通り芯を別のレイヤーに（2026-11-22 ユーザー：PDFは色ごとのレイヤーなので、非表示にすると通り芯や壁まで消える）：
+   部品（線のかたまり）ごとに、通り芯の線（gridCands の線の上・8割）と通り芯の丸 →「通り芯」、円弧が多い →「○○・丸」、短い線が1列に並ぶ（点線・一点鎖線）→「○○・点線」、30cm より小さい →「○○・細かい線」。ほかはそのまま。cmdLay で1回（↶で戻せる） */
+function layerSplitPlan(li){ const u = unitMM(), sg = G.segs, gc = gridCands(), tg = Math.max(2/u, S.textH*0.05), P = new Map();
+  const onG = (x1, y1, x2, y2) => (Math.abs(x1 - x2) < tg && gc.v.some(g => Math.abs(x1 - g.c) < tg && Math.abs(x2 - g.c) < tg)) || (Math.abs(y1 - y2) < tg && gc.h.some(g => Math.abs(y1 - g.c) < tg && Math.abs(y2 - g.c) < tg));
+  for (let k = 0; k < sg.length; k += SS){ const l = sg[k+4], e = sg[k+7]; if ((li != null && l !== li) || e == null || e < 0 || gone(e) || isKiki(e) || isNp(e) || isCl(e)) continue; const L0 = G.L[l]; if (!L0 || L0.deleted || L0.name === '通り芯') continue;
+    const x1 = sg[k], y1 = sg[k+1], x2 = sg[k+2], y2 = sg[k+3], L = Math.hypot(x2 - x1, y2 - y1); let o = P.get(e); if (!o){ o = {L:0, g:0, a:0, n:0, x0:1e18, y0:1e18, x1:-1e18, y1:-1e18, d:new Set(), li:l}; P.set(e, o); }
+    o.L += L; o.n++; if (sg[k+5] === 1) o.a += L; else if (onG(x1, y1, x2, y2)) o.g += L; if (L > 0) o.d.add(Math.round(((Math.atan2(y2 - y1, x2 - x1) + Math.PI) % Math.PI)*10)); o.x0 = Math.min(o.x0, x1, x2); o.y0 = Math.min(o.y0, y1, y2); o.x1 = Math.max(o.x1, x1, x2); o.y1 = Math.max(o.y1, y1, y2); }
+  /* 配管を読むのに使うレイヤー（冷媒・ドレンの線・芯の線）は通り芯だけ分ける：芯の一点鎖線のかけらを動かすと3Dの読み方が変わる */
+  let pipeL = false; if (li != null){ const nm = G.L[li].name; if (/冷媒|ドレン/.test(nm)) pipeL = true; else { let CE = null; try { CE = ceilColCE(); } catch(e){} if (CE){ if (CE.kOf && CE.kOf[li]) pipeL = true; else { const C = CE.ref.concat(CE.drn).filter(e => !e.arc), GG = new Map(), gk = (x, y) => Math.floor(x/500) + ',' + Math.floor(y/500); C.forEach(e => { const n0 = Math.ceil(e.L/400); for (let j = 0; j <= n0; j++){ const kk = gk(e.a[0] + (e.b[0] - e.a[0])*j/n0, e.a[1] + (e.b[1] - e.a[1])*j/n0); const A = GG.get(kk) || GG.set(kk, []).get(kk); if (A[A.length - 1] !== e) A.push(e); } });
+        let tot = 0, on = 0; for (let k = 0; k < sg.length; k += SS){ if (sg[k+4] !== li || sg[k+5] === 1) continue; const m = [(sg[k] + sg[k+2])/2*u, (sg[k+1] + sg[k+3])/2*u], L = Math.hypot(sg[k+2] - sg[k], sg[k+3] - sg[k+1])*u; tot += L; if ((GG.get(gk(m[0], m[1])) || []).some(e => (q => Math.hypot(q[0] - m[0], q[1] - m[1]))(closestOnSeg(m[0], m[1], e.a[0], e.a[1], e.b[0], e.b[1])) < 15)) on += L; } if (tot > 0 && on >= tot*0.15) pipeL = true; } } } }
+  /* 1列に並ぶ短い線（点線・一点鎖線のかけら）は「細かい線」にしない */ const SG = new Map(), sk = (x, y) => Math.floor(x*u/400) + ',' + Math.floor(y*u/400); if (li != null) for (let k = 0; k < sg.length; k += SS){ if (sg[k+4] !== li || sg[k+5] === 1) continue; const kk = sk((sg[k] + sg[k+2])/2, (sg[k+1] + sg[k+3])/2); (SG.get(kk) || SG.set(kk, []).get(kk)).push(k); }
+  const colN = o => { const cx = (o.x0 + o.x1)/2, cy = (o.y0 + o.y1)/2, gx = Math.floor(cx*u/400), gy = Math.floor(cy*u/400); for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const k of SG.get((gx + dx) + ',' + (gy + dy)) || []){ if (sg[k+7] === o.e) continue; const x1 = sg[k], y1 = sg[k+1], x2 = sg[k+2], y2 = sg[k+3], L = Math.hypot(x2 - x1, y2 - y1); if (L <= 0) continue; const d = [(x2 - x1)/L, (y2 - y1)/L], ox = o.x1 - o.x0, oy = o.y1 - o.y0, ol = Math.hypot(ox, oy) || 1; if (Math.abs(d[0]*oy - d[1]*ox)/ol > 0.03) continue; if (Math.abs(-(cx - x1)*d[1] + (cy - y1)*d[0]) > tg) continue; return true; } return false; };
+  const eids = [], to = [], cnt = {};
+  for (const [e, o] of P){ o.e = e; const W = (o.x1 - o.x0)*u, H = (o.y1 - o.y0)*u, ext = Math.max(W, H), base = G.L[o.li].name; let c = null;
+    if (o.L > 0 && o.g >= o.L*0.8) c = '通り芯';
+    else if (o.a >= o.L*0.6 && ext < 1500 && (gc.v.some(g => Math.abs((o.x0 + o.x1)/2 - g.c) < (o.x1 - o.x0)*0.3) || gc.h.some(g => Math.abs((o.y0 + o.y1)/2 - g.c) < (o.y1 - o.y0)*0.3))) c = '通り芯';   // 通り芯の丸（X1 などの記号）
+    else if (li != null && !pipeL){ if (o.a >= o.L*0.6) c = base + '・丸'; else if (o.n >= 4 && o.d.size === 1 && o.L < Math.hypot(o.x1 - o.x0, o.y1 - o.y0)*0.85) c = base + '・点線'; else if (ext < 300) c = o.d.size === 1 && colN(o) ? base + '・点線' : base + '・細かい線'; }
+    if (!c) continue; eids.push(e); to.push(c); cnt[c] = (cnt[c] || 0) + 1; }
+  return {eids, to, cnt}; }
+function layerSplit(li){ if (!G) return; const P = layerSplitPlan(li); if (!P.eids.length){ toast(li == null ? '通り芯の線が見つかりませんでした（「通り芯として登録」した線や、記号のついた長い線が通り芯になります）' : 'このレイヤーは分ける物がありませんでした'); return; }
+  const msg = Object.entries(P.cnt).map(([n, c]) => `・${n}：${c}個`).join('\n'); if (!confirm(`次のレイヤーに分けます（↶で戻せます）\n${msg}`)) return;
+  exec(cmdLay(P.eids, P.to)); S.pick = null; updatePickBar(); renderTabs(); drawOverlay(); toast(`${P.eids.length}個を分けました。上のタブでレイヤーごとに出す／消すできます`); }
 function cmdLay(eids, to){ const list = [...eids], old = list.map(e => isDup(e) ? (dupOf(e) || {}).lay || null : S.lay.get(e) || null), nw = Array.isArray(to) ? to : list.map(() => to), lab = 'レイヤーを変える';
   return {kind:'obj', label:lab, log:{label:lab, detail:short(list.map(partName)) + (Array.isArray(to) ? '（元に戻す）' : ' → ' + to), eids:list, box:partsBox(list), lay:nw, layOld:old},
     do(){ list.forEach((e, i) => setLay(e, nw[i])); }, undo(){ list.forEach((e, i) => setLay(e, old[i])); }}; }
@@ -2449,7 +2471,7 @@ function updatePickBar(){
       <div class="grow">${many ? `<div class="lname">${pk.lsel.size} 個のレイヤーをえらんでいます</div><div class="lsub">${esc(short([...pk.lsel].map(x => G.L[x].name)))} ・ 長押しで追加／外す</div>` : `<div class="lname"><i class="sw" style="display:inline-block;vertical-align:-2px;margin-right:6px;background:${colorCss(l.ck)}"></i>${esc(l.name)}</div><div class="lsub">${l.count} 個の図形${n > 1 ? ` ・ 重なり ${pk.i + 1}/${n}（◀▶）` : ''} ・ 長押しで追加</div>`}</div>
       ${n > 1 ? `<button class="btn" data-a="next" aria-label="次の候補">▶</button>` : ''}<button class="btn" data-a="close" aria-label="閉じる">✕</button></div>
       ${scope}
-      <div class="frow"><select class="gsel" data-a="grp" aria-label="グループ" style="height:40px;max-width:96px">${opts}</select><button class="btn" data-a="solo" style="flex:1">これだけ見る</button><button class="btn" data-a="hide" style="flex:1">非表示</button><button class="btn del" data-a="del" style="flex:1">削除</button></div>`;
+      <div class="frow"><select class="gsel" data-a="grp" aria-label="グループ" style="height:40px;max-width:96px">${opts}</select><button class="btn" data-a="solo" style="flex:1">これだけ見る</button><button class="btn" data-a="hide" style="flex:1">非表示</button><button class="btn del" data-a="del" style="flex:1">削除</button></div>${many ? '' : `<div class="frow"><button class="btn" data-a="lsplit" style="flex:1">✂ 形で分ける（通り芯・点線・丸・細かい線）</button></div>`}`;
     bar.onchange = e => { if (e.target.dataset.a === 'grp'){ let v = e.target.value; if (v === '__new'){ v = ugNew(); if (!v){ e.target.value = l.g; return; } } const Ls = [...pk.lsel].map(x => G.L[x]).filter(Boolean); for (const q of Ls){ q.g = v; saveGroupPref(q.name, v); } renderTabs(); autosave(); updatePickBar(); toast(`${Ls.length > 1 ? Ls.length + ' 個のレイヤー' : '「' + l.name + '」'}を${gById(v).name}に移しました`); } };   /* 長押しで選んだレイヤーはまとめて移す */
   }
   bar.onclick = e => {
@@ -2491,6 +2513,7 @@ function updatePickBar(){
     else if (a === 'otek'){ if (!btn.dataset.ok){ btn.dataset.ok = '1'; btn.textContent = '撤去する'; return; } const sel = [...pk.sel]; exec(cmdTekkyo(sel)); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を撤去にしました（点線の×で残します・↶で戻せます）`); S.pick = null; }
     else if (a === 'odel'){ const sel = [...pk.sel]; exec(cmdObjs(sel, 'del')); toast(`${sel.length === 1 ? partName(sel[0]) : sel.length + '個'}を削除しました（↶で戻せます）`); S.pick = null; }
     else if (a === 'solo'){ const nm = L.name; S.pick = null; updatePickBar(); setTab(nm); drawOverlay(); return; }
+    else if (a === 'lsplit'){ layerSplit(pk.cands[pk.i]); return; }
     else if (a === 'hide'){ const ns = [...(pk.lsel || [pk.cands[pk.i]])].map(x => G.L[x].name); S.pick = null; exec(cmdVis(ns, false)); toast(`${ns.length > 1 ? ns.length + '個のレイヤー' : '「' + ns[0] + '」'}を非表示にしました（↶で戻せます）`); }
     else if (a === 'del'){ const ns = [...(pk.lsel || [pk.cands[pk.i]])].map(x => G.L[x].name); S.pick = null; exec(cmdDelLayers(ns, ns.length > 1 ? `${ns.length}個のレイヤーを削除` : `「${ns[0]}」を削除`)); toast(`${ns.length > 1 ? ns.length + '個のレイヤー' : '「' + ns[0] + '」'}を削除しました（↶で戻せます）`); }
     updatePickBar(); drawOverlay(); updateLayerBar();
@@ -3408,7 +3431,7 @@ function changed(kind){
   if (kind === 'view'){ refreshGeom(); buildIndex(); renderBase(); renderTabs(); }
   if (S.selDim && !S.dims.includes(S.selDim)) S.selDim = null;
   drawOverlay(); updateUi(); refreshOpenSheet(); autosave(true);
-  { const t = document.querySelector('#tabs [data-g="__dims"] .ct'); if ((t ? +t.textContent : 0) !== S.dims.length) renderTabs(); }
+  { const t = document.querySelector('#tabs [data-g="__dimt"] .ct'); if ((t ? +t.textContent : 0) !== S.dims.length) renderTabs(); else if (S.dimT) renderTabs(); }
   if (!!document.querySelector('#tabs [data-g="__cc"]') !== S.np.some(p => p.k === 'cc' && !gone(KB2 + p.no))) renderTabs();
 }
 function cmdDelLayers(names, label){
@@ -3458,20 +3481,23 @@ const groupLayers = gid => sortedLayers().filter(l => !l.deleted && l.g === gid)
 function renderTabs(){
   const el = $('#tabs'), sub = $('#subtabs'); if (!G){ el.innerHTML = ''; sub.hidden = true; return; }
   const live = sortedLayers().filter(l => !l.deleted), dead = G.L.filter(l => l.deleted && l.count > 0);
-  let h = `<button class="tab ${S.group == null && !S.app ? 'on' : ''}" data-g="">すべて <span class="ct">${live.length}</span></button>`;
+  let h = `<button class="tab ${S.group == null && !S.app && !S.dimT ? 'on' : ''}" data-g="">すべて <span class="ct">${live.length}</span></button>`;
   for (const g of GROUPS){
     const ls = live.filter(l => l.g === g.id); if (!ls.length && S.group !== g.id) continue; // 0のグループは出さない
     const allOff = ls.length && ls.every(l => !l.on);
     h += `<button class="tab ${S.group === g.id ? 'on' : ''} ${ls.length ? '' : 'zero'} ${allOff ? 'off' : ''}" data-g="${g.id}"><i class="gb" style="background:${g.col}"></i><span class="nm">${g.name}</span><span class="ct">${ls.length}</span></button>`;
   }
-  { let CE = null; try { CE = ceilColCE(); } catch(e){} const n = (S.dims.length ? 1 : 0) + (CE && CE.ref.length ? 1 : 0) + (CE && CE.drn.length ? 1 : 0); if (n || fixAll().n) h += `<button class="tab ${S.app ? 'on' : ''}" data-g="__app">✏️ アプリの書き込み <span class="ct">${n}</span></button>`; }   // 冷媒・ドレンの色・寸法（2026-11-22 ユーザー：レイヤーの下でオンオフ・グループに。前の「📏 寸法」のタブもここへ）
+  if (S.dims.length || S.dimGroups.length) h += `<button class="tab ${S.dimT ? 'on' : ''}" data-g="__dimt">📏 寸法 <span class="ct">${S.dims.length}</span></button>`;   // 寸法のグループのタブ（2026-11-22 ユーザー：レイヤーのタグとは別に・グループごとに保存）
+  { let CE = null; try { CE = ceilColCE(); } catch(e){} const n = (CE && CE.ref.length ? 1 : 0) + (CE && CE.drn.length ? 1 : 0); if (n || fixAll().n) h += `<button class="tab ${S.app ? 'on' : ''}" data-g="__app">✏️ アプリの書き込み <span class="ct">${n}</span></button>`; }   // 冷媒・ドレンの色・寸法（2026-11-22 ユーザー：レイヤーの下でオンオフ・グループに。前の「📏 寸法」のタブもここへ）
   if (S.np.some(p => p.k === 'cc' && !gone(KB2 + p.no))) h += `<button class="tab" data-g="__cc">📡 集中アドレス</button>`; // 2026-11-18 ユーザー
   if (dead.length) h += `<button class="tab trash" data-g="__trash">ゴミ箱 <span class="ct">${dead.length}</span></button>`;
   el.innerHTML = h;
   const on = el.querySelector('.tab.on'); if (on) on.scrollIntoView({block:'nearest', inline:'center'});
+  if (S.dimT){ const cur = S.curDG; let sh = S.dimGroups.map(g => { const n = S.dims.filter(d => d.g === g.id).length, on = g.on !== false, c = g.id === cur; return `<button class="tab ${on ? '' : 'off'} ${c ? 'on' : ''}" data-dg="${g.id}"><span class="nm">${c ? '● ' : ''}${on ? '' : '🚫 '}${esc(g.name)}</span><span class="ct">${n}</span></button>`; }).join('');
+    sh += `<button class="tab" data-dg="__new"><span class="nm">＋ グループを作る</span></button><button class="tab" data-dg="__more"><span class="nm">… 名前・削除</span></button>`; sub.innerHTML = sh; sub.hidden = false; return; }
   if (S.app){ let CE = null; try { CE = ceilColCE(); } catch(e){} const dOn = S.dims.some(d => dimVisible(d)), it = [];
-    if (CE && CE.ref.length) it.push(['ref', '冷媒配管（系統の色）', ceilColOn(), '#a855f7']); if (CE && CE.drn.length) it.push(['drn', 'ドレン配管（緑）', drnColOn(), '#16a34a']); if (S.dims.length) it.push(['dim', `寸法（このアプリで測った ${S.dims.length} 本）`, !!dOn, '#2563eb']);
-    let sh = it.map(([k, n, on, cl]) => `<button class="tab ${on ? '' : 'off'}" data-app="${k}"><i class="dot" style="background:${cl}"></i><span class="nm">${on ? '👁' : '🚫'} ${n}</span></button>`).join(''); if (S.dims.length) sh += `<button class="tab" data-app="dimg"><span class="nm">📏 寸法のグループ…</span></button>`; if (CE) sh += `<button class="tab" data-app="trace"><span class="nm">✍️ なぞって配管を足す</span></button><button class="tab" data-app="fixp"><span class="nm">📍 好きな所を直す</span></button>`; sh += `<button class="tab" data-app="fix"><span class="nm">🕘 直した所・Claudeに送る</span></button>`;
+    if (CE && CE.ref.length) it.push(['ref', '冷媒配管（系統の色）', ceilColOn(), '#a855f7']); if (CE && CE.drn.length) it.push(['drn', 'ドレン配管（緑）', drnColOn(), '#16a34a']); 
+    let sh = it.map(([k, n, on, cl]) => `<button class="tab ${on ? '' : 'off'}" data-app="${k}"><i class="dot" style="background:${cl}"></i><span class="nm">${on ? '👁' : '🚫'} ${n}</span></button>`).join(''); if (CE) sh += `<button class="tab" data-app="trace"><span class="nm">✍️ なぞって配管を足す</span></button><button class="tab" data-app="fixp"><span class="nm">📍 好きな所を直す</span></button>`; sh += `<button class="tab" data-app="fix"><span class="nm">🕘 直した所・Claudeに送る</span></button>`;
     sub.innerHTML = sh || '<span class="tab">この図面にはまだありません</span>'; sub.hidden = false; return; }
   if (!S.group){ sub.hidden = true; return; }
   const ls = groupLayers(S.group);
@@ -3485,17 +3511,22 @@ $('#tabs').addEventListener('click', e => {
   const b = e.target.closest('.tab'); if (!b || b.dataset.g === undefined) return; const g = b.dataset.g;
   if (g === '__trash'){ openLayerSheet(true); return; }
   if (g === '__dims'){ openDimGroupSheet(); return; }
-  if (g === '__app'){ S.app = !S.app; if (S.app){ S.group = null; S.tab = null; } renderTabs(); requestAnimationFrame(resize); updateLayerBar(); return; }   // ✏️ アプリの書き込み（レイヤーのグループとは別）
+  if (g === '__dimt'){ S.dimT = !S.dimT; if (S.dimT){ S.app = false; S.group = null; S.tab = null; } renderTabs(); requestAnimationFrame(resize); updateLayerBar(); return; }
+  if (g === '__app'){ S.app = !S.app; if (S.app){ S.dimT = false; S.group = null; S.tab = null; } renderTabs(); requestAnimationFrame(resize); updateLayerBar(); return; }   // ✏️ アプリの書き込み（レイヤーのグループとは別）
   if (g === '__cc'){ ccOpen(); return; }
   setGroup(g || null);
 });
-$('#subtabs').addEventListener('click', e => { const a = e.target.closest('[data-app]'); if (a){ const k = a.dataset.app;   // ✏️ アプリの書き込み：押すたびに出す／消す
+$('#subtabs').addEventListener('click', e => { const dg = e.target.closest('[data-dg]'); if (dg){ const id = dg.dataset.dg;   // 📏 寸法のグループ：押す＝今から足すグループ／もう1回で出す・消す
+    if (id === '__more'){ openDimGroupSheet(); return; } if (id === '__new'){ const nm = prompt('新しい寸法のグループの名前（例：梁下確認・2階天井内）。空のままだと今日の日付', ''); if (nm == null) return; const g = makeDG(nm); toast(`これから測る寸法は「${g.name}」に入ります`); }
+    else { const g = S.dimGroups.find(x => x.id === id); if (!g) return; if (S.curDG !== id){ S.curDG = id; g.on = true; toast(`これから測る寸法は「${g.name}」に入ります（もう1回押すと出す／消す）`); } else { g.on = g.on === false; if (S.selDim && !dimVisible(S.selDim)) S.selDim = null; } autosave(); updateDimPanel(); }
+    updateHint(); renderTabs(); drawOverlay(); return; }
+  const a = e.target.closest('[data-app]'); if (a){ const k = a.dataset.app;   // ✏️ アプリの書き込み：押すたびに出す／消す
     if (k === 'ref') try { localStorage.setItem('zumen-ceilcol', ceilColOn() ? '0' : '1'); } catch(e){}
     if (k === 'drn') try { localStorage.setItem('zumen-drncol', drnColOn() ? '0' : '1'); } catch(e){}
     if (k === 'dim'){ const on = !S.dimGroups.some(g => g.on !== false); S.dimGroups.forEach(g => { g.on = on; }); if (S.selDim && !dimVisible(S.selDim)) S.selDim = null; autosave(); updateDimPanel(); }
     if (k === 'dimg'){ openDimGroupSheet(); return; } if (k === 'trace'){ traceStart('ref'); return; } if (k === 'fixp'){ S.fixPick = true; toast('直したい所（配管・継手・端・空調でない線）をタップしてください'); return; } if (k === 'fix'){ fixSheet(); return; } renderTabs(); drawOverlay(); return; }
   const b = e.target.closest('[data-tab]'); if (!b) return; setTab(b.dataset.tab || null); });
-function setGroup(g){ S.app = false; S.group = g; S.tab = null; renderTabs(); requestAnimationFrame(resize); updateLayerBar(); }
+function setGroup(g){ S.app = false; S.dimT = false; S.group = g; S.tab = null; renderTabs(); requestAnimationFrame(resize); updateLayerBar(); }
 function setTab(t){
   S.tab = t; if (t){ const l = G.L.find(x => x.name === t); if (l && S.group !== l.g){ S.group = l.g; requestAnimationFrame(resize); } }
   renderTabs(); renderBase(); updateLayerBar();
@@ -3740,7 +3771,7 @@ function openLayerSheet(trashFirst){
     const live = sortedLayers().filter(l => !l.deleted), dead = G.L.filter(l => l.deleted && l.count > 0);
     const hidden = live.filter(l => !l.on);
     const opts = cur => GROUPS.map(g => `<option value="${g.id}" ${g.id === cur ? 'selected' : ''}>${g.name}</option>`).join('') + UG_OPT;
-    let h = `<div class="sh-tools"><button class="btn" data-a="allon">全部表示</button><button class="btn" data-a="alloff">全部非表示</button><button class="btn del" data-a="delhidden" ${hidden.length ? '' : 'disabled style="opacity:.4"'}>非表示の${hidden.length}件を削除</button></div>
+    let h = `<div class="sh-tools"><button class="btn" data-a="allon">全部表示</button><button class="btn" data-a="alloff">全部非表示</button><button class="btn del" data-a="delhidden" ${hidden.length ? '' : 'disabled style="opacity:.4"'}>非表示の${hidden.length}件を削除</button><button class="btn" data-a="gridsplit">🧭 通り芯を別のレイヤーに</button></div>
       <div class="note">空調・ダクト・衛生・電気・建築に自動で振り分けています。違うときは右の選択で変えられます。「＋ 新しいグループを作る」で自分のグループも作れます（この端末で覚えます）。削除してもゴミ箱から戻せます。</div>`;
     const trash = dead.length ? `<div class="ghead"><b>ゴミ箱</b><span class="ct">${dead.length}</span>${dead.length > 1 ? '<button class="btn" data-a="restoreall">全部戻す</button>' : ''}</div>` + dead.map(l => `<div class="row"><i class="sw" style="background:${colorCss(l.ck)}"></i><div class="grow"><div class="nm">${esc(l.name)}</div><div class="sub">${gById(l.g).name} ・ ${l.count} 個</div></div><button class="btn" data-restore="${esc(l.name)}">戻す</button></div>`).join('') : '';
     if (S.hideObj.size || S.delObj.size){
@@ -3775,6 +3806,7 @@ function openLayerSheet(trashFirst){
       else if (d.restore){ exec(cmdRestoreLayers([d.restore])); }
       else if (d.solo){ closeSheet(); setTab(d.solo); }
       else if (d.a === 'allon') exec(cmdVis(live.map(l => l.name), true));
+      else if (d.a === 'gridsplit'){ closeSheet(); layerSplit(null); return; }
       else if (d.a === 'alloff') exec(cmdVis(live.map(l => l.name), false));
       else if (d.a === 'delhidden' && hidden.length){ exec(cmdDelLayers(hidden.map(l => l.name), `非表示${hidden.length}件を削除`)); toast(`${hidden.length}件のレイヤーを削除（↶で戻せます）`); }
       else if (d.a === 'restoreall') exec(cmdRestoreLayers(dead.map(l => l.name)));

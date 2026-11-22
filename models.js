@@ -127,13 +127,32 @@ CAS2M.hi_rci71=HI4("RCI-GP71/80/90KA",248,"15.88","9.52","22（+6.5）");
 CAS2M.hi_rci112=HI4("RCI-GP112/140/160KA",298,"15.88","9.52","26（+6.5）");
 [["28",[28,36,40,45,50,56,63]],["71",[71,80,90]],["112",[112,140,160]]].forEach(([k,a])=>a.forEach(n=>{CAS2M["hi_rci_"+n]={...CAS2M["hi_rci"+k],n:"RCI-GP"+n+"KA",al:"hi_rci"+k}}));   // 品番でさがす用（一覧には出さない）
 [["28",[28,36,40,45,50,56,63]],["71",[71]],["112",[80,90,112,140,160]]].forEach(([k,a])=>a.forEach(n=>{CAS2M["hi_rci_"+n+"k2"]={...CAS2M["hi_rci"+k],n:"RCI-GP"+n+"K2",al:"hi_rci"+k}}));   // 前の型 K2（80・90 は高さ298・71 は寸法図の表で248）
-/* 床置の機種（2026-11-21 ユーザー：日立の除湿機の模型・プレナムの有り無し）。日立の技術資料の室内ユニット標準寸法図・プレナムチャンバー付寸法図。
-   W×H×D＝本体（高さは床から本体の上面・上の吹出口のふち17は入れない）、pl＝上に載せるプレナムチャンバーの高さ（0＝無し・上にダクト）。
-   配管は左の横の φ62 の取出口（正面を見て左の面・前から pz）、床から ガス gy・液 ly、ドレン R1 は前から dz・床から dy */
-const FLRM={
- hi_rknp2:{mk:"hitachi",nv:["RKNP2LTV"],plk:"hi_rknp2p",n:"日立 RK-NP2LTV",sub:"床置の除湿機（プレナムなし・上の吹出口にダクト）",W:650,H:1650,D:500,pl:0,g:"12.7",l:"9.52",gy:131.5,ly:257.5,pz:80,dy:485,dz:54.4,src:"日立の技術資料の室内ユニット標準寸法図"},
- hi_rknp2p:{mk:"hitachi",nv:["RKNP2LTV+K2PCV","K2PCV"],n:"日立 RK-NP2LTV＋K-2PCV",sub:"床置の除湿機（プレナムチャンバー付き・正面へ吹き出し）",W:650,H:1650,D:500,pl:250,g:"12.7",l:"9.52",gy:131.5,ly:257.5,pz:80,dy:485,dz:54.4,src:"日立の技術資料のプレナムチャンバー付寸法図"}};
-const FLR_MORDER=["hi_rknp2","hi_rknp2p"];
+/* 床置の機種（2026-11-21 ユーザー：日立の除湿機の模型・プレナムの有り無し）。W×H×D＝本体（高さは床から本体の上面）、pl＝上に載せるプレナムチャンバーの高さ（0＝無し・上にダクト）。2026-11-22 承認図で全部の機種に（下の説明） */
+/* 床置（日立 キープドライ 除湿機・承認図 SR513Z の寸法図・2026-11-22 ユーザー）。高さは本体の下（床・木台なし）から、pb・db・eb は後ろの面から。
+   配管・ドレンの口は両側面にあり、どちらからでも出せる（標準寸法図は右側面・`sd`＝"r"、プレナム付きの図に左側面）。g が無い物は一体型（冷媒配管なし）。
+   dy／db＝ドレン（dk）、ey／eb＝エマージェンシードレン（ek・2つ目のドレン）。キーの終わりの p はプレナムチャンバー付き */
+const FLRM=(()=>{const o={},S="日立 承認図（キープドライ）の寸法図";
+ const A=(k,nm,nv,W,D,H,pn,x)=>{const b=Object.assign({mk:"hitachi",n:"日立 "+nm,nv,W,D,H,pl:0,pn,src:S,sd:"r",dk:"R1"},x);o[k]=Object.assign({},b,{plk:pn?k+"p":undefined,sub:b.sub+(pn?"（プレナムなし・上の吹出口にダクト）":"")});
+  if(pn)o[k+"p"]=Object.assign({},b,{n:b.n+"＋"+pn,nv:nv.map(v=>v+"+"+pn.replace(/-/g,"")).concat([pn.replace(/-/g,"")]),pl:250,sub:b.sub+"（プレナムチャンバー付き・正面へ吹き出し）"})};
+ const LV={pb:80,dy:595,db:54.4,ey:110,eb:148,ek:"R1/2"},LV4={pb:80,dy:645,db:54,ey:110,eb:148,ek:"R1/2"};
+ A("hi_rknp2","RK-NP2LTV",["RKNP2LTV"],650,500,1650,"K-2PCV",Object.assign({sub:"床置の除湿機（2馬力・室外 RCR-NP2TV）",g:"12.7",l:"9.52",gy:215,ly:341,out:"RCR-NP2TV"},LV));
+ A("hi_rknp4","RK-NP4LTV",["RKNP4LTV"],800,500,1800,"K-4PCV",Object.assign({sub:"床置の除湿機（4馬力・室外 RCR-NP4TV）",g:"15.88",l:"12.7",gy:215,ly:391,out:"RCR-NP4TV"},LV4));
+ A("hi_rknp8","RK-NP8LTV",["RKNP8LTV"],1100,500,1800,"K-8PCV",Object.assign({sub:"床置の除湿機（8馬力・室外 RCR-NP8TV）",g:"19.05",l:"15.88",gy:215,ly:391,out:"RCR-NP8TV"},LV4));
+ const T2={pb:80,dy:150,db:150};
+ A("hi_rknp2t","RK-NP2LT2 / RK-NP3LT2",["RKNP2LT2","RKNP3LT2"],650,400,1500,"K-2PC",{sub:"床置の除湿機（定速・室外 RCR-NP2T／NP3T）",g:"12.7",l:"9.52",gy:250,ly:326,pb:80,dy:150,db:123,out:"RCR-NP2T / RCR-NP3T"});
+ A("hi_rknp5t","RK-NP5LT2",["RKNP5LT2"],800,500,1700,"K-5PC1",Object.assign({sub:"床置の除湿機（定速・室外 RCR-NP5T）",g:"15.88",l:"12.7",gy:250,ly:426,out:"RCR-NP5T"},T2));
+ A("hi_rknp8t","RK-NP8LT2",["RKNP8LT2"],1100,500,1700,"K-8PC2",Object.assign({sub:"床置の除湿機（定速・室外 RCR-NP8T）",g:"19.05",l:"15.88",gy:250,ly:356,out:"RCR-NP8T"},T2));
+ A("hi_rknp10t","RK-NP10LT2",["RKNP10LT2"],1400,500,1700,"K-10PC2",Object.assign({sub:"床置の除湿機（定速・室外 RCR-NP10T）",g:"19.05",l:"15.88",gy:250,ly:356,out:"RCR-NP10T"},T2));
+ A("hi_rknp2lv","RK-NP2LV",["RKNP2LV"],650,500,1650,"K-2PCV",Object.assign({sub:"一体型の床置除湿機（冷媒配管なし）",it:1},LV));
+ A("hi_rknp4lv","RK-NP4LV1",["RKNP4LV1"],800,500,1800,"K-4PCV",Object.assign({sub:"一体型の床置除湿機（冷媒配管なし）",it:1},LV4));
+ A("hi_rknp8lv","RK-NP8LV1",["RKNP8LV1"],1100,500,1800,"K-8PCV",Object.assign({sub:"一体型の床置除湿機（冷媒配管なし）",it:1},LV4));
+ A("hi_rknp2l2","RK-NP2L2 / RK-NP3L2",["RKNP2L2","RKNP3L2"],650,400,1500,"K-2PC",{sub:"一体型の床置除湿機（定速・冷媒配管なし）",it:1,dy:150,db:123});
+ A("hi_rknp5l2","RK-NP5L2",["RKNP5L2"],800,500,1700,"K-5PC1",{sub:"一体型の床置除湿機（定速・冷媒配管なし）",it:1,dy:150,db:150});
+ A("hi_rknp8l2","RK-NP8L2",["RKNP8L2"],1100,500,1700,"K-8PC2",{sub:"一体型の床置除湿機（定速・冷媒配管なし）",it:1,dy:150,db:150});
+ A("hi_rknp10l2","RK-NP10L2",["RKNP10L2"],1400,500,1700,"K-10PC2",{sub:"一体型の床置除湿機（定速・冷媒配管なし）",it:1,dy:150,db:150});
+ A("hi_rknp08pv","RK-NP08PV2 / RK-NP12PV2",["RKNP08PV2","RKNP12PV2"],550,295,825,"",{sub:"小型の床置除湿機（単相100V・一体型・キャスターは別売）",it:1,sm:1,dy:95,db:46,dk:"R1/2"});
+ return o})();
+const FLR_MORDER=Object.keys(FLRM);
 const CAS2_MAKERS=[["mitsu","三菱電機"],["daikin","ダイキン"],["hitachi","日立"]];
 const CAS2_ORDER=["40","56","80","mi_zrp80","mi_zrp40","mi_zrp71","mi_zrp80h4","mi_rp28","mi_erp56","mi_erp80","mi_erp112","mbz2822","mbz5022","ge_mp1080","ge_mp1680","ge_mp2100","pe_rp50","pe_rp80","pe_rp280","pd_rp40","dk_fhgp50","dk_fhgp80","dk_fhgp160","dk_fhcp80","dk_fhkp80","hi_rcid40","hi_rcid71","hi_rcid112","hi_rci28","hi_rci71","hi_rci112"];
 /* 室外機の種類。w=幅(mm) h=高さ d=奥行 f=ファン(front=正面 / top=上吹き) 大きさは目安 */
@@ -155,6 +174,11 @@ const OUTM={
     lx＝ガスの口の左の端からの内側（正面から見て左下・図から読んだ目安）・py＝ガスの口の高さ160（液259）・iz＝前からの内側152（液132）・ex＝前と下 */
  /* 日立 業務用除湿機の室外 RCR-NP2TV（2026-11-17 ユーザーの寸法図・仕様表）。950×370×800・ファン1つ正面。口は正面右のサービスカバーの中（ix＝右の端から・py＝ガスの口の高さ＝図から読んだ目安）・ex＝前・後ろのノック穴 */
  rcr_np2:{nv:["RCRNP2TV"],py:440,pz:0,ix:75,ex:["f","b"],n:"日立 RCR-NP2TV",sub:"床置の除湿機 RK-NP2LTV の室外（2馬力）",w:950,h:800,d:370,f:"front",nf:1,nt:"日立の寸法図の大きさです（口の高さは図から読んだ目安）。ガスφ12.7・液φ9.52（ろう付け）。配管は正面の右下か後ろのノック穴から出します。"},
+ rcr_np4:{nv:["RCRNP4TV"],py:460,pz:0,ix:97,ex:["f","b"],n:"日立 RCR-NP4TV",sub:"床置の除湿機 RK-NP4LTV の室外（4馬力）",w:950,h:1140,d:370,f:"front",nf:1,nt:"日立の承認図の大きさです（口の高さは図から読んだ目安）。ガスφ15.88・液φ12.7（ろう付け）。配管は正面の右下か後ろのノック穴から出します。"},
+ rcr_np8:{nv:["RCRNP8TV"],py:460,pz:0,ix:97,ex:["f","b"],n:"日立 RCR-NP8TV",sub:"床置の除湿機 RK-NP8LTV の室外（8馬力）",w:950,h:1380,d:370,f:"front",nf:2,nt:"日立の承認図の大きさです（口の高さは図から読んだ目安）。ガスφ19.05・液φ15.88（ろう付け）。配管は正面の右下か後ろのノック穴から出します。"},
+ rcr_np2t:{nv:["RCRNP2T","RCRNP3T"],py:300,pz:0,ix:50,ex:["f","r"],n:"日立 RCR-NP2T / RCR-NP3T",sub:"床置の除湿機 RK-NP2LT2・NP3LT2 の室外（定速）",w:850,h:800,d:315,f:"front",nf:1,nt:"日立の承認図の大きさです（口の高さは図から読んだ目安）。ガスφ12.7・液φ9.52（フレアナット付きの銅管）。配管は正面の右下か右の横のノック穴から出します。"},
+ rcr_np5t:{nv:["RCRNP5T"],py:400,pz:0,ix:50,ex:["f","r"],n:"日立 RCR-NP5T",sub:"床置の除湿機 RK-NP5LT2 の室外（定速）",w:850,h:1240,d:315,f:"front",nf:2,nt:"日立の承認図の大きさです（口の高さは図から読んだ目安）。ガスφ15.88・液φ12.7。配管は正面の右下か右の横のノック穴から出します。"},
+ rcr_np8t:{nv:["RCRNP8T","RCRNP10T"],py:275,pz:0,ix:170,ex:["f","b"],n:"日立 RCR-NP8T / RCR-NP10T",sub:"床置の除湿機 RK-NP8LT2・NP10LT2 の室外（定速・上吹き）",w:950,h:1645,d:790,f:"top",nf:1,nt:"日立の承認図の大きさです（口の高さは図から読んだ目安）。ガスφ19.05・液φ15.88。配管は正面か後ろの右下の口から出します。"},
  hi_gp:{nv:["RASGP400TG","RASGP450TG","RASGP500TG"],hi:1,py:160,pz:0,lx:200,iz:152,ex:["f","d"],n:"日立 RAS-GP400・450・500TG",sub:"P400〜500（上吹き2ファン）",w:1600,h:1428,d:765,f:"top",nf:2}
 };
 /* 室外機の本体の模型（2026-11-21 ユーザー：図面修正の3D・機器の画面でもリアルの模型を）：core.js の makeUnit の out の形を写した物（変えたら両方）。
@@ -180,7 +204,7 @@ function outModel3D(TH,mk){const om=OUTM[mk]||OUTM.room,W=om.w,H=om.h,D=om.d,B=0
   if(om.ghp){bx(W*.4,H*.5,6,X+W*.1,B+H*.3,FZ+3,0xcbd5e1);bx(W*.5,200,6,X,B+H*.78,FZ+3,0xfacc15)}}
  bx(W*.5,18,6,X,H-45,FZ+3,0xdc2626);   // 正面の目印（赤い帯）
  return g}
-const OUT_PKG=["p40","p80","p112","dk160","pz40","pz80","pz140","pz280","rcr_np2"];
+const OUT_PKG=["p40","p80","p112","dk160","pz40","pz80","pz140","pz280","rcr_np2","rcr_np4","rcr_np8","rcr_np2t","rcr_np5t","rcr_np8t"];
 const OUT_X={s:"右側面（前から50mm内側）",f:"正面（表）",b:"背面（裏）",d:"真下（手前）",l:"左下（正面からまっすぐ）",m:"真下（左・手前）"};
 const OUT_VRV=["vrv","vrv2"];
 const outAllow=mk=>OUTM[mk]&&OUTM[mk].ex?OUTM[mk].ex:OUT_PKG.includes(mk)?["s","f","b","d"]:mk==="room"?["b"]:OUT_VRV.includes(mk)?["l","m"]:mk==="ghp"?["f"]:["s"];
@@ -199,7 +223,7 @@ function outPort(mk,k){
  const y=m.py||200,ix=m.ix==null?120:m.ix,iz=m.iz||50;   // 外形図の分かる機種は口の高さ・位置（py・ix・iz）
  return k==="f"?[W/2-ix,y,D/2]:k==="b"?[W/2-ix,y,-D/2]:k==="d"?[W/2-ix,0,D/2-60]:[W/2,y,D/2-iz];
 }
-const OUT_ORDER=["room","p40","p80","p112","vrv","vrv2","ghp","dk160","pz40","pz80","pz140","pz280","hi_gp","rcr_np2"];
+const OUT_ORDER=["room","p40","p80","p112","vrv","vrv2","ghp","dk160","pz40","pz80","pz140","pz280","hi_gp","rcr_np2","rcr_np4","rcr_np8","rcr_np2t","rcr_np5t","rcr_np8t"];
 /* ===== 換気機器（エアコンとは別）：ロスナイ（三菱電機 天井埋込形 LGH-N○○RXW3）=====
    メーカーの外形寸法表より（単位mm）。A＝ダクトの並ぶ向きの幅、B＝奥行、C＝高さ、D×E＝天吊金具ピッチ、F＝金具の出、
    d＝ダクトの呼び径、G・H＝フランジ、J＝フランジの出、K＝ダクトピッチ、L＝端からダクト芯、M・N・P＝ダクトの位置、kg＝質量

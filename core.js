@@ -702,9 +702,9 @@ function makeUnit(type,opt){
   tg=g;
  }else if(type==="flr"){
   /* 床置き（目安 600×1850×350）：箱の下面が床（y0）、正面=+z。配管は裏面右下 または 右側面の下から */
-  const FM=typeof FLRM!=="undefined"&&FLRM[opt.wm];   // 機種を選んだ時（日立の除湿機など）は寸法図の大きさ・配管は左の横の取出口
-  const W=FM?FM.W:600,H=FM?FM.H:1850,D=FM?FM.D:350,ck=FM?"l":opt.ck==="r"?"r":"f",Pn=FM?[-W/2,opt.kind==="液"?FM.ly:FM.gy,D/2-FM.pz]:ck==="r"?[W/2,150,-D/2+100]:[W/2-100,150,-D/2];
-  const RB=FM?[[-1,0,0],[0,1,0],[0,0,-1]]:ck==="r"?OUT_R.s:OUT_R.b;
+  const FM=typeof FLRM!=="undefined"&&FLRM[opt.wm]&&FLRM[opt.wm].g&&FLRM[opt.wm];   // 機種を選んだ時（日立の除湿機など・承認図）は寸法図の大きさ・配管は横の取出口（左右どちらでも：st.units.c○ が "l" で左・ほかは右＝標準寸法図。2026-11-22 ユーザー：逆にもできる）
+  const sx=FM&&opt.ck==="l"?-1:1,W=FM?FM.W:600,H=FM?FM.H:1850,D=FM?FM.D:350,ck=FM?(sx<0?"l":"r"):opt.ck==="r"?"r":"f",Pn=FM?[sx*W/2,opt.kind==="液"?FM.ly:FM.gy,-D/2+FM.pb]:ck==="r"?[W/2,150,-D/2+100]:[W/2-100,150,-D/2];
+  const RB=FM?(sx<0?[[-1,0,0],[0,1,0],[0,0,-1]]:OUT_R.s):ck==="r"?OUT_R.s:OUT_R.b;
   const R=v=>[0,1,2].map(j=>v[0]*RB[0][j]+v[1]*RB[1][j]+v[2]*RB[2][j]);
   const body=new THREE.Group();g.add(body);tg=body;
   body.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(...RB[0]),new THREE.Vector3(...RB[1]),new THREE.Vector3(...RB[2])));
@@ -714,8 +714,9 @@ function makeUnit(type,opt){
   if(FM){rb(W,H,D,10,0,H/2,0,WH);
    bx(W-40,573,6,0,708+573/2,D/2+2,0xe8edf2);for(let i=0;i<20;i++)bx(W-60,5,8,0,730+i*27,D/2+4,MD);                     // 前の吸込みの格子（床から 708〜1281）
    bx(110,90,6,W/2-150,H-150,D/2+3,0x38bdf8);bx(W-10,89,D-10,0,44,0,0x475569);                                            // 運転操作部・下の台
-   [[FM.gy,"ガス"],[FM.ly,"液"]].forEach(([y])=>{const c=cyl(31,6,-W/2-2,y,D/2-FM.pz,DK,20);c.rotation.z=Math.PI/2});   // 左の横の取出口 φ62
-   {const c=cyl(17,40,-W/2-20,FM.dy,D/2-FM.dz,MD,16);c.rotation.z=Math.PI/2}                               // ドレン R1
+   [[FM.gy,"ガス"],[FM.ly,"液"]].forEach(([y])=>{const c=cyl(31,6,sx*(W/2+2),y,-D/2+FM.pb,DK,20);c.rotation.z=Math.PI/2});   // 横の取出口 φ62
+   {const c=cyl(17,40,sx*(W/2+20),FM.dy,-D/2+FM.db,MD,16);c.rotation.z=Math.PI/2}                               // ドレン① R1
+   if(FM.ey){const c=cyl(11,30,sx*(W/2+15),FM.ey,-D/2+FM.eb,MD,16);c.rotation.z=Math.PI/2}                     // ドレン② エマージェンシードレン R1/2
    if(FM.pl){rb(W,FM.pl,D,10,0,H+FM.pl/2,0,WH);bx(W-60,FM.pl-60,6,0,H+FM.pl/2,D/2+2,DK);for(let i=0;i<6;i++)bx(W-80,6,10,0,H+40+i*30,D/2+5,MD)}   // プレナムチャンバー：正面の吹出口
    else{bx(342,17,318,0,H+8,-D/2+221/2+60,DK)}                                                                              // 上の吹出口（ダクトをつなぐ）
   }else{
@@ -1508,14 +1509,14 @@ function unitGrp(k){const u=st.units[k];return u==="cas2"?cas2Grp(CAS2M[st.units
 /* 壁掛け・天吊の機種（外形図の大きさ）：st.units.ks／ke（"" は今までの目安の大きさ） */
 function wcmPick(box,k,ty,lab){
  if(ty==="flr"&&typeof FLRM==="undefined")return;const MM=ty==="wall"?WALLM:ty==="flr"?FLRM:CEILM;
- const L=(ty==="wall"?WALL_MORDER:ty==="flr"?FLR_MORDER:CEIL_MORDER).map(x=>[x,MM[x]]),kk="k"+k,cur=MM[st.units[kk]]?st.units[kk]:"";
+ const L=(ty==="wall"?WALL_MORDER:ty==="flr"?FLR_MORDER.filter(x=>MM[x].g):CEIL_MORDER).map(x=>[x,MM[x]]),kk="k"+k,cur=MM[st.units[kk]]?st.units[kk]:"";
  const t=document.createElement("div");t.className="ctitle";t.textContent=(ty==="wall"?"🧱 壁掛けの機種":ty==="flr"?"🧊 床置の機種":"🔧 天吊の機種")+"（"+lab+"）";box.appendChild(t);
  const g=document.createElement("div");g.className="ugrid mdl";
  [["",null]].concat(L).forEach(([key,m])=>{const b=document.createElement("button");b.className="ubtn"+(cur===key?" on":"");
   b.innerHTML=m?m.n.split(" / ").map(x=>"<b"+(x.length>14?' style="font-size:12.5px"':"")+">"+x+"</b>").join("")+"<small>"+m.W+"×"+(m.H+(m.pl||0))+"×"+m.D+"<br>ガスφ"+m.g+"・液φ"+m.l+"</small>":"<b>目安の大きさ</b><small>"+(ty==="wall"?"800×290×215":ty==="flr"?"600×1850×350":"1240×210×690")+"</small>";
   b.onclick=()=>{st.units[kk]=key;save();renderUnitSheet();unitRefresh()};g.appendChild(b)});
  box.appendChild(g);
- const m=cur&&MM[cur];if(m&&ty==="flr"){const n=document.createElement("div");n.className="note";n.textContent=m.n+"（"+m.sub+"）　幅"+m.W+"×奥行"+m.D+"×高さ"+(m.H+m.pl)+"。配管は正面を見て左の横の取出口（前から"+m.pz+"・床から ガス"+m.gy+"・液"+m.ly+"）。"+m.src+"の寸法で作っています。";box.appendChild(n)}
+ const m=cur&&MM[cur];if(m&&ty==="flr"){const n=document.createElement("div");n.className="note";n.textContent=m.n+"（"+m.sub+"）　幅"+m.W+"×奥行"+m.D+"×高さ"+(m.H+m.pl)+"。配管は正面を見て"+(st.units["c"+k]==="l"?"左":"右")+"の横の取出口（後ろから"+m.pb+"・床から ガス"+m.gy+"・液"+m.ly+"）。ドレン① "+m.dk+"（床から"+m.dy+"）"+(m.ey?"・ドレン② エマージェンシードレン "+m.ek+"（床から"+m.ey+"）の2か所":"")+"。"+m.src+"の寸法で作っています。";box.appendChild(n)}
  else if(m){const n=document.createElement("div");n.className="note";n.textContent="三菱電機 "+m.n+(m.kind?"（"+m.kind+"）":"")+"　"+m.spec+"。"+m.src+"の寸法で作っています。";box.appendChild(n)}
 }
 function renderUnitSheet(){
@@ -1539,7 +1540,8 @@ const SLOTS=[["s","起点"],...(st.nopipe?[]:brOn()?leaves().map(g=>["L"+g,slotN
   if(st.units[k]==="flr"){
    const ck="c"+k,t3=document.createElement("div");t3.className="ctitle";t3.innerHTML=NI("u_flr")+"床置き：配管をつなぐ位置（"+lab+"）";box.appendChild(t3);
    const g3=document.createElement("div");g3.className="ugrid";
-   [["f","裏面（右下）"],["r","右側面（下）"]].forEach(([key,nm])=>{const b=document.createElement("button");b.className="ubtn"+(st.units[ck]===key?" on":"");b.textContent=nm;
+   const FMk=typeof FLRM!=="undefined"&&FLRM[st.units["k"+k]]&&FLRM[st.units["k"+k]].g;   // 機種を選んだ床置は左右の横（承認図：両側面に口）
+   (FMk?[["r","正面を見て右の横（標準）"],["l","正面を見て左の横"]]:[["f","裏面（右下）"],["r","右側面（下）"]]).forEach(([key,nm])=>{const b=document.createElement("button");b.className="ubtn"+((FMk&&key==="r"?st.units[ck]!=="l":st.units[ck]===key)?" on":"");b.textContent=nm;
     b.onclick=()=>{st.units[ck]=key;save();renderUnitSheet();unitRefresh()};g3.appendChild(b)});
    box.appendChild(g3);
    const n=document.createElement("div");n.className="note";n.textContent="床置き形（目安：幅600×高さ1850×奥行350）。床に置いた形で表示し、地面は機器の下面になります。機種の図面があれば寸法どおりに作れます。";box.appendChild(n);wcmPick(box,k,"flr",lab);return;

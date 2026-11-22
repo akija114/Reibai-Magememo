@@ -43,7 +43,7 @@ a.doc{color:var(--acc);font-weight:700}
 <select id="mk" aria-label="メーカー" style="margin-bottom:8px"></select>
 <select id="m" aria-label="機種" hidden></select>
 <div id="out"></div>
-<script src="models.js?v=321"></script>
+<script src="models.js?v=322"></script>
 <script src="kiso.js?v=23"></script>
 <script>
 /* 🔩 機器：仕込み用の寸法を見るページ（模型は three.js をこのページだけで読む・core.js は読まない）
@@ -55,10 +55,11 @@ mkS.innerHTML='<option value="">メーカーを選ぶ</option>'+CAS2_MAKERS.map(
 const AL=k=>CAS2M[k]&&CAS2M[k].al||k,OMK={dk160:"daikin",pz40:"mitsu",pz80:"mitsu",pz140:"mitsu",pz280:"mitsu",hi_gp:"hitachi",rcr_np2:"hitachi",rcr_np4:"hitachi",rcr_np8:"hitachi",rcr_np2t:"hitachi",rcr_np5t:"hitachi",rcr_np8t:"hitachi",ras_gp3:"hitachi",ras_gp5:"hitachi"},mkOf=k=>/^f:/.test(k||"")&&typeof FLRM!=="undefined"&&FLRM[k.slice(2)]?FLRM[k.slice(2)].mk:/^o:/.test(k||"")?(OMK[k.slice(2)]||mkS.value||"mitsu"):VENTM[k]?"vent":CAS2M[k]?CAS2M[k].mk:"";
 function fillM(mk){sel.innerHTML='<option value="">品番を選ぶ</option>';sel.hidden=!mk;if(!mk)return;
  if(mk==="vent"){VENT_ORDER.forEach(x=>{const o=document.createElement("option");o.value=x;o.textContent=VENTM[x].n+"（ロスナイ）";sel.appendChild(o)});return}
- const ks=CAS2_ORDER.filter(k=>CAS2M[k]&&CAS2M[k].mk===mk&&!CAS2M[k].al),kinds=[...new Set(ks.map(k=>CAS2M[k].kind))];
+ const ks=CAS2_ORDER.filter(k=>CAS2M[k]&&CAS2M[k].mk===mk&&!CAS2M[k].al&&!CAS2M[k].dh),kinds=[...new Set(ks.map(k=>CAS2M[k].kind))];
  kinds.forEach(kd=>{const g=document.createElement("optgroup");g.label=kd;ks.filter(k=>CAS2M[k].kind===kd).forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=CAS2M[k].n;g.appendChild(o)});sel.appendChild(g)});
- if(typeof FLRM!=="undefined"){const L=FLR_MORDER.filter(x=>FLRM[x].mk===mk);if(L.length){const g=document.createElement("optgroup");g.label="🧊 床置・小型天吊（除湿機など）";L.forEach(x=>{const o=document.createElement("option");o.value="f:"+x;o.textContent=FLRM[x].n+"（"+FLRM[x].sub+"）";g.appendChild(o)});sel.appendChild(g)}}   // 床置（2026-11-22 ユーザー：日立の床置の除湿機が機器に無い）
- if(typeof OUTM!=="undefined")[[OUT_ORDER.filter(x=>OMK[x]===mk),"🌀 室外機"],[OUT_ORDER.filter(x=>!OMK[x]),"🌀 室外機（メーカー共通の目安）"]].forEach(([L,lb])=>{if(!L.length)return;const g=document.createElement("optgroup");g.label=lb;L.forEach(x=>{const o=document.createElement("option");o.value="o:"+x;o.textContent=OUTM[x].n+"（"+OUTM[x].sub+"）";g.appendChild(o)});sel.appendChild(g)})}   // 室外機はメーカーごとの中に（2026-11-21 ユーザー：室外機の欄は無しで、メーカーの中に）
+ {const og=(lb,L)=>{if(!L.length)return;const g=document.createElement("optgroup");g.label=lb;L.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;g.appendChild(o)});sel.appendChild(g)},F=typeof FLRM==="undefined"?[]:FLR_MORDER.filter(x=>FLRM[x].mk===mk),nm=x=>FLRM[x].n.replace(/^日立 /,"");   // 除湿機は種類ごとに品番だけ（2026-11-22 ユーザー：文字が多すぎる）
+  og("🧊 除湿機　床置き",F.filter(x=>!FLRM[x].hg).map(x=>["f:"+x,nm(x)]));og("🧊 除湿機　小型天吊",F.filter(x=>FLRM[x].hg).map(x=>["f:"+x,nm(x)]));og("🧊 除湿機　天井埋込",CAS2_ORDER.filter(k=>CAS2M[k]&&CAS2M[k].mk===mk&&CAS2M[k].dh).map(k=>[k,CAS2M[k].n]))}
+ if(typeof OUTM!=="undefined")[[OUT_ORDER.filter(x=>OMK[x]===mk&&!/除湿機/.test(OUTM[x].sub)),"🌀 室外機"],[OUT_ORDER.filter(x=>OMK[x]===mk&&/除湿機/.test(OUTM[x].sub)),"🌀 除湿機　室外機",1],[OUT_ORDER.filter(x=>!OMK[x]),"🌀 室外機（メーカー共通の目安）"]].forEach(([L,lb,dh])=>{if(!L.length)return;const g=document.createElement("optgroup");g.label=lb;L.forEach(x=>{const o=document.createElement("option");o.value="o:"+x;o.textContent=dh?OUTM[x].n.replace(/^日立 /,""):OUTM[x].n+"（"+OUTM[x].sub+"）";g.appendChild(o)});sel.appendChild(g)})}   // 室外機はメーカーごとの中に（2026-11-21 ユーザー：室外機の欄は無しで、メーカーの中に）
 const OK=k=>!!(CAS2M[k]||VENTM[k]||(/^f:/.test(k||"")&&typeof FLRM!=="undefined"&&FLRM[k.slice(2)])||(/^o:/.test(k||"")&&typeof OUTM!=="undefined"&&OUTM[k.slice(2)]));
 function setCur(k){k=AL(k);if(cur!==k)FSD=null;cur=k;mkS.value=mkOf(k);fillM(mkS.value);sel.value=k;try{localStorage.setItem("pbm_kiki",k)}catch(e){}draw()}
 let cur=new URLSearchParams(location.search).get("m");

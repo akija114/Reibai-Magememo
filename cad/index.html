@@ -4139,8 +4139,8 @@ async function openProject(p){
 }
 function openStartSheet(){
   openSheet('図面を開く', async body => {
-    body.innerHTML = `<button class="bigbtn pri" id="pick"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>DXF・PDF・Jwファイルを選ぶ</button>
-      <div class="note">ファイルアプリ・メール添付・LINEで保存したDXFやPDF・Jw_cad の図面（.jwc）を選べます（このアプリで書き出したZIPもそのまま開けます）。CADから出したPDFなら線として読み込み、色ごとにレイヤーに分けます。スキャンした紙のPDFは読めません。DWGはCADでDXFに変換してください。</div>
+    body.innerHTML = `<button class="bigbtn pri" id="pick"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>DXF・PDF・Jw・Tファスを選ぶ</button>
+      <div class="note">ファイルアプリ・メール添付・LINEで保存したDXFやPDF・Jw_cad の図面（.jwc）を選べます（このアプリで書き出したZIPもそのまま開けます）。Tファスのファイル（.tfs）は配管の通り道と高さを3Dにそのまま出します（同じ図面のDXFを先に開いておくと、その上に重ねます）。CADから出したPDFなら線として読み込み、色ごとにレイヤーに分けます。スキャンした紙のPDFは読めません。DWGはCADでDXFに変換してください。</div>
       <div class="grp">この端末に保存した図面</div><div id="plist"><div class="empty">読み込み中…</div></div>
       ${HAS_SAMPLE ? '<div class="grp">お試し</div><button class="bigbtn sec" id="smp">受け取った図面（サンプル）を開く</button>' : ''}`;
     body.querySelector('#pick').onclick = () => $('#fileIn').click();

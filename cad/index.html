@@ -997,6 +997,7 @@ const ptrs = new Map(); let gest = null;
 function evPos(e){ const r = ov.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
 ov.addEventListener('pointerdown', e => {
   if (!G) return;
+  if (e.isPrimary && ptrs.size){ ptrs.clear(); if (gest && gest.lt) clearTimeout(gest.lt); gest = null; MS.dragging = false; RS.dragging = false; }   /* 1本目の指が触れた＝前の指は全部はなれている。指をはなした知らせが来なかった指が残ると、1本指で拡大・縮小になり動かせなくなる（2026-11-23 ユーザー） */
   ov.setPointerCapture(e.pointerId); const p = evPos(e); ptrs.set(e.pointerId, p);
   if (ptrs.size === 1){
     if (S.mvg && S.mvgWall){ gest = {type:'mwall', start:p}; }
@@ -1101,6 +1102,7 @@ function endPtr(e, cancel){
 }
 ov.addEventListener('pointerup', e => endPtr(e, false));
 ov.addEventListener('pointercancel', e => endPtr(e, true));
+ov.addEventListener('lostpointercapture', e => endPtr(e, true));   // 画面が出た時などで指を見失った時も、その指を外す
 ov.addEventListener('wheel', e => {
   e.preventDefault(); const p = evPos(e); const f = Math.exp(-e.deltaY * 0.0015);
   const wx = (p[0]-view.tx)/view.s, wy = (view.ty-p[1])/view.s; view.s *= f; view.tx = p[0] - wx*view.s; view.ty = p[1] + wy*view.s; viewChanged();

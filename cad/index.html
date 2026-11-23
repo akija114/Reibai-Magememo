@@ -947,7 +947,7 @@ function drawOverlay(){
   drawPick(octx); drawMvg(octx); drawNp(octx);
   if (gest && gest.type === 'box'){ const [a, b] = [gest.start, gest.cur]; octx.save(); octx.fillStyle = tok.snap; octx.globalAlpha = .1; octx.fillRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.globalAlpha = 1; octx.strokeStyle = tok.snap; octx.lineWidth = 1.5; octx.setLineDash([6,4]); octx.strokeRect(Math.min(a[0],b[0]), Math.min(a[1],b[1]), Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])); octx.restore(); }
   for (const d of S.dims) if (dimVisible(d)) drawDim(octx, d, d === S.selDim);
-  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawCeilCol(octx); drawDrnCol(octx); drawReadHL(octx); drawGridCol(octx); drawSins(octx); drawWires(octx);
+  drawNotes(octx); drawPnote(octx); drawHoles(octx); drawShpHL(octx); drawCeilCol(octx); drawDrnCol(octx); drawReadHL(octx); drawTfs2D(octx); drawGridCol(octx); drawSins(octx); drawWires(octx);
   if (S.mode === 'dim' && S.autoDim && S.autoDim.line){ const [x1, y1, x2, y2] = S.autoDim.line, dx = x2-x1, dy = y2-y1; const a = w2s(x1 - dx*20, y1 - dy*20), b = w2s(x2 + dx*20, y2 + dy*20); octx.save(); octx.strokeStyle = tok.snap; octx.lineWidth = 2; octx.setLineDash([8,5]); octx.globalAlpha = .8; octx.beginPath(); octx.moveTo(a[0], a[1]); octx.lineTo(b[0], b[1]); octx.stroke(); octx.restore(); }
   if (S.mode === 'dim' && S.autoDim && S.autoDim.g4) drawGrid4(octx, S.autoDim.g4);
   drawSame(octx);
@@ -1127,6 +1127,7 @@ function placePoint(pt){
   drawOverlay(); updateHint(); updatePill(); updateDimPanel();
 }
 function tapSelect(p){
+  if (S.tfAl){ tfsAlignTap(p); return; }   // Tfasの位置合わせ
   if (S.sinPick){ sinPickAt(p); return; }
   const hitN = noteAt(p); if (hitN){ openNoteEditor(hitN); return; }
   if (S.mode === 'note'){ const w = s2w(p[0], p[1]); S.pnote = {x:w[0], y:w[1]}; drawOverlay(); updateUi(); return; } // 置く所を先に見せる（印をドラッグで動かして「ここに書く」）
@@ -4034,7 +4035,7 @@ async function openText(text, srcName, opts = {}){
     return false;
   }
 }
-/* 🧊 Tファス（.tfs）の3D（2026-11-23 ユーザー：Tファスのデータを読んで、Tファスが作っている3Dをそのまま）。
+/* 🧊 Tfas（.tfs）の3D（2026-11-23 ユーザー：Tfasのデータを読んで、Tfasが作っている3Dをそのまま）。
    中身：頭「TFAS」、レイヤーごとに zlib で縮めたかたまり（`tfsInflate`）。かたまりの頭の方の日本語＝レイヤーの名前（冷媒・ドレン・ダクト…）。
    配管・継手の芯は 0x0f＋長さ＋「68 00 00 40」＋12バイト＋点の数（4バイト・その後4バイト）＋点（x,y,z の8バイトの小数・mm・図面のDXFと同じ原点）。
    2点＝管、3・4点＝継手（1つ目が真ん中・ほかが口：エルボ・チーズ）、冷媒は曲がる点の並び（1本の通り道）。localStorage zumen-tfs の図面ごと {n,L:[{n,k,a}]} */
@@ -4052,34 +4053,52 @@ function tfsInflate(d, p){ let bb = 0, bc = 0; const out = []; const bit = () =>
 const TFS_K = n => /冷媒/.test(n) ? 'ref' : /ドレン/.test(n) ? 'drn' : /ダクト|ダ機|制気口/.test(n) && !/寸|枠|用/.test(n) ? 'duct' : /排水|給水|給湯|衛器|通気|汚水/.test(n) && !/寸|枠|管種/.test(n) ? 'eis' : /空調機/.test(n) ? 'unit' : '';
 function tfsRead(buf){ if (String.fromCharCode(...buf.slice(0, 4)) !== 'TFAS') return null; const L = [], sj = new TextDecoder('shift_jis'); let i = 0;
   while (i < buf.length - 2){ if (buf[i] === 0x78 && (buf[i + 1] === 0x9c || buf[i + 1] === 0xda || buf[i + 1] === 0x01 || buf[i + 1] === 0x5e)){ let r = null; try { r = tfsInflate(buf, i + 2); } catch(e){ r = null; }
-      if (r && r.out.length > 200){ i = r.end; const z = r.out, nm = ((sj.decode(z.subarray(0, 1200)).match(/[ぁ-ヿ一-鿿]{1,12}/) || [''])[0]), k = TFS_K(nm); if (!k) continue; const dv = new DataView(z.buffer, z.byteOffset, z.byteLength), a = [];
+      if (r && r.out.length > 200){ i = r.end; const z = r.out, nm = ((sj.decode(z.subarray(0, 1200)).match(/[ぁ-ヿ一-鿿]{1,12}/) || [''])[0]), k = TFS_K(nm); if (!k) continue; const dv = new DataView(z.buffer, z.byteOffset, z.byteLength), a = [], rr = [];
         for (let o = 0; o < z.length - 30; o++){ if (z[o] !== 0x0f || z[o + 5] !== 0x68 || z[o + 6] !== 0 || z[o + 7] !== 0 || z[o + 8] !== 0x40) continue; const len = dv.getUint32(o + 1, true), q = o + 5, n = dv.getUint32(q + 16, true); if (n < 2 || n > 500 || 24 + n*24 !== len || q + len > z.length) continue;
           const P = []; for (let j = 0; j < n; j++){ const x = dv.getFloat64(q + 24 + j*24, true), y = dv.getFloat64(q + 32 + j*24, true), h = dv.getFloat64(q + 40 + j*24, true); if (!isFinite(x) || !isFinite(y) || !isFinite(h) || Math.abs(x) > 1e7 || Math.abs(y) > 1e7 || Math.abs(h) > 1e5){ P.length = 0; break; } P.push([Math.round(x*10)/10, Math.round(y*10)/10, Math.round(h*10)/10]); }
-          if (P.length > 1) a.push(P); o = q + len - 1; }
-        if (a.length) L.push({n:nm, k, a}); continue; } }
+          if (P.length > 1){ a.push(P); const A0 = P[0], B0 = P[1], dx = B0[0] - A0[0], dy = B0[1] - A0[1], Ln = Math.hypot(dx, dy), C = new Map();   /* 太さ：芯の後ろ（3000バイト）の図面の絵の点（x,y）の、芯からのはなれ（横の管）・中心からのはなれ（たての管＝丸）のいちばん多い物 */
+            for (let t = q + len; t < Math.min(z.length - 16, q + len + 3000); t++){ const x = dv.getFloat64(t, true), y = dv.getFloat64(t + 8, true); if (!(Math.abs(x - A0[0]) < 3000 && Math.abs(y - A0[1]) < 3000)) continue; let d; if (Ln > 1){ const tt = ((x - A0[0])*dx + (y - A0[1])*dy)/Ln/Ln; if (tt < -0.05 || tt > 1.05) continue; d = Math.abs(-(x - A0[0])*dy + (y - A0[1])*dx)/Ln; } else d = Math.hypot(x - A0[0], y - A0[1]); if (d < 3 || d > 600) continue; const kk = Math.round(d*2)/2; C.set(kk, (C.get(kk) || 0) + 1); }
+            let br = 0, bn = 2; for (const [kk, n] of C) if (n > bn){ bn = n; br = kk; } rr.push(br); }
+          o = q + len - 1; }
+        if (a.length){ const ok = rr.filter(v => v > 0).sort((x, y) => x - y), md = ok.length ? ok[ok.length >> 1] : 0; L.push({n:nm, k, a, r:rr.map(v => v || md)}); } continue; } }
     i++; }
   return {L}; }
 function tfsAll(){ try { return JSON.parse(localStorage.getItem('zumen-tfs') || '{}') || {}; } catch(e){ return {}; } }
 function tfsOf(){ if (!G) return null; const o = tfsAll()[S.srcName || '']; return o && o.L && o.L.length ? o : null; }
-function tfsSet(nm, v){ const o = tfsAll(); if (v) o[nm] = v; else delete o[nm]; try { localStorage.setItem('zumen-tfs', JSON.stringify(o)); return true; } catch(e){ toast('この端末にTファスの3Dを残せませんでした（容量がいっぱい）'); return false; } }
+function tfsSet(nm, v){ const o = tfsAll(); if (v) o[nm] = v; else delete o[nm]; try { localStorage.setItem('zumen-tfs', JSON.stringify(o)); return true; } catch(e){ toast('この端末にTfasの3Dを残せませんでした（容量がいっぱい）'); return false; } }
 const tfsBox = T => { let x0 = 1e18, y0 = 1e18, x1 = -1e18, y1 = -1e18; for (const l of T.L) for (const P of l.a) for (const p of P){ x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); } return [x0, y0, x1, y1]; };
-/* Tファスだけで開く時の図面：芯の線を上から見た線（レイヤー「Tファス・冷媒」など） */
-function tfsDxf(T){ const o = ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '4', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES'], ln = (l, a, b) => o.push('0', 'LINE', '8', 'Tファス・' + l, '10', a[0], '20', a[1], '30', 0, '11', b[0], '21', b[1], '31', 0);
+/* Tfasだけで開く時の図面：芯の線を上から見た線（レイヤー「Tfas・冷媒」など） */
+function tfsDxf(T){ const o = ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '4', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES'], ln = (l, a, b) => o.push('0', 'LINE', '8', 'Tfas・' + l, '10', a[0], '20', a[1], '30', 0, '11', b[0], '21', b[1], '31', 0);
   for (const l of T.L) for (const P of l.a){ if (l.k === 'ref' || P.length > 4) for (let i = 1; i < P.length; i++) ln(l.n, P[i - 1], P[i]); else for (let i = 1; i < P.length; i++) ln(l.n, P[0], P[i]); }
   o.push('0', 'ENDSEC', '0', 'EOF'); return o.join('\n'); }
-async function tfsOpen(file){ const buf = new Uint8Array(await file.arrayBuffer()); toast('Tファスのファイルを読んでいます…'); await new Promise(r => setTimeout(r, 30)); const T = tfsRead(buf); if (!T || !T.L.length){ toast('Tファスのファイルから配管が読めませんでした'); return; } T.n = file.name;
+async function tfsOpen(file){ const buf = new Uint8Array(await file.arrayBuffer()); toast('Tfasのファイルを読んでいます…'); await new Promise(r => setTimeout(r, 30)); const T = tfsRead(buf); if (!T || !T.L.length){ toast('Tfasのファイルから配管が読めませんでした'); return; } T.n = file.name;
   const cnt = k => T.L.filter(l => l.k === k).reduce((t, l) => t + l.a.length, 0), msg = `冷媒 ${cnt('ref')}・ドレン ${cnt('drn')}・ダクト ${cnt('duct')}・衛生 ${cnt('eis')}`;
-  if (G){ const u = unitMM(), B = G.bounds, b = tfsBox(T), ov = Math.max(0, Math.min(b[2], B.x1*u) - Math.max(b[0], B.x0*u)) * Math.max(0, Math.min(b[3], B.y1*u) - Math.max(b[1], B.y0*u)), ar = Math.max(1, (b[2] - b[0])*(b[3] - b[1]));
-    if (ov/ar > 0.5 && confirm(`今の図面「${S.name || S.srcName}」に、Tファスの3D（${msg}）を重ねますか？\n（OK＝重ねる・キャンセル＝Tファスの配管だけで新しく開く）`)){ if (tfsSet(S.srcName || '', T)) toast('Tファスの3Dを重ねました。下の「3D」で見られます'); return; } }
-  guardUnsaved(async () => { const nm = file.name.replace(/\.tfs$/i, ''); await openText(tfsDxf(T), nm); tfsSet(S.srcName || nm, T); toast(`Tファスの配管を開きました（${msg}）。下の「3D」で見られます`); }); }
-/* 3D：Tファスの芯をそのまま管に（冷媒は銅色の1本・曲がる点に玉、継手は真ん中から口へ） */
-const TFS_C = {ref:0xc8763a, drn:0x22c55e, duct:0x9ca3af, eis:0x0891b2, unit:0xf97316}, TFS_R = {ref:16, drn:22, duct:70, eis:24, unit:18}, TFS_N = {ref:'冷媒（Tファス）', drn:'ドレン（Tファス）', duct:'ダクト（Tファス）', eis:'衛生（Tファス）', unit:'空調機（Tファス）'};
-function tfsBuild(TH, T, grp, W, u, bb){ const G2 = {}, M = {}; let ri = 0; const tube = (g, a, b, r, m) => { const d = b.clone().sub(a), L = d.length(); if (L < 1) return null; const t = new TH.Mesh(new TH.CylinderGeometry(r, r, L, 12), m); t.position.copy(a).add(b).multiplyScalar(.5); t.quaternion.setFromUnitVectors(new TH.Vector3(0, 1, 0), d.normalize()); g.add(t); return t; };
+  /* Tfas は3Dだけ（図面の線は読めないので、図面はDXF・PDF・Jwで開く・2026-11-23 ユーザー） */
+  if (!G){ if (!confirm(`Tfasのファイルは3D（配管の通り道と高さ）だけを読みます。図面は、同じ図面のDXF・PDFを先に開いてから、もう一度Tfasを選ぶと重なります。\n\nOK＝図面なしで3Dだけ見る・キャンセル＝やめる`)) return;
+    const nm = file.name.replace(/\.tfs$/i, ''); await openText(tfsDxf(T), nm); tfsSet(S.srcName || nm, T); open3D(); return; }
+  const u = unitMM(), B = G.bounds, b = tfsBox(T), ov = Math.max(0, Math.min(b[2], B.x1*u) - Math.max(b[0], B.x0*u)) * Math.max(0, Math.min(b[3], B.y1*u) - Math.max(b[1], B.y0*u)), ar = Math.max(1, (b[2] - b[0])*(b[3] - b[1]));
+  if (ov/ar > 0.5){ if (tfsSet(S.srcName || '', T)) toast(`Tfasの3D（${msg}）を重ねました。下の「3D」で見られます`); drawOverlay(); return; }
+  if (S.pdfInfo && !pdfOk() && !confirm('PDFの縮尺がまだ寸法で合わせてありません。縮尺がちがうと3Dがずれます。このまま重ねますか？')) return;
+  T.off = [Math.round((B.x0 + B.x1)/2*u - (b[0] + b[2])/2), Math.round((B.y0 + B.y1)/2*u - (b[1] + b[3])/2)]; if (!tfsSet(S.srcName || '', T)) return; tfsAlignStart(); }
+/* 位置合わせ（PDFなど、Tfasと原点がちがう図面）：Tfasの線（オレンジ）の角をタップ → 図面の同じ所をタップ */
+function tfsAlignStart(){ const T = tfsOf(); if (!T) return; S.tfAl = {a:null}; let bar = $('#tfBar'); if (!bar){ bar = document.createElement('div'); bar.id = 'tfBar'; bar.style.cssText = 'position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 58px);z-index:40;background:var(--panel);border:2px solid #f97316;border-radius:12px;padding:8px 10px;font:800 15px/1.4 ' + FONT + ';box-shadow:0 4px 14px rgba(0,0,0,.2)'; document.body.appendChild(bar); }
+  const upd = () => { bar.innerHTML = `<div>${S.tfAl.a ? '② 図面の同じ所（配管の角など）をタップ' : '① オレンジのTfasの線の角を1つタップ'}</div><div style="display:flex;gap:6px;margin-top:6px"><button class="btn" data-x style="height:38px;flex:1">やめる</button></div>`; bar.querySelector('[data-x]').onclick = () => { S.tfAl = null; bar.remove(); drawOverlay(); }; }; S.tfAl.upd = upd; upd(); drawOverlay(); }
+function tfsAlignTap(p){ const T = tfsOf(), u = unitMM(); if (!T){ S.tfAl = null; return; } const OF = T.off || [0, 0], w = s2w(p[0], p[1]), P = [w[0]*u, w[1]*u];
+  if (!S.tfAl.a){ let bt = null, bd = 40; for (const l of T.L) for (const A of l.a) for (const q of A){ const sp = w2s((q[0] + OF[0])/u, (q[1] + OF[1])/u), d = Math.hypot(sp[0] - p[0], sp[1] - p[1]); if (d < bd){ bd = d; bt = [q[0] + OF[0], q[1] + OF[1]]; } } if (!bt){ toast('オレンジの線の角（曲がる所・端）をタップしてください'); return; } S.tfAl.a = bt; S.tfAl.upd(); drawOverlay(); return; }
+  const a = S.tfAl.a; T.off = [Math.round(OF[0] + P[0] - a[0]), Math.round(OF[1] + P[1] - a[1])]; tfsSet(S.srcName || '', T); S.tfAl = null; const bar = $('#tfBar'); if (bar) bar.remove(); drawOverlay(); toast('Tfasの3Dの位置を合わせました。下の「3D」で見られます'); }
+/* 図面の上にTfasの芯（オレンジ・うすく） */
+function drawTfs2D(c){ if (!G) return; const T = tfsOf(); if (!T || (!S.tfAl && !T.off)) return; const u = unitMM(), OF = T.off || [0, 0]; c.save(); c.strokeStyle = '#f97316'; c.globalAlpha = S.tfAl ? .95 : .45; c.lineWidth = S.tfAl ? 3 : 2; c.lineCap = 'round';
+  for (const l of T.L) for (const A of l.a){ const S2 = A.map(q => w2s((q[0] + OF[0])/u, (q[1] + OF[1])/u)); c.beginPath(); if (l.k === 'ref' || A.length > 4){ c.moveTo(S2[0][0], S2[0][1]); for (const q of S2.slice(1)) c.lineTo(q[0], q[1]); } else for (const q of S2.slice(1)){ c.moveTo(S2[0][0], S2[0][1]); c.lineTo(q[0], q[1]); } c.stroke(); }
+  if (S.tfAl && S.tfAl.a){ const q = w2s(S.tfAl.a[0]/u, S.tfAl.a[1]/u); c.globalAlpha = 1; c.fillStyle = '#dc2626'; c.beginPath(); c.arc(q[0], q[1], 9, 0, 7); c.fill(); } c.restore(); }
+/* 3D：Tfasの芯をそのまま管に（冷媒は銅色の1本・曲がる点に玉、継手は真ん中から口へ） */
+const TFS_C = {ref:0xc8763a, drn:0x22c55e, duct:0x9ca3af, eis:0x0891b2, unit:0xf97316}, TFS_R = {ref:16, drn:22, duct:70, eis:24, unit:18}, TFS_N = {ref:'冷媒（Tfas）', drn:'ドレン（Tfas）', duct:'ダクト（Tfas）', eis:'衛生（Tfas）', unit:'空調機（Tfas）'};
+function tfsBuild(TH, T, grp, W, u, bb){ const G2 = {}, M = {}, OF = T.off || [0, 0]; let ri = 0; const tube = (g, a, b, r, m) => { const d = b.clone().sub(a), L = d.length(); if (L < 1) return null; const t = new TH.Mesh(new TH.CylinderGeometry(r, r, L, 12), m); t.position.copy(a).add(b).multiplyScalar(.5); t.quaternion.setFromUnitVectors(new TH.Vector3(0, 1, 0), d.normalize()); g.add(t); return t; };
   for (const l of T.L){ const k = l.k, g = G2[k] || (G2[k] = grp('tf_' + k)), m = M[k] || (M[k] = new TH.MeshStandardMaterial({color:TFS_C[k], metalness:k === 'ref' ? .5 : .1, roughness:.45})), r = TFS_R[k];
-    for (const P of l.a){ const V = P.map(p => { const w = W(p[0]/u, p[1]/u); return new TH.Vector3(w[0], p[2], w[1]); }); V.forEach(v => bb.expandByPoint(v)); const sy = k === 'ref' ? String(ri++) : null;
+    l.a.forEach((P, pi) => { const r = Math.max(8, Math.min(/衛器/.test(l.n) ? 60 : /ダ機|制気口/.test(l.n) ? 150 : k === 'unit' ? 40 : k === 'duct' ? 250 : 120, (l.r && l.r[pi]) || TFS_R[k])),   /* 太さは図面の絵の線から（機器の外形まで読んでしまう物は上を決める） */ V = P.map(p => { const w = W((p[0] + OF[0])/u, (p[1] + OF[1])/u); return new TH.Vector3(w[0], p[2], w[1]); }); V.forEach(v => bb.expandByPoint(v)); const sy = k === 'ref' ? String(ri++) : null;
       const seg = (k === 'ref' || P.length > 4) ? V.slice(1).map((v, i) => [V[i], v]) : V.slice(1).map(v => [V[0], v]);
       for (const [a, b] of seg){ const t = tube(g, a, b, r, m); if (t && sy != null) t.userData.sy = sy; }
-      if (k === 'ref' || P.length > 4) for (let i = 1; i < V.length - 1; i++){ const s = new TH.Mesh(new TH.SphereGeometry(r*1.15, 12, 8), m); s.position.copy(V[i]); if (sy != null) s.userData.sy = sy; g.add(s); } } }
+      if (k === 'ref' || P.length > 4) for (let i = 1; i < V.length - 1; i++){ const s = new TH.Mesh(new TH.SphereGeometry(r*1.15, 12, 8), m); s.position.copy(V[i]); if (sy != null) s.userData.sy = sy; g.add(s); }
+      else if (P.length > 2){ const s = new TH.Mesh(new TH.SphereGeometry(r, 12, 8), m); s.position.copy(V[0]); g.add(s); } }); }   // 継手の真ん中に玉
   return Object.keys(G2); }
 async function readUpload(file){
   const buf = new Uint8Array(await file.arrayBuffer());
@@ -4094,7 +4113,7 @@ async function readUpload(file){
 $('#fileIn').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   closeSheet();
-  if (/\.tfs$/i.test(f.name)){ tfsOpen(f).catch(err => toast((err && err.message) || 'Tファスのファイルを開けませんでした')); return; }   // Tファス（2026-11-23 ユーザー）
+  if (/\.tfs$/i.test(f.name)){ tfsOpen(f).catch(err => toast((err && err.message) || 'Tfasのファイルを開けませんでした')); return; }   // Tfas（2026-11-23 ユーザー）
   guardUnsaved(async () => { try { const r = await readUpload(f); if (r.pdf) await openPdf(r.pdf, r.name); else await openText(r.text, r.name); } catch(err){ toast(err.message || '開けませんでした'); } });
 };
 /* ask before throwing away unsaved changes */
@@ -4139,8 +4158,8 @@ async function openProject(p){
 }
 function openStartSheet(){
   openSheet('図面を開く', async body => {
-    body.innerHTML = `<button class="bigbtn pri" id="pick"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>DXF・PDF・Jw・Tファスを選ぶ</button>
-      <div class="note">ファイルアプリ・メール添付・LINEで保存したDXFやPDF・Jw_cad の図面（.jwc）を選べます（このアプリで書き出したZIPもそのまま開けます）。Tファスのファイル（.tfs）は配管の通り道と高さを3Dにそのまま出します（同じ図面のDXFを先に開いておくと、その上に重ねます）。CADから出したPDFなら線として読み込み、色ごとにレイヤーに分けます。スキャンした紙のPDFは読めません。DWGはCADでDXFに変換してください。</div>
+    body.innerHTML = `<button class="bigbtn pri" id="pick"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>DXF・PDF・Jw・Tfasを選ぶ</button>
+      <div class="note">ファイルアプリ・メール添付・LINEで保存したDXFやPDF・Jw_cad の図面（.jwc）を選べます（このアプリで書き出したZIPもそのまま開けます）。Tfasのファイル（.tfs）は配管の通り道と高さを3Dにそのまま出します（同じ図面のDXFを先に開いておくと、その上に重ねます）。CADから出したPDFなら線として読み込み、色ごとにレイヤーに分けます。スキャンした紙のPDFは読めません。DWGはCADでDXFに変換してください。</div>
       <div class="grp">この端末に保存した図面</div><div id="plist"><div class="empty">読み込み中…</div></div>
       ${HAS_SAMPLE ? '<div class="grp">お試し</div><button class="bigbtn sec" id="smp">受け取った図面（サンプル）を開く</button>' : ''}`;
     body.querySelector('#pick').onclick = () => $('#fileIn').click();
@@ -6066,7 +6085,7 @@ async function open3Dold(){
   const grp = k => { const g = new TH.Group(); g.userData.k = k; g.visible = V3.on[k] !== false; sc.add(g); return g; }, gW = grp('wall'), gU = grp('ub'), gM = grp('unit');
   const wm = new TH.MeshStandardMaterial({color:0xd9d4cc, transparent:true, opacity:.7}), um = new TH.MeshStandardMaterial({color:0xf5f7fa, transparent:true, opacity:.8, side:TH.DoubleSide}), uf = new TH.MeshStandardMaterial({color:0x9fd3e6}), mm2 = new TH.MeshStandardMaterial({color:0x2f6fe0}), em = new TH.LineBasicMaterial({color:0x1e3a8a});
   const boxAt = (g, x0, y0, x1, y1, z0, z1, m) => { const a = W(x0/u, y0/u), b = W(x1/u, y1/u), me = new TH.Mesh(new TH.BoxGeometry(Math.abs(b[0] - a[0]) || 1, z1 - z0, Math.abs(b[1] - a[1]) || 1), m); me.position.set((a[0] + b[0])/2, (z0 + z1)/2, (a[1] + b[1])/2); g.add(me); return me; };
-  await v3dPg(66, '冷媒・ドレンの配管を読んでいます'); let CE = null; const TFS = tfsOf(); V3.tfs = TFS; try { CE = TFS ? null : ceilAna(); if (CE) ceilDelApply(CE); } catch(e){ console.warn('ceil', e); } V3.chAt = null;   /* Tファスの3Dがある図面は、Tファスの管をそのまま（線から読まない） */ if (CE) try { const f = ceilChAt(CE, A); if (f) V3.chAt = {G, f}; } catch(e){} /* 天井の配管・ダクト図は図面の文字から（曲げメモの読み方はダクトを梁とまちがえるので使わない） */
+  await v3dPg(66, '冷媒・ドレンの配管を読んでいます'); let CE = null; const TFS = tfsOf(); V3.tfs = TFS; try { CE = TFS ? null : ceilAna(); if (CE) ceilDelApply(CE); } catch(e){ console.warn('ceil', e); } V3.chAt = null;   /* Tfasの3Dがある図面は、Tfasの管をそのまま（線から読まない） */ if (CE) try { const f = ceilChAt(CE, A); if (f) V3.chAt = {G, f}; } catch(e){} /* 天井の配管・ダクト図は図面の文字から（曲げメモの読み方はダクトを梁とまちがえるので使わない） */
   const mg = CE || TFS ? null : mageOk(), MG = !!(mg && mg.objs.length && (mg.ind || mg.walls.length || (mg.units && mg.units.length))); // 曲げメモと同じ読み方の3Dの形があればそれを使う（壁・機器・冷媒配管・ダクト・衛生）。室内機も壁も読めなかった時（ホテルのPDFなど）は今までの読み方（2026-10-28 ユーザー：前は3Dにできたのに）
   const wem = new TH.LineBasicMaterial({color:0x8a8378}); if (!MG) for (const w of A.walls){ const me = boxAt(gW, w[0], w[1], w[2], w[3], Math.min(w[4] || 0, A.wallH - 20), Math.min(w[5] || A.wallH, A.wallH), wm); /* w[4]：扉・窓の上の壁の下の高さ、w[5]：窓の下の腰壁の上の高さ */ const e2 = new TH.LineSegments(new TH.EdgesGeometry(me.geometry), wem); e2.position.copy(me.position); gW.add(e2); } // 縁の線（曲げ共有の壁と同じ見え方）
   { const RG = {}, R = A.reg || [], mt = c => new TH.MeshStandardMaterial({color:c, roughness:.6}), rb = (g, x0, y0, x1, y1, z0, z1, m) => boxAt(g, x0, y0, x1, y1, z0, z1, m); // 🏷 登録した形：種類ごとにまとめて出す／消す（上のボタン）
@@ -6110,7 +6129,7 @@ async function open3Dold(){
   const om = new TH.MeshStandardMaterial({color:0x7cc4f0}); if (!MG) for (const q of A.outs){ if (CE) continue; /* 天井の配管図では吹出口の板は出さない（2026-11-05 ユーザー：変な物を読んでいる） */ /* 室外機の四角は吹出口にしない */ boxAt(gM, q.x0, q.y0, q.x1, q.y1, q.ch - 5, q.ch + 40, om); }; // 吹出口・吸込口：天井の面にうすい板
   if (!MG) for (const q of A.insp){ const a = W(q.x0/u, q.y0/u), b = W(q.x1/u, q.y1/u), y = q.ch; gM.add(new TH.Line(new TH.BufferGeometry().setFromPoints([[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]], [a[0], a[1]]].map(p => new TH.Vector3(p[0], y, p[1]))), new TH.LineBasicMaterial({color:0x2f6fe0}))); }
   await v3dPg(88, '配管・継手を3Dにしています'); if (CE){ CE.units = A.units; CE.outU = A.outU; CE.PO = PO; CE.CH0 = A.CH0 || 2400; CE.walls = A.walls; CE.bld = A.bld; try { ceilBuild(TH, CE, grp, W, u, bb); const pb = document.querySelector('#v3dT [data-t3="pipe"]'); if (pb){ pb.hidden = !CE.ref.length; pb.textContent = '冷媒配管'; } const bx = $('#v3dR'); if (bx) bx.insertAdjacentHTML('beforeend', [['ceil_d', 'ドレン', CE.drn.length], ['ceil_lr', '冷媒の文字', CE.ref.length], ['ceil_ld', 'ドレンの文字', CE.drn.length], ['ceil_l', 'その他の文字', 1], ['ceil_s', '🔩 支持', (CE.sup || []).length], ['ceil_sl', '全ねじの高さ', (CE.sup || []).filter(x => x.k === 'drn').length], ['ceil_b', '梁の貫通', CE.slv.length], ['ceil_c', '天井', (CE.chs || []).length]].filter(x => x[2]).map(([k, n]) => `<button class="btn ${V3.on[k] !== false ? 'sel' : ''}" data-t3="${k}" style="height:34px;padding:0 10px;flex:none">${n}</button>`).join('') + ((CE.outG || []).length ? '<button class="btn" data-cout style="height:34px;padding:0 10px;flex:none;font-weight:800">🏠 外の配管</button>' : '') + '<button class="btn" data-cmat style="height:34px;padding:0 10px;flex:none;font-weight:800">🧾 材料</button>' + (CE.ndel ? `<button class="btn" data-cdelr style="height:34px;padding:0 10px;flex:none">↩ 消した管をもどす</button>` : '')); { const rb = bx && bx.querySelector('[data-cdelr]'); if (rb) rb.onclick = () => { if (!confirm('3Dで消した管を全部もどしますか？')) return; ceilDelsSet([]); toast('もどしました'); open3D(); }; } { const ob = bx && bx.querySelector('[data-cout]'); if (ob) ob.onclick = () => ceilOutSheet(CE); } { const mb = bx && bx.querySelector('[data-cmat]'); if (mb) mb.onclick = () => { openSheet('天井の配管の材料', body => { body.innerHTML = ceilMat(CE) + ceilOutMatHtml(CE); body.onclick = ev => { const r = ev.target.closest('[data-sys]'); if (!r) return; closeSheet(); ceilSelect(CE, {sys:CE.sys[+r.dataset.sys].key, zoom:1}); }; }); $('#sheetRoot').querySelectorAll('.sheet,.back').forEach(x => { x.style.zIndex = x.classList.contains('back') ? 74 : 75; }); }; } } catch(e){ console.warn('ceil3d', e); } }
-  if (TFS){ try { const ks = tfsBuild(TH, TFS, grp, W, u, bb), bx = $('#v3dR'), pb = document.querySelector('#v3dT [data-t3="pipe"]'); if (pb) pb.hidden = true; if (bx) bx.insertAdjacentHTML('beforeend', ks.map(k => `<button class="btn ${V3.on['tf_' + k] !== false ? 'sel' : ''}" data-t3="tf_${k}" style="height:34px;padding:0 10px;flex:none">${TFS_N[k]}</button>`).join('') + '<button class="btn" data-tfx style="height:34px;padding:0 10px;flex:none">✕ Tファスの3Dを外す</button>'); const xb = bx && bx.querySelector('[data-tfx]'); if (xb) xb.onclick = () => { if (!confirm('この図面からTファスの3Dを外して、今までの読み方にもどしますか？')) return; tfsSet(S.srcName || '', null); open3D(); }; } catch(e){ console.warn('tfs', e); toast('Tファスの3Dを出せませんでした'); } }
+  if (TFS){ try { const ks = tfsBuild(TH, TFS, grp, W, u, bb), bx = $('#v3dR'), pb = document.querySelector('#v3dT [data-t3="pipe"]'); if (pb) pb.hidden = true; if (bx) bx.insertAdjacentHTML('beforeend', ks.map(k => `<button class="btn ${V3.on['tf_' + k] !== false ? 'sel' : ''}" data-t3="tf_${k}" style="height:34px;padding:0 10px;flex:none">${TFS_N[k]}</button>`).join('') + (TFS.off ? '<button class="btn" data-tfa style="height:34px;padding:0 10px;flex:none">📍 Tfasの位置を合わせ直す</button>' : '') + '<button class="btn" data-tfx style="height:34px;padding:0 10px;flex:none">✕ Tfasの3Dを外す</button>'); { const ab = bx && bx.querySelector('[data-tfa]'); if (ab) ab.onclick = () => { $('#v3dX').onclick(); tfsAlignStart(); }; } const xb = bx && bx.querySelector('[data-tfx]'); if (xb) xb.onclick = () => { if (!confirm('この図面からTfasの3Dを外して、今までの読み方にもどしますか？')) return; tfsSet(S.srcName || '', null); open3D(); }; } catch(e){ console.warn('tfs', e); toast('Tfasの3Dを出せませんでした'); } }
   wire3D(CE);
   V3.ana = A;
   // 追加機器：天井（2700）の下に箱
@@ -6202,7 +6221,7 @@ async function mageSend(rec){ toast('3Dをまとめています…'); await new 
   } catch(e){ if (MK3D){ try { parent.z3Done({err:(e && e.message) || String(e)}); } catch(e2){} return; } toast('渡せませんでした（' + ((e && e.message) || e) + '）'); }
 }
 /* 3Dを曲げ共有へ：天井の配管図・立面図は3Dをそのまま、1から引いた配管があればその配管、ほかは3Dだけ（前の図面の画面へは渡さない・2026-11-14 ユーザー：前の図面はしまう） */
-function mage3DGo(){ if (V3.tfs){ const P = []; for (const l of V3.tfs.L) if (l.k === 'ref') for (const a of l.a) P.push({nm:'冷媒' + (P.length + 1), P:a.map(p => p.map(Math.round)), ui:-1, sy:String(P.length)}); return mageSend({v:1, name:S.name || S.srcName || '図面', t:Date.now(), ch:2700, walls:[], ubs:[], units:[], pipes:P, cur:0}); }   /* Tファス：冷媒の通り道をそのまま（2026-11-23） */
+function mage3DGo(){ if (V3.tfs){ const P = [], OF = V3.tfs.off || [0, 0]; for (const l of V3.tfs.L) if (l.k === 'ref') for (const a of l.a) P.push({nm:'冷媒' + (P.length + 1), P:a.map(p => [Math.round(p[0] + OF[0]), Math.round(p[1] + OF[1]), Math.round(p[2])]), ui:-1, sy:String(P.length)}); return mageSend({v:1, name:S.name || S.srcName || '図面', t:Date.now(), ch:2700, walls:[], ubs:[], units:[], pipes:P, cur:0}); }   /* Tfas：冷媒の通り道をそのまま（2026-11-23） */
   if (V3.ceilCE){ const q = V3.ceilQ; return send3DMage(q && q.sys != null ? q.sys : null); } if (S.np.some(p => p.k !== 'dr' && !isW(p.k) && !S.delObj.has(KB2 + p.no) && !S.hideObj.has(KB2 + p.no))) return sendPipes(); return send3DMage(null); }
 $('#v3dMg').onclick = () => mage3DGo(); // 図面編集の3Dをそのまま曲げ共有へ（2026-11-14）
 $('#v3dOB').onclick = async () => { await loadModels(); if (!v3dOutList().length){ toast('室外機が見つかりません。図面の室外機を選んで「🏷 これは何？」→「🌀 室外機」で登録してください'); return; } $('#v3dX').onclick(); await askOutModels(); open3D(); }; // 室外機の機種（2026-11-17 ユーザー）

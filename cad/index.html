@@ -132,6 +132,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .tb svg{width:24px;height:24px}
 .tb.on{color:var(--accent);background:var(--accent-soft)}
 .tb.mode.on{color:var(--accent-ink);background:var(--accent)}
+.ttag{display:flex;gap:4px;background:var(--panel);border-top:1px solid var(--line);padding:4px 6px 0}.ttag button{flex:1;padding:6px 0;border-radius:8px 8px 0 0;font-size:12.5px;font-weight:800;color:var(--muted);background:var(--panel2)}.ttag button.on{color:#fff;background:#b45309}
+.tool[hidden]{display:none}
+.tb .ti{font-size:20px;line-height:24px}
+#tool3 .tb{font-size:10px;line-height:1.15;white-space:nowrap}
+.tb.on2{color:#b45309;background:#fde7cf}
 .sep{width:1px;background:var(--line);margin:8px 3px;flex:none}
 
 /* sheets */
@@ -207,7 +212,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <div class="float" id="samePanel" hidden></div>
     <div class="loading" id="loading">読み込み中…</div>
   </div>
-  <div class="tool">
+  <div class="ttag" id="toolTag"><button data-tt="0">✏️ 図面の修正</button><button data-tt="1">🧊 3D化の修正</button></div>
+  <div class="tool" id="tool3" hidden>
+    <button class="tb" id="f3Pan"><span class="ti">👆</span>選択</button>
+    <button class="tb" id="f3TrR"><span class="ti">✍️</span>冷媒を<br>なぞる</button>
+    <button class="tb" id="f3TrD"><span class="ti">💧</span>ドレンを<br>なぞる</button>
+    <button class="tb" id="f3Fix"><span class="ti">📍</span>ここを<br>直す</button>
+    <button class="tb" id="f3Hl"><span class="ti">🔴</span>赤丸を<br>出す</button>
+    <button class="tb" id="f3Log"><span class="ti">🕘</span>直した<br>所</button>
+    <div class="sep"></div>
+    <button class="tb" id="b3D" aria-label="3Dで見る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>3D</button>
+  </div>
+  <div class="tool" id="toolMain">
     <button class="tb mode" id="mPan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"/><path d="m9 6 3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>選択</button>
     <button class="tb mode" id="mDim"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8v8M21 8v8M3 12h18"/><path d="m6 9-3 3 3 3M18 9l3 3-3 3"/></svg>寸法</button>
     <button class="tb mode" id="mRoute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16h5V8h10v8h5"/><path d="M7 16h10" stroke-dasharray="2 2.5" opacity=".55"/></svg>ルート</button>
@@ -219,7 +235,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <button class="tb" id="tSnap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="8" height="8"/><path d="M3 12h5M16 12h5M12 3v5M12 16v5"/></svg>吸着</button>
     <div class="sep"></div>
     <button class="tb" id="bFit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>全体</button>
-    <button class="tb" id="b3D" aria-label="3Dで見る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>3D</button>
   </div>
 </div>
 <div id="v3d" hidden style="position:fixed;inset:0;z-index:60;background:var(--paper);display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;background:var(--panel);border-bottom:1px solid var(--line)"><b style="flex:1;font-size:15px;white-space:nowrap">🧊 3D</b><button class="btn" data-v="top" style="height:40px;padding:0 10px">真上</button><button class="btn" data-v="iso" style="height:40px;padding:0 10px">斜め</button><button class="btn pri" id="v3dMg" style="height:40px;padding:0 10px;font-weight:800">曲げ共有へ</button><button class="btn" id="v3dX" style="height:40px;padding:0 12px;font-weight:800">✕ 戻る</button></div><div id="v3dT" style="display:flex;gap:6px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto"><button class="btn sel" data-t3="wall" style="height:34px;padding:0 12px;flex:none">壁</button><button class="btn sel" data-t3="ub" style="height:34px;padding:0 12px;flex:none">ユニットバス</button><button class="btn sel" data-t3="unit" style="height:34px;padding:0 12px;flex:none">機器</button><button class="btn sel" data-t3="pipe" style="height:34px;padding:0 12px;flex:none" hidden>冷媒配管</button><button class="btn sel" data-t3="duct" style="height:34px;padding:0 12px;flex:none" hidden>ダクト</button><button class="btn sel" data-t3="eisei" style="height:34px;padding:0 12px;flex:none" hidden>衛生</button><button class="btn sel" data-t3="plan" style="height:34px;padding:0 12px;flex:none">図面の線</button><span id="v3dR" style="display:contents"></span><button class="btn" id="v3dMB" style="height:34px;padding:0 12px;flex:none;font-weight:800">🔩 室内機の機種</button><button class="btn" id="v3dOB" style="height:34px;padding:0 12px;flex:none;font-weight:800">🌀 室外機の機種</button><select id="v3dM" hidden aria-label="室内機の機種" style="height:34px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:14px;flex:none;max-width:220px"></select></div><div id="v3dS" style="flex:1;position:relative;overflow:hidden;touch-action:none"><div id="v3dN" class="note" style="position:absolute;left:8px;bottom:8px;right:8px;pointer-events:none;background:var(--panel);opacity:.9;border-radius:10px;padding:6px 8px"></div></div></div>
@@ -6148,6 +6163,17 @@ function v3dCtl(){ const el = V3.r.domElement, P = new Map(); let last = null;
   el.addEventListener('wheel', e => { e.preventDefault(); V3.dist = Math.max(300, Math.min(5e6, V3.dist*Math.exp(e.deltaY*0.0015))); v3dDrawQ(); }, {passive:false});
   window.addEventListener('resize', () => v3dDraw()); }
 $('#b3D').onclick = open3D;
+/* 下の段の切り替え（2026-11-23 ユーザー：3D化用の修正ボタンが欲しい・下のタグで切り替え・3Dは修正の方へ）：✏️ 図面の修正＝今までの道具／🧊 3D化の修正＝なぞる・直す・赤丸・直した所・3D */
+function toolTagSet(t){ try { localStorage.setItem('zumen-tooltag', t ? '1' : '0'); } catch(e){} $('#toolMain').hidden = !!t; $('#tool3').hidden = !t; $('#toolTag').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.tt === (t ? 1 : 0))); $('#f3Hl').classList.toggle('on2', readHlOn()); if (t && S.mode !== 'pan') $('#mPan').click(); requestAnimationFrame(resize); }
+$('#toolTag').onclick = e => { const b = e.target.closest('[data-tt]'); if (b) toolTagSet(b.dataset.tt === '1'); };
+{ const needCE = () => { let CE = null; try { CE = ceilColCE(); } catch(e){} if (!CE) toast('この図面は配管図として読めていません（冷媒・ドレンの線と「FL+」の文字が要ります）'); return !!CE; };
+  $('#f3Pan').onclick = () => $('#mPan').click();
+  $('#f3TrR').onclick = () => { if (G && needCE()) traceStart('ref'); };
+  $('#f3TrD').onclick = () => { if (G && needCE()) traceStart('drn'); };
+  $('#f3Fix').onclick = () => { if (!G || !needCE()) return; $('#mPan').click(); S.fixPick = true; toast('直したい所（配管・継手・端・空調でない線）をタップしてください'); };
+  $('#f3Hl').onclick = () => { try { localStorage.setItem('zumen-readhl', readHlOn() ? '0' : '1'); } catch(e){} $('#f3Hl').classList.toggle('on2', readHlOn()); drawOverlay(); toast(readHlOn() ? '読めた物は水色・つながっていない所は赤丸で出します' : '赤丸・水色を消しました'); };
+  $('#f3Log').onclick = () => { if (G) fixSheet(); };
+  let t0 = false; try { t0 = localStorage.getItem('zumen-tooltag') === '1'; } catch(e){} toolTagSet(t0); }
 /* 曲げ共有へ渡す：IndexedDB pbmShare / f / "pipes" → ../index.html?from=cadpipes（曲げ共有の pipes.js が受け取る）。
    長さは mm・図面の座標（x 右・y 上）、高さは床から。配管は点の並び [x, y, 高さ]（高さの変わる所はたて管の2点） */
 async function sendPipes(){

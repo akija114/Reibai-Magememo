@@ -4051,9 +4051,34 @@ function tfsInflate(d, p){ let bb = 0, bc = 0; const out = []; const bit = () =>
     for (;;){ const s = dec(lh); if (s < 256){ out.push(s); continue; } if (s === 256) break; const i = s - 257; if (i > 28) throw 0; const len = LB[i] + bits(LE[i]), di = dec(dh); if (di > 29) throw 0; const dist = DB[di] + bits(DE[di]); if (dist > out.length) throw 0; for (let k = 0; k < len; k++) out.push(out[out.length - dist]); }
   } while (!fin); return {out:Uint8Array.from(out), end:p}; }
 const TFS_K = n => /冷媒/.test(n) ? 'ref' : /ドレン/.test(n) ? 'drn' : /ダクト|ダ機|制気口/.test(n) && !/寸|枠|用/.test(n) ? 'duct' : /排水|給水|給湯|衛器|通気|汚水/.test(n) && !/寸|枠|管種/.test(n) ? 'eis' : /空調機/.test(n) ? 'unit' : '';
-function tfsRead(buf){ if (String.fromCharCode(...buf.slice(0, 4)) !== 'TFAS') return null; const L = [], sj = new TextDecoder('shift_jis'); let i = 0;
+/* Tfasの図面の線・文字（2026-11-23 ユーザー：Tfasの中に図面はないの？）：レイヤーのかたまり（頭 08 00 00 00 ?? 10 05 00 a8）の中の「03 00 05 00 1e 長さ 0f 長さ」の後が1つの物。頭の1バイトが種類：
+   0x10 線（x1,y1,x2,y2）・0x18 横の線（y,x1,x2）・0x20 たての線（x,y1,y2）・0x40 円（中心・半径）・0x48 円弧（中心・半径・始まりの点・終わりの点、左回り）・0x38／0x39 折れ線（点の数・0＝閉じる・点）・0x50 だ円（中心・横・たて・角度）・0x58 だ円の弧（＋始まり・終わりの点）・0x70 文字（位置・角度・大きさ…・字体\0・文字\n）。数字は16バイト目から（mm・Tfasの DXF と同じ原点）。0x68（立体の折れ線）は部品の中の形なので使わない */
+function tfs2D(z, dv, nm, E, sj){ const D = o => dv.getFloat64(o, true), ok = v => isFinite(v) && Math.abs(v) < 1e7;
+  for (let o = 0; o < z.length - 30; o++){ if (z[o] !== 3 || z[o + 1] !== 0 || z[o + 2] !== 5 || z[o + 3] !== 0 || z[o + 4] !== 0x1e || z[o + 9] !== 0x0f) continue; const L = dv.getUint32(o + 5, true); if (L !== dv.getUint32(o + 10, true) || L < 16 || L > 100000 || o + 14 + L > z.length) continue;
+    const b = o + 14, k = z[b], d = b + 16, n = L - 16; let e = null;
+    try { if (k === 0x10 && n >= 32) e = {t:'L', p:[[D(d), D(d + 8)], [D(d + 16), D(d + 24)]]};
+      else if (k === 0x18 && n >= 24){ const y = D(d); e = {t:'L', p:[[D(d + 8), y], [D(d + 16), y]]}; }
+      else if (k === 0x20 && n >= 24){ const x = D(d); e = {t:'L', p:[[x, D(d + 8)], [x, D(d + 16)]]}; }
+      else if (k === 0x40 && n >= 24) e = {t:'C', c:[D(d), D(d + 8)], r:D(d + 16)};
+      else if (k === 0x48 && n >= 56){ const cx = D(d), cy = D(d + 8); e = {t:'A', c:[cx, cy], r:D(d + 16), a0:Math.atan2(D(d + 32) - cy, D(d + 24) - cx)*180/Math.PI, a1:Math.atan2(D(d + 48) - cy, D(d + 40) - cx)*180/Math.PI}; }
+      else if ((k === 0x38 || k === 0x39) && n >= 24){ const m = dv.getUint32(d, true), cl = dv.getUint32(d + 4, true), p = []; for (let i = 0; i < m && 24 + 16*i <= n; i++) p.push([D(d + 8 + 16*i), D(d + 16 + 16*i)]); if (cl === 0 && p.length > 2) p.push(p[0]); if (p.length > 1) e = {t:'P', p}; }
+      else if ((k === 0x50 && n >= 40) || (k === 0x58 && n >= 72)){ const cx = D(d), cy = D(d + 8), ra = D(d + 16), rb = D(d + 24), an = D(d + 32)*Math.PI/180, ca = Math.cos(an), sa = Math.sin(an), loc = (x, y) => { const dx = x - cx, dy = y - cy; return Math.atan2((-dx*sa + dy*ca)/(rb || 1), (dx*ca + dy*sa)/(ra || 1)); };
+        let u0 = 0, u1 = Math.PI*2; if (k === 0x58){ u0 = loc(D(d + 40), D(d + 48)); u1 = loc(D(d + 56), D(d + 64)); while (u1 <= u0) u1 += Math.PI*2; } const p = []; for (let i = 0; i <= 24; i++){ const u = u0 + (u1 - u0)*i/24, x = ra*Math.cos(u), y = rb*Math.sin(u); p.push([cx + x*ca - y*sa, cy + x*sa + y*ca]); } e = {t:'P', p}; }
+      else if (k === 0x70 && n >= 60){ let q = d + 40; while (q < b + L - 3 && !(z[q] === 0x64 && z[q + 1] === 0x40)) q++; q += 3; while (q < b + L && z[q] !== 0) q++; let q2 = q + 1; while (q2 < b + L && z[q2] !== 0x0a && z[q2] !== 0) q2++; const s = sj.decode(z.subarray(q + 1, q2)).trim(); if (s) e = {t:'T', p:[[D(d), D(d + 8)]], a:D(d + 16), h:D(d + 24), s}; }
+    } catch(er){ e = null; }
+    if (e && (e.p || [e.c]).every(v => ok(v[0]) && ok(v[1]))){ e.l = nm; E.push(e); } o = b + L - 1; } }
+/* 図面の線のDXF（レイヤーはTfasのレイヤー名・文字の大きさが紙の mm（20未満）の物は図面の縮尺「A1-1/30」×0.85） */
+function tfs2Dxf(E){ const o = ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '4', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES'], f = v => Math.round(v*100)/100, ln = (l, a, b) => o.push('0', 'LINE', '8', l, '10', f(a[0]), '20', f(a[1]), '30', 0, '11', f(b[0]), '21', f(b[1]), '31', 0);
+  let sc = 0; for (const e of E) if (e.t === 'T'){ const m = e.s.match(/A1\s*[-－]\s*1\s*\/\s*(\d{1,3})/); if (m){ sc = +m[1]; break; } } if (!sc) sc = 50;
+  for (const e of E){ const l = e.l || 'Tfas';
+    if (e.t === 'L' || e.t === 'P') for (let i = 1; i < e.p.length; i++) ln(l, e.p[i - 1], e.p[i]);
+    else if (e.t === 'C') o.push('0', 'CIRCLE', '8', l, '10', f(e.c[0]), '20', f(e.c[1]), '30', 0, '40', f(e.r));
+    else if (e.t === 'A') o.push('0', 'ARC', '8', l, '10', f(e.c[0]), '20', f(e.c[1]), '30', 0, '40', f(e.r), '50', f(e.a0), '51', f(e.a1));
+    else if (e.t === 'T'){ const h = e.h < 20 ? e.h*sc*0.85 : e.h; o.push('0', 'TEXT', '8', l, '10', f(e.p[0][0]), '20', f(e.p[0][1]), '30', 0, '40', f(h), '1', e.s.replace(/[\r\n]/g, ' '), '50', f(e.a || 0)); } }
+  o.push('0', 'ENDSEC', '0', 'EOF'); return o.join('\n'); }
+function tfsRead(buf){ if (String.fromCharCode(...buf.slice(0, 4)) !== 'TFAS') return null; const L = [], E2 = [], sj = new TextDecoder('shift_jis'); let i = 0;
   while (i < buf.length - 2){ if (buf[i] === 0x78 && (buf[i + 1] === 0x9c || buf[i + 1] === 0xda || buf[i + 1] === 0x01 || buf[i + 1] === 0x5e)){ let r = null; try { r = tfsInflate(buf, i + 2); } catch(e){ r = null; }
-      if (r && r.out.length > 200){ i = r.end; const z = r.out, nm = ((sj.decode(z.subarray(0, 1200)).match(/[ぁ-ヿ一-鿿]{1,12}/) || [''])[0]), k = TFS_K(nm); if (!k) continue; const dv = new DataView(z.buffer, z.byteOffset, z.byteLength), a = [], rr = [];
+      if (r && r.out.length > 200){ i = r.end; const z = r.out, nm = ((sj.decode(z.subarray(0, 1200)).match(/[ぁ-ヿ一-鿿]{1,12}/) || [''])[0]), k = TFS_K(nm), dv = new DataView(z.buffer, z.byteOffset, z.byteLength); if (z[0] === 8 && z[5] === 0x10 && z[6] === 5 && z[8] === 0xa8) tfs2D(z, dv, nm, E2, sj); if (!k) continue; const a = [], rr = [];
         for (let o = 0; o < z.length - 30; o++){ if (z[o] !== 0x0f || z[o + 5] !== 0x68 || z[o + 6] !== 0 || z[o + 7] !== 0 || z[o + 8] !== 0x40) continue; const len = dv.getUint32(o + 1, true), q = o + 5, n = dv.getUint32(q + 16, true); if (n < 2 || n > 500 || 24 + n*24 !== len || q + len > z.length) continue;
           const P = []; for (let j = 0; j < n; j++){ const x = dv.getFloat64(q + 24 + j*24, true), y = dv.getFloat64(q + 32 + j*24, true), h = dv.getFloat64(q + 40 + j*24, true); if (!isFinite(x) || !isFinite(y) || !isFinite(h) || Math.abs(x) > 1e7 || Math.abs(y) > 1e7 || Math.abs(h) > 1e5){ P.length = 0; break; } P.push([Math.round(x*10)/10, Math.round(y*10)/10, Math.round(h*10)/10]); }
           if (P.length > 1){ a.push(P); const A0 = P[0], B0 = P[1], dx = B0[0] - A0[0], dy = B0[1] - A0[1], Ln = Math.hypot(dx, dy), C = new Map();   /* 太さ：芯の後ろ（3000バイト）の図面の絵の点（x,y）の、芯からのはなれ（横の管）・中心からのはなれ（たての管＝丸）のいちばん多い物 */
@@ -4062,7 +4087,7 @@ function tfsRead(buf){ if (String.fromCharCode(...buf.slice(0, 4)) !== 'TFAS') r
           o = q + len - 1; }
         if (a.length){ const ok = rr.filter(v => v > 0).sort((x, y) => x - y), md = ok.length ? ok[ok.length >> 1] : 0; L.push({n:nm, k, a, r:rr.map(v => v || md)}); } continue; } }
     i++; }
-  return {L}; }
+  return {L, E2}; }
 function tfsAll(){ try { return JSON.parse(localStorage.getItem('zumen-tfs') || '{}') || {}; } catch(e){ return {}; } }
 function tfsOf(){ if (!G) return null; const o = tfsAll()[S.srcName || '']; return o && o.L && o.L.length ? o : null; }
 function tfsSet(nm, v){ const o = tfsAll(); if (v) o[nm] = v; else delete o[nm]; try { localStorage.setItem('zumen-tfs', JSON.stringify(o)); return true; } catch(e){ toast('この端末にTfasの3Dを残せませんでした（容量がいっぱい）'); return false; } }
@@ -4071,9 +4096,13 @@ const tfsBox = T => { let x0 = 1e18, y0 = 1e18, x1 = -1e18, y1 = -1e18; for (con
 function tfsDxf(T){ const o = ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '4', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES'], ln = (l, a, b) => o.push('0', 'LINE', '8', 'Tfas・' + l, '10', a[0], '20', a[1], '30', 0, '11', b[0], '21', b[1], '31', 0);
   for (const l of T.L) for (const P of l.a){ if (l.k === 'ref' || P.length > 4) for (let i = 1; i < P.length; i++) ln(l.n, P[i - 1], P[i]); else for (let i = 1; i < P.length; i++) ln(l.n, P[0], P[i]); }
   o.push('0', 'ENDSEC', '0', 'EOF'); return o.join('\n'); }
-async function tfsOpen(file){ const buf = new Uint8Array(await file.arrayBuffer()); toast('Tfasのファイルを読んでいます…'); await new Promise(r => setTimeout(r, 30)); const T = tfsRead(buf); if (!T || !T.L.length){ toast('Tfasのファイルから配管が読めませんでした'); return; } T.n = file.name;
+async function tfsOpen(file){ const buf = new Uint8Array(await file.arrayBuffer()); toast('Tfasのファイルを読んでいます…'); await new Promise(r => setTimeout(r, 30)); const T = tfsRead(buf), E2 = (T && T.E2) || []; if (T) delete T.E2; if (!T || (!T.L.length && E2.length < 20)){ toast('Tfasのファイルから図面・配管が読めませんでした'); return; } T.n = file.name;
   const cnt = k => T.L.filter(l => l.k === k).reduce((t, l) => t + l.a.length, 0), msg = `冷媒 ${cnt('ref')}・ドレン ${cnt('drn')}・ダクト ${cnt('duct')}・衛生 ${cnt('eis')}`;
-  /* Tfas は3Dだけ（図面の線は読めないので、図面はDXF・PDF・Jwで開く・2026-11-23 ユーザー） */
+  /* 図面の線・文字も読めた時は、Tfasの図面をそのまま開いて3Dを重ねる（同じ原点なので位置合わせはいらない） */
+  const own = () => !G || !confirm(`今の図面にTfasの3Dを重ねます。\n\nOK＝今の図面に重ねる・キャンセル＝Tfasの中の図面を開く`);
+  if (E2.length >= 20 && own()){ const nm = file.name.replace(/\.tfs$/i, ''); await openText(tfs2Dxf(E2), nm); if (T.L.length && tfsSet(S.srcName || nm, T)) toast(`Tfasの図面を開きました。3D（${msg}）は下の「3D」で見られます`); else toast('Tfasの図面を開きました'); return; }
+  if (!T.L.length){ toast('Tfasのファイルに配管がありませんでした'); return; }
+  /* 図面の線が読めない時は3Dだけ（図面はDXF・PDF・Jwで開く・2026-11-23 ユーザー） */
   if (!G){ if (!confirm(`Tfasのファイルは3D（配管の通り道と高さ）だけを読みます。図面は、同じ図面のDXF・PDFを先に開いてから、もう一度Tfasを選ぶと重なります。\n\nOK＝図面なしで3Dだけ見る・キャンセル＝やめる`)) return;
     const nm = file.name.replace(/\.tfs$/i, ''); await openText(tfsDxf(T), nm); tfsSet(S.srcName || nm, T); open3D(); return; }
   const u = unitMM(), B = G.bounds, b = tfsBox(T), ov = Math.max(0, Math.min(b[2], B.x1*u) - Math.max(b[0], B.x0*u)) * Math.max(0, Math.min(b[3], B.y1*u) - Math.max(b[1], B.y0*u)), ar = Math.max(1, (b[2] - b[0])*(b[3] - b[1]));
@@ -6138,7 +6167,7 @@ async function open3Dold(){
   const M2 = A.units.concat(A.ubs); if (bb.isEmpty() && (M2.length || A.bld)){ const r = M2.length ? [Math.min(...M2.map(c => c.x0)) - 1500, Math.min(...M2.map(c => c.y0)) - 1500, Math.max(...M2.map(c => c.x1)) + 1500, Math.max(...M2.map(c => c.y1)) + 1500] : A.bld, a = W(r[0]/u, r[1]/u), b = W(r[2]/u, r[3]/u); /* 最初に見る所：室内機・ユニットバスのある所 */ bb.expandByPoint(new TH.Vector3(a[0], 0, a[1])); bb.expandByPoint(new TH.Vector3(b[0], A.wallH, b[1])); }
   if (bb.isEmpty()){ bb.expandByPoint(new TH.Vector3((B.x0*u - cx), 0, -(B.y0*u - cy))); bb.expandByPoint(new TH.Vector3((B.x1*u - cx), 0, -(B.y1*u - cy))); }
   if (!CE && nps.length){ const bx = $('#v3dR'); if (bx){ bx.insertAdjacentHTML('beforeend', '<button class="btn" data-nmat style="height:34px;padding:0 10px;flex:none;font-weight:800">🧾 材料</button>'); bx.querySelector('[data-nmat]').onclick = () => { openSheet('配管の材料', body => { body.innerHTML = npMat(); }); $('#sheetRoot').querySelectorAll('.sheet,.back').forEach(x => { x.style.zIndex = x.classList.contains('back') ? 74 : 75; }); }; } }   // 1から引いた配管の長さと支持（2026-11-14）
-  V3.sc = sc; V3.bb = bb; V3.TH = TH; V3.cx = cx; V3.cy = cy; lg.userData.k = 'plan'; for (const o of sc.children) if (o.userData.k) o.visible = V3.on[o.userData.k] !== false;
+  V3.sc = sc; V3.bb = bb; V3.TH = TH; V3.cx = cx; V3.cy = cy; lg.userData.k = 'plan'; if (TFS){ const tb = new TH.Box3(); for (const o of sc.children) if (/^tf_(ref|drn|duct|unit)$/.test(o.userData.k || '')) tb.expandByObject(o); if (!tb.isEmpty()) V3.bb = tb; }   /* Tfasの時は配管のある所へ寄る（図面の紙ぜんぶだと小さい） */ for (const o of sc.children) if (o.userData.k) o.visible = V3.on[o.userData.k] !== false;
   $('#v3dN').textContent = (MG ? `曲げメモと同じ読み方：室内機 ${mg.ind || 'なし'}・壁 ${mg.walls.length}・ユニットバス ${A.ubs.length}` + (V3.mgN.duct ? '・ダクト' : '') + (V3.mgN.eisei ? '・衛生' : '') + '。' : `壁 ${A.walls.length}${A.doors && A.doors.length ? `・扉 ${A.doors.length}` : ''}・ユニットバス ${A.ubs.length}・室内機 ${A.units.length}・吹出口など ${A.outs.length}・点検口 ${A.insp.length}（図面から自動で読んだ目安・機器は天井の上）。` + (A.walls.length < 12 && S.pdfInfo ? `⚠️ 壁が少ししか読めていません。PDFの縮尺がずれているかもしれません（今 ${S.pdfInfo.scale ? niceScaleText(S.pdfInfo.scale) : '?'}${S.pdfInfo.from ? '・' + S.pdfInfo.from : ''}）。通り芯と通り芯など長さの分かる寸法を1本測って合わせ直してください。` : '')) + (nps.length ? `冷媒配管 ${nps.filter(p => p.k !== 'dr').length}本${nps.some(p => p.k === 'dr') ? `・ドレン配管 ${nps.filter(p => p.k === 'dr').length}本` : ''}${S.holes.length ? `・貫通部 ${S.holes.length}か所` : ''}（数字は長さmm・FLは床からの高さ）。1本指で回す・2本指で動かす／ひろげる` : '1本指で回す・2本指で動かす／ひろげる');
   if (CE) $('#v3dN').textContent = `天井の中（図面の文字から読んだ目安）：冷媒 ${CE.n.ref}本・ドレン ${CE.n.drn}本・分岐 ${CE.br.filter(b => b.k === 'ref').length}・梁の貫通 ${CE.slv.length}（「梁の貫通」で出す）。サイズ・高さは図面の「R C FL+」「D 25A FL+」から。` + $('#v3dN').textContent;
   V3.onTap = (x, y) => { if (v3dUnitTap(x, y)) return; if (CE) ceilTap(CE, x, y); }; /* 室内機をタップ → 向き・高さ（2026-11-10） */ V3.ceilCE = CE; V3.ceilQ = null; { const c = $('#ceilSel'); if (c) c.remove(); }

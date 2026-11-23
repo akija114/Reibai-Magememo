@@ -1152,7 +1152,8 @@ function tapSelect(p){
   { const ho = holeAt(p); if (ho && !(S.mode === 'np' && S.npe && S.npe.tool !== 'hole')){ openHoleSheet(ho); return; } } // 貫通部をタップ → 直す・消す
   if (S.mode === 'np'){ npTap(s2w(p[0], p[1])); return; }
   if (S.lkPick && S.mode === 'pan'){ lkPickAt(p); return; } // つなぐ相手の管をタップ
-  if (S.delPick && S.mode === 'pan'){ ceilDelTap(p); return; }   // ✂ 消す：タップした管を消す（続けて消せる・2026-11-23 ユーザー）
+  if (S.delPick && S.mode === 'pan'){ ceilDelTap(p); return; }
+  if (S.brPick && S.mode === 'pan'){ ceilBrTap(p); return; }   // ⑂ 分岐管だけ外す   // ✂ 消す：タップした管を消す（続けて消せる・2026-11-23 ユーザー）
   if (S.fixPick && S.mode === 'pan'){ S.fixPick = false; const u0 = unitMM(), w0 = s2w(p[0], p[1]); fixPointSheet([w0[0]*u0, w0[1]*u0], null); return; } // 📍 好きな所を直す
   let best = null, bd = 22;
   for (const d of S.dims) if (d.to && dimLabelHit(d, p, 1)){ best = d; bd = 0; } // 動かした数字をタップしても、その寸法を選ぶ
@@ -2065,7 +2066,7 @@ function cmdSin(op, s){ const lab = op === 'add' ? '芯を出す' : '芯を消�
 /* 冷媒を系統ごとの色で図面にも（2026-11-16 ユーザー：3Dと一緒の色・名前を決めたい）：天井の配管図だけ。表示の画面の「✓ 冷媒を系統の色に」zumen-ceilcol */
 function ceilColOn(){ try { return localStorage.getItem('zumen-ceilcol') !== '0'; } catch(e){ return true; } }
 let CCC = null;
-function ceilColCE(){ let k = ''; try { k = [S.srcName, localStorage.getItem('zumen-ceilsys'), localStorage.getItem('zumen-ceildel'), localStorage.getItem('zumen-ceillink'), localStorage.getItem('zumen-ceilman'), localStorage.getItem('zumen-ceilfit'), localStorage.getItem('zumen-ceilh'), localStorage.getItem('zumen-3dunitP'), localStorage.getItem('zumen-3dunitG')].join('|'); } catch(e){}
+function ceilColCE(){ let k = ''; try { k = [S.srcName, localStorage.getItem('zumen-ceilsys'), localStorage.getItem('zumen-ceildel'), localStorage.getItem('zumen-ceilbrdel'), localStorage.getItem('zumen-ceillink'), localStorage.getItem('zumen-ceilman'), localStorage.getItem('zumen-ceilfit'), localStorage.getItem('zumen-ceilh'), localStorage.getItem('zumen-3dunitP'), localStorage.getItem('zumen-3dunitG')].join('|'); } catch(e){}
   if (CCC && CCC.G === G && CCC.k === k) return CCC.v; let v = null; try { v = ceilAna(); if (v){ ceilDelApply(v); ceilSys(v); } } catch(e){ v = null; } CCC = {G, k, v}; return v; }
 /* ✍️ 指でなぞって配管を足す（2026-11-22 ユーザー：3Dに配管が出ない所・なぞってここまでが配管だと分かるように）：なぞった線を 縦・横・45° にそろえ、両はしを近くの管（30px）にくっつける。
    相手の管の端ならそのままつながり、途中なら分岐（zumen-ceillink の t:'b'）。保存は zumen-ceilman の図面ごと [{k, p:[[x,y]…] mm, w, t}]、ceilAna が真ん中の線にする */
@@ -5684,7 +5685,11 @@ function ceilLegend(CE){ const u = unitMM(), P = []; for (const l of G.L){ if (l
   const A = CE.ref.concat(CE.drn), id = e => (CE.drn.includes(e) ? 'd' : 'r') + e.c, par = new Map(), f = k => { while (par.has(k) && par.get(k) !== k) k = par.get(k); return k; }, un = (x, y) => { if (!x || !y) return; const a = f(id(x)), b = f(id(y)); if (a !== b) par.set(a, b); };
   for (const g of CE.brg || []) un(g.ea, g.eb); for (const q of CE.br || []) un(q.from, q.to); const by = new Map(); for (const e of A){ const k = f(id(e)); (by.get(k) || by.set(k, []).get(k)).push(e); } let n = 0;
   for (const L of by.values()){ if (L.reduce((t, e) => t + (e.L || 0), 0) > 3000) continue; if (L.every(e => P.some(p => Math.hypot(e.a[0] - p[0], e.a[1] - p[1]) < 4000 && Math.hypot(e.b[0] - p[0], e.b[1] - p[1]) < 4000))){ L.forEach(e => e.del = 1); n++; } } return n; }
-function ceilDelApply(CE){ const D = new Set(ceilDels()); CE.ndel = D.size; const lg = ceilLegend(CE); if (!D.size && !lg) return; const dd = e => !!(e && e.del); for (const e of CE.ref.concat(CE.drn)) if (D.has(ceilKey(e))) e.del = 1; if (CE.rEnds) CE.rEnds = CE.rEnds.filter(q => !dd(q.e)); if (CE.dEnds) CE.dEnds = CE.dEnds.filter(q => !dd(q.e));
+/* ⑂ 分岐管だけ外す（2026-11-23 ユーザー：交差を分岐と読んだ所など・管は2本とも残す）：zumen-ceilbrdel の図面ごと [[x, y, k]]＝分岐の点。外した枝の端は空いた端（赤丸）にもどす */
+function ceilBrDels(){ try { return (JSON.parse(localStorage.getItem('zumen-ceilbrdel') || '{}') || {})[S.srcName || ''] || []; } catch(e){ return []; } }
+function ceilBrDelsSet(a){ try { const o = JSON.parse(localStorage.getItem('zumen-ceilbrdel') || '{}') || {}; o[S.srcName || ''] = a; localStorage.setItem('zumen-ceilbrdel', JSON.stringify(o)); } catch(e){} }
+function ceilBrDelApply(CE){ const X = ceilBrDels(); if (!X.length || !CE.br) return; CE.br = CE.br.filter(b => { if (!X.some(q => q[2] === b.k && Math.hypot(q[0] - b.p[0], q[1] - b.p[1]) < 60)) return true; const f = b.from; if (f && f.a){ const at = Math.hypot(b.e[0] - f.a[0], b.e[1] - f.a[1]) < Math.hypot(b.e[0] - f.b[0], b.e[1] - f.b[1]), a = {e:f, n:b.n, p:at ? f.a : f.b, d:at ? [-f.d[0], -f.d[1]] : [f.d[0], f.d[1]]}; const L = b.k === 'ref' ? 'rEnds' : 'dEnds'; (CE[L] = CE[L] || []).push(a); } return false; }); if (CE.n) CE.n.br = CE.br.length; }
+function ceilDelApply(CE){ ceilBrDelApply(CE); const D = new Set(ceilDels()); CE.ndel = D.size; const lg = ceilLegend(CE); if (!D.size && !lg) return; const dd = e => !!(e && e.del); for (const e of CE.ref.concat(CE.drn)) if (D.has(ceilKey(e))) e.del = 1; if (CE.rEnds) CE.rEnds = CE.rEnds.filter(q => !dd(q.e)); if (CE.dEnds) CE.dEnds = CE.dEnds.filter(q => !dd(q.e));
   CE.ref = CE.ref.filter(e => !e.del); CE.drn = CE.drn.filter(e => !e.del); for (const e of CE.ref.concat(CE.drn)){ if (e.nbr) e.nbr = e.nbr.filter(q => !q.del); if (e.mkn) e.mkn = e.mkn.filter(q => !q.del); }
   CE.brg = CE.brg.filter(g => !dd(g.ea) && !dd(g.eb)); CE.br = CE.br.filter(b => !dd(b.from) && !dd(b.to)); CE.mks = CE.mks.filter(q => !dd(q.a) && !dd(q.b)); for (const k of ['oe', 'els', 'cos', 'hose']) if (CE[k]) CE[k] = CE[k].filter(q => !dd(q.e)); if (CE.dmk) CE.dmk = CE.dmk.filter(q => !dd(q.ea) && !dd(q.eb)); CE.labs = CE.labs.filter(l => !dd(l.run) && !dd(l.e)); CE.n.ref = CE.ref.length; CE.n.drn = CE.drn.length; }
 function ceilHoleH(){ try { return +((JSON.parse(localStorage.getItem('zumen-ceilhole') || '{}') || {})[S.srcName || '']) || 0; } catch(e){ return 0; } }
@@ -6169,21 +6174,27 @@ function v3dCtl(){ const el = V3.r.domElement, P = new Map(); let last = null;
 $('#b3D').onclick = open3D;
 /* ✂ 間違って読んだ配管を消す（2026-11-23 ユーザー：一部消して繋ぎ直す・全部消して一から作り直した方が早い時もある）：zumen-ceildel に入れる（3Dで消すのと同じ）。DEL_ST＝この画面で消した順（1つもどす用） */
 const DEL_ST = [];
-function delPickOff(){ S.delPick = false; const b = $('#f3Del'); if (b) b.classList.remove('on2'); }
+function delPickOff(){ S.delPick = false; S.brPick = false; const b = $('#f3Del'); if (b) b.classList.remove('on2'); }
 function ceilDelAdd(keys, msg){ keys = keys.filter(k => k); if (!keys.length){ toast('消す配管がありません'); return; } const D = ceilDels(); ceilDelsSet(D.concat(keys.filter(k => !D.includes(k)))); DEL_ST.push(keys); toast(msg); renderTabs(); drawOverlay(); }
 function ceilDelTap(p){ let CE = null; try { CE = ceilColCE(); } catch(e){} const u = unitMM(); let seg = null, bd = 30; if (CE) for (const k of ['ref', 'drn']) for (const e of CE[k] || []){ const a = w2s(e.a[0]/u, e.a[1]/u), b = w2s(e.b[0]/u, e.b[1]/u), q = closestOnSeg(p[0], p[1], a[0], a[1], b[0], b[1]), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd){ bd = d; seg = e; } }
   if (!seg){ toast('そこに配管がありません（配管の線の上をタップ・やめる時は「👆 選択」）'); return; } ceilDelAdd([ceilKey(seg)], `消しました（${((seg.L || 0)/1000).toFixed(2)}m）。続けてタップで消せます・やめる時は「👆 選択」`); }
-function ceilDelSheet(){ let CE = null; try { CE = ceilColCE(); } catch(e){} const nR = CE ? CE.ref.length : 0, nD = CE ? CE.drn.length : 0, nX = ceilDels().length;
+function ceilBrTap(p){ let CE = null; try { CE = ceilColCE(); } catch(e){} const u = unitMM(); let hit = null, bd = 36; for (const b of (CE && CE.br) || []){ const q = w2s(b.p[0]/u, b.p[1]/u), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd){ bd = d; hit = b; } }
+  if (!hit){ toast('そこに分岐管がありません（分岐の所をタップ・やめる時は「👆 選択」）'); return; } const it = [Math.round(hit.p[0]), Math.round(hit.p[1]), hit.k]; ceilBrDelsSet(ceilBrDels().concat([it])); DEL_ST.push({br:it}); toast('分岐管を外しました（管は残っています）。続けてタップで外せます・やめる時は「👆 選択」'); renderTabs(); drawOverlay(); }
+function ceilDelSheet(){ let CE = null; try { CE = ceilColCE(); } catch(e){} const nR = CE ? CE.ref.length : 0, nD = CE ? CE.drn.length : 0, nX = ceilDels().length, nB = ceilBrDels().length, nBr = CE && CE.br ? CE.br.length : 0;
   openSheet('✂ 配管を消す', body => { body.innerHTML = `<div class="note">間違って読んだ配管を消します。消した後は「✍️ なぞって足す」「⑂ 枝を足す」でつなぎ直せます。図面の線は消えません（3D・材料から外すだけ）。</div>
     <div class="frow" style="flex-direction:column;gap:8px"><button class="btn pri" data-d="tap" style="height:54px;font-size:16px">👆 タップした所を消す（続けて消せる）</button>
+    <button class="btn" data-d="br" style="height:50px;font-size:15px" ${nBr ? '' : 'disabled'}>⑂ 分岐管だけ外す（タップ・管は2本とも残す）</button>
     <button class="btn" data-d="ref" style="height:50px;font-size:15px;color:#b91c1c" ${nR ? '' : 'disabled'}>🧹 冷媒をぜんぶ消す（1から作り直す・${nR}本）</button>
     <button class="btn" data-d="drn" style="height:50px;font-size:15px;color:#b91c1c" ${nD ? '' : 'disabled'}>🧹 ドレンをぜんぶ消す（1から作り直す・${nD}本）</button>
     <button class="btn" data-d="undo" style="height:46px" ${DEL_ST.length ? '' : 'disabled'}>↩ 1つもどす</button>
-    <button class="btn" data-d="all" style="height:46px" ${nX ? '' : 'disabled'}>↩ 消した配管をぜんぶもどす（${nX}本）</button></div>`;
+    <button class="btn" data-d="all" style="height:46px" ${nX ? '' : 'disabled'}>↩ 消した配管をぜんぶもどす（${nX}本）</button>
+    <button class="btn" data-d="brall" style="height:46px" ${nB ? '' : 'disabled'}>↩ 外した分岐管をぜんぶもどす（${nB}か所）</button></div>`;
     body.onclick = e => { const b = e.target.closest('[data-d]'); if (!b || b.disabled) return; const d = b.dataset.d; closeSheet();
-      if (d === 'tap'){ $('#mPan').click(); S.delPick = true; $('#f3Del').classList.add('on2'); toast('消したい配管をタップしてください（続けて消せる）'); return; }
+      if (d === 'br'){ $('#mPan').click(); delPickOff(); S.brPick = true; $('#f3Del').classList.add('on2'); toast('外したい分岐管（枝が本管につながる所）をタップしてください'); return; }
+      if (d === 'brall'){ ceilBrDelsSet([]); for (let i = DEL_ST.length - 1; i >= 0; i--) if (DEL_ST[i].br) DEL_ST.splice(i, 1); toast('外した分岐管をぜんぶもどしました'); renderTabs(); drawOverlay(); return; }
+      if (d === 'tap'){ $('#mPan').click(); delPickOff(); S.delPick = true; $('#f3Del').classList.add('on2'); toast('消したい配管をタップしてください（続けて消せる）'); return; }
       if (d === 'ref' || d === 'drn'){ const L = (CE[d] || []).filter(x => !x.man); if (!confirm(`${d === 'ref' ? '冷媒' : 'ドレン'}の読んだ配管を${L.length}本ぜんぶ消しますか？（自分でなぞった配管は残します・あとで「もどす」で戻せます）`)) return; ceilDelAdd(L.map(ceilKey), `${d === 'ref' ? '冷媒' : 'ドレン'}を消しました。「✍️ なぞって足す」で1から引いてください`); return; }
-      if (d === 'undo'){ const ks = DEL_ST.pop() || []; ceilDelsSet(ceilDels().filter(k => !ks.includes(k))); toast('1つもどしました'); }
+      if (d === 'undo'){ const ks = DEL_ST.pop() || []; if (ks.br) ceilBrDelsSet(ceilBrDels().filter(q => !(q[0] === ks.br[0] && q[1] === ks.br[1] && q[2] === ks.br[2]))); else ceilDelsSet(ceilDels().filter(k => !ks.includes(k))); toast('1つもどしました'); }
       if (d === 'all'){ ceilDelsSet([]); DEL_ST.length = 0; toast('消した配管をぜんぶもどしました'); }
       renderTabs(); drawOverlay(); }; }); }
 /* 下の段の切り替え（2026-11-23 ユーザー：3D化用の修正ボタンが欲しい・下のタグで切り替え・3Dは修正の方へ）：✏️ 図面の修正＝今までの道具／🧊 3D化の修正＝なぞる・直す・赤丸・直した所・3D */

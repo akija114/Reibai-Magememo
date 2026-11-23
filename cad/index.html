@@ -3524,7 +3524,7 @@ $('#subtabs').addEventListener('click', e => { const dg = e.target.closest('[dat
     if (id === '__more'){ openDimGroupSheet(); return; } if (id === '__new'){ const nm = prompt('新しい寸法のグループの名前（例：梁下確認・2階天井内）。空のままだと今日の日付', ''); if (nm == null) return; const g = makeDG(nm); toast(`これから測る寸法は「${g.name}」に入ります`); }
     else { const g = S.dimGroups.find(x => x.id === id); if (!g) return; if (S.curDG !== id){ S.curDG = id; g.on = true; toast(`これから測る寸法は「${g.name}」に入ります（もう1回押すと出す／消す）`); } else { g.on = g.on === false; if (S.selDim && !dimVisible(S.selDim)) S.selDim = null; } autosave(); updateDimPanel(); }
     updateHint(); renderTabs(); drawOverlay(); return; }
-  const a = e.target.closest('[data-app]'); if (a){ const k = a.dataset.app;   // ✏️ アプリの書き込み：押すたびに出す／消す
+  const a = e.target.closest('#subtabs [data-app]'); if (a){ const k = a.dataset.app;   // ✏️ アプリの書き込み：押すたびに出す／消す
     if (k === 'ref') try { localStorage.setItem('zumen-ceilcol', ceilColOn() ? '0' : '1'); } catch(e){}
     if (k === 'drn') try { localStorage.setItem('zumen-drncol', drnColOn() ? '0' : '1'); } catch(e){}
     if (k === 'dim'){ const on = !S.dimGroups.some(g => g.on !== false); S.dimGroups.forEach(g => { g.on = on; }); if (S.selDim && !dimVisible(S.selDim)) S.selDim = null; autosave(); updateDimPanel(); }

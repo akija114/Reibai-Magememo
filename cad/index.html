@@ -215,8 +215,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   <div class="ttag" id="toolTag"><button data-tt="0">✏️ 図面の修正</button><button data-tt="1">🧊 3D化の修正</button></div>
   <div class="tool" id="tool3" hidden>
     <button class="tb" id="f3Pan"><span class="ti">👆</span>選択</button>
-    <button class="tb" id="f3TrR"><span class="ti">✍️</span>冷媒を<br>なぞる</button>
-    <button class="tb" id="f3TrD"><span class="ti">💧</span>ドレンを<br>なぞる</button>
+    <button class="tb" id="f3TrR"><span class="ti">✍️</span>なぞって<br>足す</button>
+    <button class="tb" id="f3Br"><span class="ti">🌿</span>枝を<br>足す</button>
+    <button class="tb" id="f3Del"><span class="ti">✂️</span>消す</button>
     <button class="tb" id="f3Fix"><span class="ti">📍</span>ここを<br>直す</button>
     <button class="tb" id="f3Hl"><span class="ti">🔴</span>赤丸を<br>出す</button>
     <button class="tb" id="f3Log"><span class="ti">🕘</span>直した<br>所</button>
@@ -1151,6 +1152,7 @@ function tapSelect(p){
   { const ho = holeAt(p); if (ho && !(S.mode === 'np' && S.npe && S.npe.tool !== 'hole')){ openHoleSheet(ho); return; } } // 貫通部をタップ → 直す・消す
   if (S.mode === 'np'){ npTap(s2w(p[0], p[1])); return; }
   if (S.lkPick && S.mode === 'pan'){ lkPickAt(p); return; } // つなぐ相手の管をタップ
+  if (S.delPick && S.mode === 'pan'){ ceilDelTap(p); return; }   // ✂ 消す：タップした管を消す（続けて消せる・2026-11-23 ユーザー）
   if (S.fixPick && S.mode === 'pan'){ S.fixPick = false; const u0 = unitMM(), w0 = s2w(p[0], p[1]); fixPointSheet([w0[0]*u0, w0[1]*u0], null); return; } // 📍 好きな所を直す
   let best = null, bd = 22;
   for (const d of S.dims) if (d.to && dimLabelHit(d, p, 1)){ best = d; bd = 0; } // 動かした数字をタップしても、その寸法を選ぶ
@@ -2112,7 +2114,7 @@ function traceFinish(Q, k){ const u = unitMM(), tol = 14; /* 画面の px */ con
   let S2 = rdp(Q, tol); if (Math.hypot(S2[S2.length - 1][0] - S2[0][0], S2[S2.length - 1][1] - S2[0][1]) < 20){ toast('短すぎました。もう少し長くなぞってください'); return; }
   /* 縦・横・45° にそろえる（10°以内） */ const O = [S2[0]]; for (let i = 1; i < S2.length; i++){ const a = O[O.length - 1], b = S2[i], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy); if (L < 6) continue; const an = Math.atan2(dy, dx), sn = Math.round(an/(Math.PI/4))*(Math.PI/4); const d2 = Math.abs(an - sn) < 10*Math.PI/180 ? [Math.cos(sn), Math.sin(sn)] : [dx/L, dy/L], pl = dx*d2[0] + dy*d2[1]; O.push([a[0] + d2[0]*pl, a[1] + d2[1]*pl]); }
   let W = O.map(p => { const w = s2w(p[0], p[1]); return [w[0]*u, w[1]*u]; }); let CE = null; try { CE = ceilColCE(); } catch(e){}
-  const links = [], snap = (i, j) => { if (!CE) return null; const p = W[i], sp = w2s(p[0]/u, p[1]/u); let best = null, bd = 30; for (const e of CE[k] || []){ if (e.arc || e.man) continue; const a = w2s(e.a[0]/u, e.a[1]/u), b = w2s(e.b[0]/u, e.b[1]/u), q = closestOnSeg(sp[0], sp[1], a[0], a[1], b[0], b[1]), d = Math.hypot(q[0] - sp[0], q[1] - sp[1]); if (d < bd){ bd = d; best = e; } } if (!best) return null;
+  const links = [], snap = (i, j) => { if (!CE) return null; const p = W[i], sp = w2s(p[0]/u, p[1]/u); let best = null, bd = 30; for (const e of CE[k] || []){ if (e.arc) continue; const a = w2s(e.a[0]/u, e.a[1]/u), b = w2s(e.b[0]/u, e.b[1]/u), q = closestOnSeg(sp[0], sp[1], a[0], a[1], b[0], b[1]), d = Math.hypot(q[0] - sp[0], q[1] - sp[1]); if (d < bd){ bd = d; best = e; } } if (!best) return null;
       const c = closestOnSeg(p[0], p[1], best.a[0], best.a[1], best.b[0], best.b[1]), w = best.w || best.cw || 40, ea = Math.hypot(c[0] - best.a[0], c[1] - best.a[1]), eb = Math.hypot(c[0] - best.b[0], c[1] - best.b[1]); let T = c, mid = false; if (ea <= w*1.5) T = best.a; else if (eb <= w*1.5) T = best.b; else mid = true;
       W[i] = [T[0], T[1]]; if (mid) links.push({k, p:[Math.round(W[j][0]), Math.round(W[j][1])], q:[Math.round(T[0]), Math.round(T[1])], t:'b', fx:1}); return w; };
   const w0 = snap(0, 1), w1 = snap(W.length - 1, W.length - 2); if (links.length){ /* 分岐：途中にくっつけた端は相手の管の手前（太さ）で止めて、そこから分岐にする */ for (const L of links){ const i = Math.hypot(W[0][0] - L.q[0], W[0][1] - L.q[1]) < 1 ? 0 : W.length - 1, j = i ? i - 1 : 1, d = [W[j][0] - W[i][0], W[j][1] - W[i][1]], l = Math.hypot(d[0], d[1]) || 1, bk = Math.min(l*0.4, (w0 || w1 || 40)*1.5); W[i] = [W[i][0] + d[0]/l*bk, W[i][1] + d[1]/l*bk]; L.p = [Math.round(W[i][0]), Math.round(W[i][1])]; } }
@@ -6165,14 +6167,35 @@ function v3dCtl(){ const el = V3.r.domElement, P = new Map(); let last = null;
   el.addEventListener('wheel', e => { e.preventDefault(); V3.dist = Math.max(300, Math.min(5e6, V3.dist*Math.exp(e.deltaY*0.0015))); v3dDrawQ(); }, {passive:false});
   window.addEventListener('resize', () => v3dDraw()); }
 $('#b3D').onclick = open3D;
+/* ✂ 間違って読んだ配管を消す（2026-11-23 ユーザー：一部消して繋ぎ直す・全部消して一から作り直した方が早い時もある）：zumen-ceildel に入れる（3Dで消すのと同じ）。DEL_ST＝この画面で消した順（1つもどす用） */
+const DEL_ST = [];
+function delPickOff(){ S.delPick = false; const b = $('#f3Del'); if (b) b.classList.remove('on2'); }
+function ceilDelAdd(keys, msg){ keys = keys.filter(k => k); if (!keys.length){ toast('消す配管がありません'); return; } const D = ceilDels(); ceilDelsSet(D.concat(keys.filter(k => !D.includes(k)))); DEL_ST.push(keys); toast(msg); renderTabs(); drawOverlay(); }
+function ceilDelTap(p){ let CE = null; try { CE = ceilColCE(); } catch(e){} const u = unitMM(); let seg = null, bd = 30; if (CE) for (const k of ['ref', 'drn']) for (const e of CE[k] || []){ const a = w2s(e.a[0]/u, e.a[1]/u), b = w2s(e.b[0]/u, e.b[1]/u), q = closestOnSeg(p[0], p[1], a[0], a[1], b[0], b[1]), d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd){ bd = d; seg = e; } }
+  if (!seg){ toast('そこに配管がありません（配管の線の上をタップ・やめる時は「👆 選択」）'); return; } ceilDelAdd([ceilKey(seg)], `消しました（${((seg.L || 0)/1000).toFixed(2)}m）。続けてタップで消せます・やめる時は「👆 選択」`); }
+function ceilDelSheet(){ let CE = null; try { CE = ceilColCE(); } catch(e){} const nR = CE ? CE.ref.length : 0, nD = CE ? CE.drn.length : 0, nX = ceilDels().length;
+  openSheet('✂ 配管を消す', body => { body.innerHTML = `<div class="note">間違って読んだ配管を消します。消した後は「✍️ なぞって足す」「⑂ 枝を足す」でつなぎ直せます。図面の線は消えません（3D・材料から外すだけ）。</div>
+    <div class="frow" style="flex-direction:column;gap:8px"><button class="btn pri" data-d="tap" style="height:54px;font-size:16px">👆 タップした所を消す（続けて消せる）</button>
+    <button class="btn" data-d="ref" style="height:50px;font-size:15px;color:#b91c1c" ${nR ? '' : 'disabled'}>🧹 冷媒をぜんぶ消す（1から作り直す・${nR}本）</button>
+    <button class="btn" data-d="drn" style="height:50px;font-size:15px;color:#b91c1c" ${nD ? '' : 'disabled'}>🧹 ドレンをぜんぶ消す（1から作り直す・${nD}本）</button>
+    <button class="btn" data-d="undo" style="height:46px" ${DEL_ST.length ? '' : 'disabled'}>↩ 1つもどす</button>
+    <button class="btn" data-d="all" style="height:46px" ${nX ? '' : 'disabled'}>↩ 消した配管をぜんぶもどす（${nX}本）</button></div>`;
+    body.onclick = e => { const b = e.target.closest('[data-d]'); if (!b || b.disabled) return; const d = b.dataset.d; closeSheet();
+      if (d === 'tap'){ $('#mPan').click(); S.delPick = true; $('#f3Del').classList.add('on2'); toast('消したい配管をタップしてください（続けて消せる）'); return; }
+      if (d === 'ref' || d === 'drn'){ const L = (CE[d] || []).filter(x => !x.man); if (!confirm(`${d === 'ref' ? '冷媒' : 'ドレン'}の読んだ配管を${L.length}本ぜんぶ消しますか？（自分でなぞった配管は残します・あとで「もどす」で戻せます）`)) return; ceilDelAdd(L.map(ceilKey), `${d === 'ref' ? '冷媒' : 'ドレン'}を消しました。「✍️ なぞって足す」で1から引いてください`); return; }
+      if (d === 'undo'){ const ks = DEL_ST.pop() || []; ceilDelsSet(ceilDels().filter(k => !ks.includes(k))); toast('1つもどしました'); }
+      if (d === 'all'){ ceilDelsSet([]); DEL_ST.length = 0; toast('消した配管をぜんぶもどしました'); }
+      renderTabs(); drawOverlay(); }; }); }
 /* 下の段の切り替え（2026-11-23 ユーザー：3D化用の修正ボタンが欲しい・下のタグで切り替え・3Dは修正の方へ）：✏️ 図面の修正＝今までの道具／🧊 3D化の修正＝なぞる・直す・赤丸・直した所・3D */
 function toolTagSet(t){ try { localStorage.setItem('zumen-tooltag', t ? '1' : '0'); } catch(e){} $('#toolMain').hidden = !!t; $('#tool3').hidden = !t; $('#toolTag').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.tt === (t ? 1 : 0))); $('#f3Hl').classList.toggle('on2', readHlOn()); if (t && S.mode !== 'pan') $('#mPan').click(); requestAnimationFrame(resize); }
 $('#toolTag').onclick = e => { const b = e.target.closest('[data-tt]'); if (b) toolTagSet(b.dataset.tt === '1'); };
 { const needCE = () => { let CE = null; try { CE = ceilColCE(); } catch(e){} if (!CE) toast('この図面は配管図として読めていません（冷媒・ドレンの線と「FL+」の文字が要ります）'); return !!CE; };
-  $('#f3Pan').onclick = () => $('#mPan').click();
-  $('#f3TrR').onclick = () => { if (G && needCE()) traceStart('ref'); };
-  $('#f3TrD').onclick = () => { if (G && needCE()) traceStart('drn'); };
-  $('#f3Fix').onclick = () => { if (!G || !needCE()) return; $('#mPan').click(); S.fixPick = true; toast('直したい所（配管・継手・端・空調でない線）をタップしてください'); };
+  $('#f3Pan').onclick = () => { delPickOff(); $('#mPan').click(); };
+  const kAsk = (ttl, note, go) => openSheet(ttl, body => { body.innerHTML = `<div class="note">${note}</div><div class="frow" style="flex-direction:column;gap:8px"><button class="btn pri" data-k="ref" style="height:54px;font-size:17px">❄️ 冷媒配管</button><button class="btn" data-k="drn" style="height:54px;font-size:17px;border:2px solid #16a34a">💧 ドレン配管</button></div>`; body.onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; closeSheet(); go(b.dataset.k); }; });
+  $('#f3TrR').onclick = () => { if (!G || !needCE()) return; delPickOff(); kAsk('✍️ なぞって配管を足す', '指でなぞった所に配管を足します。両はしを今の配管の端に合わせるとつながり、配管の途中から始めると枝（分岐）になります。', k => traceStart(k)); };
+  $('#f3Br').onclick = () => { if (!G || !needCE()) return; delPickOff(); kAsk('🌿 本管から枝を足す', '<b>本管の上に指を置いて</b>、枝の先（室内機の口のそばなど）までなぞってください。本管の途中から始まる所が分岐になります。', k => { traceStart(k); toast('本管の上から指を置いて、枝の先までなぞってください'); }); };
+  $('#f3Del').onclick = () => { if (G && needCE()) ceilDelSheet(); };
+  $('#f3Fix').onclick = () => { if (!G || !needCE()) return; delPickOff(); $('#mPan').click(); S.fixPick = true; toast('直したい所（配管・継手・端・空調でない線）をタップしてください'); };
   $('#f3Hl').onclick = () => { try { localStorage.setItem('zumen-readhl', readHlOn() ? '0' : '1'); } catch(e){} $('#f3Hl').classList.toggle('on2', readHlOn()); drawOverlay(); toast(readHlOn() ? '読めた物は水色・つながっていない所は赤丸で出します' : '赤丸・水色を消しました'); };
   $('#f3Log').onclick = () => { if (G) fixSheet(); };
   let t0 = false; try { t0 = localStorage.getItem('zumen-tooltag') === '1'; } catch(e){} toolTagSet(t0); }

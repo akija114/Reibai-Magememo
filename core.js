@@ -31,12 +31,14 @@ const uParse=v=>{v=String(v).replace(/[０-９．]/g,c=>String.fromCharCode(c.ch
 /* ＋−×÷ の計算（2026-11-24 ユーザー：長さの欄で足し算・引き算・掛け算・割り算・次へ行ったら合計・式はうすく残す）：calcExpr＝式なら答え（式でない時は null）。calcAttach＝欄に付ける（キーボードの上に ＋ − × ÷ の段 #calcBar・離れた時に答えにして、式は欄の下にうすく .calcEx） */
 function calcExpr(v){const t=String(v).normalize("NFKC").replace(/[×xX＊]/g,"*").replace(/[÷／]/g,"/").replace(/[−ー–]/g,"-").replace(/\s|,/g,"");if(!/^\d+(\.\d+)?([+\-*/]\d+(\.\d+)?)+$/.test(t))return null;const k=t.match(/\d+(?:\.\d+)?|[+\-*/]/g);let a=[+k[0]],o=[];for(let i=1;i<k.length;i+=2){const op=k[i],n=+k[i+1];if(op==="*")a[a.length-1]*=n;else if(op==="/")a[a.length-1]=n?a[a.length-1]/n:NaN;else{a.push(op==="-"?-n:n)}}return a.reduce((x,y)=>x+y,0)}
 function calcBar(){let b=document.getElementById("calcBar");if(b)return b;b=document.createElement("div");b.id="calcBar";b.style.cssText="position:fixed;left:6px;right:6px;z-index:9999;display:none;gap:6px;align-items:center;padding:4px;background:#e2e8f0;border-radius:12px;box-shadow:0 2px 8px #0003";
- b.innerHTML=["+","-","×","÷"].map(o=>`<button type="button" data-op="${o}" style="flex:1;height:40px;border:0;border-radius:9px;background:#fff;font-size:22px;font-weight:800;color:#1e3a8a">${o==="-"?"−":o==="+"?"＋":o}</button>`).join("")+'<span id="calcRes" style="flex:1.4;text-align:center;font-weight:800;font-size:15px;color:#334155"></span>';
+ b.innerHTML=["+","-","×","÷"].map(o=>`<button type="button" data-op="${o}" style="flex:1;height:40px;border:0;border-radius:9px;background:#fff;font-size:22px;font-weight:800;color:#1e3a8a">${o==="-"?"−":o==="+"?"＋":o}</button>`).join("")+'<button type="button" data-op="rem" style="flex:1.3;height:40px;border:0;border-radius:9px;background:#fef3c7;font-size:15px;font-weight:800;color:#92400e;white-space:nowrap">残り</button><span id="calcRes" style="flex:1.4;text-align:center;font-weight:800;font-size:15px;color:#334155"></span>';
  b.addEventListener("pointerdown",e=>e.preventDefault());b.addEventListener("mousedown",e=>e.preventDefault());
- b.addEventListener("click",e=>{const x=e.target.closest("[data-op]"),inp=calcBar.cur;if(!x||!inp)return;const p0=inp.selectionStart??inp.value.length,p1=inp.selectionEnd??p0;let v=inp.value;if(p0===0&&p1===v.length&&v)v=v+x.dataset.op,inp.value=v,inp.setSelectionRange(v.length,v.length);else{inp.setRangeText(x.dataset.op,p0,p1,"end")}inp.dispatchEvent(new Event("input",{bubbles:true}));calcShow(inp)});
+ b.addEventListener("click",e=>{const x=e.target.closest("[data-op]"),inp=calcBar.cur;if(!x||!inp)return;if(x.dataset.op==="rem"){const q=inp._cr&&inp._cr();if(!q){toast("残りを出せません（定尺を使い切っています）");return}inp.value=q;inp.setSelectionRange(q.length,q.length);inp.dispatchEvent(new Event("input",{bubbles:true}));calcShow(inp);return}const p0=inp.selectionStart??inp.value.length,p1=inp.selectionEnd??p0;let v=inp.value;if(p0===0&&p1===v.length&&v)v=v+x.dataset.op,inp.value=v,inp.setSelectionRange(v.length,v.length);else{inp.setRangeText(x.dataset.op,p0,p1,"end")}inp.dispatchEvent(new Event("input",{bubbles:true}));calcShow(inp)});
  document.body.appendChild(b);const vv=window.visualViewport,pos=()=>{if(b.style.display==="none")return;const h=vv?vv.offsetTop+vv.height:innerHeight;b.style.top=Math.max(0,h-52)+"px"};if(vv){vv.addEventListener("resize",pos);vv.addEventListener("scroll",pos)}addEventListener("resize",pos);b.pos=pos;return b}
-function calcShow(inp){const b=calcBar(),r=document.getElementById("calcRes"),x=calcExpr(inp.value);r.textContent=x!=null&&isFinite(x)?"＝ "+Math.round(x):"";}
-function calcAttach(inp,getEx,setEx){if(!inp)return;inp._cg=getEx;inp._cs=setEx;let sp=inp._cx;if(!sp){sp=document.createElement("span");sp.className="calcEx";sp.style.cssText="display:none;font-size:11px;font-weight:700;color:#94a3b8;line-height:1.2;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%";inp.insertAdjacentElement("afterend",sp);inp._cx=sp}
+function calcShow(inp){const b=calcBar(),r=document.getElementById("calcRes");b.querySelector('[data-op="rem"]').style.display=inp._cr?"":"none";const x=calcExpr(inp.value);r.textContent=x!=null&&isFinite(x)?"＝ "+Math.round(x):"";}
+/* 定尺の残り（＋−×÷ の帯の「残り」・2026-11-24 ユーザー）：前の行までの合計の長さ（上の「合計／定尺」と同じ数え方＝定尺超えにならない）から、定尺の残り */
+function calcRem(prev,back){const {lim}=cur();if(!(lim>0))return null;const T=(Math.floor(Math.max(0,Math.round(prev))/lim)+1)*lim,u=Math.round(prev),k=Math.round(back||0);return T+(u?"-"+u:"")+(k?"+"+k:"")}
+function calcAttach(inp,getEx,setEx,rem,host){if(!inp)return;inp._cg=getEx;inp._cs=setEx;inp._cr=rem;let sp=inp._cx;if(!sp){sp=document.createElement("span");sp.className="calcEx";sp.style.cssText="display:none;font-size:11px;font-weight:700;color:#94a3b8;line-height:1.2;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%";if(host)host.appendChild(sp);else inp.insertAdjacentElement("afterend",sp);inp._cx=sp}
  const ex=getEx&&getEx();sp.textContent=ex?ex+" ＝":"";sp.style.display=ex?"block":"none";if(inp._calc)return;inp._calc=1;
  inp.addEventListener("focus",()=>{if(IN())return;const b=calcBar();calcBar.cur=inp;b.style.display="flex";b.pos();calcShow(inp)});
  inp.addEventListener("input",()=>{if(calcBar.cur===inp)calcShow(inp)});
@@ -398,6 +400,7 @@ function render(){
   el.addEventListener("pointerdown",()=>{if(sel!==i){sel=i;upd()}});
   inp.oninput=()=>{r.l=Math.max(0,uParse(inp.value)||0);save(true);upd()};
   inp.onfocus=()=>{sel=i;upd();inp.select()};
+  if(typeof calcAttach==="function"){const W=calcAttach.W||(calcAttach.W=new WeakMap());calcAttach(inp,()=>W.get(r),e=>W.set(r,e),()=>calcRem(LR().slice(0,i).reduce((c,x)=>c+x.l,0)),el)}
   el.querySelector(".ang").onclick=()=>{sel=i;r.a=ANG[(ANG.indexOf(r.a)+1)%ANG.length];save();render()};
   const tb=el.querySelector(".twb");if(tb&&r.a)tb.onclick=e=>{e.stopPropagation();sel=i;openDirView(i)};
   const gi=el.querySelector(".gauge input");
@@ -1736,7 +1739,7 @@ function setupDirLens(){
  if(n){$("#dirL2t").textContent=nm(i+1)+" 曲げた後の長さ mm";$("#dirL2").value=uVal(n.l)}
  const on=(inp,row,re,hr)=>{inp.onfocus=()=>{inp.select();if(EZ&&DV&&DV.hl!==hr){DV.hl=hr;build3D();T.dirty=true}};inp.oninput=()=>{row.l=Math.max(0,uParse(inp.value)||0);build3D();if(re||EZ)placeDirCam();T.dirty=true;drawDial()}};
  on($("#dirL1"),r,true,i);if(n)on($("#dirL2"),n,false,i+1);
- if(typeof calcAttach==="function"){const W=calcAttach.W||(calcAttach.W=new WeakMap());calcAttach($("#dirL1"),()=>W.get(r),e=>W.set(r,e));if(n)calcAttach($("#dirL2"),()=>W.get(n),e=>W.set(n,e))}   // ＋−×÷（式は覚えておくだけ・保存しない）
+ if(typeof calcAttach==="function"){const W=calcAttach.W||(calcAttach.W=new WeakMap());const RM=j=>()=>calcRem(LR().slice(0,j).reduce((c,x)=>c+x.l,0));calcAttach($("#dirL1"),()=>W.get(r),e=>W.set(r,e),RM(i));if(n)calcAttach($("#dirL2"),()=>W.get(n),e=>W.set(n,e),RM(i+1))}   // ＋−×÷（式は覚えておくだけ・保存しない）
 }
 let dvRAF=0;
 function applyDV(){const r=LR()[DV.i];r.t=normT(DV.t);r.o=false;if(!dvRAF)dvRAF=requestAnimationFrame(()=>{dvRAF=0;build3D();if(EZ&&DV&&DV.ez&&DV.ez!==3)ezFitMain();T.dirty=true})}

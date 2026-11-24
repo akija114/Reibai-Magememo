@@ -184,6 +184,9 @@ if(PAGE==="bend"){
  window.shareLinkZ=async function(){const L=await longLink(),code=L.split("#z=")[1];if(!code)return L;try{return await wait(makeShort(code),2500)}catch(e){return L}};
  const pre=async()=>{try{const L=await longLink();makeShort(L.split("#z=")[1]).catch(()=>{})}catch(e){}};
  ["#shareOv","#cloudOv"].forEach(s=>{const e=q(s);if(e)new MutationObserver(()=>{if(e.classList.contains("on"))pre()}).observe(e,{attributes:true,attributeFilter:["class"]})});
+ /* 「貼り付けて読込」に短いリンク（?s=番号）入りの文章を貼った時も読む（2026-11-25 ユーザー：テキストでコピーして貼り付けても読み込めない） */
+ const impZ=window.importTextZ;
+ if(typeof impZ==="function")window.importTextZ=async function(txt){if(!/[#&]z=|#PBM:|#BLD:|#p=/.test(txt||"")){const m=String(txt||"").match(/[?&]s=([A-Za-z0-9]{6,20})/);if(m){try{const f=await fx(),x=await wait(f.get("links/"+m[1]),8000);if(x&&x.z)return applyData(await decZ(x.z))}catch(e){console.warn("paste short link",e)}return false}}return impZ.apply(this,arguments)};
  /* 短いリンクを開いた時 */
  const sid=new URLSearchParams(location.search).get("s");
  if(/^[A-Za-z0-9]{6,20}$/.test(sid||""))setTimeout(async()=>{

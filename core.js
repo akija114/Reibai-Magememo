@@ -27,7 +27,22 @@ function parseIn(s){s=String(s).replace(/[″"]/g,"").trim();let ft=0;const m=s.
  let inch=0,ok=!!m;const f=s.match(/(\d+)\s*\/\s*(\d+)\s*$/);if(f){inch+=(+f[1])/((+f[2])||1);s=s.slice(0,f.index);ok=true}
  const w=s.match(/\d+(?:\.\d+)?/);if(w){inch+=+w[0];ok=true}return ok?Math.round((ft*12+inch)*25.4):NaN}
 const uVal=mm=>IN()?String(+(mm/25.4).toFixed(2)):String(Math.round(mm));
-const uParse=v=>{v=String(v).replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));return IN()?parseIn(v):parseInt(v.replace(/[^0-9]/g,""))};   // 全角の数字（iPhoneの日本語キーボード）も読む
+const uParse=v=>{v=String(v).replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));if(!IN()){const x=calcExpr(v);if(x!=null)return isFinite(x)?Math.max(0,Math.round(x)):NaN}return IN()?parseIn(v):parseInt(v.replace(/[^0-9]/g,""))};   // 全角の数字（iPhoneの日本語キーボード）も読む
+/* ＋−×÷ の計算（2026-11-24 ユーザー：長さの欄で足し算・引き算・掛け算・割り算・次へ行ったら合計・式はうすく残す）：calcExpr＝式なら答え（式でない時は null）。calcAttach＝欄に付ける（キーボードの上に ＋ − × ÷ の段 #calcBar・離れた時に答えにして、式は欄の下にうすく .calcEx） */
+function calcExpr(v){const t=String(v).normalize("NFKC").replace(/[×xX＊]/g,"*").replace(/[÷／]/g,"/").replace(/[−ー–]/g,"-").replace(/\s|,/g,"");if(!/^\d+(\.\d+)?([+\-*/]\d+(\.\d+)?)+$/.test(t))return null;const k=t.match(/\d+(?:\.\d+)?|[+\-*/]/g);let a=[+k[0]],o=[];for(let i=1;i<k.length;i+=2){const op=k[i],n=+k[i+1];if(op==="*")a[a.length-1]*=n;else if(op==="/")a[a.length-1]=n?a[a.length-1]/n:NaN;else{a.push(op==="-"?-n:n)}}return a.reduce((x,y)=>x+y,0)}
+function calcBar(){let b=document.getElementById("calcBar");if(b)return b;b=document.createElement("div");b.id="calcBar";b.style.cssText="position:fixed;left:6px;right:6px;z-index:9999;display:none;gap:6px;align-items:center;padding:4px;background:#e2e8f0;border-radius:12px;box-shadow:0 2px 8px #0003";
+ b.innerHTML=["+","-","×","÷"].map(o=>`<button type="button" data-op="${o}" style="flex:1;height:40px;border:0;border-radius:9px;background:#fff;font-size:22px;font-weight:800;color:#1e3a8a">${o==="-"?"−":o==="+"?"＋":o}</button>`).join("")+'<span id="calcRes" style="flex:1.4;text-align:center;font-weight:800;font-size:15px;color:#334155"></span>';
+ b.addEventListener("pointerdown",e=>e.preventDefault());b.addEventListener("mousedown",e=>e.preventDefault());
+ b.addEventListener("click",e=>{const x=e.target.closest("[data-op]"),inp=calcBar.cur;if(!x||!inp)return;const p0=inp.selectionStart??inp.value.length,p1=inp.selectionEnd??p0;let v=inp.value;if(p0===0&&p1===v.length&&v)v=v+x.dataset.op,inp.value=v,inp.setSelectionRange(v.length,v.length);else{inp.setRangeText(x.dataset.op,p0,p1,"end")}inp.dispatchEvent(new Event("input",{bubbles:true}));calcShow(inp)});
+ document.body.appendChild(b);const vv=window.visualViewport,pos=()=>{if(b.style.display==="none")return;const h=vv?vv.offsetTop+vv.height:innerHeight;b.style.top=Math.max(0,h-52)+"px"};if(vv){vv.addEventListener("resize",pos);vv.addEventListener("scroll",pos)}addEventListener("resize",pos);b.pos=pos;return b}
+function calcShow(inp){const b=calcBar(),r=document.getElementById("calcRes"),x=calcExpr(inp.value);r.textContent=x!=null&&isFinite(x)?"＝ "+Math.round(x):"";}
+function calcAttach(inp,getEx,setEx){if(!inp)return;inp._cg=getEx;inp._cs=setEx;let sp=inp._cx;if(!sp){sp=document.createElement("span");sp.className="calcEx";sp.style.cssText="display:none;font-size:11px;font-weight:700;color:#94a3b8;line-height:1.2;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%";inp.insertAdjacentElement("afterend",sp);inp._cx=sp}
+ const ex=getEx&&getEx();sp.textContent=ex?ex+" ＝":"";sp.style.display=ex?"block":"none";if(inp._calc)return;inp._calc=1;
+ inp.addEventListener("focus",()=>{if(IN())return;const b=calcBar();calcBar.cur=inp;b.style.display="flex";b.pos();calcShow(inp)});
+ inp.addEventListener("input",()=>{if(calcBar.cur===inp)calcShow(inp)});
+ inp.addEventListener("blur",()=>{setTimeout(()=>{if(calcBar.cur===inp&&document.activeElement!==inp){calcBar().style.display="none";calcBar.cur=null}},60);if(IN())return;const v=inp.value,x=calcExpr(v);
+  if(x!=null&&isFinite(x)){const e=String(v).normalize("NFKC").replace(/\*/g,"×").replace(/\//g,"÷").replace(/\s/g,"");inp.value=String(Math.max(0,Math.round(x)));inp._cs&&inp._cs(e);inp._cx.textContent=e+" ＝";inp._cx.style.display="block";inp.dispatchEvent(new Event("input",{bubbles:true}))}
+  else{const o=inp._cg&&inp._cg();if(o&&Math.round(calcExpr(o.replace(/×/g,"*").replace(/÷/g,"/")))!==+uParse(v)){inp._cs&&inp._cs("");inp._cx.style.display="none"}}})}
 {const hw=e=>{const t=e.target;if(!t||e.isComposing||t.tagName!=="INPUT"||!/^(numeric|decimal)$/.test(t.inputMode||""))return;const v=t.value.replace(/[０-９．－]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248));if(v===t.value)return;const p=t.selectionStart;t.value=v;try{t.setSelectionRange(p,p)}catch(_){}};document.addEventListener("input",hw,true);document.addEventListener("compositionend",hw,true)}   // 数字の欄に全角の数字が入ったら、その場で半角にする
 const BU=["","1/8","1/4","3/8","1/2","5/8","3/4","7/8","1"];
 function trS(s){if(typeof s!=="string"||!s)return s;
@@ -1721,6 +1736,7 @@ function setupDirLens(){
  if(n){$("#dirL2t").textContent=nm(i+1)+" 曲げた後の長さ mm";$("#dirL2").value=uVal(n.l)}
  const on=(inp,row,re,hr)=>{inp.onfocus=()=>{inp.select();if(EZ&&DV&&DV.hl!==hr){DV.hl=hr;build3D();T.dirty=true}};inp.oninput=()=>{row.l=Math.max(0,uParse(inp.value)||0);build3D();if(re||EZ)placeDirCam();T.dirty=true;drawDial()}};
  on($("#dirL1"),r,true,i);if(n)on($("#dirL2"),n,false,i+1);
+ if(typeof calcAttach==="function"){const W=calcAttach.W||(calcAttach.W=new WeakMap());calcAttach($("#dirL1"),()=>W.get(r),e=>W.set(r,e));if(n)calcAttach($("#dirL2"),()=>W.get(n),e=>W.set(n,e))}   // ＋−×÷（式は覚えておくだけ・保存しない）
 }
 let dvRAF=0;
 function applyDV(){const r=LR()[DV.i];r.t=normT(DV.t);r.o=false;if(!dvRAF)dvRAF=requestAnimationFrame(()=>{dvRAF=0;build3D();if(EZ&&DV&&DV.ez&&DV.ez!==3)ezFitMain();T.dirty=true})}

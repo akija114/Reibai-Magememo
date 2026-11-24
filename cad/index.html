@@ -220,6 +220,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
     <button class="tb" id="f3Del"><span class="ti">✂️</span>消す</button>
     <button class="tb" id="f3Fix"><span class="ti">📍</span>ここを<br>直す</button>
     <button class="tb" id="f3Hl"><span class="ti">🔴</span>赤丸を<br>出す</button>
+    <button class="tb" id="f3Sin"><span class="ti">📏</span>通り芯<br>墨</button>
     <button class="tb" id="f3Log"><span class="ti">🕘</span>直した<br>所</button>
     <div class="sep"></div>
     <button class="tb" id="b3D" aria-label="3Dで見る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>3D</button>
@@ -2267,7 +2268,7 @@ function gridColOn(){ try { return localStorage.getItem('zumen-gridcol') !== '0'
 let GCC = null; // 通り芯の見つけた物（描くたびに探すと重いので覚える。図面・芯・レイヤーが変わったら探し直す）
 function gridColList(){ const k = [S.sins.filter(s => s.grid).map(s => s.id + s.c).join(), JSON.stringify(gridPref), S.units, S.textH, G.L.map(l => l.deleted ? 0 : l.count ? 1 : 2).join('')].join('|');
   if (!GCC || GCC.G !== G || GCC.k !== k){ let v = {v:[], h:[]}; try { v = gridCands(); } catch(e){} GCC = {G, k, v}; } return GCC.v; }
-function drawGridCol(c){ // 通り芯を赤い一点鎖線と記号の札で目立たせる（図面の線の上に重ねる）
+function drawGridCol(c){ if (sinHid()) return; // 通り芯を赤い一点鎖線と記号の札で目立たせる（図面の線の上に重ねる）
   if (!G || !gridColOn()) return; const gc = gridColList(); if (!gc.v.length && !gc.h.length) return;
   c.save(); c.strokeStyle = '#dc2626'; c.lineWidth = 2.4; c.globalAlpha = .85; c.setLineDash([18, 5, 3, 5]); c.beginPath();
   const cl = (a, lo, hi) => Math.max(lo, Math.min(hi, a));
@@ -2311,8 +2312,9 @@ function openSumiQuick(g){ // 通り芯から ○mm 離した墨を出す（か�
   });
 }
 const SUMI_C = '#2563eb'; // 通り芯から出した墨（地墨）の色：青の点線
+function sinHid(){ try { return localStorage.getItem('zumen-sinhide') === '1'; } catch(e){ return false; } }   // 📏 通り芯・墨を隠す（2026-11-24 ユーザー：配管をのばす時に青い通り芯を消したい）
 function drawSins(c){ // 通り芯から出した芯（墨）：青の点線と「墨 X2から右1000」。通り芯として登録した線は赤の一点鎖線
-  if (!S.sins.length || !G) return; c.save(); c.lineWidth = 2; c.font = `700 11px ${FONT}`; c.textBaseline = 'middle';
+  if (!S.sins.length || !G || sinHid()) return; c.save(); c.lineWidth = 2; c.font = `700 11px ${FONT}`; c.textBaseline = 'middle';
   for (const s of S.sins){ const q = w2s(s.c, s.c); c.strokeStyle = s.grid ? '#dc2626' : SUMI_C; c.setLineDash(s.grid ? [18, 5, 3, 5] : [7, 6]); c.beginPath(); if (s.dir === 'v'){ c.moveTo(q[0], 0); c.lineTo(q[0], ch); } else { c.moveTo(0, q[1]); c.lineTo(cw, q[1]); } c.stroke(); }
   c.setLineDash([]);
   for (const s of S.sins){ const q = w2s(s.c, s.c), t = (s.grid ? '通り芯 ' : '墨 ') + sinName(s), w = c.measureText(t).width + 10, x = s.dir === 'v' ? q[0] + 4 : 6, y = s.dir === 'v' ? 64 : q[1] - 12; c.fillStyle = s.grid ? '#dc2626' : SUMI_C; c.fillRect(x, y - 9, w, 18); c.fillStyle = '#fff'; c.fillText(t, x + 5, y); }
@@ -6312,7 +6314,7 @@ function fixMode(){ const t = document.getElementById('toolMain'); return !!(t &
 { const si = Storage.prototype.setItem; Storage.prototype.setItem = function(k, v){ if (this === window.localStorage && FXK.has(k) && !FXREST){ if (!FXG){ FXG = {}; FXU.push(FXG); if (FXU.length > 60) FXU.shift(); FXR.length = 0; setTimeout(() => { FXG = null; try { updateUi(); } catch(e){} }, 0); } if (!(k in FXG)) FXG[k] = this.getItem(k); } return si.call(this, k, v); }; }
 function fixUndo(A, B, msg){ const g = A.pop(); if (!g) return; const cur = {}; FXREST = true; try { for (const k in g){ cur[k] = localStorage.getItem(k); if (g[k] == null) localStorage.removeItem(k); else localStorage.setItem(k, g[k]); } } catch(e){} FXREST = false; B.push(cur); toast(msg); renderTabs(); drawOverlay(); updateUi(); }
 /* 下の段の切り替え（2026-11-23 ユーザー：3D化用の修正ボタンが欲しい・下のタグで切り替え・3Dは修正の方へ）：✏️ 図面の修正＝今までの道具／🧊 3D化の修正＝なぞる・直す・赤丸・直した所・3D */
-function toolTagSet(t){ try { localStorage.setItem('zumen-tooltag', t ? '1' : '0'); } catch(e){} $('#toolMain').hidden = !!t; $('#tool3').hidden = !t; $('#toolTag').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.tt === (t ? 1 : 0))); $('#f3Hl').classList.toggle('on2', readHlOn()); if (t && S.mode !== 'pan') $('#mPan').click(); requestAnimationFrame(resize); try { updateUi(); } catch(e){} }
+function toolTagSet(t){ try { localStorage.setItem('zumen-tooltag', t ? '1' : '0'); } catch(e){} $('#toolMain').hidden = !!t; $('#tool3').hidden = !t; $('#toolTag').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.tt === (t ? 1 : 0))); $('#f3Hl').classList.toggle('on2', readHlOn()); $('#f3Sin').classList.toggle('on2', !sinHid()); if (t && S.mode !== 'pan') $('#mPan').click(); requestAnimationFrame(resize); try { updateUi(); } catch(e){} }
 $('#toolTag').onclick = e => { const b = e.target.closest('[data-tt]'); if (b) toolTagSet(b.dataset.tt === '1'); };
 { const needCE = () => { let CE = null; try { CE = ceilColCE(); } catch(e){} if (!CE) toast('この図面は配管図として読めていません（冷媒・ドレンの線と「FL+」の文字が要ります）'); return !!CE; };
   $('#f3Pan').onclick = () => { delPickOff(); $('#mPan').click(); };
@@ -6321,6 +6323,7 @@ $('#toolTag').onclick = e => { const b = e.target.closest('[data-tt]'); if (b) t
   $('#f3Br').onclick = () => { if (!G || !needCE()) return; delPickOff(); kAsk('🌿 本管から枝を足す', '<b>本管の上に指を置いて</b>、枝の先（室内機の口のそばなど）までなぞってください。本管の途中から始まる所が分岐になります。', k => { traceStart(k); toast('本管の上から指を置いて、枝の先までなぞってください'); }); };
   $('#f3Del').onclick = () => { if (G && needCE()) ceilDelSheet(); };
   $('#f3Fix').onclick = () => { if (!G || !needCE()) return; delPickOff(); $('#mPan').click(); S.fixPick = true; toast('直したい所（配管・継手・端・空調でない線）をタップしてください'); };
+  $('#f3Sin').onclick = () => { try { localStorage.setItem('zumen-sinhide', sinHid() ? '0' : '1'); } catch(e){} $('#f3Sin').classList.toggle('on2', !sinHid()); drawOverlay(); toast(sinHid() ? '通り芯・墨を隠しました（もう1回押すと出ます）' : '通り芯・墨を出しました'); };
   $('#f3Hl').onclick = () => { try { localStorage.setItem('zumen-readhl', readHlOn() ? '0' : '1'); } catch(e){} $('#f3Hl').classList.toggle('on2', readHlOn()); drawOverlay(); toast(readHlOn() ? '読めた物は水色・つながっていない所は赤丸で出します' : '赤丸・水色を消しました'); };
   $('#f3Log').onclick = () => { if (G) fixSheet(); };
   let t0 = false; try { t0 = localStorage.getItem('zumen-tooltag') === '1'; } catch(e){} toolTagSet(t0); }

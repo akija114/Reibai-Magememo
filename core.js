@@ -492,13 +492,13 @@ function initT(){
   T.tg.addScaledVector(rt,-dx*k).addScaledVector(up,dy*k);
  };
  let lp=null;   // 建物・障害物：長押し（または動かすモードで箱にタッチ）→ 指で動かす
- cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});snap();
+ cv.addEventListener("pointerdown",e=>{if(e.isPrimary)ptrs.clear();try{cv.setPointerCapture(e.pointerId)}catch(x){}ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});snap();
   clearTimeout(lp&&lp.t);lp=null;if(ptrs.size!==1||GUIDE||typeof pickBld!=="function"||APP!=="zumen")return;
   const x=e.clientX,y=e.clientY,bi=pickBld(x,y);if(bi<0)return;
   if(BMODE===bi){bldDragStart(bi,x,y);return}
   lp={x,y,t:setTimeout(()=>{if(lp&&ptrs.size===1){bldDragStart(bi,lp.x,lp.y);try{navigator.vibrate&&navigator.vibrate(30)}catch(err){}}},450)}});
  const end=e=>{ptrs.delete(e.pointerId);snap();clearTimeout(lp&&lp.t);lp=null;if(BDRAG&&ptrs.size===0)bldDragEnd()};
- cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);
+ cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);cv.addEventListener("lostpointercapture",e=>{if(ptrs.has(e.pointerId))end(e)});
  cv.addEventListener("pointermove",e=>{
   const p=ptrs.get(e.pointerId);if(!p)return;
   const ox=p.x,oy=p.y;p.x=e.clientX;p.y=e.clientY;

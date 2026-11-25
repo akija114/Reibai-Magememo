@@ -2131,7 +2131,7 @@ const TUT=[
 <p class="tsub">上の{calc}で「右に300・上に150」のようなずらしの角度と斜め長や「合計を目標に合わせる」計算もできます。</p>`},
 {i:"view",t:"④ 3Dで確認する",h:`<ul><li><b>1本指</b>で回転、<b>2本指</b>で拡大・移動</li>
 <li>「<b>🧊 3D全画面</b>」で大きく見られます</li></ul>
-<div class="tbox" style="text-align:left">右の青い丸ボタン（上から）<br>{view}視点の切り替え（全体が見える位置に戻る）<br>{photo}背景に現場の写真<br>{unit}室内機・室外機の模型<br>{abc}文字の表示の切り替え<br>{band}支持の表示</div>
+<div class="tbox" style="text-align:left">右の青い丸ボタン（上から）<br>{view}視点の切り替え（全体が見える位置に戻る）<br>{photo}背景に現場の写真<br>${APP==="bend"?"":"{unit}室内機・室外機の模型<br>"}{abc}文字の表示の切り替え<br>{band}支持の表示</div>
 <p class="tsub">ボタン列は右へスワイプでしまえます。左下の{eye}で全部隠せます。</p>`},
 {i:"branch",t:"⑤ 分岐管を使う",h:`<ul><li>曲げ入力の上の「<b>${BRI()}分岐管を追加</b>」で、メインが <b>枝A・枝B</b> に分かれます</li>
 <li>タブで配管を切り替え。<b>枝ごとにサイズと曲げ</b>を入れられます</li>

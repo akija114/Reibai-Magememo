@@ -2234,14 +2234,14 @@ function selAct(){if(typeof APP==="undefined"||APP!=="bend")return;const sg=$("#
    if(k==="t"){try{localStorage.setItem("pbm_ghost",ghostOn()?"0":"1")}catch(e){}toast(ghostOn()?"👻 変える前の形（残像）を出しました":"👻 残像をしまいました")}else{GHOST=null;toast("👻 残像を消しました")}
    selAct();if(T){build3D();T.dirty=true}})}
  if(EZ){el.innerHTML="";el.hidden=true;return}
- const R=LR(),i=sel;let h="";
- if(R[i]&&cvCrank(i)&&cvBest(i))h+=`<button class="cv45" data-cv="${i}">↗ ${nm(i)}を45°・30°・15°に</button>`;
- h+=mjBtn(i);
- /* ✏️ 長さを直す・↺↻ 曲げの向きを回す（2026-11-28 ユーザー：足せそうな機能を足して） */
- if(R[i]){h+=`<div class="sa2"><button class="gh" data-sa="len">✏️ ${nm(i)} ${fmt(R[i].l)}${ezU()}</button>`;
-  if(R[i].a>0&&!R[i].o&&R[i+1]){const t=normT(R[i].t),nmT=t%45===0?DIR8[t/45]:t+"°";h+=`<button class="gh x" data-sa="l" aria-label="向きを左へ回す">↺</button><span class="gh tn">向き ${nmT}</span><button class="gh x" data-sa="r" aria-label="向きを右へ回す">↻</button>`}
-  h+=`</div>`}
- if(GHOST&&GHOST.g===leg)h+=`<div class="sa2"><button class="gh${ghostOn()?" on":""}" data-gh="t">👻 残像${ghostOn()?"を隠す":"を出す"}</button>${ghostOn()&&GHOST.dd!=null?`<span class="gh tn">終わりのずれ ${GHOST.dd}mm</span>`:""}<button class="gh x" data-gh="x" aria-label="残像を消す">✕</button></div>`;
+ /* 見た目（2026-11-28 ユーザー：表記をきれいに）：白いカード1枚にまとめる。上＝変える（オレンジ・青を横並び）、下＝長さと向き、いちばん下＝残像 */
+ const R=LR(),i=sel;let A="",B="",C="";
+ if(R[i]&&cvCrank(i)&&cvBest(i))A+=`<button class="cv45 sab or" data-cv="${i}">↗ 45°・30°・15°に</button>`;
+ if(mjBtn(i))A+=`<button class="mj sab bl" data-mj="${i}">↗ ${nm(i)}${nm(i+1)}を斜め1本に</button>`;
+ if(R[i]){B+=`<button class="sab wt" data-sa="len"><span class="sk">長さ</span>${fmt(R[i].l)}<small>${ezU()}</small> ✏️</button>`;
+  if(R[i].a>0&&!R[i].o&&R[i+1]){const t=normT(R[i].t),nmT=t%45===0?DIR8[t/45]:t+"°";B+=`<div class="sag"><button class="sab ic" data-sa="l" aria-label="向きを左へ回す">↺</button><span class="sav"><span class="sk">向き</span>${nmT}</span><button class="sab ic" data-sa="r" aria-label="向きを右へ回す">↻</button></div>`}}
+ if(GHOST&&GHOST.g===leg)C=`<button class="sab gh2${ghostOn()?" on":""}" data-gh="t">👻 残像${ghostOn()?"を隠す":"を出す"}</button>${ghostOn()&&GHOST.dd!=null?`<span class="sav sm"><span class="sk">終わりのずれ</span>${GHOST.dd}mm</span>`:""}<button class="sab ic" data-gh="x" aria-label="残像を消す">✕</button>`;
+ const h=(A||B||C)?`<div class="saT">${nm(i)} を選んでいます</div>${A?`<div class="saR">${A}</div>`:""}${B?`<div class="saR">${B}</div>`:""}${C?`<div class="saR">${C}</div>`:""}`:"";
  el.innerHTML=h;el.hidden=!h}
 /* ✏️ 選んだ行の長さを3Dから直す */
 function saLen(i){const R=LR();if(!R[i])return;const U=ezU();

@@ -703,7 +703,7 @@ html[data-app="bend"] #calcBtn,html[data-app="bend"]:not([data-mode="easy"]) #mo
 <script>const APP="bend";</script>
 <script src="models.js?v=322"></script>
 <script>/* 詳細の切り替え（2026-11-28 ユーザー）：押すたびに 出す（1）→ 下の部分をしまう（0）→ 数字の欄ごとしまう（2）→ 出す…・pbm_det に覚える */(function(){const b=document.getElementById("detBtn"),H=document.documentElement;if(!b)return;const set=m=>{H.classList.toggle("nodet",m!=="1");H.classList.toggle("norows",m==="2");b.querySelector(".dti").textContent=m==="1"?"▲":m==="0"?"▼":"▼▼";b.setAttribute("aria-pressed",m==="1"?"false":"true");try{localStorage.setItem("pbm_det",m)}catch(e){}window.dispatchEvent(new Event("resize"))};let m="1";try{m=localStorage.getItem("pbm_det")||"1"}catch(e){}if(!/^[012]$/.test(m))m="1";set(m);b.onclick=()=>{m=m==="1"?"0":m==="0"?"2":"1";set(m)}})()</script>
-<script src="core.js?v=377"></script>
+<script src="core.js?v=378"></script>
 <script src="drain.js?v=272"></script>
 <script src="egaku.js?v=24"></script>
 <script src="tanka.js?v=228"></script>

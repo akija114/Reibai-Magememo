@@ -843,7 +843,11 @@ function build3D0(){
  const F0=frameFor(D0);
  /* 1本分の配管をたどる */
  function trace(rows,p0,d0,u0,r0,Dl){
-  const R=bR(Dl);
+  const R0=bR(Dl);
+  /* 曲げと曲げの間が曲がり（R）の分より短い時（2026-11-28 ユーザー：残像と終わりがずれる）：その2つの曲がりの R を小さくして間に収める。
+     寸法の点（芯と芯の交わる点）は動かさないので、終わりの位置も向きも正しいまま（前は先の点をずらしていて、終わりが寸法より長くなっていた） */
+  const TT=rows.map(x=>x.a&&x.a<180?R0*Math.tan(x.a*Math.PI/360):0);
+  rows.forEach((x,j)=>{const s0=(j>0?TT[j-1]:0)+TT[j],L=Math.max(0,+x.l||0);if(s0>L&&s0>0){const k=L/s0;if(j>0)TT[j-1]*=k;TT[j]*=k}});
   let d=d0.clone(),u=u0.clone(),r=r0.clone(),C=p0.clone(),pos=p0.clone();
   const P=[],dims=[],bends={},ofsL=[],angL=[],frames=[];
   const seg=(a,b,row,arc)=>{P.push({a:a.clone(),b:b.clone(),row,arc})};
@@ -852,10 +856,9 @@ function build3D0(){
    frames[i]={c:C.clone(),d:d.clone(),u:u.clone(),r:r.clone()};
    const th=row.a*Math.PI/180;
    if(!row.a){seg(pos,C,i,-1);if(row.l>0)dims.push({a:pos.clone(),b:C.clone(),l:row.l,i});pos=C.clone();return}
-   const Tn=row.a>=180?R:R*Math.tan(th/2);
+   const R=row.a>=180?R0:TT[i]/Math.tan(th/2),Tn=row.a>=180?R0:TT[i];
    let e=C.clone().addScaledVector(d,-Tn);
-   /* 曲げと曲げの間が曲がり（R）の分より短い時：曲がりの始まりを前へずらした分だけ、この先の点（C）も同じ向きへずらす。ずらさないと次の直管が斜めになり、90°に見えない（2026-11-28 ユーザー：描いて曲げの配管が90°じゃない） */
-   if(e.clone().sub(pos).dot(d)<0){const sh=pos.clone().sub(e).dot(d);e=pos.clone();C=C.clone().addScaledVector(d,sh);frames[i].c=C.clone()}
+   if(e.clone().sub(pos).dot(d)<0)e=pos.clone();
    seg(pos,e,i,-1);if(row.l>0)dims.push({a:pos.clone(),b:C.clone(),l:row.l,i});
    const tw=effT(i,rows)*Math.PI/180;
    if(row.o)ofsL.push({a:pos.clone(),b:C.clone(),v:row.l*Math.sin(th),i});

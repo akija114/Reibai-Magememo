@@ -956,7 +956,7 @@ const LG=[];
  /* 👻 残像：変える前の形を薄い灰色で（さわっても選ばない） */
  if(GHOST&&ghostOn()&&!GM&&!DV){const L=LG.find(x=>x.id===GHOST.g);if(L){const par=L.par?LG.find(x=>x.id===L.par):null,st0=L.id==="m"?{p:new V(),d:F0.ex,u:F0.ey,r:F0.ez}:par?{p:par.pos,d:par.d,u:par.u,r:par.r}:null;
   if(st0){try{const t=trace(GHOST.rows,st0.p,st0.d,st0.u,st0.r,L.D),gm=new THREE.MeshBasicMaterial({color:0x64748b,transparent:true,opacity:0.32,depthWrite:false}),rd=L.rad*0.95;
-   t.P.forEach(p=>{const len=p.a.distanceTo(p.b);if(len<1e-6)return;const m=new THREE.Mesh(new THREE.CylinderGeometry(rd,rd,len,14,1),gm);m.position.copy(p.a).add(p.b).multiplyScalar(0.5);m.quaternion.setFromUnitVectors(Y,p.b.clone().sub(p.a).normalize());m.renderOrder=-1;T.grp.add(m)})}catch(e){}}}}
+   t.P.forEach(p=>{const len=p.a.distanceTo(p.b);if(len<1e-6)return;const m=new THREE.Mesh(new THREE.CylinderGeometry(rd,rd,len,14,1),gm);m.position.copy(p.a).add(p.b).multiplyScalar(0.5);m.quaternion.setFromUnitVectors(Y,p.b.clone().sub(p.a).normalize());m.renderOrder=-1;T.grp.add(m)});const dd=Math.round(t.pos.distanceTo(L.pos));if(GHOST.dd!==dd){GHOST.dd=dd;setTimeout(()=>{try{selAct()}catch(e){}},0)}}catch(e){}}}}
  LG.forEach(L=>{
   if(HIDX.has(L.id))return;
   const rd=L.rad,tg=L.tag;
@@ -1835,7 +1835,7 @@ function showGuideStep(){
  $("#gdDie").textContent="ダイスの位置：後ろから見て "+(DIE_R?"右 ▶（タップで左）":"◀ 左（タップで右）");
  $("#gdDie").style.display=(LEV&&!BD.rat)||BK==="ta515"?"none":"";   // レバー式にはダイスが無いので出さない。RB-147W は「正曲げ／逆曲げ」の切りかえに使う
  if(LEV&&BD.rat)$("#gdDie").textContent=RB_REV?"曲げ方：逆曲げ（アダプタ）▸ タップで正曲げ":"曲げ方：正曲げ ▸ タップで逆曲げ（壁ぎわ）";
- const rv=!!GUIDE.rev[i],gb=$("#gdRev");gb.classList.toggle("on",rv);gb.textContent=C45?"（45°はシューの真ん中・前後どちらでも同じ）":LEV?(rv?"🔄 後寸法："+MK.b+"（ON）":"🔄 後寸法にする（"+MK.b+"）"):rv?"🔄 逆向きで曲げる（ON）":"🔄 逆向きにする（反対から差す）";
+ const rv=!!GUIDE.rev[i],gb=$("#gdRev");gb.classList.toggle("on",rv);gb.textContent=C45?"（45°はシューの真ん中・前後どちらでも同じ）":LEV?(rv?"🔄 後寸法："+MK.b+"（ON）":"🔄 後寸法にする（"+MK.b+"）"):rv?"🔄 逆向きで曲げる（ON）":"🔄 逆向きにする（反対から差す）";gdCtl();
  $("#gdH").value=uVal(GUIDE_H);
  const H=GUIDE_H,rr=G.rad||0,hitN=G.minN<-H+rr,hitR=G.minR<-H+rr,w=$("#gdWarn");
  if(hitN||hitR){w.className="gdwarn on "+((rv?hitR:hitN)?"bad":"ok");
@@ -1884,7 +1884,9 @@ function gdCam(){if(!GUIDE||!GD_VIEW)return;T.custom=null;T.th=-Math.PI/2;T.ph=G
 function gdCtl(){let e=$("#gdCtl");if(!e){e=document.createElement("div");e.id="gdCtl";e.style.cssText="position:absolute;right:8px;top:150px;z-index:7;display:flex;flex-direction:column;gap:6px";$("#stage").appendChild(e)}
  if(!GUIDE){e.style.display="none";return}e.style.display="flex";
  const bs="min-height:44px;padding:0 10px;border-radius:12px;border:1.5px solid #cbd5e1;background:#fffffff0;color:#0f172a;font-weight:800;font-size:14px;box-shadow:0 2px 6px #0002";
- e.innerHTML=`<button id="gdVw" style="${bs}">${GDV[GD_VIEW]}</button><button id="gdSp" style="${bs}">${GDS[GD_SPD]}</button>`;
+ const gr=$("#gdRev"),gt=gr?gr.textContent:"",rvOk=gt.startsWith("🔄"),rvOn=gr&&gr.classList.contains("on");   /* 🔄 逆向き（反対から差す）も3Dの中に（2026-11-28 ユーザー） */
+ e.innerHTML=`<button id="gdVw" style="${bs}">${GDV[GD_VIEW]}</button><button id="gdSp" style="${bs}">${GDS[GD_SPD]}</button>${rvOk?`<button id="gdRv3" style="${bs}${rvOn?";background:#ea580c;color:#fff;border-color:#ea580c":";background:#fff7edf0;color:#9a3412;border-color:#fdba74"}">🔄 ${gt.includes("後寸法")?"後寸法":"逆向き"}${rvOn?" ON":""}</button>`:""}`;
+ const r3=e.querySelector("#gdRv3");if(r3)r3.onclick=()=>{$("#gdRev").click();gdCtl()};
  e.querySelector("#gdVw").onclick=()=>{GD_VIEW=(GD_VIEW+1)%3;try{localStorage.setItem("pbm_gdview",GD_VIEW)}catch(x){}if(GD_VIEW)gdCam();else if(!gdBusy){showGuideStep();return}gdCtl();toast(["斜めから見ます","正面（配管の手前）から見ます","真上から見ます（下が正面・曲げの角度が見えます）"][GD_VIEW])};
  e.querySelector("#gdSp").onclick=()=>{GD_SPD=(GD_SPD+1)%3;try{localStorage.setItem("pbm_gdspd",GD_SPD)}catch(x){}gdCtl();toast(["ふつうの速さで曲げを見せます","はやい：曲げの動きを約2秒で見せます","とばす：動きなしで次の曲げへ進みます"][GD_SPD])}}
 function gdAng(a){let e=$("#gdAng");if(!e){e=document.createElement("div");e.id="gdAng";e.style.cssText="position:absolute;left:8px;top:150px;z-index:7;background:#0f172ae6;color:#facc15;border-radius:12px;padding:6px 12px;font-weight:900;font-size:22px";$("#stage").appendChild(e)}
@@ -2232,17 +2234,31 @@ function selAct(){if(typeof APP==="undefined"||APP!=="bend")return;const sg=$("#
  const R=LR(),i=sel;let h="";
  if(R[i]&&cvCrank(i)&&cvBest(i))h+=`<button class="cv45" data-cv="${i}">↗ ${nm(i)}を45°・30°・15°に</button>`;
  h+=mjBtn(i);
- if(GHOST&&GHOST.g===leg)h+=`<button class="gh${ghostOn()?" on":""}" data-gh="t">👻 残像${ghostOn()?"を隠す":"を出す"}</button><button class="gh x" data-gh="x" aria-label="残像を消す">✕</button>`;
+ /* ✏️ 長さを直す・↺↻ 曲げの向きを回す（2026-11-28 ユーザー：足せそうな機能を足して） */
+ if(R[i]){h+=`<div class="sa2"><button class="gh" data-sa="len">✏️ ${nm(i)} ${fmt(R[i].l)}${ezU()}</button>`;
+  if(R[i].a>0&&!R[i].o&&R[i+1]){const t=normT(R[i].t),nmT=t%45===0?DIR8[t/45]:t+"°";h+=`<button class="gh x" data-sa="l" aria-label="向きを左へ回す">↺</button><span class="gh tn">向き ${nmT}</span><button class="gh x" data-sa="r" aria-label="向きを右へ回す">↻</button>`}
+  h+=`</div>`}
+ if(GHOST&&GHOST.g===leg)h+=`<div class="sa2"><button class="gh${ghostOn()?" on":""}" data-gh="t">👻 残像${ghostOn()?"を隠す":"を出す"}</button>${ghostOn()&&GHOST.dd!=null?`<span class="gh tn">終わりのずれ ${GHOST.dd}mm</span>`:""}<button class="gh x" data-gh="x" aria-label="残像を消す">✕</button></div>`;
  el.innerHTML=h;el.hidden=!h}
+/* ✏️ 選んだ行の長さを3Dから直す */
+function saLen(i){const R=LR();if(!R[i])return;const U=ezU();
+ const ov=sheetMsg(`<b style="font-size:17px">✏️ ${nm(i)} の長さ</b><input id="saL" inputmode="numeric" pattern="[0-9]*" value="${uVal(R[i].l)}" style="display:block;width:100%;margin-top:10px;min-height:52px;font-size:24px;font-weight:800;text-align:right;padding:0 12px;border-radius:12px;border:2px solid #94a3b8">`,[["決める",()=>{}, "#0b57d0","#fff"],["やめる",null]]);
+ const inp=ov.querySelector("#saL"),ok=ov.querySelector(".smb button");ok.onclick=()=>{const v=uParse(inp.value);if(!(v>0)){toast("長さを入れてください");return}ov.remove();R[i].l=v;save();render();if(T){build3D();T.dirty=true}toast(`${nm(i)} を ${fmt(v)}${U} にしました（↩️で戻せます）`)};
+ setTimeout(()=>{inp.focus();inp.select()},150)}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("#selAct [data-sa]");if(!b)return;e.stopPropagation();const k=b.dataset.sa,R=LR(),i=sel;if(!R[i])return;
+ if(k==="len"){saLen(i);return}
+ R[i].t=normT(Math.round((normT(R[i].t)+(k==="r"?45:-45))/45)*45);save();render();if(T){build3D();T.dirty=true}},true);
 function cvAsk(i){
- const R=LR();if(!cvCrank(i))return;const U=ezU(),sh=calc().out[i].shoe<0,QQ=m=>[45,30,15].map(d=>cvPlan(i,d,undefined,m)).filter(q=>q.ok).slice(0,3);if(!QQ(0).length&&!QQ(1).length&&!QQ(2).length){toast("45°・30°でも短すぎて曲げられません");return}
+ const R=LR();if(!cvCrank(i))return;const U=ezU(),sh=calc().out[i].shoe<0,R0=JSON.parse(JSON.stringify(R)),QQ=m=>[45,30,15].map(d=>cvPlanR(R0,i,d,cur().D,m)).filter(q=>q.ok).slice(0,3);if(!QQ(0).length&&!QQ(1).length&&!QQ(2).length){toast("45°・30°でも短すぎて曲げられません");return}
+ const ORIG=R0,G0=GHOST;let PV=0;const back=()=>{if(!PV)return;PV=0;R.splice(0,R.length,...JSON.parse(JSON.stringify(ORIG)));GHOST=G0;if(T){build3D();T.dirty=true}};   /* 👀 変える前に3Dで試しに見る（2026-11-28 ユーザー） */
  const P=nm(i-1),N=nm(i+1),M=[["↔ 両側を半分ずつ（芯と芯）",`${P}と${N}を同じだけ縮める`],[`${N} はそのまま`,`${P}だけ縮める`],[`${P} はそのまま`,`${N}だけ縮める`]],
-  ln=(q,m)=>`<div style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#f1f5f9"><b>${q.deg}°</b>：${P} ${fmt(R[i-1].l)} → <b style="${m===2?"":"color:#ea580c"}">${fmt(q.a)}</b>・${nm(i)} 斜め <b style="color:#dc2626">${fmt(q.L)}</b>・${N} ${fmt(R[i+1].l)} → <b style="${m===1?"":"color:#ea580c"}">${fmt(q.b)}</b>${U}</div>`;
- const ov=sheetMsg(`<b style="font-size:17px">↗ ${nm(i)} の差 ${fmt(R[i].l)}${U} を${sh?"、90°では短すぎて曲げられません":" 90°のかわりに"}</b><div>45°（または30°）2回で曲げますか？（${P}〜${N}）</div><div style="font-weight:800;margin-top:8px">どこを縮める？</div><div id="cvM" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div><div id="cvQ"></div><div style="font-size:12.5px;color:#64748b;margin-top:6px">曲げの向き（回す角度）はそのまま・終わりの位置は同じです</div>`,[["やめる",null]]);
+  ln=(q,m)=>`<div style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#f1f5f9"><b>${q.deg}°</b>：${P} ${fmt(R0[i-1].l)} → <b style="${m===2?"":"color:#ea580c"}">${fmt(q.a)}</b>・${nm(i)} 斜め <b style="color:#dc2626">${fmt(q.L)}</b>・${N} ${fmt(R0[i+1].l)} → <b style="${m===1?"":"color:#ea580c"}">${fmt(q.b)}</b>${U}</div>`;
+ const ov=sheetMsg(`<b style="font-size:17px">↗ ${nm(i)} の差 ${fmt(R0[i].l)}${U} を${sh?"、90°では短すぎて曲げられません":" 90°のかわりに"}</b><div>45°（または30°）2回で曲げますか？（${P}〜${N}）</div><div style="font-weight:800;margin-top:8px">どこを縮める？</div><div id="cvM" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div><div id="cvQ"></div><div style="font-size:12.5px;color:#64748b;margin-top:6px">曲げの向き（回す角度）はそのまま・終わりの位置は同じです</div>`,[["やめる",()=>back()]]);
  const draw=m=>{ov.querySelector("#cvM").innerHTML=M.map((t,k)=>`<button data-m="${k}" style="min-height:46px;border-radius:12px;text-align:left;padding:6px 12px;font-size:14.5px;border:2px solid ${k===m?"#f97316":"#cbd5e1"};background:${k===m?"#fff7ed":"#fff"};color:#0f172a"><b>${k===m?"● ":"○ "}${t[0]}</b><small style="display:block;color:#64748b">${t[1]}</small></button>`).join("");
-  const Q=QQ(m);ov.querySelector("#cvQ").innerHTML=Q.length?Q.map(q=>ln(q,m)).join("")+`<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">${Q.map(q=>`<button data-d="${q.deg}" style="min-height:48px;border-radius:12px;font-weight:800;font-size:15px;border:0;background:#f97316;color:#fff">↗ ${q.deg}°・${q.deg}°に変える</button>`).join("")}</div>`:`<div style="margin-top:8px;color:#dc2626;font-weight:700">⚠️ この縮め方だと短すぎて曲げられません。ほかの縮め方を選んでください</div>`;
-  ov.querySelectorAll("#cvM [data-m]").forEach(b=>b.onclick=()=>draw(+b.dataset.m));
-  ov.querySelectorAll("#cvQ [data-d]").forEach(b=>b.onclick=()=>{const q=Q.find(x=>x.deg===+b.dataset.d);ov.remove();ghostTake();cvSet(R,i,q);sel=i;save();render();if(T){build3D();T.dirty=true}toast(`${P}〜${N} を ${q.deg}° に変えました（↩️で元に戻せます）`)})};
+  const Q=QQ(m);ov.querySelector("#cvQ").innerHTML=Q.length?Q.map(q=>ln(q,m)).join("")+`<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">${Q.map(q=>`<div style="display:flex;gap:8px"><button data-pv="${q.deg}" style="flex:1;min-height:48px;border-radius:12px;font-weight:800;font-size:14px;border:2px solid #f97316;background:${PV===q.deg?"#ffedd5":"#fff"};color:#9a3412">👀 3Dで見る</button><button data-d="${q.deg}" style="flex:2;min-height:48px;border-radius:12px;font-weight:800;font-size:15px;border:0;background:#f97316;color:#fff">↗ ${q.deg}°・${q.deg}°に変える</button></div>`).join("")}</div>`:`<div style="margin-top:8px;color:#dc2626;font-weight:700">⚠️ この縮め方だと短すぎて曲げられません。ほかの縮め方を選んでください</div>`;
+  ov.querySelectorAll("#cvM [data-m]").forEach(b=>b.onclick=()=>{back();ov.style.background="rgba(15,23,42,.55)";draw(+b.dataset.m)});
+  ov.querySelectorAll("#cvQ [data-pv]").forEach(b=>b.onclick=()=>{const q=Q.find(x=>x.deg===+b.dataset.pv);back();GHOST={g:leg,rows:JSON.parse(JSON.stringify(ORIG))};cvSet(R,i,q);PV=q.deg;ov.style.background="rgba(15,23,42,.08)";if(T){build3D();T.dirty=true}draw(m);toast(`${q.deg}°・${q.deg}°にした時の形を3Dに出しています（灰色＝今の形）`)});
+  ov.querySelectorAll("#cvQ [data-d]").forEach(b=>b.onclick=()=>{const q=Q.find(x=>x.deg===+b.dataset.d);ov.remove();back();ghostTake();cvSet(R,i,q);sel=i;save();render();if(T){build3D();T.dirty=true}toast(`${P}〜${N} を ${q.deg}° に変えました（↩️で元に戻せます）`)})};
  draw(0);
 }
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".cv45[data-cv]");if(!b)return;e.stopPropagation();e.preventDefault();cvAsk(+b.dataset.cv)},true);

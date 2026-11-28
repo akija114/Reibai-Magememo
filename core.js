@@ -850,7 +850,8 @@ function build3D0(){
    if(!row.a){seg(pos,C,i,-1);if(row.l>0)dims.push({a:pos.clone(),b:C.clone(),l:row.l,i});pos=C.clone();return}
    const Tn=row.a>=180?R:R*Math.tan(th/2);
    let e=C.clone().addScaledVector(d,-Tn);
-   if(e.clone().sub(pos).dot(d)<0)e=pos.clone();
+   /* 曲げと曲げの間が曲がり（R）の分より短い時：曲がりの始まりを前へずらした分だけ、この先の点（C）も同じ向きへずらす。ずらさないと次の直管が斜めになり、90°に見えない（2026-11-28 ユーザー：描いて曲げの配管が90°じゃない） */
+   if(e.clone().sub(pos).dot(d)<0){const sh=pos.clone().sub(e).dot(d);e=pos.clone();C=C.clone().addScaledVector(d,sh);frames[i].c=C.clone()}
    seg(pos,e,i,-1);if(row.l>0)dims.push({a:pos.clone(),b:C.clone(),l:row.l,i});
    const tw=effT(i,rows)*Math.PI/180;
    if(row.o)ofsL.push({a:pos.clone(),b:C.clone(),v:row.l*Math.sin(th),i});

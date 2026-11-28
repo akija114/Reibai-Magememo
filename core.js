@@ -2068,7 +2068,7 @@ ${APP==="zumen"?`  <div class="pt pt2" style="margin-top:10px;font-size:13px">�
   if(DV)return;   // 曲げ入力中（かんたん表示の確認で回している時など）はタップで何も選ばない
   const now=Date.now();
   if(last&&now-last.t<380&&Math.hypot(e.clientX-last.x,e.clientY-last.y)<36){
-   last=null;if(GUIDE)return;const sg=pickLeg(e.clientX,e.clientY);if(sg)openPMenu(sg,e.clientX,e.clientY);else{const bi=APP==="zumen"?pickBld(e.clientX,e.clientY):-1;if(bi>=0)openBld(bi);else openEmptyMenu(e.clientX,e.clientY)}
+   last=null;if(GUIDE)return;const sg=pickLeg(e.clientX,e.clientY);if(sg)openPMenu(sg,e.clientX,e.clientY);else{const bi=APP==="zumen"?pickBld(e.clientX,e.clientY):-1;if(bi>=0)openBld(bi);else if(APP!=="bend")openEmptyMenu(e.clientX,e.clientY)}   /* 曲げ共有は何も無い所を2回タップしても表示の設定を出さない（2026-11-28 ユーザー：配管だけなのでいらない・2回タップは別の機能にする予定） */
   }else{last={x:e.clientX,y:e.clientY,t:now};if(GUIDE)return;const sg=pickLeg(e.clientX,e.clientY),dp=typeof drPick==="function"?drPick(e.clientX,e.clientY):null;if(dp&&(!sg||dp.d<10))drSelect(dp.i);else if(sg){if(typeof drSelect==="function")drSelect(-1,true);selectFromTap(sg)}}
  };
  cv.addEventListener("pointerup",up);
